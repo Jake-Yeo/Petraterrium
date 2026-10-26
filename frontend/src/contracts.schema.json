@@ -1,0 +1,699 @@
+{
+  "$defs": {
+    "Catalog": {
+      "additionalProperties": false,
+      "properties": {
+        "countries": {
+          "items": {
+            "$ref": "#/$defs/Country"
+          },
+          "title": "Countries",
+          "type": "array"
+        },
+        "engine_version": {
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "data_version": {
+          "title": "Data Version",
+          "type": "string"
+        },
+        "contract_version": {
+          "default": "1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "notice": {
+          "title": "Notice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "countries",
+        "engine_version",
+        "data_version",
+        "contract_version",
+        "notice"
+      ],
+      "title": "Catalog",
+      "type": "object"
+    },
+    "Country": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "enum": [
+            "ITA",
+            "FRA",
+            "DEU",
+            "ESP"
+          ],
+          "title": "Country",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "population": {
+          "exclusiveMinimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "latitude": {
+          "title": "Latitude",
+          "type": "number"
+        },
+        "longitude": {
+          "title": "Longitude",
+          "type": "number"
+        },
+        "fake": {
+          "const": true,
+          "default": true,
+          "title": "Fake",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "country",
+        "name",
+        "population",
+        "latitude",
+        "longitude",
+        "fake"
+      ],
+      "title": "Country",
+      "type": "object"
+    },
+    "DailySnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "day": {
+          "minimum": 0,
+          "title": "Day",
+          "type": "integer"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/PlaceSnapshot"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Places",
+          "type": "array"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "engine_version": {
+          "minLength": 1,
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "data_version": {
+          "minLength": 1,
+          "title": "Data Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "day",
+        "places",
+        "seed",
+        "engine_version",
+        "data_version"
+      ],
+      "title": "DailySnapshot",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "totals": {
+          "$ref": "#/$defs/Totals"
+        },
+        "peak_day": {
+          "title": "Peak Day",
+          "type": "integer"
+        },
+        "peak_infected": {
+          "minimum": 0,
+          "title": "Peak Infected",
+          "type": "integer"
+        },
+        "days_recorded": {
+          "minimum": 1,
+          "title": "Days Recorded",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totals",
+        "peak_day",
+        "peak_infected",
+        "days_recorded"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "Parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "transmission": {
+          "default": 0.38,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Transmission",
+          "type": "number"
+        },
+        "progression": {
+          "default": 0.2,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Progression",
+          "type": "number"
+        },
+        "recovery": {
+          "default": 0.09,
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Recovery",
+          "type": "number"
+        },
+        "mixing": {
+          "default": 0.04,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Mixing",
+          "type": "number"
+        },
+        "initial_infected": {
+          "default": 40,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Initial Infected",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "transmission",
+        "progression",
+        "recovery",
+        "mixing",
+        "initial_infected"
+      ],
+      "title": "Parameters",
+      "type": "object"
+    },
+    "PlaceSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "enum": [
+            "ITA",
+            "FRA",
+            "DEU",
+            "ESP"
+          ],
+          "title": "Country",
+          "type": "string"
+        },
+        "susceptible": {
+          "minimum": 0,
+          "title": "Susceptible",
+          "type": "integer"
+        },
+        "exposed": {
+          "minimum": 0,
+          "title": "Exposed",
+          "type": "integer"
+        },
+        "infected": {
+          "minimum": 0,
+          "title": "Infected",
+          "type": "integer"
+        },
+        "recovered": {
+          "minimum": 0,
+          "title": "Recovered",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "country",
+        "susceptible",
+        "exposed",
+        "infected",
+        "recovered"
+      ],
+      "title": "PlaceSnapshot",
+      "type": "object"
+    },
+    "RunComplete": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "const": "done",
+          "default": "done",
+          "title": "Status",
+          "type": "string"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        }
+      },
+      "required": [
+        "run_id",
+        "status",
+        "metrics"
+      ],
+      "title": "RunComplete",
+      "type": "object"
+    },
+    "RunConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario": {
+          "const": "pandemic",
+          "default": "pandemic",
+          "title": "Scenario",
+          "type": "string"
+        },
+        "countries": {
+          "items": {
+            "enum": [
+              "ITA",
+              "FRA",
+              "DEU",
+              "ESP"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Countries",
+          "type": "array"
+        },
+        "start_day": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Start Day",
+          "type": "integer"
+        },
+        "end_day": {
+          "default": 160,
+          "maximum": 10730,
+          "minimum": 1,
+          "title": "End Day",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 42,
+          "maximum": 4294967295,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "parameters": {
+          "$ref": "#/$defs/Parameters"
+        }
+      },
+      "required": [
+        "scenario",
+        "countries",
+        "start_day",
+        "end_day",
+        "seed",
+        "parameters"
+      ],
+      "title": "RunConfig",
+      "type": "object"
+    },
+    "RunCreated": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "config_hash": {
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/RunConfig"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "last_sequence": {
+          "minimum": 0,
+          "title": "Last Sequence",
+          "type": "integer"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "snapshots": {
+          "items": {
+            "$ref": "#/$defs/DailySnapshot"
+          },
+          "title": "Snapshots",
+          "type": "array"
+        },
+        "cached": {
+          "title": "Cached",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "run_id",
+        "config_hash",
+        "config",
+        "status",
+        "created_at",
+        "last_sequence",
+        "metrics",
+        "error",
+        "snapshots",
+        "cached"
+      ],
+      "title": "RunCreated",
+      "type": "object"
+    },
+    "RunDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "config_hash": {
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/RunConfig"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "last_sequence": {
+          "minimum": 0,
+          "title": "Last Sequence",
+          "type": "integer"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "snapshots": {
+          "items": {
+            "$ref": "#/$defs/DailySnapshot"
+          },
+          "title": "Snapshots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "config_hash",
+        "config",
+        "status",
+        "created_at",
+        "last_sequence",
+        "metrics",
+        "error",
+        "snapshots"
+      ],
+      "title": "RunDetail",
+      "type": "object"
+    },
+    "RunError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "RunError",
+      "type": "object"
+    },
+    "RunFailed": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "const": "failed",
+          "default": "failed",
+          "title": "Status",
+          "type": "string"
+        },
+        "error": {
+          "$ref": "#/$defs/RunError"
+        }
+      },
+      "required": [
+        "run_id",
+        "status",
+        "error"
+      ],
+      "title": "RunFailed",
+      "type": "object"
+    },
+    "RunList": {
+      "additionalProperties": false,
+      "properties": {
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/RunSummary"
+          },
+          "title": "Runs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "runs"
+      ],
+      "title": "RunList",
+      "type": "object"
+    },
+    "RunSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "config_hash": {
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/RunConfig"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "last_sequence": {
+          "minimum": 0,
+          "title": "Last Sequence",
+          "type": "integer"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "run_id",
+        "config_hash",
+        "config",
+        "status",
+        "created_at",
+        "last_sequence",
+        "metrics",
+        "error"
+      ],
+      "title": "RunSummary",
+      "type": "object"
+    },
+    "Totals": {
+      "additionalProperties": false,
+      "properties": {
+        "population": {
+          "minimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "susceptible": {
+          "minimum": 0,
+          "title": "Susceptible",
+          "type": "integer"
+        },
+        "exposed": {
+          "minimum": 0,
+          "title": "Exposed",
+          "type": "integer"
+        },
+        "infected": {
+          "minimum": 0,
+          "title": "Infected",
+          "type": "integer"
+        },
+        "recovered": {
+          "minimum": 0,
+          "title": "Recovered",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "population",
+        "susceptible",
+        "exposed",
+        "infected",
+        "recovered"
+      ],
+      "title": "Totals",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/Catalog"
+    },
+    {
+      "$ref": "#/$defs/DailySnapshot"
+    },
+    {
+      "$ref": "#/$defs/RunComplete"
+    },
+    {
+      "$ref": "#/$defs/RunFailed"
+    },
+    {
+      "$ref": "#/$defs/RunDetail"
+    },
+    {
+      "$ref": "#/$defs/RunCreated"
+    },
+    {
+      "$ref": "#/$defs/RunList"
+    }
+  ],
+  "$id": "petraterrium-contracts"
+}

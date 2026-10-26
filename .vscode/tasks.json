@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Petraterrium: backend",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "--project", "backend", "uvicorn", "petraterrium.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Petraterrium: frontend",
+      "type": "shell",
+      "command": "npm",
+      "args": ["--prefix", "frontend", "run", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Petraterrium: dev",
+      "dependsOn": ["Petraterrium: backend", "Petraterrium: frontend"],
+      "problemMatcher": []
+    }
+  ]
+}

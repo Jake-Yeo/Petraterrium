@@ -1,0 +1,25 @@
+name: Scaffold checks
+
+on: [push, pull_request]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --project backend --locked
+      - run: uv run --project backend pytest backend/tests
+      - run: uv run --project backend ruff check backend
+      - run: uv run --project backend python backend/scripts/export_contracts.py --check
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e --prefix frontend
+      - run: git diff --check
