@@ -37,6 +37,53 @@ The summary reports full/partial/none twice: for direct data, and for direct plu
 
 The gather list shows the 20 largest gaps in city-specific observations, including inherited/imputed fields that still need local observations. The city table remains complete and paged; country, tier, status, search, and missing-field filters operate on the server. Each overview returns city rows, all-city totals, and ranked gaps from one SQLite read transaction and one revision. A committed import changes the underlying records, so the next overview updates all three together.
 
+## Extended city-feature dump
+
+Build the redistributable dump from the official bulk releases:
+
+The current generated artifact is published in the [City feature dump 2026-10-26 release](https://github.com/Jake-Yeo/Petraterrium/releases/tag/data-atlas-2026-10-26).
+
+```sh
+cd backend
+uv run python scripts/build_city_feature_dump.py --install-shared
+```
+
+The explicit `--install-shared` option publishes only derived canonical country marginals to the shared atlas. Omit it to build the files without changing atlas coverage. `--refresh` downloads current source releases again. `--data-directory`, `--output`, and `--database` select alternate locations.
+
+The 2026-10-26 build produced 225,931 city rows and these feature collections:
+
+| Collection | Geography | Status when resolved to a city | Contents |
+| --- | --- | --- | --- |
+| GeoNames cities500 | City point | Present | All 19 source columns, including alternate names, feature codes, admin levels, elevation, DEM, timezone, and modification date |
+| GHS-UCDB R2024A v1.2 | Urban-centre polygon | Imputed | 2,805 attributes in 15 themes for 11,422 urban centres; 24,673 GeoNames city points fall inside 9,411 centres |
+| World Development Indicators | Country | Inherited | 1,492 redistributable series, 7,457,950 historical values, and 249,804 latest values for 216 economies |
+| UN Household Size and Composition 2026 | Country | Inherited | 39 features, 33,114 historical values from 1,129 source records, and 5,853 latest per-feature values for 200 countries or areas |
+
+The dump is written to `backend/data/city_feature_dump/`:
+
+| File | Purpose |
+| --- | --- |
+| `manifest.json` | Source URLs, releases, SHA-256 hashes, counts, output checksums, transform version, and data semantics |
+| `cities.parquet` | Complete filtered GeoNames backbone and simulation tier |
+| `city_feature_availability.parquet` | Per-city spatial, inherited, and total available feature counts |
+| `ucdb_urban_centres.parquet` | UCDB identity, names, country, population, centroid, area, and WKB boundary |
+| `ucdb_city_matches.parquet` | GeoNames-to-UCDB point-in-polygon matches, always flagged `imputed` |
+| `ucdb/*.parquet` | One wide table per UCDB theme, joined by `ID_UC_G0` |
+| `ucdb_feature_catalog.parquet` | Attribute label, theme, group, unit, upstream source, method, year, and licence |
+| `wdi_country_history.parquet` | Redistributable country-indicator-year values |
+| `wdi_country_latest.parquet` | Latest country value for each WDI indicator |
+| `wdi_feature_catalog.parquet` | WDI definitions, units, topics, methods, limitations, source, and per-series licence |
+| `un_household_country_history.parquet` | All UN source-year household features |
+| `un_household_country_latest.parquet` | Latest value per country and household feature |
+| `un_household_feature_catalog.parquet` | Household feature definitions, units, source, and licence |
+| `canonical_country_marginals.parquet` | Validated age/sex, income-quintile, education, and household-size values used by the organizer |
+
+Resolve WDI and UN household values with `cities.country_code = *_country_latest.country_code`; those values remain inherited. Resolve UCDB values with `cities.geonameid = ucdb_city_matches.geonameid`, then join `ucdb_city_matches.ucdb_id = ucdb/*.ID_UC_G0`; those values remain spatially imputed because an urban-centre polygon is not the same thing as a city-specific survey.
+
+The current canonical build contains 216 age/sex, 162 income, 148 education, and 189 household-size country observations. This yields inherited city coverage of 99.83%, 97.88%, 90.63%, and 98.53%, respectively. Direct coverage remains zero because none of these country or urban-centre sources is a city-specific observed marginal. Ideology remains missing for all 225,931 cities because the globally useful sources require licensed or registered survey extracts and cannot be republished as an open dump.
+
+Six WDI series under SIPRI-specific terms are excluded from the redistributable output. UCDB contains 233 real data columns whose native IDs do not match its accompanying index workbook; the dump retains their values and native IDs with dataset-level UCDB provenance instead of inventing labels. Three `Unnamed` spreadsheet merge artifacts are excluded. Missing and nodata values remain null.
+
 ## Import workflow
 
 1. Create or select an existing simulation run, then open **Data → Import data**.

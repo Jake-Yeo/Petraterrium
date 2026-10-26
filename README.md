@@ -4,6 +4,17 @@ A small, checkable world: a FastAPI + NumPy engine records a seeded pandemic run
 
 The **Data** tab organizes the complete GeoNames cities500 backbone, field coverage, source versions, and run-scoped imports. See the [data atlas guide](DATA.md) for loading the full city list, importing CSV/Parquet/JSON, source loaders, behaviour fitting, licensing, and coverage definitions.
 
+The atlas also has a reproducible extended city-feature dump. It combines the full GeoNames backbone with the European Commission Urban Centre Database, redistributable World Bank Development Indicators, and the UN household-size database without relabeling country data as city observations. Build it and explicitly publish its canonical country marginals into the shared atlas with:
+
+```sh
+cd backend
+uv run python scripts/build_city_feature_dump.py --install-shared
+```
+
+The generated Parquet dataset and source downloads stay under ignored `backend/data/`. Its manifest records source URLs, release dates, hashes, row counts, licences, and match semantics.
+
+The current public artifact is available from the [City feature dump 2026-10-26 release](https://github.com/Jake-Yeo/Petraterrium/releases/tag/data-atlas-2026-10-26).
+
 **The simulation uses FAKE data.** The four simulated countries have real names and approximate marker positions, invented populations, and an unfitted placeholder SEIR model. This is a demonstration, not a forecast or historical validation. The Data tab's real city backbone is separate from those fake simulation inputs.
 
 ## Run locally
