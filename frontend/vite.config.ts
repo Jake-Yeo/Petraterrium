@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import process from 'node:process';
 
 export default defineConfig({
   server: {
@@ -6,7 +7,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: process.env.PETRATERRIUM_API_URL ?? 'http://127.0.0.1:8000',
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },

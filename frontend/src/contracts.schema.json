@@ -1,5 +1,612 @@
 {
   "$defs": {
+    "AtlasCity": {
+      "additionalProperties": false,
+      "properties": {
+        "geonameid": {
+          "title": "Geonameid",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "asciiname": {
+          "title": "Asciiname",
+          "type": "string"
+        },
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "country_name": {
+          "title": "Country Name",
+          "type": "string"
+        },
+        "admin1": {
+          "title": "Admin1",
+          "type": "string"
+        },
+        "admin2": {
+          "title": "Admin2",
+          "type": "string"
+        },
+        "latitude": {
+          "title": "Latitude",
+          "type": "number"
+        },
+        "longitude": {
+          "title": "Longitude",
+          "type": "number"
+        },
+        "population": {
+          "title": "Population",
+          "type": "integer"
+        },
+        "population_status": {
+          "enum": [
+            "present",
+            "missing"
+          ],
+          "title": "Population Status",
+          "type": "string"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        },
+        "simulation_tier": {
+          "enum": [
+            "simulated",
+            "disaggregated"
+          ],
+          "title": "Simulation Tier",
+          "type": "string"
+        },
+        "simulation_ready": {
+          "default": false,
+          "title": "Simulation Ready",
+          "type": "boolean"
+        },
+        "tier_reason": {
+          "title": "Tier Reason",
+          "type": "string"
+        },
+        "coverage_percent": {
+          "title": "Coverage Percent",
+          "type": "number"
+        },
+        "inherited_coverage_percent": {
+          "title": "Inherited Coverage Percent",
+          "type": "number"
+        },
+        "resolved_coverage_percent": {
+          "title": "Resolved Coverage Percent",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "missing"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "coverage_state": {
+          "enum": [
+            "full",
+            "partial",
+            "none"
+          ],
+          "title": "Coverage State",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/MarginalField"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "behaviour": {
+          "items": {
+            "$ref": "#/$defs/BehaviourModel"
+          },
+          "title": "Behaviour",
+          "type": "array"
+        },
+        "density_per_km2": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Density Per Km2"
+        },
+        "density_provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "geonameid",
+        "name",
+        "asciiname",
+        "country_code",
+        "country_name",
+        "admin1",
+        "admin2",
+        "latitude",
+        "longitude",
+        "population",
+        "population_status",
+        "timezone",
+        "simulation_tier",
+        "simulation_ready",
+        "tier_reason",
+        "coverage_percent",
+        "inherited_coverage_percent",
+        "resolved_coverage_percent",
+        "status",
+        "coverage_state",
+        "fields",
+        "behaviour",
+        "density_per_km2",
+        "density_provenance"
+      ],
+      "title": "AtlasCity",
+      "type": "object"
+    },
+    "AtlasCountry": {
+      "additionalProperties": false,
+      "properties": {
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "cities": {
+          "title": "Cities",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "country_code",
+        "name",
+        "cities"
+      ],
+      "title": "AtlasCountry",
+      "type": "object"
+    },
+    "AtlasOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/AtlasSummary"
+        },
+        "cities": {
+          "items": {
+            "$ref": "#/$defs/AtlasCity"
+          },
+          "title": "Cities",
+          "type": "array"
+        },
+        "filtered_count": {
+          "title": "Filtered Count",
+          "type": "integer"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "countries": {
+          "items": {
+            "$ref": "#/$defs/AtlasCountry"
+          },
+          "title": "Countries",
+          "type": "array"
+        },
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/DataGap"
+          },
+          "title": "Gaps",
+          "type": "array"
+        },
+        "backbone": {
+          "$ref": "#/$defs/Backbone"
+        }
+      },
+      "required": [
+        "summary",
+        "cities",
+        "filtered_count",
+        "page",
+        "page_size",
+        "countries",
+        "gaps",
+        "backbone"
+      ],
+      "title": "AtlasOverview",
+      "type": "object"
+    },
+    "AtlasScope": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "run_available": {
+          "title": "Run Available",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "run_id",
+        "label",
+        "run_available"
+      ],
+      "title": "AtlasScope",
+      "type": "object"
+    },
+    "AtlasScopes": {
+      "additionalProperties": false,
+      "properties": {
+        "scopes": {
+          "items": {
+            "$ref": "#/$defs/AtlasScope"
+          },
+          "title": "Scopes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scopes"
+      ],
+      "title": "AtlasScopes",
+      "type": "object"
+    },
+    "AtlasSource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "access": {
+          "enum": [
+            "public",
+            "registration",
+            "licensed"
+          ],
+          "title": "Access",
+          "type": "string"
+        },
+        "license": {
+          "title": "License",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "adapter": {
+          "title": "Adapter",
+          "type": "string"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string"
+        },
+        "download_hosts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Download Hosts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "name",
+        "url",
+        "access",
+        "license",
+        "fields",
+        "adapter",
+        "instructions",
+        "download_hosts"
+      ],
+      "title": "AtlasSource",
+      "type": "object"
+    },
+    "AtlasSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "total_cities": {
+          "title": "Total Cities",
+          "type": "integer"
+        },
+        "total_population": {
+          "title": "Total Population",
+          "type": "integer"
+        },
+        "cities_without_population": {
+          "title": "Cities Without Population",
+          "type": "integer"
+        },
+        "direct": {
+          "$ref": "#/$defs/CoverageCounts"
+        },
+        "direct_plus_inherited": {
+          "$ref": "#/$defs/CoverageCounts"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/FieldCoverage"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "simulated_cities": {
+          "title": "Simulated Cities",
+          "type": "integer"
+        },
+        "disaggregated_cities": {
+          "title": "Disaggregated Cities",
+          "type": "integer"
+        },
+        "countries_with_fitted_behaviour": {
+          "title": "Countries With Fitted Behaviour",
+          "type": "integer"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "as_of": {
+          "title": "As Of",
+          "type": "string"
+        }
+      },
+      "required": [
+        "total_cities",
+        "total_population",
+        "cities_without_population",
+        "direct",
+        "direct_plus_inherited",
+        "fields",
+        "simulated_cities",
+        "disaggregated_cities",
+        "countries_with_fitted_behaviour",
+        "revision",
+        "scope",
+        "as_of"
+      ],
+      "title": "AtlasSummary",
+      "type": "object"
+    },
+    "Backbone": {
+      "additionalProperties": false,
+      "properties": {
+        "loaded": {
+          "default": false,
+          "title": "Loaded",
+          "type": "boolean"
+        },
+        "source": {
+          "default": "GeoNames cities500",
+          "title": "Source",
+          "type": "string"
+        },
+        "source_url": {
+          "default": "https://download.geonames.org/export/dump/cities500.zip",
+          "title": "Source Url",
+          "type": "string"
+        },
+        "license": {
+          "default": "CC BY 4.0",
+          "title": "License",
+          "type": "string"
+        },
+        "version": {
+          "default": "not-loaded",
+          "title": "Version",
+          "type": "string"
+        },
+        "downloaded_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Downloaded At"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "original_rows": {
+          "default": 0,
+          "title": "Original Rows",
+          "type": "integer"
+        },
+        "retained_rows": {
+          "default": 0,
+          "title": "Retained Rows",
+          "type": "integer"
+        },
+        "excluded_rows": {
+          "default": 0,
+          "title": "Excluded Rows",
+          "type": "integer"
+        },
+        "duplicate_rows": {
+          "default": 0,
+          "title": "Duplicate Rows",
+          "type": "integer"
+        },
+        "tier_policy": {
+          "default": "Top three cities per country with at least 1,000,000 people",
+          "title": "Tier Policy",
+          "type": "string"
+        },
+        "selection_policy": {
+          "default": "Full cities500, including its administrative-seat exceptions below 500; excludes PPLX, PPLQ, PPLW and PPLH",
+          "title": "Selection Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "loaded",
+        "source",
+        "source_url",
+        "license",
+        "version",
+        "downloaded_at",
+        "source_date",
+        "original_rows",
+        "retained_rows",
+        "excluded_rows",
+        "duplicate_rows",
+        "tier_policy",
+        "selection_policy"
+      ],
+      "title": "Backbone",
+      "type": "object"
+    },
+    "BehaviourModel": {
+      "additionalProperties": false,
+      "properties": {
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "behaviour": {
+          "title": "Behaviour",
+          "type": "string"
+        },
+        "fitted": {
+          "title": "Fitted",
+          "type": "boolean"
+        },
+        "label_only": {
+          "title": "Label Only",
+          "type": "boolean"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "heldout_loss": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heldout Loss"
+        },
+        "baseline_loss": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Loss"
+        },
+        "training_rows": {
+          "default": 0,
+          "title": "Training Rows",
+          "type": "integer"
+        },
+        "heldout_rows": {
+          "default": 0,
+          "title": "Heldout Rows",
+          "type": "integer"
+        },
+        "traits": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "array"
+        }
+      },
+      "required": [
+        "country_code",
+        "behaviour",
+        "fitted",
+        "label_only",
+        "provenance",
+        "heldout_loss",
+        "baseline_loss",
+        "training_rows",
+        "heldout_rows",
+        "traits"
+      ],
+      "title": "BehaviourModel",
+      "type": "object"
+    },
     "Catalog": {
       "additionalProperties": false,
       "properties": {
@@ -36,6 +643,105 @@
         "notice"
       ],
       "title": "Catalog",
+      "type": "object"
+    },
+    "CityDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "$ref": "#/$defs/AtlasCity"
+        },
+        "missing_fields": {
+          "items": {
+            "enum": [
+              "age_sex",
+              "income",
+              "education",
+              "ideology",
+              "household_size"
+            ],
+            "type": "string"
+          },
+          "title": "Missing Fields",
+          "type": "array"
+        },
+        "direct_observation_gaps": {
+          "items": {
+            "enum": [
+              "age_sex",
+              "income",
+              "education",
+              "ideology",
+              "household_size"
+            ],
+            "type": "string"
+          },
+          "title": "Direct Observation Gaps",
+          "type": "array"
+        },
+        "history": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "History",
+          "type": "array"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "simulation_note": {
+          "title": "Simulation Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "city",
+        "missing_fields",
+        "direct_observation_gaps",
+        "history",
+        "revision",
+        "simulation_note"
+      ],
+      "title": "CityDetail",
+      "type": "object"
+    },
+    "ColumnMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "ambiguous": {
+          "default": false,
+          "title": "Ambiguous",
+          "type": "boolean"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "target",
+        "ambiguous",
+        "reason"
+      ],
+      "title": "ColumnMapping",
       "type": "object"
     },
     "Country": {
@@ -86,6 +792,30 @@
       "title": "Country",
       "type": "object"
     },
+    "CoverageCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "full": {
+          "title": "Full",
+          "type": "integer"
+        },
+        "partial": {
+          "title": "Partial",
+          "type": "integer"
+        },
+        "none": {
+          "title": "None",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "full",
+        "partial",
+        "none"
+      ],
+      "title": "CoverageCounts",
+      "type": "object"
+    },
     "DailySnapshot": {
       "additionalProperties": false,
       "properties": {
@@ -133,6 +863,604 @@
         "data_version"
       ],
       "title": "DailySnapshot",
+      "type": "object"
+    },
+    "DataGap": {
+      "additionalProperties": false,
+      "properties": {
+        "geonameid": {
+          "title": "Geonameid",
+          "type": "integer"
+        },
+        "city": {
+          "title": "City",
+          "type": "string"
+        },
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "population": {
+          "title": "Population",
+          "type": "integer"
+        },
+        "field": {
+          "enum": [
+            "age_sex",
+            "income",
+            "education",
+            "ideology",
+            "household_size"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "missing"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "suggested_source": {
+          "title": "Suggested Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "geonameid",
+        "city",
+        "country_code",
+        "population",
+        "field",
+        "status",
+        "suggested_source"
+      ],
+      "title": "DataGap",
+      "type": "object"
+    },
+    "FieldCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "enum": [
+            "age_sex",
+            "income",
+            "education",
+            "ideology",
+            "household_size"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "present": {
+          "title": "Present",
+          "type": "integer"
+        },
+        "inherited": {
+          "title": "Inherited",
+          "type": "integer"
+        },
+        "imputed": {
+          "title": "Imputed",
+          "type": "integer"
+        },
+        "missing": {
+          "title": "Missing",
+          "type": "integer"
+        },
+        "direct_percent": {
+          "title": "Direct Percent",
+          "type": "number"
+        },
+        "direct_plus_inherited_percent": {
+          "title": "Direct Plus Inherited Percent",
+          "type": "number"
+        },
+        "direct_population_percent": {
+          "title": "Direct Population Percent",
+          "type": "number"
+        },
+        "direct_plus_inherited_population_percent": {
+          "title": "Direct Plus Inherited Population Percent",
+          "type": "number"
+        },
+        "imputed_population_percent": {
+          "title": "Imputed Population Percent",
+          "type": "number"
+        }
+      },
+      "required": [
+        "field",
+        "present",
+        "inherited",
+        "imputed",
+        "missing",
+        "direct_percent",
+        "direct_plus_inherited_percent",
+        "direct_population_percent",
+        "direct_plus_inherited_population_percent",
+        "imputed_population_percent"
+      ],
+      "title": "FieldCoverage",
+      "type": "object"
+    },
+    "ImportCommit": {
+      "additionalProperties": false,
+      "properties": {
+        "mapping_hash": {
+          "title": "Mapping Hash",
+          "type": "string"
+        },
+        "confirmed": {
+          "title": "Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mapping_hash",
+        "confirmed"
+      ],
+      "title": "ImportCommit",
+      "type": "object"
+    },
+    "ImportHistory": {
+      "additionalProperties": false,
+      "properties": {
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/ImportVersion"
+          },
+          "title": "Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "versions"
+      ],
+      "title": "ImportHistory",
+      "type": "object"
+    },
+    "ImportMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "kind": {
+          "default": "marginals",
+          "enum": [
+            "marginals",
+            "behaviour",
+            "population"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_date": {
+          "format": "date",
+          "title": "Source Date",
+          "type": "string"
+        },
+        "published_date": {
+          "format": "date",
+          "title": "Published Date",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "uploader": {
+          "default": "local-user",
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Uploader",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "country_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country Code"
+        },
+        "unit": {
+          "default": "percent",
+          "title": "Unit",
+          "type": "string"
+        },
+        "redistribution_allowed": {
+          "default": false,
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "processing_notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Processing Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "kind",
+        "source",
+        "source_date",
+        "published_date",
+        "version",
+        "uploader",
+        "source_id",
+        "country_code",
+        "unit",
+        "redistribution_allowed",
+        "processing_notes"
+      ],
+      "title": "ImportMetadata",
+      "type": "object"
+    },
+    "ImportPreview": {
+      "additionalProperties": false,
+      "properties": {
+        "import_id": {
+          "title": "Import Id",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ImportMetadata"
+        },
+        "row_count": {
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "sample_rows": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "title": "Sample Rows",
+          "type": "array"
+        },
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/ColumnMapping"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "mapping_audit": {
+          "$ref": "#/$defs/MappingAudit"
+        },
+        "status": {
+          "const": "awaiting_confirmation",
+          "default": "awaiting_confirmation",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "import_id",
+        "filename",
+        "metadata",
+        "row_count",
+        "sample_rows",
+        "mappings",
+        "mapping_audit",
+        "status"
+      ],
+      "title": "ImportPreview",
+      "type": "object"
+    },
+    "ImportVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "import_id": {
+          "title": "Import Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_date": {
+          "title": "Source Date",
+          "type": "string"
+        },
+        "published_date": {
+          "title": "Published Date",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "uploader": {
+          "title": "Uploader",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "rows": {
+          "title": "Rows",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "live_fields": {
+          "title": "Live Fields",
+          "type": "integer"
+        },
+        "promoted_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promoted From"
+        },
+        "redistribution_allowed": {
+          "title": "Redistribution Allowed",
+          "type": "boolean"
+        },
+        "models": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BehaviourModel"
+          },
+          "title": "Models",
+          "type": "array"
+        }
+      },
+      "required": [
+        "import_id",
+        "source",
+        "source_date",
+        "published_date",
+        "version",
+        "scope",
+        "uploader",
+        "kind",
+        "filename",
+        "rows",
+        "status",
+        "live_fields",
+        "promoted_from",
+        "redistribution_allowed",
+        "models"
+      ],
+      "title": "ImportVersion",
+      "type": "object"
+    },
+    "MappingAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt_version": {
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "estimated_cost_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimated Cost Usd"
+        },
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "prompt_version",
+        "estimated_cost_usd",
+        "input_tokens",
+        "output_tokens",
+        "message"
+      ],
+      "title": "MappingAudit",
+      "type": "object"
+    },
+    "MappingConfirmation": {
+      "additionalProperties": false,
+      "properties": {
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/ColumnMapping"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "confirmed": {
+          "title": "Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mappings",
+        "confirmed"
+      ],
+      "title": "MappingConfirmation",
+      "type": "object"
+    },
+    "MarginalField": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "enum": [
+            "age_sex",
+            "income",
+            "education",
+            "ideology",
+            "household_size"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "missing"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "suggested_source": {
+          "title": "Suggested Source",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "status",
+        "value",
+        "unit",
+        "provenance",
+        "suggested_source",
+        "source_url"
+      ],
+      "title": "MarginalField",
       "type": "object"
     },
     "Metrics": {
@@ -256,6 +1584,69 @@
         "recovered"
       ],
       "title": "PlaceSnapshot",
+      "type": "object"
+    },
+    "Promotion": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmed": {
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "redistribution_confirmed": {
+          "title": "Redistribution Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "confirmed",
+        "redistribution_confirmed"
+      ],
+      "title": "Promotion",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "import_id": {
+          "title": "Import Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_date": {
+          "title": "Source Date",
+          "type": "string"
+        },
+        "published_date": {
+          "title": "Published Date",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "uploader": {
+          "title": "Uploader",
+          "type": "string"
+        }
+      },
+      "required": [
+        "import_id",
+        "source",
+        "source_date",
+        "published_date",
+        "version",
+        "scope",
+        "uploader"
+      ],
+      "title": "Provenance",
       "type": "object"
     },
     "RunComplete": {
@@ -632,6 +2023,52 @@
       "title": "RunSummary",
       "type": "object"
     },
+    "SourceCatalog": {
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/AtlasSource"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "llm_available": {
+          "title": "Llm Available",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sources",
+        "llm_available"
+      ],
+      "title": "SourceCatalog",
+      "type": "object"
+    },
+    "SourceFetch": {
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ImportMetadata"
+        },
+        "access_confirmed": {
+          "default": false,
+          "title": "Access Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "metadata",
+        "access_confirmed"
+      ],
+      "title": "SourceFetch",
+      "type": "object"
+    },
     "Totals": {
       "additionalProperties": false,
       "properties": {
@@ -670,6 +2107,80 @@
       ],
       "title": "Totals",
       "type": "object"
+    },
+    "ValidationIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "row": {
+          "title": "Row",
+          "type": "integer"
+        },
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "row",
+        "field",
+        "message"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
+    },
+    "ValidationReport": {
+      "additionalProperties": false,
+      "properties": {
+        "import_id": {
+          "title": "Import Id",
+          "type": "string"
+        },
+        "valid": {
+          "title": "Valid",
+          "type": "boolean"
+        },
+        "total_rows": {
+          "title": "Total Rows",
+          "type": "integer"
+        },
+        "observations": {
+          "title": "Observations",
+          "type": "integer"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ValidationIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "missingness": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Missingness",
+          "type": "object"
+        },
+        "mapping_hash": {
+          "title": "Mapping Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "import_id",
+        "valid",
+        "total_rows",
+        "observations",
+        "issues",
+        "missingness",
+        "mapping_hash"
+      ],
+      "title": "ValidationReport",
+      "type": "object"
     }
   },
   "anyOf": [
@@ -693,6 +2204,45 @@
     },
     {
       "$ref": "#/$defs/RunList"
+    },
+    {
+      "$ref": "#/$defs/AtlasOverview"
+    },
+    {
+      "$ref": "#/$defs/AtlasScopes"
+    },
+    {
+      "$ref": "#/$defs/CityDetail"
+    },
+    {
+      "$ref": "#/$defs/ImportCommit"
+    },
+    {
+      "$ref": "#/$defs/ImportHistory"
+    },
+    {
+      "$ref": "#/$defs/ImportMetadata"
+    },
+    {
+      "$ref": "#/$defs/ImportPreview"
+    },
+    {
+      "$ref": "#/$defs/ImportVersion"
+    },
+    {
+      "$ref": "#/$defs/MappingConfirmation"
+    },
+    {
+      "$ref": "#/$defs/Promotion"
+    },
+    {
+      "$ref": "#/$defs/SourceCatalog"
+    },
+    {
+      "$ref": "#/$defs/SourceFetch"
+    },
+    {
+      "$ref": "#/$defs/ValidationReport"
     }
   ],
   "$id": "petraterrium-contracts"

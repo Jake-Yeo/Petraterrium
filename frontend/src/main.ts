@@ -1,5 +1,6 @@
 import './styles.css';
 import { api, RunStream } from './api';
+import { DataTab } from './atlas/main';
 import { InfectionChart, infectedTotal } from './chart';
 import type {
   Catalog,
@@ -22,6 +23,8 @@ const text = (id: string, value: string): void => {
 };
 
 class Lab {
+  private dataTab: DataTab;
+  private tab: 'simulation' | 'data' = 'simulation';
   private catalog?: Catalog;
   private runs: RunSummary[] = [];
   private active?: RunDetail;
@@ -36,6 +39,7 @@ class Lab {
 
   constructor() {
     element('app').innerHTML = shell();
+    this.dataTab = new DataTab(element('data-view'));
     this.chart = new InfectionChart(element<HTMLCanvasElement>('infection-chart'), (index) =>
       this.selectDay(index),
     );
@@ -107,6 +111,7 @@ class Lab {
   }
 
   private resumeView(): void {
+    if (this.tab !== 'simulation') return;
     this.globe?.setVisible(true);
     this.attachStream();
   }
@@ -192,6 +197,7 @@ class Lab {
   }
 
   private useRun(run: RunDetail, autoplay = false): void {
+    if (this.tab !== 'simulation') this.changeTab('simulation');
     ++this.generation;
     this.stream?.dispose();
     this.stream = undefined;
@@ -484,7 +490,9 @@ class Lab {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!target || (target instanceof HTMLButtonElement && target.disabled)) return;
     const action = target.dataset.action;
-    if (action === 'new') this.showNew();
+    if (action === 'data-tab') this.changeTab('data');
+    else if (action === 'simulation-tab') this.changeTab('simulation');
+    else if (action === 'new') this.showNew();
     else if (action === 'cancel-new') element<HTMLDialogElement>('new-run-dialog').close();
     else if (action === 'cancel-delete') element<HTMLDialogElement>('delete-dialog').close();
     else if (action === 'play') this.setPlaying(!this.playing);
@@ -502,11 +510,37 @@ class Lab {
   };
 
   private dispose(): void {
+    this.dataTab.deactivate();
     clearInterval(this.timer);
     this.stream?.dispose();
     this.globe?.dispose();
     this.chart.dispose();
     document.removeEventListener('click', this.onClick);
+  }
+
+  private changeTab(tab: 'simulation' | 'data'): void {
+    this.tab = tab;
+    text('workspace-breadcrumb', tab === 'data' ? 'Data atlas' : 'Population lab');
+    text('workspace-data-notice', tab === 'data' ? 'REAL CITY BACKBONE' : 'FAKE DATA ONLY');
+    text(
+      'workspace-storage-notice',
+      tab === 'data'
+        ? 'Atlas versions are saved on the API server. Run records reset on API restart.'
+        : 'Runs live in server memory. Restarting the API clears them.',
+    );
+    document
+      .querySelectorAll<HTMLElement>('[role="tab"][data-action]')
+      .forEach((button) =>
+        button.setAttribute('aria-selected', String(button.dataset.action === `${tab}-tab`)),
+      );
+    element('simulation-view').hidden = tab !== 'simulation';
+    if (tab === 'data') {
+      this.suspendView();
+      void this.dataTab.activate(this.active?.run_id);
+    } else {
+      this.dataTab.deactivate();
+      this.resumeView();
+    }
   }
 }
 

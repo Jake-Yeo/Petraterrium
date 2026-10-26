@@ -2,17 +2,20 @@
 
 A small, checkable world: a FastAPI + NumPy engine records a seeded pandemic run, streams the recorded days over SSE, and displays them on a Three.js globe.
 
-**FAKE DATA ONLY.** The four countries have real names and approximate marker positions, invented populations, and an unfitted placeholder SEIR model. This is a demonstration of the end-to-end system, not a forecast or a historical validation.
+The **Data** tab organizes the complete GeoNames cities500 backbone, field coverage, source versions, and run-scoped imports. See the [data atlas guide](DATA.md) for loading the full city list, importing CSV/Parquet/JSON, source loaders, behaviour fitting, licensing, and coverage definitions.
+
+**The simulation uses FAKE data.** The four simulated countries have real names and approximate marker positions, invented populations, and an unfitted placeholder SEIR model. This is a demonstration, not a forecast or historical validation. The Data tab's real city backbone is separate from those fake simulation inputs.
 
 ## Run locally
 
-Requirements: Python 3.13, [uv](https://docs.astral.sh/uv/), and Node.js 22.12+ with npm. No API keys, external datasets, database, or LLM account is needed.
+Requirements: Python 3.13, [uv](https://docs.astral.sh/uv/), and Node.js 22.12+ with npm. The simulator requires no API keys. The Data tab uses a local SQLite database; optional LLM mapping needs an OpenAI API key.
 
 In the first terminal:
 
 ```sh
 cd backend
 uv sync --locked
+uv run python scripts/load_cities.py
 uv run uvicorn petraterrium.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
@@ -92,8 +95,8 @@ Tests cover known-answer steps, conservation and monotonicity across seeds, byte
 
 ## Scope
 
-- Implemented: one pandemic scenario, four FAKE countries, an in-process scheduler and recorder, deterministic caching, SSE, and a shared globe/timeline/chart/table workflow.
+- Implemented: one pandemic scenario, four FAKE countries, an in-process scheduler and recorder, deterministic caching, SSE, the globe/timeline/chart workflow, and the [Data atlas](DATA.md) with durable versioned imports.
 - Stub: [weekly leader interface](backend/petraterrium/leaders.py) returns no-ops.
-- TODO: real atlas, historical Italy validation, calibration, additional scenario configs, LLM leaders, ensembles, comparison, uploads, custom vectors, Modal workers, durable persistence, authentication, and deployment. None are implemented here.
+- TODO: connecting real atlas data to the simulation, top-metro simulation and density-adjusted city projections, historical Italy validation, calibration, additional scenarios, LLM leaders, ensembles, comparison, custom vectors, Modal workers, durable run-result persistence, authentication, and deployment. These are not implemented here.
 
 Run one API worker for this scaffold. Separate worker processes would have independent stores. Computation is intentionally small and in process; production scheduling, cache eviction, and durable storage are future work.

@@ -1,4 +1,5 @@
 import Ajv, { type ValidateFunction } from 'ajv';
+import addFormats from 'ajv-formats';
 import schema from './contracts.schema.json';
 import type {
   Catalog,
@@ -12,9 +13,10 @@ import type {
 } from './contracts.generated';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
+addFormats(ajv);
 ajv.addSchema(schema, 'contracts');
 
-function validator<T>(name: string): ValidateFunction<T> {
+export function validator<T>(name: string): ValidateFunction<T> {
   const validate = ajv.getSchema<T>(`contracts#/$defs/${name}`);
   if (!validate) throw new Error(`Missing data contract: ${name}`);
   return validate;
@@ -39,7 +41,7 @@ function parse<T>(data: unknown, validate: ValidateFunction<T>): T {
   return data;
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   validate: ValidateFunction<T>,
   init?: RequestInit,

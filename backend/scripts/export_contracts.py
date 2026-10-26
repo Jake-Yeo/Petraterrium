@@ -5,6 +5,21 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from petraterrium.atlas.contracts import (
+    AtlasOverview,
+    AtlasScopes,
+    CityDetail,
+    ImportCommit,
+    ImportHistory,
+    ImportMetadata,
+    ImportPreview,
+    ImportVersion,
+    MappingConfirmation,
+    Promotion,
+    SourceCatalog,
+    SourceFetch,
+    ValidationReport,
+)
 from petraterrium.contracts import (
     Catalog,
     DailySnapshot,
@@ -36,7 +51,11 @@ def typescript_type(schema: dict[str, Any]) -> str:
             f"  {name}{'' if name in required else '?'}: {typescript_type(value)};"
             for name, value in schema.get("properties", {}).items()
         ]
+        if isinstance(schema.get("additionalProperties"), dict):
+            fields.append(f"  [key: string]: {typescript_type(schema['additionalProperties'])};")
         return "{\n" + "\n".join(fields) + "\n}"
+    if kind is None:
+        return "unknown"
     return {
         "integer": "number",
         "number": "number",
@@ -48,7 +67,26 @@ def typescript_type(schema: dict[str, Any]) -> str:
 
 def artifacts() -> dict[Path, str]:
     adapter = TypeAdapter(
-        Catalog | DailySnapshot | RunComplete | RunFailed | RunDetail | RunCreated | RunList
+        Catalog
+        | DailySnapshot
+        | RunComplete
+        | RunFailed
+        | RunDetail
+        | RunCreated
+        | RunList
+        | AtlasOverview
+        | AtlasScopes
+        | CityDetail
+        | ImportCommit
+        | ImportHistory
+        | ImportMetadata
+        | ImportPreview
+        | ImportVersion
+        | MappingConfirmation
+        | Promotion
+        | SourceCatalog
+        | SourceFetch
+        | ValidationReport
     )
     schema = adapter.json_schema(mode="serialization")
     schema["$id"] = "petraterrium-contracts"

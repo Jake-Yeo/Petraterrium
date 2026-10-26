@@ -4,9 +4,9 @@ test('create, inspect, play, export, reopen, cancel deletion, delete, and recove
   page,
   request,
 }) => {
-  const runs = await request.get('http://127.0.0.1:8000/runs');
+  const runs = await request.get('http://127.0.0.1:8011/runs');
   for (const run of (await runs.json()).runs)
-    await request.delete(`http://127.0.0.1:8000/runs/${run.run_id}`);
+    await request.delete(`http://127.0.0.1:8011/runs/${run.run_id}`);
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/');
@@ -72,12 +72,12 @@ test('create, inspect, play, export, reopen, cancel deletion, delete, and recove
 });
 
 test('a resumed stream starts after the last received sequence', async ({ page, request }) => {
-  const created = await request.post('http://127.0.0.1:8000/runs', {
+  const created = await request.post('http://127.0.0.1:8011/runs', {
     data: { countries: ['ITA'], end_day: 6, seed: 99 },
   });
   const { run_id: id } = await created.json();
   await expect
-    .poll(async () => (await (await request.get(`http://127.0.0.1:8000/runs/${id}`)).json()).status)
+    .poll(async () => (await (await request.get(`http://127.0.0.1:8011/runs/${id}`)).json()).status)
     .toBe('done');
   await page.goto('/');
   const received = await page.evaluate(async (runId) => {
@@ -106,14 +106,14 @@ test('an interrupted SSE connection resumes without skipping or duplicating reco
   page,
   request,
 }) => {
-  const response = await request.post('http://127.0.0.1:8000/runs', {
+  const response = await request.post('http://127.0.0.1:8011/runs', {
     data: { countries: ['ITA'], end_day: 6, seed: 101 },
   });
   const { run_id: id } = await response.json();
   await expect
-    .poll(async () => (await (await request.get(`http://127.0.0.1:8000/runs/${id}`)).json()).status)
+    .poll(async () => (await (await request.get(`http://127.0.0.1:8011/runs/${id}`)).json()).status)
     .toBe('done');
-  const recorded = await (await request.get(`http://127.0.0.1:8000/runs/${id}/stream`)).text();
+  const recorded = await (await request.get(`http://127.0.0.1:8011/runs/${id}/stream`)).text();
   const firstThree = recorded
     .split('\n\n')
     .filter((frame) => frame.startsWith('id:'))

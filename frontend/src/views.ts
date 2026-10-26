@@ -35,6 +35,10 @@ export function shell(): string {
       <button class="button primary new-run-button" data-action="new" disabled>
         <span>＋</span> New experiment <span class="button-arrow">↗</span>
       </button>
+      <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
+        <button role="tab" aria-selected="true" aria-controls="simulation-view" data-action="simulation-tab">Simulation</button>
+        <button role="tab" aria-selected="false" aria-controls="data-view" data-action="data-tab">Data</button>
+      </div>
       <div class="sidebar-section-title">
         <span>SAVED RUNS</span
         ><button class="icon-button" data-action="refresh" aria-label="Refresh saved runs">↻</button>
@@ -47,19 +51,19 @@ export function shell(): string {
       <div class="sidebar-footer">
         <span class="small-label">THE DAY-ONE SCAFFOLD</span>
         <p>One engine.<br />Every number has a receipt.</p>
-        <div class="fake-tag">FAKE DATA ONLY</div>
-        <p class="muted">Runs live in server memory.<br />Restarting the API clears them.</p>
+        <div class="fake-tag" id="workspace-data-notice">FAKE DATA ONLY</div>
+        <p class="muted" id="workspace-storage-notice">Runs live in server memory.<br />Restarting the API clears them.</p>
       </div>
     </aside>
     <main>
       <header class="topbar">
-        <span class="breadcrumb">Workspace <span>/</span> Population lab</span>
+        <span class="breadcrumb">Workspace <span>/</span> <span id="workspace-breadcrumb">Population lab</span></span>
         <div class="topbar-right">
           <span id="api-status" class="api-status">Connecting</span
           ><span class="avatar" aria-hidden="true">P</span>
         </div>
       </header>
-      <div class="lab">
+      <div class="lab" id="simulation-view">
         <div id="error-banner" class="notice error-notice" role="alert" hidden>
           <span id="error-message"></span><button class="text-button" data-action="retry">Retry</button
           ><button class="icon-button" data-action="dismiss-error" aria-label="Dismiss error">×</button>
@@ -223,6 +227,7 @@ export function shell(): string {
           ><span class="muted">FAKE DATA · SINGLE RUN · NO CALIBRATION</span>
         </footer>
       </div>
+      <div id="data-view" class="atlas-view" hidden></div>
     </main>
     <dialog id="new-run-dialog" class="run-dialog" aria-labelledby="new-run-title">
       <form id="run-form">

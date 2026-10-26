@@ -2,6 +2,8 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Res
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from .atlas.database import AtlasStore
+from .atlas.routes import create_atlas_router
 from .contracts import Catalog, RunConfig, RunCreated, RunDetail, RunList
 from .data import COUNTRIES, DATA_VERSION
 from .recorder import RunRecord, RunStore
@@ -9,12 +11,15 @@ from .service import RunService
 from .versions import ENGINE_VERSION
 
 
-def create_app(store: RunStore | None = None) -> FastAPI:
+def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
     run_store = store or RunStore()
     service = RunService(run_store)
     application = FastAPI(title="Petraterrium · FAKE data scaffold", version="0.1.0")
     application.state.store = run_store
     application.state.service = service
+    atlas_store = AtlasStore(atlas_path)
+    application.state.atlas = atlas_store
+    application.include_router(create_atlas_router(atlas_store, run_store))
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
