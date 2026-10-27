@@ -49,7 +49,7 @@ export type AgentDetail = {
   log_tier: "spotlight" | "sampled" | "mass";
   log_scope: string;
   traits: {
-
+  [key: string]: unknown;
 };
   states: {
   [key: string]: string;
@@ -130,7 +130,7 @@ export type AtlasCity = {
   coverage_percent: number;
   inherited_coverage_percent: number;
   resolved_coverage_percent: number;
-  status: "present" | "inherited" | "imputed" | "missing";
+  status: "present" | "inherited" | "imputed" | "estimated" | "missing";
   coverage_state: "full" | "partial" | "none";
   fields: Array<MarginalField>;
   behaviour: Array<BehaviourModel>;
@@ -198,6 +198,222 @@ export type AttributeDefinition = {
   values?: Array<string>;
   distribution?: Distribution | null;
   provenance: Evidence;
+};
+
+export type AutoImportAllFilteredSelection = {
+  mode: "all_filtered";
+  query: {
+  [key: string]: unknown;
+};
+  excluded_item_ids: Array<string>;
+};
+
+export type AutoImportAttemptView = {
+  attempt_id: string;
+  target: AutoImportTargetView;
+  stage: "collecting" | "mapping" | "verifying" | "review" | "ready" | "failed" | "promoted";
+  mappings: Array<AutoImportMappingColumn>;
+  verification: Array<AutoImportVerificationCheck>;
+  sources: Array<AutoImportResearchSource>;
+  search_log: Array<AutoImportSearchEntry>;
+  evidence_kind: "measured" | "estimated" | null;
+  estimate_trace: AutoImportEstimateTraceView | null;
+  candidate_values: {
+  [key: string]: number | string | null;
+};
+  can_promote: boolean;
+  error: string | null;
+  promoted_at: string | null;
+};
+
+export type AutoImportBatchItemView = {
+  item_id: string;
+  attempt_id: string | null;
+  target: AutoImportTargetView;
+  status: "queued" | "running" | "ready" | "failed" | "promoted";
+  evidence_kind: "measured" | "estimated" | null;
+  mappings: Array<AutoImportMappingColumn>;
+  mapping_confirmed: boolean;
+  can_promote: boolean;
+  error: string | null;
+};
+
+export type AutoImportBatchPromotionRequest = {
+  mode: "all_eligible" | "selected";
+  item_ids: Array<string>;
+  mapping_confirmed: boolean;
+  redistribution_confirmed: boolean;
+};
+
+export type AutoImportBatchRequest = {
+  scope: string;
+  as_of: string;
+  concurrency: number;
+  selection: AutoImportExplicitSelection | AutoImportAllFilteredSelection;
+};
+
+export type AutoImportBatchSummary = {
+  total: number;
+  completed: number;
+  queued: number;
+  running: number;
+  ready: number;
+  measured: number;
+  estimated: number;
+  failed: number;
+  retryable_failed: number;
+  promoted: number;
+};
+
+export type AutoImportBatchView = {
+  batch_id: string;
+  status: "queued" | "running" | "review" | "partial" | "complete" | "failed";
+  summary: AutoImportBatchSummary;
+  items: Array<AutoImportBatchItemView>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AutoImportCanonicalValue = {
+  id: string;
+  label: string;
+};
+
+export type AutoImportDistributionRequirement = {
+  values: Array<AutoImportCanonicalValue>;
+  denominator: string;
+  time_unit: string;
+  unit: string;
+  range: string | null;
+  total: string | null;
+};
+
+export type AutoImportEstimateInput = {
+  label: string;
+  value: string;
+  source_id: string | null;
+};
+
+export type AutoImportEstimateTraceView = {
+  method: string;
+  calculation: string;
+  assumptions: Array<string>;
+  inputs: Array<AutoImportEstimateInput>;
+  confidence_interval: string;
+  limitations: Array<string>;
+};
+
+export type AutoImportEvidenceView = {
+  attempts: Array<AutoImportAttemptView>;
+};
+
+export type AutoImportExplicitSelection = {
+  mode: "explicit";
+  item_ids: Array<string>;
+};
+
+export type AutoImportMappingColumn = {
+  column: string;
+  target: string | null;
+  ambiguous: boolean;
+  samples: Array<string>;
+  options: Array<AutoImportMappingOption>;
+};
+
+export type AutoImportMappingEdit = {
+  column: string;
+  target: string | null;
+};
+
+export type AutoImportMappingOption = {
+  id: string;
+  label: string;
+};
+
+export type AutoImportMappingReview = {
+  mappings: Array<AutoImportMappingEdit>;
+  reviewed: boolean;
+};
+
+export type AutoImportPromotionRequest = {
+  redistribution_confirmed: boolean;
+};
+
+export type AutoImportQueueItemView = {
+  place_id: string;
+  place_label: string;
+  level: "region" | "country" | "city";
+  country_code: string | null;
+  geonameid: number | null;
+  population: number;
+  field_id: string;
+  field_label: string;
+  current_status: "present" | "inherited" | "imputed" | "estimated" | "missing";
+  as_of: string;
+  required_distribution: AutoImportDistributionRequirement;
+  item_id: string;
+  missing_impact: number;
+  priority: "primary" | "lower";
+  place_item_count: number;
+};
+
+export type AutoImportQueuePageView = {
+  items: Array<AutoImportQueueItemView>;
+  filtered_count: number;
+  filtered_population: number;
+  page: number;
+  page_size: number;
+  primary_count: number;
+  primary_population: number;
+  lower_priority_count: number;
+  lower_priority_population: number;
+};
+
+export type AutoImportResearchSource = {
+  source_id: string;
+  title: string;
+  publisher: string;
+  url: string | null;
+  source_date: string | null;
+  published_date: string | null;
+  version: string | null;
+  licence: string | null;
+  language: string;
+  original_excerpt: string | null;
+  translated_excerpt: string | null;
+  accepted: boolean;
+  rejection_reason: string | null;
+};
+
+export type AutoImportSearchEntry = {
+  engine: string;
+  language: string;
+  query: string;
+  searched_at: string;
+  result_count: number;
+  outcome: string;
+  rejection_reasons: Array<string>;
+};
+
+export type AutoImportTargetView = {
+  place_id: string;
+  place_label: string;
+  level: "region" | "country" | "city";
+  country_code: string | null;
+  geonameid: number | null;
+  population: number;
+  field_id: string;
+  field_label: string;
+  current_status: "present" | "inherited" | "imputed" | "estimated" | "missing";
+  as_of: string;
+  required_distribution: AutoImportDistributionRequirement;
+};
+
+export type AutoImportVerificationCheck = {
+  id: string;
+  label: string;
+  status: "passed" | "failed" | "unknown";
+  detail: string;
 };
 
 export type Backbone = {
@@ -429,7 +645,7 @@ export type DataGap = {
   country_code: string;
   population: number;
   field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
-  status: "present" | "inherited" | "imputed" | "missing";
+  status: "present" | "inherited" | "imputed" | "estimated" | "missing";
   suggested_source: string;
 };
 
@@ -637,12 +853,14 @@ export type FieldCoverage = {
   present: number;
   inherited: number;
   imputed: number;
+  estimated: number;
   missing: number;
   direct_percent: number;
   direct_plus_inherited_percent: number;
   direct_population_percent: number;
   direct_plus_inherited_population_percent: number;
   imputed_population_percent: number;
+  estimated_population_percent: number;
 };
 
 export type GraphTraversal = {
@@ -668,7 +886,7 @@ export type HierarchyRow = {
   population: number;
   city_count: number;
   statuses: {
-  [key: string]: "present" | "inherited" | "imputed" | "missing";
+  [key: string]: "present" | "inherited" | "imputed" | "estimated" | "missing";
 };
   coverage_by_field: {
   [key: string]: number;
@@ -783,12 +1001,15 @@ export type MappingConfirmation = {
 
 export type MarginalField = {
   field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
-  status: "present" | "inherited" | "imputed" | "missing";
+  status: "present" | "inherited" | "imputed" | "estimated" | "missing";
   value: {
   [key: string]: number;
 } | number | null;
   unit: string | null;
   provenance: Provenance | null;
+  research_trace: {
+  [key: string]: unknown;
+} | null;
   suggested_source: string;
   source_url: string;
 };
@@ -959,16 +1180,16 @@ export type RegistrySource = {
   source_date: string;
   license: string;
   mapping: {
-
+  [key: string]: unknown;
 };
   coverage: {
-
+  [key: string]: unknown;
 };
   restriction_reason: string;
   fallback: string;
   required_action: string;
   files: Array<{
-
+  [key: string]: unknown;
 }>;
 };
 

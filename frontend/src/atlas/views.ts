@@ -26,6 +26,186 @@ const localDate = (): string => {
   return `${now.getFullYear()}-${month}-${day}`;
 };
 
+type StoredResearchSource = {
+  title: string;
+  url?: string | null;
+  source_kind: string;
+  observation_date: string | null;
+  published_date: string | null;
+  source_version: string;
+  license: string;
+  language: string;
+  original_excerpt: string;
+  translated_excerpt: string | null;
+};
+
+type StoredMapping = {
+  version: string;
+  rows: Array<{
+    source_label: string;
+    proposed_label: string | null;
+    confidence: string;
+    reason: string;
+  }>;
+};
+
+type StoredVerification = {
+  candidate_id: string;
+  accepted: boolean;
+  direct_measurement: boolean;
+  checks: Array<{
+    name: string;
+    passed: boolean;
+    expected: string;
+    actual: string;
+    reason: string;
+  }>;
+  reasons: string[];
+};
+
+type StoredRejectedSource = {
+  candidate: StoredResearchSource;
+  verification: StoredVerification;
+};
+
+type StoredEstimateTrace = {
+  method: string;
+  extractions: Array<{
+    title: string;
+    extracted_distribution: Record<string, number>;
+    weight_basis: string;
+  }>;
+  calculation: string[];
+  assumptions: string[];
+  confidence_intervals: Record<string, { lower: number; upper: number }>;
+  better_data_needed: string;
+};
+
+type StoredResearchTrace = {
+  result_kind?: string;
+  languages?: string[];
+  mapping?: StoredMapping | null;
+  mapping_confirmed?: boolean;
+  verification?: StoredVerification[];
+  sources?: {
+    accepted?: StoredResearchSource[];
+    rejected?: StoredRejectedSource[];
+  };
+  search_log?: Array<{
+    engine: string;
+    language: string;
+    query_or_source: string;
+    outcome: string;
+    rejection_reasons?: string[];
+  }>;
+  estimate_trace?: StoredEstimateTrace | null;
+  better_data?: string;
+};
+
+function safeWebUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function storedSource(
+  source: StoredResearchSource,
+  status: string,
+  reasons: string[] = [],
+): string {
+  const href = safeWebUrl(source.url);
+  const title = href
+    ? `<a href="${e(href)}" target="_blank" rel="noreferrer">${e(source.title)} ↗</a>`
+    : `<strong>${e(source.title)}</strong>`;
+  return `<article>
+    <div>${title}<span class="field-status ${status === 'accepted' ? 'present' : 'missing'}">${e(status)}</span></div>
+    <small>${e(source.source_kind)} · ${e(source.language)} · observed ${e(source.observation_date ?? 'undated')} · published ${e(source.published_date ?? 'undated')} · ${e(source.source_version)} · ${e(source.license)}</small>
+    ${reasons.length ? `<p>${reasons.map(e).join('<br>')}</p>` : ''}
+    <p><b>Original</b> ${e(source.original_excerpt)}</p>
+    ${source.translated_excerpt ? `<p><b>Translation</b> ${e(source.translated_excerpt)}</p>` : ''}
+  </article>`;
+}
+
+function storedMapping(trace: StoredResearchTrace): string {
+  if (!trace.mapping?.rows.length) return '';
+  const state =
+    trace.mapping_confirmed === undefined
+      ? 'recorded'
+      : trace.mapping_confirmed
+        ? 'confirmed'
+        : 'unconfirmed';
+  return `<details><summary>Mapping · ${state} · ${e(trace.mapping.version)}</summary><dl>${trace.mapping.rows
+    .map(
+      (row) =>
+        `<div><dt>${e(row.source_label)} → ${e(row.proposed_label ?? 'Unknown')}</dt><dd>${e(row.confidence)} · ${e(row.reason)}</dd></div>`,
+    )
+    .join('')}</dl></details>`;
+}
+
+function storedVerification(trace: StoredResearchTrace): string {
+  const verifications = trace.verification ?? [];
+  if (!verifications.length) return '';
+  const accepted = verifications.filter((verification) => verification.accepted).length;
+  return `<details><summary>Verification · ${accepted}/${verifications.length} accepted</summary>${verifications
+    .map(
+      (verification) => `<article>
+        <strong>${e(verification.candidate_id)} · ${verification.accepted ? 'accepted' : 'rejected'}${verification.direct_measurement ? ' · direct' : ''}</strong>
+        ${verification.reasons.length ? `<p>${verification.reasons.map(e).join('<br>')}</p>` : ''}
+        <dl>${verification.checks
+          .map(
+            (check) =>
+              `<div><dt>${check.passed ? 'Passed' : 'Failed'} · ${e(check.name)}</dt><dd>${e(check.reason)}<br>Expected ${e(check.expected)} · found ${e(check.actual)}</dd></div>`,
+          )
+          .join('')}</dl>
+      </article>`,
+    )
+    .join('')}</details>`;
+}
+
+function cityResearchTrace(value: unknown): string {
+  if (!value || typeof value !== 'object') return '';
+  const trace = value as StoredResearchTrace;
+  const sources = trace.sources?.accepted ?? [];
+  const rejected = trace.sources?.rejected ?? [];
+  const searches = trace.search_log ?? [];
+  const estimate = trace.estimate_trace;
+  const interval = estimate
+    ? Object.entries(estimate.confidence_intervals)
+        .map(
+          ([label, bounds]) =>
+            `${e(label)}: ${bounds.lower.toFixed(1)}–${bounds.upper.toFixed(1)}%`,
+        )
+        .join('<br>')
+    : '';
+  return `<details class="atlas-research-trace">
+    <summary>Research trace · ${e(trace.result_kind ?? 'unknown')}</summary>
+    ${trace.languages?.length ? `<p><strong>Languages</strong> ${trace.languages.map(e).join(', ')}</p>` : ''}
+    ${storedMapping(trace)}
+    ${storedVerification(trace)}
+    ${sources.map((source) => storedSource(source, 'accepted')).join('')}
+    ${rejected.map((source) => storedSource(source.candidate, 'rejected', source.verification.reasons)).join('')}
+    ${
+      estimate
+        ? `<dl>
+          <div><dt>Method</dt><dd>${e(estimate.method)}</dd></div>
+          <div><dt>Extraction</dt><dd>${estimate.extractions.map((item) => `${e(item.title)}: ${e(JSON.stringify(item.extracted_distribution))} · ${e(item.weight_basis)}`).join('<br>')}</dd></div>
+          <div><dt>Calculation</dt><dd>${estimate.calculation.map(e).join('<br>')}</dd></div>
+          <div><dt>Assumptions</dt><dd>${estimate.assumptions.map(e).join('<br>')}</dd></div>
+          <div><dt>Wide uncertainty</dt><dd>${interval}</dd></div>
+          <div><dt>Better data needed</dt><dd>${e(estimate.better_data_needed)}</dd></div>
+        </dl>`
+        : trace.better_data
+          ? `<p><strong>Better data needed</strong> ${e(trace.better_data)}</p>`
+          : ''
+    }
+    ${searches.length ? `<details><summary>${searches.length.toLocaleString()} recorded searches</summary><ul>${searches.map((entry) => `<li>${e(entry.engine)} · ${e(entry.language)} · ${e(entry.outcome)}<br>${e(entry.query_or_source)}${entry.rejection_reasons?.length ? `<br>${entry.rejection_reasons.map(e).join('<br>')}` : ''}</li>`).join('')}</ul></details>` : ''}
+  </details>`;
+}
+
 export function dataShell(): string {
   return `
     <section class="atlas-heading">
@@ -36,7 +216,7 @@ export function dataShell(): string {
       </div>
       <div class="atlas-heading-actions">
         <button class="button secondary" data-atlas-action="sources">Source loaders</button
-        ><button class="button primary" data-atlas-action="import">Import data ↗</button>
+        ><button class="button primary" data-atlas-action="import" aria-label="Import data">Import data ↗</button>
       </div>
     </section>
     <div id="atlas-error" class="notice error-notice" role="alert" hidden></div>
@@ -52,6 +232,7 @@ export function dataShell(): string {
       <button class="text-button" data-atlas-action="refresh">Refresh ↻</button>
     </div>
     <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
+    <div id="atlas-auto-import"></div>
     <div id="atlas-hierarchy-browser"></div>
     <section class="atlas-section atlas-evidence-section" id="atlas-feature-catalog"><p class="muted">Loading feature registry…</p></section>
     <details class="atlas-section atlas-collapsible" id="atlas-choice-panel">
@@ -93,6 +274,7 @@ export function dataShell(): string {
             <option value="present">Present</option>
             <option value="inherited">Inherited</option>
             <option value="imputed">Imputed</option>
+            <option value="estimated">Estimated</option>
             <option value="missing">Missing</option>
           </select></label
         ><label
@@ -148,6 +330,8 @@ export function dataShell(): string {
               <th>Direct population</th>
               <th>Direct + inherited population</th>
               <th>Imputed cities</th>
+              <th>Estimated cities</th>
+              <th>Estimated population</th>
               <th>Missing cities</th>
             </tr>
           </thead>
@@ -214,6 +398,7 @@ export function summaryCards(view: AtlasOverview): string {
   const usableCities = s.total_cities - s.direct_plus_inherited.none;
   const missingCells = s.fields.reduce((total, field) => total + field.missing, 0);
   const imputedCells = s.fields.reduce((total, field) => total + field.imputed, 0);
+  const estimatedCells = s.fields.reduce((total, field) => total + field.estimated, 0);
   return `
     <div>
       <span class="metric-label">Cities tracked</span><strong>${n(s.total_cities)}</strong
@@ -229,7 +414,7 @@ export function summaryCards(view: AtlasOverview): string {
     </div>
     <div>
       <span class="metric-label">Unresolved field-place cells</span><strong>${n(missingCells)}</strong
-      ><span>${n(imputedCells)} additional cells use regional estimates</span>
+      ><span>${n(imputedCells)} imputed · ${n(estimatedCells)} estimated; excluded from measured and effective coverage</span>
     </div>
   `;
 }
@@ -246,6 +431,8 @@ export function coverageRows(view: AtlasOverview): string {
       <td>${pct(f.direct_population_percent)}</td>
       <td>${pct(f.direct_plus_inherited_population_percent)}</td>
       <td>${n(f.imputed)}</td>
+      <td>${n(f.estimated)}</td>
+      <td>${pct(f.estimated_population_percent)}</td>
       <td>${n(f.missing)}</td>
     </tr>
   `,
@@ -255,7 +442,7 @@ export function coverageRows(view: AtlasOverview): string {
 
 export function cityRows(cities: AtlasCity[]): string {
   if (!cities.length)
-    return '<tr><td colspan="12" class="atlas-empty">No cities match these filters. Adjust your search or load the full backbone.</td></tr>';
+    return '<tr><td colspan="14" class="atlas-empty">No cities match these filters. Adjust your search or load the full backbone.</td></tr>';
   return cities
     .map(
       (city) =>
@@ -305,7 +492,7 @@ export function detailView(detail: CityDetail): string {
           </tr>
         </thead>
         <tbody>
-          ${c.fields.map((f) => `<tr><th>${labels[f.field]}<br><span class="field-status ${f.status}">${f.status}</span></th><td><pre>${e(f.value === null ? 'Missing' : typeof f.value === 'number' ? String(f.value) : JSON.stringify(f.value, null, 2))}</pre>${f.unit ? `<small>${e(f.unit)}</small>` : ''}</td><td>${f.provenance ? `${e(f.provenance.source)}<small>Data ${f.provenance.source_date}<br>Published ${f.provenance.published_date}<br>Version ${e(f.provenance.version)}<br>Scope ${e(f.provenance.scope)}<br>Uploader ${e(f.provenance.uploader)}</small>` : `<a href="${e(f.source_url)}" target="_blank" rel="noreferrer">${e(f.suggested_source)} ↗</a>`}</td></tr>`).join('')}
+          ${c.fields.map((f) => `<tr><th>${labels[f.field]}<br><span class="field-status ${f.status}">${f.status}</span></th><td><pre>${e(f.value === null ? 'Missing' : typeof f.value === 'number' ? String(f.value) : JSON.stringify(f.value, null, 2))}</pre>${f.unit ? `<small>${e(f.unit)}</small>` : ''}</td><td>${f.provenance ? `${e(f.provenance.source)}<small>Data ${f.provenance.source_date}<br>Published ${f.provenance.published_date}<br>Version ${e(f.provenance.version)}<br>Scope ${e(f.provenance.scope)}<br>Uploader ${e(f.provenance.uploader)}</small>` : `<a href="${e(f.source_url)}" target="_blank" rel="noreferrer">${e(f.suggested_source)} ↗</a>`}${cityResearchTrace(f.research_trace)}</td></tr>`).join('')}
         </tbody>
       </table>
     </div>

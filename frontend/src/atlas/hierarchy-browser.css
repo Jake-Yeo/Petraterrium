@@ -3,6 +3,10 @@
   gap: 18px;
 }
 
+#atlas-hierarchy-browser .hierarchy-queue-panel {
+  display: none;
+}
+
 .hierarchy-queue-panel,
 .hierarchy-table-panel {
   overflow: hidden;
@@ -272,6 +276,12 @@
   color: #dfbd79;
 }
 
+.hierarchy-legend .estimated,
+.hierarchy-count.estimated {
+  background: #30213a;
+  color: #d2a3e5;
+}
+
 .hierarchy-legend .missing,
 .hierarchy-count.missing {
   background: #341c20;
@@ -349,7 +359,7 @@
 
 .hierarchy-counts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(70px, 1fr));
+  grid-template-columns: repeat(2, minmax(76px, 1fr));
   gap: 3px;
 }
 
@@ -392,6 +402,11 @@
 .hierarchy-status.imputed_only {
   border-color: #4c4931;
   color: #c8bf84;
+}
+
+.hierarchy-status.estimated_only {
+  border-color: #674476;
+  color: #d2a3e5;
 }
 
 .hierarchy-status.complete {

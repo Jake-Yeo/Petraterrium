@@ -659,6 +659,7 @@
             "present",
             "inherited",
             "imputed",
+            "estimated",
             "missing"
           ],
           "title": "Status",
@@ -1041,6 +1042,1259 @@
         "provenance"
       ],
       "title": "AttributeDefinition",
+      "type": "object"
+    },
+    "AutoImportAllFilteredSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "all_filtered",
+          "title": "Mode",
+          "type": "string"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        },
+        "excluded_item_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "query",
+        "excluded_item_ids"
+      ],
+      "title": "AutoImportAllFilteredSelection",
+      "type": "object"
+    },
+    "AutoImportAttemptView": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/AutoImportTargetView"
+        },
+        "stage": {
+          "enum": [
+            "collecting",
+            "mapping",
+            "verifying",
+            "review",
+            "ready",
+            "failed",
+            "promoted"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/AutoImportMappingColumn"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "verification": {
+          "items": {
+            "$ref": "#/$defs/AutoImportVerificationCheck"
+          },
+          "title": "Verification",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/AutoImportResearchSource"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "search_log": {
+          "items": {
+            "$ref": "#/$defs/AutoImportSearchEntry"
+          },
+          "title": "Search Log",
+          "type": "array"
+        },
+        "evidence_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "measured",
+                "estimated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Evidence Kind"
+        },
+        "estimate_trace": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AutoImportEstimateTraceView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate_values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Candidate Values",
+          "type": "object"
+        },
+        "can_promote": {
+          "title": "Can Promote",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "promoted_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Promoted At"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "target",
+        "stage",
+        "mappings",
+        "verification",
+        "sources",
+        "search_log",
+        "evidence_kind",
+        "estimate_trace",
+        "candidate_values",
+        "can_promote",
+        "error",
+        "promoted_at"
+      ],
+      "title": "AutoImportAttemptView",
+      "type": "object"
+    },
+    "AutoImportBatchItemView": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "title": "Item Id",
+          "type": "string"
+        },
+        "attempt_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attempt Id"
+        },
+        "target": {
+          "$ref": "#/$defs/AutoImportTargetView"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "ready",
+            "failed",
+            "promoted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "measured",
+                "estimated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Evidence Kind"
+        },
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/AutoImportMappingColumn"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "mapping_confirmed": {
+          "title": "Mapping Confirmed",
+          "type": "boolean"
+        },
+        "can_promote": {
+          "title": "Can Promote",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        }
+      },
+      "required": [
+        "item_id",
+        "attempt_id",
+        "target",
+        "status",
+        "evidence_kind",
+        "mappings",
+        "mapping_confirmed",
+        "can_promote",
+        "error"
+      ],
+      "title": "AutoImportBatchItemView",
+      "type": "object"
+    },
+    "AutoImportBatchPromotionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "all_eligible",
+            "selected"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "item_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Item Ids",
+          "type": "array"
+        },
+        "mapping_confirmed": {
+          "title": "Mapping Confirmed",
+          "type": "boolean"
+        },
+        "redistribution_confirmed": {
+          "title": "Redistribution Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "item_ids",
+        "mapping_confirmed",
+        "redistribution_confirmed"
+      ],
+      "title": "AutoImportBatchPromotionRequest",
+      "type": "object"
+    },
+    "AutoImportBatchRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "as_of": {
+          "title": "As Of",
+          "type": "string"
+        },
+        "concurrency": {
+          "maximum": 32,
+          "minimum": 1,
+          "title": "Concurrency",
+          "type": "integer"
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AutoImportExplicitSelection"
+            },
+            {
+              "$ref": "#/$defs/AutoImportAllFilteredSelection"
+            }
+          ],
+          "title": "Selection"
+        }
+      },
+      "required": [
+        "scope",
+        "as_of",
+        "concurrency",
+        "selection"
+      ],
+      "title": "AutoImportBatchRequest",
+      "type": "object"
+    },
+    "AutoImportBatchSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "completed": {
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "queued": {
+          "minimum": 0,
+          "title": "Queued",
+          "type": "integer"
+        },
+        "running": {
+          "minimum": 0,
+          "title": "Running",
+          "type": "integer"
+        },
+        "ready": {
+          "minimum": 0,
+          "title": "Ready",
+          "type": "integer"
+        },
+        "measured": {
+          "minimum": 0,
+          "title": "Measured",
+          "type": "integer"
+        },
+        "estimated": {
+          "minimum": 0,
+          "title": "Estimated",
+          "type": "integer"
+        },
+        "failed": {
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "retryable_failed": {
+          "minimum": 0,
+          "title": "Retryable Failed",
+          "type": "integer"
+        },
+        "promoted": {
+          "minimum": 0,
+          "title": "Promoted",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "completed",
+        "queued",
+        "running",
+        "ready",
+        "measured",
+        "estimated",
+        "failed",
+        "retryable_failed",
+        "promoted"
+      ],
+      "title": "AutoImportBatchSummary",
+      "type": "object"
+    },
+    "AutoImportBatchView": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_id": {
+          "title": "Batch Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "review",
+            "partial",
+            "complete",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "$ref": "#/$defs/AutoImportBatchSummary"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AutoImportBatchItemView"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "batch_id",
+        "status",
+        "summary",
+        "items",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "AutoImportBatchView",
+      "type": "object"
+    },
+    "AutoImportCanonicalValue": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "AutoImportCanonicalValue",
+      "type": "object"
+    },
+    "AutoImportDistributionRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "items": {
+            "$ref": "#/$defs/AutoImportCanonicalValue"
+          },
+          "title": "Values",
+          "type": "array"
+        },
+        "denominator": {
+          "title": "Denominator",
+          "type": "string"
+        },
+        "time_unit": {
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Range"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total"
+        }
+      },
+      "required": [
+        "values",
+        "denominator",
+        "time_unit",
+        "unit",
+        "range",
+        "total"
+      ],
+      "title": "AutoImportDistributionRequirement",
+      "type": "object"
+    },
+    "AutoImportEstimateInput": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Id"
+        }
+      },
+      "required": [
+        "label",
+        "value",
+        "source_id"
+      ],
+      "title": "AutoImportEstimateInput",
+      "type": "object"
+    },
+    "AutoImportEstimateTraceView": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "title": "Method",
+          "type": "string"
+        },
+        "calculation": {
+          "title": "Calculation",
+          "type": "string"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/AutoImportEstimateInput"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "confidence_interval": {
+          "title": "Confidence Interval",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "method",
+        "calculation",
+        "assumptions",
+        "inputs",
+        "confidence_interval",
+        "limitations"
+      ],
+      "title": "AutoImportEstimateTraceView",
+      "type": "object"
+    },
+    "AutoImportEvidenceView": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "items": {
+            "$ref": "#/$defs/AutoImportAttemptView"
+          },
+          "title": "Attempts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attempts"
+      ],
+      "title": "AutoImportEvidenceView",
+      "type": "object"
+    },
+    "AutoImportExplicitSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "explicit",
+          "title": "Mode",
+          "type": "string"
+        },
+        "item_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Item Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "item_ids"
+      ],
+      "title": "AutoImportExplicitSelection",
+      "type": "object"
+    },
+    "AutoImportMappingColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "ambiguous": {
+          "title": "Ambiguous",
+          "type": "boolean"
+        },
+        "samples": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Samples",
+          "type": "array"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/AutoImportMappingOption"
+          },
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "column",
+        "target",
+        "ambiguous",
+        "samples",
+        "options"
+      ],
+      "title": "AutoImportMappingColumn",
+      "type": "object"
+    },
+    "AutoImportMappingEdit": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        }
+      },
+      "required": [
+        "column",
+        "target"
+      ],
+      "title": "AutoImportMappingEdit",
+      "type": "object"
+    },
+    "AutoImportMappingOption": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "AutoImportMappingOption",
+      "type": "object"
+    },
+    "AutoImportMappingReview": {
+      "additionalProperties": false,
+      "properties": {
+        "mappings": {
+          "items": {
+            "$ref": "#/$defs/AutoImportMappingEdit"
+          },
+          "title": "Mappings",
+          "type": "array"
+        },
+        "reviewed": {
+          "title": "Reviewed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mappings",
+        "reviewed"
+      ],
+      "title": "AutoImportMappingReview",
+      "type": "object"
+    },
+    "AutoImportPromotionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "redistribution_confirmed": {
+          "title": "Redistribution Confirmed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "redistribution_confirmed"
+      ],
+      "title": "AutoImportPromotionRequest",
+      "type": "object"
+    },
+    "AutoImportQueueItemView": {
+      "additionalProperties": false,
+      "properties": {
+        "place_id": {
+          "title": "Place Id",
+          "type": "string"
+        },
+        "place_label": {
+          "title": "Place Label",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "region",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "country_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Country Code"
+        },
+        "geonameid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Geonameid"
+        },
+        "population": {
+          "minimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "field_id": {
+          "title": "Field Id",
+          "type": "string"
+        },
+        "field_label": {
+          "title": "Field Label",
+          "type": "string"
+        },
+        "current_status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "estimated",
+            "missing"
+          ],
+          "title": "Current Status",
+          "type": "string"
+        },
+        "as_of": {
+          "title": "As Of",
+          "type": "string"
+        },
+        "required_distribution": {
+          "$ref": "#/$defs/AutoImportDistributionRequirement"
+        },
+        "item_id": {
+          "title": "Item Id",
+          "type": "string"
+        },
+        "missing_impact": {
+          "minimum": 0,
+          "title": "Missing Impact",
+          "type": "integer"
+        },
+        "priority": {
+          "enum": [
+            "primary",
+            "lower"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
+        "place_item_count": {
+          "minimum": 1,
+          "title": "Place Item Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "place_id",
+        "place_label",
+        "level",
+        "country_code",
+        "geonameid",
+        "population",
+        "field_id",
+        "field_label",
+        "current_status",
+        "as_of",
+        "required_distribution",
+        "item_id",
+        "missing_impact",
+        "priority",
+        "place_item_count"
+      ],
+      "title": "AutoImportQueueItemView",
+      "type": "object"
+    },
+    "AutoImportQueuePageView": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AutoImportQueueItemView"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "filtered_count": {
+          "minimum": 0,
+          "title": "Filtered Count",
+          "type": "integer"
+        },
+        "filtered_population": {
+          "minimum": 0,
+          "title": "Filtered Population",
+          "type": "integer"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "primary_count": {
+          "minimum": 0,
+          "title": "Primary Count",
+          "type": "integer"
+        },
+        "primary_population": {
+          "minimum": 0,
+          "title": "Primary Population",
+          "type": "integer"
+        },
+        "lower_priority_count": {
+          "minimum": 0,
+          "title": "Lower Priority Count",
+          "type": "integer"
+        },
+        "lower_priority_population": {
+          "minimum": 0,
+          "title": "Lower Priority Population",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "filtered_count",
+        "filtered_population",
+        "page",
+        "page_size",
+        "primary_count",
+        "primary_population",
+        "lower_priority_count",
+        "lower_priority_population"
+      ],
+      "title": "AutoImportQueuePageView",
+      "type": "object"
+    },
+    "AutoImportResearchSource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "publisher": {
+          "title": "Publisher",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Date"
+        },
+        "published_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Published Date"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Version"
+        },
+        "licence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Licence"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "original_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Original Excerpt"
+        },
+        "translated_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Translated Excerpt"
+        },
+        "accepted": {
+          "title": "Accepted",
+          "type": "boolean"
+        },
+        "rejection_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rejection Reason"
+        }
+      },
+      "required": [
+        "source_id",
+        "title",
+        "publisher",
+        "url",
+        "source_date",
+        "published_date",
+        "version",
+        "licence",
+        "language",
+        "original_excerpt",
+        "translated_excerpt",
+        "accepted",
+        "rejection_reason"
+      ],
+      "title": "AutoImportResearchSource",
+      "type": "object"
+    },
+    "AutoImportSearchEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "title": "Engine",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "searched_at": {
+          "title": "Searched At",
+          "type": "string"
+        },
+        "result_count": {
+          "minimum": 0,
+          "title": "Result Count",
+          "type": "integer"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "rejection_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rejection Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "engine",
+        "language",
+        "query",
+        "searched_at",
+        "result_count",
+        "outcome",
+        "rejection_reasons"
+      ],
+      "title": "AutoImportSearchEntry",
+      "type": "object"
+    },
+    "AutoImportTargetView": {
+      "additionalProperties": false,
+      "properties": {
+        "place_id": {
+          "title": "Place Id",
+          "type": "string"
+        },
+        "place_label": {
+          "title": "Place Label",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "region",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "country_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Country Code"
+        },
+        "geonameid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Geonameid"
+        },
+        "population": {
+          "minimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "field_id": {
+          "title": "Field Id",
+          "type": "string"
+        },
+        "field_label": {
+          "title": "Field Label",
+          "type": "string"
+        },
+        "current_status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "estimated",
+            "missing"
+          ],
+          "title": "Current Status",
+          "type": "string"
+        },
+        "as_of": {
+          "title": "As Of",
+          "type": "string"
+        },
+        "required_distribution": {
+          "$ref": "#/$defs/AutoImportDistributionRequirement"
+        }
+      },
+      "required": [
+        "place_id",
+        "place_label",
+        "level",
+        "country_code",
+        "geonameid",
+        "population",
+        "field_id",
+        "field_label",
+        "current_status",
+        "as_of",
+        "required_distribution"
+      ],
+      "title": "AutoImportTargetView",
+      "type": "object"
+    },
+    "AutoImportVerificationCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "status",
+        "detail"
+      ],
+      "title": "AutoImportVerificationCheck",
       "type": "object"
     },
     "Backbone": {
@@ -2305,6 +3559,7 @@
             "present",
             "inherited",
             "imputed",
+            "estimated",
             "missing"
           ],
           "title": "Status",
@@ -3497,6 +4752,10 @@
           "title": "Imputed",
           "type": "integer"
         },
+        "estimated": {
+          "title": "Estimated",
+          "type": "integer"
+        },
         "missing": {
           "title": "Missing",
           "type": "integer"
@@ -3520,6 +4779,10 @@
         "imputed_population_percent": {
           "title": "Imputed Population Percent",
           "type": "number"
+        },
+        "estimated_population_percent": {
+          "title": "Estimated Population Percent",
+          "type": "number"
         }
       },
       "required": [
@@ -3527,12 +4790,14 @@
         "present",
         "inherited",
         "imputed",
+        "estimated",
         "missing",
         "direct_percent",
         "direct_plus_inherited_percent",
         "direct_population_percent",
         "direct_plus_inherited_population_percent",
-        "imputed_population_percent"
+        "imputed_population_percent",
+        "estimated_population_percent"
       ],
       "title": "FieldCoverage",
       "type": "object"
@@ -3666,6 +4931,7 @@
               "present",
               "inherited",
               "imputed",
+              "estimated",
               "missing"
             ],
             "type": "string"
@@ -4264,6 +5530,7 @@
             "present",
             "inherited",
             "imputed",
+            "estimated",
             "missing"
           ],
           "title": "Status",
@@ -4310,6 +5577,19 @@
           ],
           "default": null
         },
+        "research_trace": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Research Trace"
+        },
         "suggested_source": {
           "title": "Suggested Source",
           "type": "string"
@@ -4325,6 +5605,7 @@
         "value",
         "unit",
         "provenance",
+        "research_trace",
         "suggested_source",
         "source_url"
       ],
@@ -6468,6 +7749,30 @@
     },
     {
       "$ref": "#/$defs/ValidationReport"
+    },
+    {
+      "$ref": "#/$defs/AutoImportAttemptView"
+    },
+    {
+      "$ref": "#/$defs/AutoImportBatchPromotionRequest"
+    },
+    {
+      "$ref": "#/$defs/AutoImportBatchRequest"
+    },
+    {
+      "$ref": "#/$defs/AutoImportBatchView"
+    },
+    {
+      "$ref": "#/$defs/AutoImportEvidenceView"
+    },
+    {
+      "$ref": "#/$defs/AutoImportMappingReview"
+    },
+    {
+      "$ref": "#/$defs/AutoImportPromotionRequest"
+    },
+    {
+      "$ref": "#/$defs/AutoImportQueuePageView"
     }
   ],
   "$id": "petraterrium-contracts"

@@ -233,9 +233,111 @@
   border-color: #e9b57730;
   color: #d6af7f;
 }
+.field-status.estimated {
+  background: #ca8de60b;
+  border-color: #ca8de640;
+  color: #d2a3e5;
+}
 .field-status.missing {
   background: #ffffff02;
   color: #93a1aa;
+}
+.feature-research-attempts,
+.feature-research-sources {
+  display: grid;
+  gap: 10px;
+}
+.feature-research-attempt {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #09131b;
+}
+.feature-research-heading,
+.feature-research-heading > div,
+.feature-research-source > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.feature-research-heading > div {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+.feature-research-attempt small,
+.feature-research-source small {
+  display: block;
+  color: var(--muted);
+}
+.feature-research-distribution {
+  margin: 10px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.feature-research-sources {
+  margin-top: 12px;
+}
+.feature-research-source {
+  padding: 10px;
+  border-left: 2px solid #36515e;
+  background: #ffffff03;
+}
+.feature-research-source p,
+.atlas-research-trace p {
+  margin: 7px 0 0;
+  color: #aebec5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.feature-research-estimate,
+.atlas-research-trace dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.feature-research-estimate > div,
+.atlas-research-trace dl > div {
+  padding: 9px;
+  background: #ffffff04;
+}
+.feature-research-estimate dt,
+.atlas-research-trace dt {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.feature-research-estimate dd,
+.atlas-research-trace dd {
+  margin-top: 4px;
+  color: #c4d1d6;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.atlas-research-trace {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.atlas-research-trace > summary,
+.atlas-research-trace details > summary {
+  color: #76bdd0;
+  cursor: pointer;
+  font-size: 10px;
+}
+.atlas-research-trace article {
+  margin-top: 10px;
+  padding: 8px;
+  background: #ffffff04;
+}
+.atlas-research-trace ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
+  color: #aebec5;
+  font-size: 10px;
 }
 .atlas-tier {
   color: #becdd4;

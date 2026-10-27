@@ -11,9 +11,17 @@ from .organizer import resolve
 from .regions import CANONICAL_REGIONS, country_region
 
 HierarchyLevel = Literal["region", "country", "city"]
-HierarchyCoverageState = Literal["no_data", "partial", "imputed_only", "complete"]
+HierarchyCoverageState = Literal[
+    "no_data", "partial", "imputed_only", "estimated_only", "complete"
+]
 
-STATUS_ORDER = {"no_data": 0, "partial": 1, "imputed_only": 2, "complete": 3}
+STATUS_ORDER = {
+    "no_data": 0,
+    "partial": 1,
+    "estimated_only": 2,
+    "imputed_only": 3,
+    "complete": 4,
+}
 LEVEL_ORDER = {"region": 0, "country": 1, "city": 2}
 
 
@@ -21,6 +29,7 @@ class HierarchyCoverageCounts(Contract):
     present: int = Field(ge=0)
     inherited: int = Field(ge=0)
     imputed: int = Field(ge=0)
+    estimated: int = Field(ge=0)
     missing: int = Field(ge=0)
 
 
@@ -88,7 +97,7 @@ class Aggregate:
         self.population += other.population
         self.city_count += other.city_count
         for feature in self.fields:
-            for status in ("present", "inherited", "imputed", "missing"):
+            for status in ("present", "inherited", "imputed", "estimated", "missing"):
                 self.counts_by_field[feature][status] += other.counts_by_field[feature][status]
                 self.population_by_field[feature][status] += other.population_by_field[feature][
                     status
@@ -97,7 +106,7 @@ class Aggregate:
     def to_row(self) -> HierarchyBrowserRow:
         counts = {
             status: sum(self.counts_by_field[feature][status] for feature in self.fields)
-            for status in ("present", "inherited", "imputed", "missing")
+            for status in ("present", "inherited", "imputed", "estimated", "missing")
         }
         missing_fields = sorted(
             (feature for feature in self.fields if self.counts_by_field[feature]["missing"] > 0),
@@ -122,11 +131,18 @@ class Aggregate:
                 return round(numerator * 100 / count_denominator, 6)
             return 0
 
-        available = counts["present"] + counts["inherited"] + counts["imputed"]
+        available = (
+            counts["present"]
+            + counts["inherited"]
+            + counts["imputed"]
+            + counts["estimated"]
+        )
         if available == 0:
             state: HierarchyCoverageState = "no_data"
         elif counts["missing"] > 0:
             state = "partial"
+        elif counts["estimated"] and counts["present"] + counts["inherited"] == 0:
+            state = "estimated_only"
         elif counts["present"] + counts["inherited"] == 0:
             state = "imputed_only"
         else:
@@ -296,7 +312,8 @@ def _city_rows(
     rows = conn.execute(
         f"""SELECT * FROM hierarchy_coverage WHERE {where} ORDER BY
         CASE WHEN available=0 THEN 0 WHEN available<? THEN 1
-             WHEN direct+inherited=0 AND imputed>0 THEN 2 ELSE 3 END,
+             WHEN direct+inherited=0 AND estimated>0 THEN 2
+             WHEN direct+inherited=0 AND imputed>0 THEN 3 ELSE 4 END,
         population DESC,name COLLATE NOCASE,geonameid LIMIT ? OFFSET ?""",
         [*parameters, len(fields), page_size, (page - 1) * page_size],
     ).fetchall()
@@ -323,7 +340,7 @@ def _materialize_city_rows(conn, rows, fields: tuple[str, ...]) -> list[Hierarch
         }
         counts = {
             status: sum(value == status for value in statuses.values())
-            for status in ("present", "inherited", "imputed", "missing")
+            for status in ("present", "inherited", "imputed", "estimated", "missing")
         }
         missing_fields = [feature for feature in fields if statuses[feature] == "missing"]
         available = len(fields) - counts["missing"]
@@ -331,6 +348,8 @@ def _materialize_city_rows(conn, rows, fields: tuple[str, ...]) -> list[Hierarch
             state: HierarchyCoverageState = "no_data"
         elif counts["missing"]:
             state = "partial"
+        elif counts["estimated"] and counts["present"] + counts["inherited"] == 0:
+            state = "estimated_only"
         elif counts["present"] + counts["inherited"] == 0:
             state = "imputed_only"
         else:
@@ -418,7 +437,8 @@ def _create_hierarchy_coverage(conn, fields: tuple[str, ...]) -> None:
         COUNT(r.field) available,
         COALESCE(SUM(r.field_status='present'),0) direct,
         COALESCE(SUM(r.field_status='inherited'),0) inherited,
-        COALESCE(SUM(r.field_status='imputed'),0) imputed
+        COALESCE(SUM(r.field_status='imputed'),0) imputed,
+        COALESCE(SUM(r.field_status='estimated'),0) estimated
         FROM cities c LEFT JOIN resolved r ON r.geonameid=c.geonameid
         AND r.field IN ({placeholders}) GROUP BY c.geonameid""",
         fields,

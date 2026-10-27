@@ -1,0 +1,390 @@
+[
+  {
+    "source_id": "un_wpp_2024_regions",
+    "source": "UN World Population Prospects",
+    "scope_order": 1,
+    "level": "region",
+    "access_status": "imported",
+    "source_url": "https://population.un.org/wpp/",
+    "version": "2024 Revision",
+    "source_date": "2024-07-11",
+    "license": "CC BY 3.0 IGO",
+    "mapping": {
+      "age": "UN five-year age groups",
+      "sex": [
+        "female",
+        "male"
+      ],
+      "population": "persons converted from source thousands",
+      "aggregation": "Country counts summed into canonical Petraterrium regions"
+    },
+    "coverage": {
+      "regions": 8,
+      "age_sex_percent_of_wpp_universe": 100.0
+    },
+    "restriction_reason": "",
+    "fallback": "No projection fallback; 2023 estimates only",
+    "required_action": "",
+    "files": [
+      {
+        "path": "registry_feature_dump/wpp_region_age_sex.parquet",
+        "present": true,
+        "bytes": 7555,
+        "sha256": "d29c99188c8888b2942eca45dbfa0aee6f2694d6d2a7344e39de43664af2fc6d"
+      },
+      {
+        "path": "registry_feature_dump/wpp_region_population.parquet",
+        "present": true,
+        "bytes": 2327,
+        "sha256": "bfc4ce8238f9ae0052257f9a45a8b8ee86a129f82cc20098af1942006c411125"
+      }
+    ]
+  },
+  {
+    "source_id": "european_social_survey",
+    "source": "European Social Survey",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "unavailable",
+    "source_url": "https://www.europeansocialsurvey.org/data-portal",
+    "version": "User-selected round required",
+    "source_date": "",
+    "license": "CC BY-NC-SA 4.0",
+    "mapping": {
+      "values": "Round-specific survey items and analysis weights",
+      "trust": "Weighted respondent distribution",
+      "ideology_axes": "Separate measured item sets; no single-axis split"
+    },
+    "coverage": {
+      "imported_countries": 0,
+      "imported_survey_rounds": 0
+    },
+    "restriction_reason": "No versioned round-specific extract is present; ESS recommends linking to portal datasets rather than republishing them on external sites",
+    "fallback": "No survey values are inferred from European electoral results",
+    "required_action": "Supply a named ESS round extract and questionnaire, choose a compatible noncommercial distribution scope, and retain the adapted-data citation",
+    "files": []
+  },
+  {
+    "source_id": "ipums_international",
+    "source": "IPUMS International",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "unavailable",
+    "source_url": "https://international.ipums.org/international/terms.shtml",
+    "version": "User-selected extract required",
+    "source_date": "",
+    "license": "Individual registered-user licence; scholarly and educational use only",
+    "mapping": {
+      "education": "EDATTAIN/EDUCD to ISCED",
+      "occupation": "OCCISCO to ISCO",
+      "joint_distributions": "Use PERWT and HHWT; preserve sample and geography metadata"
+    },
+    "coverage": {
+      "imported_countries": 0,
+      "measured_joint_distributions": 0
+    },
+    "restriction_reason": "Account approval is required and the licence prohibits redistribution of microdata; each research-team member must be licensed individually",
+    "fallback": "WDI country marginals only; no measured person-level joint distribution",
+    "required_action": "A licensed user must create and supply a versioned extract plus codebook and authorize local processing; only disclosure-safe aggregates may enter a public dump",
+    "files": []
+  },
+  {
+    "source_id": "pew_global_attitudes",
+    "source": "Pew Research Center Global Attitudes",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "unavailable",
+    "source_url": "https://www.pewresearch.org/methods-site/datasets/",
+    "version": "User-selected survey required",
+    "source_date": "",
+    "license": "Pew Research Center survey dataset terms",
+    "mapping": {
+      "values": "Survey-specific weighted items",
+      "ideology_axes": "Separate item sets where questionnaire coverage supports them"
+    },
+    "coverage": {
+      "imported_countries": 0,
+      "imported_surveys": 0
+    },
+    "restriction_reason": "Dataset download requires a Pew account and full or substantially full dataset redistribution is not permitted",
+    "fallback": "No Pew-derived value is present",
+    "required_action": "An account holder must supply a named dataset, questionnaire, weights, and authorize local processing into attributable aggregate outputs",
+    "files": []
+  },
+  {
+    "source_id": "un_desa_households",
+    "source": "UN DESA Database on Household Size and Composition",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "imported",
+    "source_url": "https://www.un.org/development/desa/pd/sites/www.un.org.development.desa.pd/files/undesa_pd_2026_hh-size-composition.xlsx",
+    "version": "sha256:7687ad9c151f7c14995a5c5d3f6ff6092dd06738db8e247438561833c247e209",
+    "source_date": "2026-08-19",
+    "license": "UN DESA source workbook terms; provenance retained",
+    "mapping": {
+      "household_size": "Country survey estimate with original survey year",
+      "inheritance": "Country observation remains inherited at city level"
+    },
+    "coverage": {
+      "countries": 200,
+      "features": 39,
+      "latest_values": 5853
+    },
+    "restriction_reason": "",
+    "fallback": "Missing countries remain missing",
+    "required_action": "",
+    "files": [
+      {
+        "path": "sources/UN_DESA_household_2026.xlsx",
+        "present": true,
+        "bytes": 402479,
+        "sha256": "7687ad9c151f7c14995a5c5d3f6ff6092dd06738db8e247438561833c247e209"
+      }
+    ]
+  },
+  {
+    "source_id": "un_wpp_2024_countries",
+    "source": "UN World Population Prospects",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "imported",
+    "source_url": "https://population.un.org/wpp/",
+    "version": "2024 Revision",
+    "source_date": "2024-07-11",
+    "license": "CC BY 3.0 IGO",
+    "mapping": {
+      "age": "UN five-year age groups",
+      "sex": [
+        "female",
+        "male"
+      ],
+      "population": "De facto population on 1 July; source thousands converted to persons",
+      "geography": "UN ISO alpha-3 converted to ISO alpha-2"
+    },
+    "coverage": {
+      "countries_or_areas": 237,
+      "age_sex_percent_of_wpp_universe": 100.0
+    },
+    "restriction_reason": "",
+    "fallback": "None",
+    "required_action": "",
+    "files": [
+      {
+        "path": "registry_feature_dump/wpp_country_age_sex.parquet",
+        "present": true,
+        "bytes": 143003,
+        "sha256": "ea52df23fd325dbc006a01f46348711f0229f83566258074ca764606b735c138"
+      },
+      {
+        "path": "registry_feature_dump/wpp_country_population.parquet",
+        "present": true,
+        "bytes": 10963,
+        "sha256": "165b1c8e7ce7aa3ef1b1ef40ec880613e66c60eb5778a76ddfbd8c8d7edc6d79"
+      }
+    ]
+  },
+  {
+    "source_id": "world_bank_wdi",
+    "source": "World Bank World Development Indicators",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "imported",
+    "source_url": "https://databankfiles.worldbank.org/public/ddpext_download/WDI_CSV.zip",
+    "version": "sha256:1cbb81b7e8e656e05fe9236f201d6d59a82d62a77f96c147c1bc63940a7b0c0c",
+    "source_date": "2026-10-08",
+    "license": "Per-series license; importer retains CC BY-4.0 and CC BY 3.0 IGO only",
+    "mapping": {
+      "education": {
+        "standard": "ISCED 2011",
+        "source_population": "Population age 25 and older",
+        "method": "Differences between cumulative attainment thresholds",
+        "values": {
+          "below_primary": "Below completed ISCED 1",
+          "primary": "ISCED 1",
+          "lower_secondary": "ISCED 2",
+          "upper_secondary": "ISCED 3",
+          "postsecondary_below_bachelor": "ISCED 4-5 and short-cycle tertiary below bachelor",
+          "bachelor_or_higher": "ISCED 6-8"
+        },
+        "indicators": [
+          "SE.PRM.CUAT.ZS",
+          "SE.SEC.CUAT.LO.ZS",
+          "SE.SEC.CUAT.UP.ZS",
+          "SE.SEC.CUAT.PO.ZS",
+          "SE.TER.CUAT.BA.ZS"
+        ],
+        "limitation": "Broad derived bands, not direct microdata-coded ISCED categories"
+      },
+      "income": {
+        "standard": "World Bank income-share quintiles",
+        "indicators": [
+          "SI.DST.FRST.20",
+          "SI.DST.02ND.20",
+          "SI.DST.03RD.20",
+          "SI.DST.04TH.20",
+          "SI.DST.05TH.20"
+        ],
+        "limitation": "Income quintile shares measure each fixed population quintile's share of national income; they do not measure person-level income bands or a city income distribution"
+      }
+    },
+    "coverage": {
+      "countries": 216,
+      "series": 1492,
+      "latest_values": 249804
+    },
+    "restriction_reason": "",
+    "fallback": "Country observations inherit to cities and remain flagged inherited",
+    "required_action": "",
+    "files": [
+      {
+        "path": "sources/WDI_CSV.zip",
+        "present": true,
+        "bytes": 283089754,
+        "sha256": "1cbb81b7e8e656e05fe9236f201d6d59a82d62a77f96c147c1bc63940a7b0c0c"
+      }
+    ]
+  },
+  {
+    "source_id": "world_values_survey",
+    "source": "World Values Survey",
+    "scope_order": 2,
+    "level": "country",
+    "access_status": "unavailable",
+    "source_url": "https://www.worldvaluessurvey.org/AJDownloadLicense.jsp",
+    "version": "User-selected wave required",
+    "source_date": "",
+    "license": "Non-profit use with citation; source data files may not be redistributed",
+    "mapping": {
+      "values": "Survey items require a versioned harmonization map",
+      "trust": "Weighted respondent distribution",
+      "ideology_axes": "Separate item sets for economic, state, and cultural axes"
+    },
+    "coverage": {
+      "imported_countries": 0,
+      "imported_survey_waves": 0
+    },
+    "restriction_reason": "Download requires registration and acceptance of conditions that prohibit redistribution of the data files",
+    "fallback": "No self-reported values or ideology fallback is promoted",
+    "required_action": "A registered user must supply the selected wave, weights, questionnaire, and permission for local aggregate processing",
+    "files": []
+  },
+  {
+    "source_id": "blue_electoral",
+    "source": "BLUE electoral database",
+    "scope_order": 3,
+    "level": "city",
+    "access_status": "imported",
+    "source_url": "https://zenodo.org/records/21434112",
+    "version": "v2025.1",
+    "source_date": "2026-07-18",
+    "license": "CC BY 4.0",
+    "mapping": {
+      "electoral_alignment": "LAU valid-ballot party-family shares",
+      "place_join": "GeoNames point in GISCO LAU boundary",
+      "ideology": "Legacy single-axis electoral proxy only; never auto-split into economic, state, and cultural survey axes"
+    },
+    "coverage": {
+      "countries": 31,
+      "matched_cities": 78969,
+      "cities_with_results": 68667
+    },
+    "restriction_reason": "",
+    "fallback": "No self-reported ideology or resident distribution is inferred",
+    "required_action": "",
+    "files": [
+      {
+        "path": "sources/BLUE_DB.zip",
+        "present": true,
+        "bytes": 45833176,
+        "sha256": "0eaab01ada9aecbc16b637a189dfda38c0b7e74489488d10873b1a5ca19aa32d"
+      }
+    ]
+  },
+  {
+    "source_id": "geonames_cities500",
+    "source": "GeoNames cities500",
+    "scope_order": 3,
+    "level": "city",
+    "access_status": "imported",
+    "source_url": "https://download.geonames.org/export/dump/cities500.zip",
+    "version": "sha256:54764f97df5aff90af774210ee4be97e5febb23e102549c20dd41928f2c35066",
+    "source_date": "2026-10-26",
+    "license": "CC BY 4.0",
+    "mapping": {
+      "place_id": "geonameid",
+      "population": "GeoNames population field",
+      "geography": "Point coordinates and admin codes"
+    },
+    "coverage": {
+      "cities": 225931,
+      "countries": 246,
+      "cities_without_population": 30590
+    },
+    "restriction_reason": "",
+    "fallback": "Population remains missing when GeoNames reports zero",
+    "required_action": "",
+    "files": [
+      {
+        "path": "cities500.zip",
+        "present": true,
+        "bytes": 13907081,
+        "sha256": "54764f97df5aff90af774210ee4be97e5febb23e102549c20dd41928f2c35066"
+      }
+    ]
+  },
+  {
+    "source_id": "ghsl_ucdb",
+    "source": "GHS Urban Centre Database",
+    "scope_order": 3,
+    "level": "city",
+    "access_status": "imported",
+    "source_url": "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_UCDB_GLOBE_R2024A/GHS_UCDB_GLOBE_R2024A/V1-2/GHS_UCDB_GLOBE_R2024A_V1_2.zip",
+    "version": "R2024A V1.2",
+    "source_date": "2026-05-15",
+    "license": "European Commission reuse decision 2011/833/EU; per-variable sources retained",
+    "mapping": {
+      "population": "Urban-centre polygon values spatially imputed to contained GeoNames points",
+      "place_join": "Point in polygon; never relabelled city-observed"
+    },
+    "coverage": {
+      "urban_centres": 11422,
+      "cities_spatially_matched": 24673,
+      "features": 2805
+    },
+    "restriction_reason": "",
+    "fallback": "GeoNames population remains the backbone city value",
+    "required_action": "",
+    "files": [
+      {
+        "path": "sources/GHS_UCDB_GLOBE_R2024A_V1_2.zip",
+        "present": true,
+        "bytes": 276662440,
+        "sha256": "12dc8d366a6057b832a070ba3f7b7b7c601bad191da0417a666851f35f10db2e"
+      }
+    ]
+  },
+  {
+    "source_id": "worldpop",
+    "source": "WorldPop Global 2 population counts",
+    "scope_order": 3,
+    "level": "city",
+    "access_status": "available_remote",
+    "source_url": "https://hub.worldpop.org/geodata/summary?id=80030",
+    "version": "Global 2 R2025A v1",
+    "source_date": "2025",
+    "license": "CC BY 4.0",
+    "mapping": {
+      "population": "One-kilometre global GeoTIFF requires zonal aggregation to city boundaries",
+      "compact_official_dump": "276.02 MB global dataset is available"
+    },
+    "coverage": {
+      "global_dataset_available": true,
+      "imported_city_populations": 0,
+      "compact_download_size_label": "276.02 MB as listed by WorldPop"
+    },
+    "restriction_reason": "Not imported automatically because a raster-to-city boundary definition is required; point sampling would not produce city populations",
+    "fallback": "GeoNames point populations and GHS-UCDB urban-centre polygons are already imported",
+    "required_action": "Approve a city-boundary source and year, then download the compact official 1 km mosaic and aggregate cells with coverage and method provenance",
+    "files": []
+  }
+]

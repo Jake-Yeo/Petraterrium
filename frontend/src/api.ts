@@ -50,7 +50,7 @@ const validators = {
   graph: validator<DecisionGraph>('DecisionGraph'),
 };
 
-function parse<T>(data: unknown, validate: ValidateFunction<T>): T {
+export function parseContract<T>(data: unknown, validate: ValidateFunction<T>): T {
   if (!validate(data)) {
     throw new Error(
       `The server returned an invalid data contract: ${ajv.errorsText(validate.errors)}`,
@@ -76,7 +76,7 @@ export async function request<T>(
       typeof body?.detail === 'string' ? body.detail : `Request failed (${response.status})`;
     throw new Error(message);
   }
-  return parse(await response.json(), validate);
+  return parseContract(await response.json(), validate);
 }
 
 export const api = {
@@ -180,7 +180,7 @@ export class RunStream {
       if (sequence <= this.sequence) return;
       if (sequence !== this.sequence + 1)
         throw new Error('A recorded day is missing. Reopen this run to resync.');
-      const value = parse(JSON.parse(event.data), validate);
+      const value = parseContract(JSON.parse(event.data), validate);
       callback(value, sequence);
       this.sequence = sequence;
     } catch (error) {

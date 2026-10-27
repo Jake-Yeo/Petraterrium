@@ -19,6 +19,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from .atlas.auto_import_routes import create_auto_import_router
 from .atlas.contracts import ImportMetadata, ImportPreview
 from .atlas.database import FIELDS, AtlasStore
 from .atlas.feature_catalog import create_feature_catalog_router
@@ -61,7 +62,7 @@ from .service import RunService
 from .versions import ENGINE_VERSION
 
 
-def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
+def create_app(store: RunStore | None = None, atlas_path=None, research_provider=None) -> FastAPI:
     run_store = store or RunStore()
     service = RunService(run_store)
     application = FastAPI(title="Petraterrium · DSL simulation framework", version="0.2.0")
@@ -70,6 +71,7 @@ def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
     atlas_store = AtlasStore(atlas_path)
     application.state.atlas = atlas_store
     application.include_router(create_atlas_router(atlas_store, run_store))
+    application.include_router(create_auto_import_router(atlas_store, research_provider))
     application.include_router(
         create_feature_catalog_router(atlas_store, canonical_feature_registry)
     )

@@ -15,7 +15,7 @@ MarginalName = Literal[
     "ideology_cultural",
     "household_size",
 ]
-FieldStatus = Literal["present", "inherited", "imputed", "missing"]
+FieldStatus = Literal["present", "inherited", "imputed", "estimated", "missing"]
 MarginalValue = dict[str, float] | float
 
 
@@ -35,6 +35,7 @@ class MarginalField(Contract):
     value: MarginalValue | None = None
     unit: str | None = None
     provenance: Provenance | None = None
+    research_trace: dict[str, Any] | None = None
     suggested_source: str
     source_url: str
 
@@ -109,12 +110,14 @@ class FieldCoverage(Contract):
     present: int
     inherited: int
     imputed: int
+    estimated: int
     missing: int
     direct_percent: float
     direct_plus_inherited_percent: float
     direct_population_percent: float
     direct_plus_inherited_population_percent: float
     imputed_population_percent: float
+    estimated_population_percent: float
 
 
 class AtlasSummary(Contract):

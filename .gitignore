@@ -13,4 +13,8 @@ dist/
 test-results/
 playwright-report/
 *.log
-backend/data/
+backend/data/*
+!backend/data/README.md
+!backend/data/countryInfo.txt
+!backend/data/registry_feature_dump/
+!backend/data/registry_feature_dump/**

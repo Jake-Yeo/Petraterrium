@@ -10,6 +10,8 @@ import type {
 } from '../contracts.generated';
 import { escapeHtml as e } from '../views';
 import { atlasApi } from './api';
+import { autoImportClient, mountAutoImport, type AutoImportSurface } from './auto-import';
+import type { AutoImportAttempt, ResearchSource } from './auto-import-model';
 import { importForm, mappingView, validationView } from './import_views';
 import { choiceEvidenceView } from './evidence_views';
 import {
@@ -18,14 +20,8 @@ import {
   type FeatureCatalogView,
 } from './feature-catalog';
 import { featureQueryClient, placeOptions } from './feature-query-api';
-import {
-  HierarchyBrowser,
-  type HierarchyBrowserRow,
-} from './hierarchy-browser';
-import {
-  JoinedFilterPanel,
-  type JoinedFeatureOption,
-} from './joined-filter';
+import { HierarchyBrowser, type HierarchyBrowserRow } from './hierarchy-browser';
+import { JoinedFilterPanel, type JoinedFeatureOption } from './joined-filter';
 import {
   cityRows,
   coverageRows,
@@ -35,6 +31,71 @@ import {
   sourceCards,
   summaryCards,
 } from './views';
+
+function evidenceSource(source: ResearchSource): string {
+  const href = (() => {
+    if (!source.url) return null;
+    try {
+      const parsed = new URL(source.url);
+      return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null;
+    } catch {
+      return null;
+    }
+  })();
+  const title = href
+    ? `<a href="${e(href)}" target="_blank" rel="noreferrer">${e(source.title)} ↗</a>`
+    : `<strong>${e(source.title)}</strong>`;
+  return `<article class="feature-research-source">
+    <div>${title}<span class="field-status ${source.accepted ? 'present' : 'missing'}">${source.accepted ? 'accepted' : 'rejected'}</span></div>
+    <small>${e(source.publisher)} · ${e(source.language)} · observed ${e(source.source_date ?? 'undated')} · published ${e(source.published_date ?? 'undated')} · ${e(source.version ?? 'unknown version')} · ${e(source.licence ?? 'unknown licence')}</small>
+    ${source.original_excerpt ? `<p><strong>Original</strong> ${e(source.original_excerpt)}</p>` : ''}
+    ${source.translated_excerpt ? `<p><strong>Translation</strong> ${e(source.translated_excerpt)}</p>` : ''}
+    ${source.rejection_reason ? `<p>${e(source.rejection_reason)}</p>` : ''}
+  </article>`;
+}
+
+function featureResearchEvidence(attempts: AutoImportAttempt[]): string {
+  if (!attempts.length) {
+    return `<section class="feature-catalog-detail-section feature-research-evidence">
+      <div><h4>Imported research evidence</h4><span>No promoted auto-import evidence</span></div>
+    </section>`;
+  }
+  return `<section class="feature-catalog-detail-section feature-research-evidence">
+    <div><h4>Imported research evidence</h4><span>${attempts.length.toLocaleString()} promoted ${attempts.length === 1 ? 'distribution' : 'distributions'}</span></div>
+    <div class="feature-research-attempts">${attempts
+      .map((attempt) => {
+        const trace = attempt.estimate_trace;
+        const distribution = Object.entries(attempt.candidate_values)
+          .map(([label, value]) => `${e(label)} ${e(String(value))}%`)
+          .join(' · ');
+        const languages = Array.from(
+          new Set(attempt.search_log.map((entry) => entry.language).filter(Boolean)),
+        );
+        return `<article class="feature-research-attempt">
+          <div class="feature-research-heading">
+            <div><strong>${e(attempt.target.place_label)}</strong><small>${e(attempt.target.level)} · ${attempt.target.population.toLocaleString()} people</small></div>
+            <span class="field-status ${attempt.evidence_kind === 'measured' ? 'present' : 'estimated'}">${e(attempt.evidence_kind ?? 'unknown')}</span>
+          </div>
+          <p class="feature-research-distribution">${distribution || 'No distribution values recorded'}</p>
+          ${languages.length ? `<small>Searched in ${languages.map(e).join(', ')}</small>` : ''}
+          <div class="feature-research-sources">${attempt.sources.map(evidenceSource).join('')}</div>
+          ${
+            trace
+              ? `<dl class="feature-research-estimate">
+                  <div><dt>Method</dt><dd>${e(trace.method)}</dd></div>
+                  <div><dt>Calculation</dt><dd>${e(trace.calculation)}</dd></div>
+                  <div><dt>Inputs</dt><dd>${trace.inputs.map((input) => `${e(input.label)}: ${e(input.value)}`).join('<br>')}</dd></div>
+                  <div><dt>Assumptions</dt><dd>${trace.assumptions.map(e).join('<br>')}</dd></div>
+                  <div><dt>Wide uncertainty</dt><dd>${e(trace.confidence_interval)}</dd></div>
+                  <div><dt>Better data needed</dt><dd>${trace.limitations.map(e).join('<br>')}</dd></div>
+                </dl>`
+              : ''
+          }
+        </article>`;
+      })
+      .join('')}</div>
+  </section>`;
+}
 
 export class DataTab {
   private visible = false;
@@ -50,26 +111,38 @@ export class DataTab {
   private promoting?: string;
   private searchTimer?: ReturnType<typeof setTimeout>;
   private readonly hierarchyBrowser: HierarchyBrowser;
+  private readonly autoImport: AutoImportSurface;
   private readonly featureCatalog: FeatureCatalogController;
   private joinedPanel?: JoinedFilterPanel;
 
   constructor(private host: HTMLElement) {
     host.innerHTML = dataShell();
-    this.hierarchyBrowser = new HierarchyBrowser(
-      this.get('atlas-hierarchy-browser'),
-      {
-        openImport: (row) => this.openHierarchyImport(row),
-        openCity: (geonameid) => void this.openCity(geonameid),
-        onError: (message) => this.error(new Error(message)),
+    this.hierarchyBrowser = new HierarchyBrowser(this.get('atlas-hierarchy-browser'), {
+      openImport: (row) => this.openHierarchyImport(row),
+      openCity: (geonameid) => void this.openCity(geonameid),
+      onError: (message) => this.error(new Error(message)),
+    });
+    this.autoImport = mountAutoImport(this.get('atlas-auto-import'), {
+      context: () => ({
+        scope: this.get<HTMLSelectElement>('atlas-scope').value,
+        asOf: this.get<HTMLInputElement>('atlas-asof').value,
+      }),
+      onPromoted: async () => {
+        await this.hierarchyBrowser.importCompleted();
+        await Promise.all([this.refresh(), this.featureCatalog.load()]);
       },
-    );
+      onBatchPromoted: async () => {
+        await this.hierarchyBrowser.importCompleted();
+        await Promise.all([this.refresh(), this.featureCatalog.load()]);
+      },
+      onError: (message) => this.error(new Error(message)),
+    });
     this.featureCatalog = new FeatureCatalogController(
       this.get('atlas-feature-catalog'),
       undefined,
       {},
       {
-        renderDetailAddon: (target, feature, view) =>
-          this.mountFeatureQuery(target, feature, view),
+        renderDetailAddon: (target, feature, view) => this.mountFeatureQuery(target, feature, view),
       },
     );
     host.addEventListener('click', this.onClick);
@@ -102,7 +175,11 @@ export class DataTab {
         ].includes((event.target as HTMLElement).id)
       ) {
         this.page = 1;
-        void this.refresh();
+        const contextChanged = ['atlas-scope', 'atlas-asof'].includes(
+          (event.target as HTMLElement).id,
+        );
+        if (contextChanged) void Promise.all([this.refresh(), this.featureCatalog.load()]);
+        else void this.refresh();
       }
     });
   }
@@ -138,7 +215,7 @@ export class DataTab {
       scope.value = Array.from(scope.options).some((option) => option.value === previous)
         ? previous
         : 'shared';
-      await Promise.all([this.refresh(), this.featureCatalog.load()]);
+      await Promise.all([this.refresh(), this.featureCatalog.load(), this.autoImport.load()]);
     } catch (error) {
       this.error(error);
     }
@@ -149,6 +226,7 @@ export class DataTab {
     ++this.generation;
     clearTimeout(this.searchTimer);
     this.hierarchyBrowser.suspend();
+    this.autoImport.suspend();
     this.joinedPanel?.dispose();
     this.joinedPanel = undefined;
     this.host
@@ -187,6 +265,10 @@ export class DataTab {
         atlasApi.history(query.get('scope')!),
         atlasApi.choices(),
         this.hierarchyBrowser.setContext(query.get('scope')!, query.get('as_of')!),
+        this.autoImport.setContext({
+          scope: query.get('scope')!,
+          asOf: query.get('as_of')!,
+        }),
       ]);
       if (!this.visible || generation !== this.generation) return;
       this.get('atlas-summary').innerHTML = summaryCards(view);
@@ -261,7 +343,11 @@ export class DataTab {
   ): () => void {
     let disposed = false;
     let panel: JoinedFilterPanel | undefined;
-    target.innerHTML = '<p class="muted">Loading place weights…</p>';
+    const evidenceController = new AbortController();
+    target.innerHTML =
+      '<div data-feature-research-evidence><p class="muted">Loading imported evidence…</p></div><div data-feature-query><p class="muted">Loading place weights…</p></div>';
+    const evidenceTarget = target.querySelector<HTMLElement>('[data-feature-research-evidence]')!;
+    const queryTarget = target.querySelector<HTMLElement>('[data-feature-query]')!;
     const features: JoinedFeatureOption[] = view.features.map((item) => ({
       id: item.id,
       label: item.name,
@@ -271,15 +357,28 @@ export class DataTab {
       maximum: item.value_range?.maximum,
       unit: item.value_range?.unit,
     }));
+    const scope = this.get<HTMLSelectElement>('atlas-scope').value;
+    const asOf = this.get<HTMLInputElement>('atlas-asof').value;
+    void autoImportClient
+      .featureEvidence(feature.id, scope, asOf, evidenceController.signal)
+      .then((result) => {
+        if (!disposed) evidenceTarget.innerHTML = featureResearchEvidence(result.attempts);
+      })
+      .catch((reason) => {
+        if (!disposed && !(reason instanceof DOMException && reason.name === 'AbortError')) {
+          evidenceTarget.innerHTML = `<p class="form-error" role="alert">${e(reason instanceof Error ? reason.message : String(reason))}</p>`;
+        }
+      });
     void placeOptions()
       .then((places) => {
         if (disposed) return;
         if (features.length < 2) {
-          target.innerHTML = '<p class="atlas-empty">Add another feature to use joined filters.</p>';
+          queryTarget.innerHTML =
+            '<p class="atlas-empty">Add another feature to use joined filters.</p>';
           return;
         }
         panel = new JoinedFilterPanel(
-          target,
+          queryTarget,
           { places, features, initialFeatureId: feature.id },
           featureQueryClient,
         );
@@ -290,6 +389,7 @@ export class DataTab {
       });
     return () => {
       disposed = true;
+      evidenceController.abort();
       panel?.dispose();
       if (this.joinedPanel === panel) this.joinedPanel = undefined;
     };

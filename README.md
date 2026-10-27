@@ -34,6 +34,8 @@ uv run python scripts/load_cities.py
 uv run uvicorn petraterrium.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+The loader downloads GeoNames cities500 when needed and installs the bundled UN WPP registry dump into the shared atlas. Pass `--skip-registry` only when loading the city backbone by itself.
+
 Start the frontend in another terminal:
 
 ```sh

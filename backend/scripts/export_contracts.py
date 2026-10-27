@@ -5,6 +5,16 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from petraterrium.atlas.auto_import_contracts import (
+    AutoImportAttemptView,
+    AutoImportBatchPromotionRequest,
+    AutoImportBatchRequest,
+    AutoImportBatchView,
+    AutoImportEvidenceView,
+    AutoImportMappingReview,
+    AutoImportPromotionRequest,
+    AutoImportQueuePageView,
+)
 from petraterrium.atlas.contracts import (
     AtlasOverview,
     AtlasScopes,
@@ -71,6 +81,8 @@ def typescript_type(schema: dict[str, Any]) -> str:
         ]
         if isinstance(schema.get("additionalProperties"), dict):
             fields.append(f"  [key: string]: {typescript_type(schema['additionalProperties'])};")
+        elif schema.get("additionalProperties") is True:
+            fields.append("  [key: string]: unknown;")
         return "{\n" + "\n".join(fields) + "\n}"
     if kind is None:
         return "unknown"
@@ -120,6 +132,14 @@ def artifacts() -> dict[Path, str]:
         | SourceFetch
         | UniversalFeatureOverview
         | ValidationReport
+        | AutoImportAttemptView
+        | AutoImportBatchPromotionRequest
+        | AutoImportBatchRequest
+        | AutoImportBatchView
+        | AutoImportEvidenceView
+        | AutoImportMappingReview
+        | AutoImportPromotionRequest
+        | AutoImportQueuePageView
     )
     schema = adapter.json_schema(mode="serialization")
     schema["$id"] = "petraterrium-contracts"

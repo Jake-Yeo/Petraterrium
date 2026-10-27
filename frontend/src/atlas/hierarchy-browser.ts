@@ -2,7 +2,12 @@ import './hierarchy-browser.css';
 import { escapeHtml as e } from '../views';
 
 export type HierarchyLevel = 'region' | 'country' | 'city';
-export type HierarchyCoverageState = 'no_data' | 'partial' | 'imputed_only' | 'complete';
+export type HierarchyCoverageState =
+  | 'no_data'
+  | 'partial'
+  | 'estimated_only'
+  | 'imputed_only'
+  | 'complete';
 export type ImportWorkflowStage =
   | 'source'
   | 'mapping'
@@ -15,6 +20,7 @@ export type HierarchyCoverageCounts = {
   present: number;
   inherited: number;
   imputed: number;
+  estimated: number;
   missing: number;
 };
 
@@ -103,6 +109,7 @@ const stageLabels: Record<ImportWorkflowStage, string> = {
 const statusLabels: Record<HierarchyCoverageState, string> = {
   no_data: 'No data',
   partial: 'Partial',
+  estimated_only: 'Estimated only',
   imputed_only: 'Imputed only',
   complete: 'Complete',
 };
@@ -142,7 +149,7 @@ function missingFields(row: HierarchyBrowserRow): string {
 }
 
 function countCells(counts: HierarchyCoverageCounts): string {
-  return (['present', 'inherited', 'imputed', 'missing'] as const)
+  return (['present', 'inherited', 'imputed', 'estimated', 'missing'] as const)
     .map(
       (status) =>
         `<span class="hierarchy-count ${status}"><strong>${number.format(counts[status])}</strong>${status}</span>`,
@@ -245,7 +252,7 @@ export function hierarchyBrowserShell(): string {
       <div class="hierarchy-toolbar">
         <button class="text-button" data-hierarchy-action="back" disabled>← Back</button>
         <span data-hierarchy-count></span>
-        <span class="hierarchy-legend"><i class="present"></i>present <i class="inherited"></i>inherited <i class="imputed"></i>imputed <i class="missing"></i>missing</span>
+        <span class="hierarchy-legend"><i class="present"></i>present <i class="inherited"></i>inherited <i class="imputed"></i>imputed <i class="estimated"></i>estimated <i class="missing"></i>missing</span>
       </div>
       <div class="hierarchy-table-scroll">
         <table class="hierarchy-table">

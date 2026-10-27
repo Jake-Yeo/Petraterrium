@@ -69,6 +69,27 @@ def country_continents() -> dict[str, str]:
     return result
 
 
+@lru_cache(maxsize=1)
+def country_languages() -> dict[str, tuple[str, ...]]:
+    path = Path(__file__).resolve().parents[2] / "data" / "countryInfo.txt"
+    result = {}
+    for line in path.read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        columns = line.split("\t")
+        if len(columns) <= 15:
+            continue
+        languages = tuple(
+            dict.fromkeys(
+                language.split("-", 1)[0].strip().lower()
+                for language in columns[15].split(",")
+                if language.strip()
+            )
+        )
+        result[columns[0]] = languages
+    return result
+
+
 def country_region(country_code: str) -> str:
     code = country_code.upper()
     if code in SPECIAL_REGIONS:

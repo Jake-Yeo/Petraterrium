@@ -61,7 +61,8 @@ CREATE INDEX IF NOT EXISTS imports_scope ON imports(scope,status);
 CREATE TABLE IF NOT EXISTS observations(
  id INTEGER PRIMARY KEY, import_id TEXT NOT NULL REFERENCES imports(import_id),
  geo_level TEXT NOT NULL, geo_key TEXT NOT NULL, field TEXT NOT NULL,
- value_json TEXT NOT NULL, unit TEXT NOT NULL
+ value_json TEXT NOT NULL, unit TEXT NOT NULL,
+ evidence_status TEXT NOT NULL DEFAULT 'measured'
 );
 CREATE INDEX IF NOT EXISTS observations_geo ON observations(geo_level,geo_key,field,id DESC);
 CREATE INDEX IF NOT EXISTS observations_import ON observations(import_id);
@@ -130,6 +131,34 @@ CREATE TABLE IF NOT EXISTS missing_joint_requests(
  requirement TEXT NOT NULL, first_requested_at TEXT NOT NULL, last_requested_at TEXT NOT NULL,
  request_count INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS auto_import_attempts(
+ attempt_id TEXT PRIMARY KEY, scope TEXT NOT NULL, level TEXT NOT NULL,
+ place_key TEXT NOT NULL, place_label TEXT NOT NULL, country_code TEXT,
+ geonameid INTEGER, feature TEXT NOT NULL, current_status TEXT NOT NULL,
+ status TEXT NOT NULL, result_kind TEXT, requirement_json TEXT NOT NULL,
+ source_inputs_json TEXT NOT NULL, mapping_json TEXT NOT NULL,
+ mapping_confirmed INTEGER NOT NULL DEFAULT 0, verification_json TEXT NOT NULL,
+ candidate_json TEXT, sources_json TEXT NOT NULL, search_log_json TEXT NOT NULL,
+ estimate_trace_json TEXT, languages_json TEXT NOT NULL, failure_reason TEXT,
+ better_data TEXT, promoted_import_id TEXT, created_at TEXT NOT NULL,
+ updated_at TEXT NOT NULL, attempt_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS auto_import_attempt_target
+ON auto_import_attempts(scope,level,place_key,feature,updated_at DESC);
+CREATE INDEX IF NOT EXISTS auto_import_attempt_status
+ON auto_import_attempts(status,updated_at DESC);
+CREATE TABLE IF NOT EXISTS auto_import_batches(
+ batch_id TEXT PRIMARY KEY, scope TEXT NOT NULL, status TEXT NOT NULL,
+ request_json TEXT NOT NULL, result_json TEXT NOT NULL,
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auto_import_batch_items(
+ batch_id TEXT NOT NULL REFERENCES auto_import_batches(batch_id) ON DELETE CASCADE,
+ item_id TEXT NOT NULL, ordinal INTEGER NOT NULL, record_json TEXT NOT NULL,
+ PRIMARY KEY(batch_id,item_id)
+);
+CREATE INDEX IF NOT EXISTS auto_import_batch_item_order
+ON auto_import_batch_items(batch_id,ordinal);
 """
 
 
@@ -139,6 +168,22 @@ class AtlasStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as conn:
             conn.executescript(SCHEMA)
+            columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(observations)")
+            }
+            if "evidence_status" not in columns:
+                conn.execute(
+                    "ALTER TABLE observations ADD COLUMN evidence_status "
+                    "TEXT NOT NULL DEFAULT 'measured'"
+                )
+            attempt_columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(auto_import_attempts)")
+            }
+            if "attempt_json" not in attempt_columns:
+                conn.execute(
+                    "ALTER TABLE auto_import_attempts ADD COLUMN attempt_json "
+                    "TEXT NOT NULL DEFAULT '{}'"
+                )
 
     @contextmanager
     def connection(self):

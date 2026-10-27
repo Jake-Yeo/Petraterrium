@@ -84,7 +84,13 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
     ):
         if tier and tier not in ("simulated", "disaggregated"):
             raise HTTPException(422, "Invalid simulation tier")
-        if status and status not in ("present", "inherited", "imputed", "missing"):
+        if status and status not in (
+            "present",
+            "inherited",
+            "imputed",
+            "estimated",
+            "missing",
+        ):
             raise HTTPException(422, "Invalid coverage status")
         if missing_field and missing_field not in FIELDS:
             raise HTTPException(422, "Unknown marginal field")

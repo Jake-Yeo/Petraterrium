@@ -17,10 +17,28 @@ from .contracts import (
     Provenance,
 )
 from .database import FIELDS, LEGACY_FIELDS, SUGGESTIONS, AtlasStore
+from .regions import country_region
 
 
 def provenance(row) -> Provenance:
     return Provenance(**{key: row[key] for key in Provenance.model_fields})
+
+
+def research_trace(row) -> dict:
+    return {
+        "attempt_id": row["attempt_id"],
+        "result_kind": row["result_kind"],
+        "mapping": json.loads(row["mapping_json"]),
+        "mapping_confirmed": bool(row["mapping_confirmed"]),
+        "verification": json.loads(row["verification_json"]),
+        "sources": json.loads(row["sources_json"]),
+        "search_log": json.loads(row["search_log_json"]),
+        "estimate_trace": json.loads(row["estimate_trace_json"])
+        if row["estimate_trace_json"]
+        else None,
+        "languages": json.loads(row["languages_json"]),
+        "better_data": row["better_data"],
+    }
 
 
 def resolve(
@@ -29,39 +47,57 @@ def resolve(
     as_of: str,
     fields: tuple[str, ...] = FIELDS,
 ) -> None:
+    conn.execute("CREATE TEMP TABLE country_regions(code TEXT PRIMARY KEY,region TEXT NOT NULL)")
+    conn.executemany(
+        "INSERT INTO country_regions VALUES(?,?)",
+        [
+            (row["country_code"], country_region(row["country_code"]))
+            for row in conn.execute("SELECT DISTINCT country_code FROM cities")
+        ],
+    )
     conn.execute(
         """CREATE TEMP TABLE resolved_all AS
         WITH observations_scoped AS MATERIALIZED (
-            SELECT o.id,o.geo_level,o.geo_key,o.field,v.scope
+            SELECT o.id,o.geo_level,o.geo_key,o.field,o.evidence_status,v.scope
             FROM observations o JOIN imports v USING(import_id)
             WHERE v.status='committed' AND v.scope IN ('shared',:scope)
             AND v.source_date<=:as_of AND v.published_date<=:as_of
         ), observations_current AS MATERIALIZED (
-            SELECT id,geo_level,geo_key,field,scope FROM (
+            SELECT id,geo_level,geo_key,field,evidence_status,scope FROM (
                 SELECT *,ROW_NUMBER() OVER(PARTITION BY geo_level,geo_key,field
-                ORDER BY (scope=:scope) DESC,id DESC) geo_position
+                ORDER BY (scope=:scope) DESC,(evidence_status='measured') DESC,id DESC) geo_position
                 FROM observations_scoped
             ) WHERE geo_position=1
         ), candidates AS (
             SELECT c.geonameid,o.id observation_id,o.field,o.scope,
-            3 specificity,'present' field_status
+            3 specificity,CASE WHEN o.evidence_status='estimated'
+            THEN 'estimated' ELSE 'present' END field_status
             FROM observations_current o JOIN cities c ON c.geonameid=CAST(o.geo_key AS INTEGER)
             WHERE o.geo_level='city'
             UNION ALL
             SELECT c.geonameid,o.id observation_id,o.field,o.scope,
-            2 specificity,'imputed' field_status
+            2 specificity,CASE WHEN o.evidence_status='estimated'
+            THEN 'estimated' ELSE 'imputed' END field_status
             FROM observations_current o JOIN cities c
             ON c.country_code||':'||c.admin1=o.geo_key WHERE o.geo_level='region'
             UNION ALL
             SELECT c.geonameid,o.id observation_id,o.field,o.scope,
-            2 specificity,'imputed' field_status
+            2 specificity,CASE WHEN o.evidence_status='estimated'
+            THEN 'estimated' ELSE 'imputed' END field_status
             FROM observations_current o JOIN city_lau_matches m ON m.gisco_id=o.geo_key
             JOIN cities c ON c.geonameid=m.geonameid WHERE o.geo_level='lau'
             UNION ALL
             SELECT c.geonameid,o.id observation_id,o.field,o.scope,
-            1 specificity,'inherited' field_status
+            1 specificity,CASE WHEN o.evidence_status='estimated'
+            THEN 'estimated' ELSE 'inherited' END field_status
             FROM observations_current o JOIN cities c ON c.country_code=o.geo_key
             WHERE o.geo_level='country'
+            UNION ALL
+            SELECT c.geonameid,o.id observation_id,o.field,o.scope,
+            0 specificity,CASE WHEN o.evidence_status='estimated'
+            THEN 'estimated' ELSE 'imputed' END field_status
+            FROM observations_current o JOIN country_regions g ON g.region=o.geo_key
+            JOIN cities c ON c.country_code=g.code WHERE o.geo_level='canonical_region'
         ), ranked AS (
             SELECT *,ROW_NUMBER() OVER(PARTITION BY geonameid,field
             ORDER BY specificity DESC,(scope=:scope) DESC,observation_id DESC) position
@@ -86,15 +122,19 @@ def resolve(
     field_count = len(fields)
     conn.execute(f"""CREATE TEMP VIEW coverage AS SELECT c.*,
         COALESCE(r.direct,0) direct,COALESCE(r.inherited,0) inherited,
-        COALESCE(r.imputed,0) imputed,COALESCE(r.available,0) available,
+        COALESCE(r.imputed,0) imputed,COALESCE(r.estimated,0) estimated,
+        COALESCE(r.available,0) available,
         CASE WHEN COALESCE(r.direct,0)={field_count} THEN 'full'
              WHEN COALESCE(r.direct,0)>0 THEN 'partial' ELSE 'none' END coverage_state,
         CASE WHEN COALESCE(r.available,0)<{field_count} THEN 'missing'
+             WHEN r.estimated>0 THEN 'estimated'
              WHEN r.imputed>0 THEN 'imputed'
              WHEN r.inherited>0 THEN 'inherited' ELSE 'present' END status
         FROM cities c LEFT JOIN (SELECT geonameid,COUNT(*) available,
         SUM(field_status='present') direct,SUM(field_status='inherited') inherited,
-        SUM(field_status='imputed') imputed FROM resolved GROUP BY geonameid) r USING(geonameid)""")
+        SUM(field_status='imputed') imputed,
+        SUM(field_status='estimated') estimated FROM resolved
+        GROUP BY geonameid) r USING(geonameid)""")
 
 
 def models_for(
@@ -149,6 +189,20 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
             identities,
         )
     }
+    import_ids = sorted(
+        {row["import_id"] for row in resolved.values() if row["import_id"]}
+    )
+    traces = {}
+    if import_ids:
+        import_placeholders = ",".join("?" for _ in import_ids)
+        traces = {
+            row["promoted_import_id"]: research_trace(row)
+            for row in conn.execute(
+                "SELECT * FROM auto_import_attempts "
+                f"WHERE promoted_import_id IN ({import_placeholders})",
+                import_ids,
+            )
+        }
     countries = {row["code"]: row["name"] for row in conn.execute("SELECT * FROM countries")}
     behaviours = models_for(conn, list({row["country_code"] for row in rows}), scope, as_of)
     densities = {}
@@ -172,6 +226,9 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
                     value=json.loads(observation["value_json"]) if observation else None,
                     unit=observation["unit"] if observation else None,
                     provenance=provenance(observation) if observation else None,
+                    research_trace=traces.get(observation["import_id"])
+                    if observation
+                    else None,
                     suggested_source=SUGGESTIONS[field][0],
                     source_url=SUGGESTIONS[field][1],
                 )
@@ -231,18 +288,21 @@ def summary(conn, scope: str, as_of: str) -> AtlasSummary:
         r["field"]: r
         for r in conn.execute("""SELECT r.field,
         SUM(field_status='present') present,SUM(field_status='inherited') inherited,
-        SUM(field_status='imputed') imputed,
+        SUM(field_status='imputed') imputed,SUM(field_status='estimated') estimated,
         SUM(CASE WHEN field_status='present' THEN c.population ELSE 0 END) direct_population,
         SUM(CASE WHEN field_status IN ('present','inherited')
             THEN c.population ELSE 0 END) inherited_population,
-        SUM(CASE WHEN field_status='imputed' THEN c.population ELSE 0 END) imputed_population
+        SUM(CASE WHEN field_status='imputed' THEN c.population ELSE 0 END) imputed_population,
+        SUM(CASE WHEN field_status='estimated' THEN c.population ELSE 0 END)
+        estimated_population
         FROM resolved r JOIN cities c USING(geonameid) GROUP BY field""")
     }
     fields = []
     for field in FIELDS:
         values = dict(field_rows.get(field) or {})
-        direct, inherited, imputed = (
-            values.get(key, 0) for key in ("present", "inherited", "imputed")
+        direct, inherited, imputed, estimated = (
+            values.get(key, 0)
+            for key in ("present", "inherited", "imputed", "estimated")
         )
 
         def percent(numerator, denominator):
@@ -254,7 +314,8 @@ def summary(conn, scope: str, as_of: str) -> AtlasSummary:
                 present=direct,
                 inherited=inherited,
                 imputed=imputed,
-                missing=row["total"] - direct - inherited - imputed,
+                estimated=estimated,
+                missing=row["total"] - direct - inherited - imputed - estimated,
                 direct_percent=percent(direct, row["total"]),
                 direct_plus_inherited_percent=percent(direct + inherited, row["total"]),
                 direct_population_percent=percent(
@@ -265,6 +326,9 @@ def summary(conn, scope: str, as_of: str) -> AtlasSummary:
                 ),
                 imputed_population_percent=percent(
                     values.get("imputed_population", 0), row["population"]
+                ),
+                estimated_population_percent=percent(
+                    values.get("estimated_population", 0), row["population"]
                 ),
             )
         )
@@ -399,7 +463,8 @@ def city_detail(
             AND v.source_date<=? AND v.published_date<=?
             AND ((o.geo_level='city' AND o.geo_key=?) OR (o.geo_level='country' AND o.geo_key=?)
             OR (o.geo_level='region' AND o.geo_key=?) OR (o.geo_level='lau' AND EXISTS(
-            SELECT 1 FROM city_lau_matches m WHERE m.geonameid=? AND m.gisco_id=o.geo_key)))
+            SELECT 1 FROM city_lau_matches m WHERE m.geonameid=? AND m.gisco_id=o.geo_key))
+            OR (o.geo_level='canonical_region' AND o.geo_key=?))
             ORDER BY v.created_at DESC""",
             (
                 scope,
@@ -409,6 +474,7 @@ def city_detail(
                 city.country_code,
                 city.country_code + ":" + city.admin1,
                 identity,
+                country_region(city.country_code),
             ),
         )
         return CityDetail(
