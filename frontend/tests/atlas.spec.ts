@@ -93,3 +93,56 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await expect(page.getByRole('heading', { name: 'Trace the state.' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('Data tab explains coverage and creates an evidence-backed agent feature plan', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Data coverage' })).toBeVisible();
+  await expect(page.locator('#atlas-features')).toBeVisible();
+  await expect(page.locator('#atlas-feature-grid')).toContainText('Age & sex');
+  await expect(page.locator('#atlas-feature-grid')).toContainText('Inherited');
+  await expect(page.locator('#atlas-priorities')).toContainText('Data needed');
+  await expect(page.locator('#atlas-priorities')).toContainText('country_code or geonameid');
+  await page
+    .locator('.atlas-feature-card')
+    .filter({ hasText: 'Ideology' })
+    .getByRole('button', { name: 'View unresolved cities' })
+    .click();
+  await expect(page.getByLabel('Missing field', { exact: true })).toHaveValue('ideology');
+  await page.getByRole('button', { name: 'Add agent feature', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add agent feature' })).not.toContainText('go_out');
+  await page.locator('#atlas-feature-form [name="name"]').fill('bad name');
+  await page.locator('#atlas-feature-form [name="label"]').fill('Endurance');
+  await page
+    .locator('#atlas-feature-form [name="definition"]')
+    .fill('Sustained physical effort on a validated 0–100 assessment.');
+  await page.locator('#atlas-feature-form [name="unit"]').fill('score');
+  await page.locator('#atlas-feature-form [name="minimum"]').fill('0');
+  await page.locator('#atlas-feature-form [name="maximum"]').fill('100');
+  await page.locator('#atlas-feature-form [name="outcomes"]').fill('evacuate, finish_race');
+  await page.getByRole('button', { name: 'Create data plan', exact: true }).click();
+  await expect(page.locator('#atlas-feature-error')).toContainText('snake_case');
+  await page.locator('#atlas-feature-form [name="name"]').fill('endurance');
+  await page.getByRole('button', { name: 'Create data plan', exact: true }).click();
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('trait.endurance');
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('Label-only');
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('Distribution missing');
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('Joint data missing');
+  await expect(page.locator('#atlas-feature-drafts')).toContainText(
+    'trait and outcome in the same rows',
+  );
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('Distribution CSV');
+  await page.getByRole('tab', { name: 'DSL', exact: true }).click();
+  await expect(page.locator('#dsl-features')).toContainText('Endurance');
+  await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
+  await page.reload();
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await expect(page.locator('#atlas-feature-drafts')).toContainText('trait.endurance');
+  await page.locator('#atlas-feature-drafts').getByRole('button', { name: 'Delete draft' }).click();
+  await expect(page.locator('#atlas-feature-drafts')).not.toContainText('trait.endurance');
+  expect(errors).toEqual([]);
+});

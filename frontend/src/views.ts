@@ -64,7 +64,6 @@ export function shell(): string {
       </nav>
       <div class="sidebar-footer">
         <span class="small-label">THE DSL SIMULATION FRAMEWORK</span>
-        <p>One engine.<br />Every number has a receipt.</p>
         <div class="fake-tag" id="workspace-data-notice">FAKE DATA ONLY</div>
         <p class="muted" id="workspace-storage-notice">Runs live in server memory.<br />Restarting the API clears them.</p>
       </div>
@@ -88,7 +87,6 @@ export function shell(): string {
               <span class="tiny-globe">⊕</span> DSL SYSTEM <span class="slash">/</span> RECORDED RUN
             </p>
             <h1>Trace the state.</h1>
-            <p class="hero-copy">A world of connections. A record of every change.</p>
           </div>
           <div class="hero-status">
             <span id="run-status" class="status-pill">Ready to explore</span
@@ -138,7 +136,6 @@ export function shell(): string {
             <div id="empty-state" class="empty-state">
               <span class="small-label">YOUR NEXT EXPERIMENT</span>
               <h2>Start with a small world.</h2>
-              <p>Four places. One seeded model.<br />Watch the recorded days unfold.</p>
               <button class="button primary" data-action="new" disabled>
                 Create your first run <span>↗</span>
               </button>

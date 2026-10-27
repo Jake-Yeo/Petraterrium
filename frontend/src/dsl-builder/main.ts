@@ -1,5 +1,6 @@
 import { api } from '../api';
 import type { DSLConfig, DSLValidationResult } from '../contracts.generated';
+import { loadFeatureDrafts, traitColumn } from '../atlas/features';
 import { escapeHtml } from '../views';
 
 export class DSLBuilder {
@@ -7,7 +8,6 @@ export class DSLBuilder {
   private validation?: DSLValidationResult;
   private loaded = false;
   private timer?: ReturnType<typeof setTimeout>;
-  private featureDraft = false;
 
   constructor(
     private host: HTMLElement,
@@ -28,6 +28,8 @@ export class DSLBuilder {
       } catch (error) {
         this.showError(error);
       }
+    } else {
+      this.renderFeatures();
     }
   }
 
@@ -38,13 +40,13 @@ export class DSLBuilder {
   private shell(): string {
     return `
       <section class="builder-header">
-        <div><p class="eyebrow">DSL BUILDER / V1 JSON</p><h1>Define the rules. Prove the numbers.</h1><p>Model hypotheses, coefficient evidence, and population distributions stay separate and visible.</p></div>
+        <div><p class="eyebrow">DSL BUILDER / V1 JSON</p><h1>Define the rules. Prove the numbers.</h1></div>
         <div class="builder-actions"><label>Seed<input id="dsl-seed" type="number" min="0" max="4294967295" value="42"></label><button class="button primary" data-dsl-action="run">Run validated DSL ↗</button></div>
       </section>
       <div class="builder-grid">
-        <section class="builder-column"><span class="small-label">DEMOGRAPHICS / FEATURES</span><h2>Who exists</h2><div id="dsl-features"></div><button class="button secondary" data-dsl-action="add-feature">＋ Add eye colour</button><p class="builder-principle">Distribution data proves a feature exists. Without it, the feature remains label-only.</p></section>
+        <section class="builder-column"><span class="small-label">DEMOGRAPHICS / FEATURES</span><h2>Who exists</h2><div id="dsl-features"></div><button class="button secondary" data-action="data-tab">Manage agent features</button></section>
         <section class="builder-column"><span class="small-label">ACTIONS / OUTCOMES</span><h2>What can happen</h2><div id="dsl-actions"></div></section>
-        <section class="builder-column"><span class="small-label">RELATIONSHIPS / COEFFICIENTS</span><h2>What predicts what</h2><div id="dsl-coefficients"></div><p class="builder-principle">Joint trait + outcome data proves a predictor. A marginal distribution alone never creates a coefficient.</p></section>
+        <section class="builder-column"><span class="small-label">RELATIONSHIPS / COEFFICIENTS</span><h2>What predicts what</h2><div id="dsl-coefficients"></div></section>
       </div>
       <section class="builder-console">
         <div class="builder-console-heading"><div><span class="small-label">DSL PREVIEW + VALIDATION</span><h2>Single source of truth</h2></div><span id="dsl-validation-badge" class="status-pill">Loading</span></div>
@@ -65,10 +67,6 @@ export class DSLBuilder {
   private onClick = (event: MouseEvent): void => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-dsl-action]');
     if (!target) return;
-    if (target.dataset.dslAction === 'add-feature') {
-      this.featureDraft = true;
-      this.renderFeatures();
-    }
     if (target.dataset.dslAction === 'run') void this.run();
   };
 
@@ -86,9 +84,13 @@ export class DSLBuilder {
       this.renderModel();
       if (this.validation.valid) {
         const rendered = await api.renderDSL(this.dsl);
-        this.host.querySelector<HTMLElement>('#dsl-summary')!.innerHTML = `<h3>Plain-language model</h3><p>${escapeHtml(rendered.plain_language)}</p>`;
+        this.host.querySelector<HTMLElement>('#dsl-summary')!.innerHTML =
+          `<h3>Plain-language model</h3><p>${escapeHtml(rendered.plain_language)}</p>`;
         this.host.querySelector<HTMLElement>('#dsl-sliders')!.innerHTML = rendered.sliders
-          .map((slider) => `<div><span>${escapeHtml(String(slider.parameter))}</span><strong>${escapeHtml(String(slider.value))}</strong><small>${escapeHtml(String(slider.unit))} · ${escapeHtml(String(slider.evidence_status))}</small></div>`)
+          .map(
+            (slider) =>
+              `<div><span>${escapeHtml(String(slider.parameter))}</span><strong>${escapeHtml(String(slider.value))}</strong><small>${escapeHtml(String(slider.unit))} · ${escapeHtml(String(slider.evidence_status))}</small></div>`,
+          )
           .join('');
       }
     } catch (error) {
@@ -102,14 +104,27 @@ export class DSLBuilder {
     if (!this.dsl || !this.validation) return;
     this.renderFeatures();
     this.host.querySelector<HTMLElement>('#dsl-actions')!.innerHTML = (this.dsl.actions ?? [])
-      .map((action) => `<article><strong>${escapeHtml(action.id)}</strong><span>${action.probability.base} / ${escapeHtml(action.probability.time_unit)}</span><small>Priority ${action.priority} · ${action.duration_minutes} min</small></article>`)
+      .map(
+        (action) =>
+          `<article><strong>${escapeHtml(action.id)}</strong><span>${action.probability.base} / ${escapeHtml(action.probability.time_unit)}</span><small>Priority ${action.priority} · ${action.duration_minutes} min</small></article>`,
+      )
       .join('');
-    this.host.querySelector<HTMLElement>('#dsl-coefficients')!.innerHTML = (this.dsl.parameters ?? [])
-      .map((parameter) => `<article><strong>${escapeHtml(parameter.id)}</strong><span>${parameter.value ?? 'Unknown'}</span><small>${escapeHtml(parameter.provenance.status)} · uncertainty ${parameter.provenance.uncertainty}</small></article>`)
+    this.host.querySelector<HTMLElement>('#dsl-coefficients')!.innerHTML = (
+      this.dsl.parameters ?? []
+    )
+      .map(
+        (parameter) =>
+          `<article><strong>${escapeHtml(parameter.id)}</strong><span>${parameter.value ?? 'Unknown'}</span><small>${escapeHtml(parameter.provenance.status)} · uncertainty ${parameter.provenance.uncertainty}</small></article>`,
+      )
       .join('');
     const errors = [...this.validation.errors, ...this.validation.warnings];
     this.host.querySelector<HTMLElement>('#dsl-errors')!.innerHTML = errors.length
-      ? errors.map((error) => `<p><strong>${escapeHtml(error.path)}</strong> ${escapeHtml(error.message)}</p>`).join('')
+      ? errors
+          .map(
+            (error) =>
+              `<p><strong>${escapeHtml(error.path)}</strong> ${escapeHtml(error.message)}</p>`,
+          )
+          .join('')
       : '<p class="builder-valid">No reference, probability, chain, role, or aggregate errors.</p>';
   }
 
@@ -117,11 +132,21 @@ export class DSLBuilder {
     const target = this.host.querySelector<HTMLElement>('#dsl-features');
     if (!target) return;
     const states = this.dsl?.default_states ?? [];
+    const attributes = this.dsl?.attributes ?? [];
+    const drafts = loadFeatureDrafts();
     target.innerHTML = [
-      ...states.map((state) => `<article><strong>${escapeHtml(state.id)}</strong><span>Distribution attached</span><small>${escapeHtml(state.distribution.provenance.status)} · ${escapeHtml(state.distribution.provenance.source)}</small></article>`),
-      ...(this.featureDraft
-        ? ['<article class="label-only"><strong>eye_colour</strong><span>LABEL-ONLY</span><small>No confirmed distribution or joint outcome data. It cannot predict an action.</small><button class="text-button" data-action="data-tab">Open Data organizer</button></article>']
-        : []),
+      ...states.map(
+        (state) =>
+          `<article><strong>${escapeHtml(state.id)}</strong><span>Distribution attached</span><small>${escapeHtml(state.distribution.provenance.status)} · ${escapeHtml(state.distribution.provenance.source)}</small></article>`,
+      ),
+      ...attributes.map(
+        (attribute) =>
+          `<article class="${attribute.distribution ? '' : 'label-only'}"><strong>${escapeHtml(attribute.id)}</strong><span>${attribute.distribution ? 'Distribution attached' : 'LABEL-ONLY'}</span><small>${escapeHtml(attribute.provenance.status)} · ${escapeHtml(attribute.provenance.source)}</small></article>`,
+      ),
+      ...drafts.map(
+        (draft) =>
+          `<article class="label-only"><strong>${escapeHtml(draft.label)}</strong><span>LABEL-ONLY</span><small>${escapeHtml(traitColumn(draft))} · data plan exists; no validated distribution is attached to this DSL.</small></article>`,
+      ),
     ].join('');
   }
 

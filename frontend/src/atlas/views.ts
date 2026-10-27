@@ -3,9 +3,11 @@ import type {
   AtlasOverview,
   CityDetail,
   ImportHistory,
+  ImportVersion,
   SourceCatalog,
 } from '../contracts.generated';
 import { escapeHtml as e } from '../views';
+import { plannerSection } from './features';
 
 export const labels: Record<string, string> = {
   age_sex: 'Age & sex',
@@ -16,14 +18,20 @@ export const labels: Record<string, string> = {
 };
 const n = (number: number): string => number.toLocaleString('en');
 const pct = (number: number): string => `${number.toFixed(2)}%`;
+const localDate = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+};
 
 export function dataShell(): string {
   return `
     <section class="atlas-heading">
       <div>
         <p class="eyebrow">ATLAS / DATA ORGANIZER</p>
-        <h1>The world, field by field.</h1>
-        <p class="hero-copy">Every city belongs here. Every gap stays visible.</p>
+        <h1>Data coverage</h1>
+        <p class="atlas-heading-copy">Find observed data, fallback data, and the highest-impact gaps across the city backbone.</p>
       </div>
       <div class="atlas-heading-actions">
         <button class="button secondary" data-atlas-action="sources">Source loaders</button
@@ -37,44 +45,42 @@ export function dataShell(): string {
           <option value="shared">Shared atlas</option>
         </select></label
       ><label
-        >Available on or before<input id="atlas-asof" type="date" value="${new Date().toISOString().slice(0, 10)}"
+        >Available on or before<input id="atlas-asof" type="date" value="${localDate()}"
       /></label>
       <p>Run uploads stay in their run.<br />Only explicit promotion changes the shared atlas.</p>
       <button class="text-button" data-atlas-action="refresh">Refresh ↻</button>
     </div>
     <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
-    <section class="atlas-section">
+    ${plannerSection()}
+    <section class="atlas-section" id="atlas-gap-list">
       <div class="atlas-section-heading">
         <div>
-          <h2>Marginal coverage</h2>
-          <p>
-            Direct = city observations. Inherited = country archetypes. Imputed regional data is shown
-            separately. Electoral alignment is a valid-ballot measure for the containing municipality,
-            not a survey of all city residents.
-          </p>
+          <p class="eyebrow">CITY OBSERVATIONS</p>
+          <h2>Highest-impact city gaps</h2>
+          <p>Individual city-field gaps sorted by city population.</p>
         </div>
       </div>
       <div class="table-scroll">
-        <table class="coverage-table">
+        <table>
           <thead>
             <tr>
-              <th>Field</th>
-              <th>Direct cities</th>
-              <th>Direct + inherited cities</th>
-              <th>Direct population</th>
-              <th>Direct + inherited population</th>
-              <th>Imputed cities</th>
-              <th>Missing cities</th>
+              <th>City</th>
+              <th>Country</th>
+              <th>Field to gather</th>
+              <th>Current status</th>
+              <th>Population weight</th>
+              <th>Source that could fill it</th>
             </tr>
           </thead>
-          <tbody id="atlas-coverage"></tbody>
+          <tbody id="atlas-gaps"></tbody>
         </table>
       </div>
     </section>
-    <section class="atlas-section">
+    <section class="atlas-section" id="atlas-city-browser">
       <div class="atlas-section-heading">
         <div>
-          <h2>City backbone <span id="atlas-filter-count" class="muted"></span></h2>
+          <p class="eyebrow">225K CITY BACKBONE</p>
+          <h2>Browse cities <span id="atlas-filter-count" class="muted"></span></h2>
           <p id="atlas-backbone-note">GeoNames cities500 · all retained populated places</p>
         </div>
         <button id="atlas-load" class="button secondary" data-atlas-action="load">
@@ -142,44 +148,35 @@ export function dataShell(): string {
         </div>
       </div>
     </section>
-    <section class="atlas-section">
-      <div class="atlas-section-heading">
-        <div>
-          <h2>Gather next</h2>
-          <p>
-            Largest gaps in city-specific observations, ordered by city population. Inherited and
-            imputed values still need direct observations.
-          </p>
-        </div>
-      </div>
+    <details class="atlas-section atlas-collapsible" id="atlas-coverage-panel">
+      <summary>
+        <div><span class="eyebrow">AUDIT TABLE</span><strong>Coverage calculations</strong></div>
+        <span>City counts and population-weighted percentages for every canonical field</span>
+      </summary>
       <div class="table-scroll">
-        <table>
+        <table class="coverage-table">
           <thead>
             <tr>
-              <th>City</th>
-              <th>Country</th>
-              <th>Field to gather</th>
-              <th>Current status</th>
-              <th>Population weight</th>
-              <th>Source that could fill it</th>
+              <th>Field</th>
+              <th>Direct cities</th>
+              <th>Direct + inherited cities</th>
+              <th>Direct population</th>
+              <th>Direct + inherited population</th>
+              <th>Imputed cities</th>
+              <th>Missing cities</th>
             </tr>
           </thead>
-          <tbody id="atlas-gaps"></tbody>
+          <tbody id="atlas-coverage"></tbody>
         </table>
       </div>
-    </section>
-    <section class="atlas-section">
-      <div class="atlas-section-heading">
-        <div>
-          <h2>Import versions</h2>
-          <p>
-            Immutable source versions. Promoting a version requires a separate confirmation and
-            redistribution rights.
-          </p>
-        </div>
-      </div>
+    </details>
+    <details class="atlas-section atlas-collapsible" id="atlas-history-panel">
+      <summary>
+        <div><span class="eyebrow">PROVENANCE</span><strong>Import versions</strong></div>
+        <span>Latest live and draft source versions; older versions remain available below each source.</span>
+      </summary>
       <div id="atlas-history"></div>
-    </section>
+    </details>
     <footer id="atlas-attribution" class="atlas-attribution"></footer>
     <dialog id="atlas-city-dialog" class="atlas-dialog" aria-labelledby="atlas-city-title">
       <div id="atlas-city-detail"></div>
@@ -195,7 +192,6 @@ export function dataShell(): string {
         </button>
       </div>
       <h2 id="atlas-import-title">Bring evidence into the atlas.</h2>
-      <p class="dialog-subtitle">Preview → confirm mapping → validate → commit to a run.</p>
       <div id="atlas-import-body"></div>
     </dialog>
     <dialog id="atlas-sources-dialog" class="atlas-dialog" aria-labelledby="atlas-sources-title">
@@ -210,16 +206,10 @@ export function dataShell(): string {
         </button>
       </div>
       <h2 id="atlas-sources-title">Load from the source.</h2>
-      <p class="dialog-subtitle">
-        Authorized source files and approved public download URLs use the same versioned import flow.
-      </p>
       <div id="atlas-sources-list"></div>
     </dialog>
     <dialog id="atlas-promotion-dialog" class="delete-dialog" aria-labelledby="atlas-promotion-title">
       <h2 id="atlas-promotion-title">Promote to shared atlas?</h2>
-      <p class="dialog-subtitle">
-        This creates a new shared version. Other runs may inherit it. The private version is retained.
-      </p>
       <label class="atlas-checkbox"
         ><input id="atlas-promotion-rights" type="checkbox" />I confirm this source permits
         redistribution to the shared atlas.</label
@@ -235,22 +225,26 @@ export function dataShell(): string {
 
 export function summaryCards(view: AtlasOverview): string {
   const s = view.summary;
+  const directCities = s.direct.full + s.direct.partial;
+  const usableCities = s.total_cities - s.direct_plus_inherited.none;
+  const missingCells = s.fields.reduce((total, field) => total + field.missing, 0);
+  const imputedCells = s.fields.reduce((total, field) => total + field.imputed, 0);
   return `
     <div>
-      <span class="metric-label">Cities in the backbone</span><strong>${n(s.total_cities)}</strong
+      <span class="metric-label">Cities tracked</span><strong>${n(s.total_cities)}</strong
       ><span>${n(s.simulated_cities)} simulated tier · ${n(s.disaggregated_cities)} disaggregated</span>
     </div>
     <div>
-      <span class="metric-label">Full marginals · direct</span><strong>${n(s.direct.full)}</strong
-      ><span>${n(s.direct_plus_inherited.full)} full including inherited</span>
+      <span class="metric-label">Cities with direct data</span><strong>${n(directCities)}</strong
+      ><span>${n(s.direct.full)} full · ${n(s.direct.partial)} partial · ${n(s.direct.none)} none</span>
     </div>
     <div>
-      <span class="metric-label">Partial marginals · direct</span><strong>${n(s.direct.partial)}</strong
-      ><span>${n(s.direct_plus_inherited.partial)} partial including inherited</span>
+      <span class="metric-label">Usable after inheritance</span><strong>${n(usableCities)}</strong
+      ><span>${n(s.direct_plus_inherited.full)} full · ${n(s.direct_plus_inherited.partial)} partial · ${n(s.direct_plus_inherited.none)} none</span>
     </div>
     <div>
-      <span class="metric-label">No marginals · direct</span><strong>${n(s.direct.none)}</strong
-      ><span>${n(s.direct_plus_inherited.none)} without direct or inherited</span>
+      <span class="metric-label">Unresolved field-place cells</span><strong>${n(missingCells)}</strong
+      ><span>${n(imputedCells)} additional cells use regional estimates</span>
     </div>
   `;
 }
@@ -342,30 +336,55 @@ export function detailView(detail: CityDetail): string {
 }
 
 export function historyView(history: ImportHistory, scope: string): string {
-  if (!history.versions.length)
-    return '<p class="atlas-empty">No imports in this scope. The backbone contains geography, not invented marginals.</p>';
-  return history.versions
-    .map(
-      (version) =>
-        `
-    <div class="atlas-version">
-      <div>
-        <strong>${e(version.source)} <span class="mono">${e(version.version)}</span></strong>
-        <p>
-          ${version.source_date} · published ${version.published_date} · ${e(version.uploader)} ·
-          ${version.rows} rows ·
-          <span class="field-status ${version.scope === 'shared' ? 'inherited' : 'present'}">${version.scope === 'shared' ? 'shared' : `run ${version.scope.slice(0, 8)}`}</span>
-        </p>
-        <p>
-          ${e(version.status)} · ${version.live_fields} live fields in its scope ${version.promoted_from ? '· explicit promotion' : ''}
-        </p>
-        ${version.models.map((model) => `<p>${e(model.behaviour)}: ${model.fitted ? 'fitted candidate, held-out loss ' + model.heldout_loss?.toFixed(5) : 'label-only; no coefficients'}</p>`).join('')}
-      </div>
-      ${version.scope === scope && scope !== 'shared' && version.status === 'committed' ? `<button class="button secondary" data-atlas-action="promote" data-id="${version.import_id}">Promote…</button>` : ''}
-      ${version.scope === scope && scope !== 'shared' && version.status !== 'committed' ? `<button class="button secondary" data-atlas-action="resume-import" data-id="${version.import_id}">Resume review</button>` : ''}
-    </div>
-  `,
-    )
+  if (!history.versions.length) return '<p class="atlas-empty">No imports in this scope.</p>';
+  const grouped = new Map<string, ImportVersion[]>();
+  history.versions.forEach((version) => {
+    const key =
+      version.status === 'committed'
+        ? `${version.source}|${version.scope}|${version.kind}`
+        : version.import_id;
+    grouped.set(key, [...(grouped.get(key) ?? []), version]);
+  });
+  return Array.from(grouped.values())
+    .map((versions) => {
+      const ordered = versions
+        .slice()
+        .sort((a, b) =>
+          `${b.source_date}|${b.published_date}`.localeCompare(
+            `${a.source_date}|${a.published_date}`,
+          ),
+        );
+      const latest = ordered[0];
+      const action =
+        latest.scope === scope && scope !== 'shared' && latest.status === 'committed'
+          ? `<button class="button secondary" data-atlas-action="promote" data-id="${latest.import_id}">Promote…</button>`
+          : latest.scope === scope && scope !== 'shared' && latest.status !== 'committed'
+            ? `<button class="button secondary" data-atlas-action="resume-import" data-id="${latest.import_id}">Resume review</button>`
+            : '';
+      return `
+        <article class="atlas-history-group">
+          <div class="atlas-version">
+            <div>
+              <div class="atlas-history-title"><strong>${e(latest.source)}</strong><span class="field-status ${latest.status === 'committed' ? 'present' : 'missing'}">${e(latest.status)}</span><span class="field-status inherited">${e(latest.kind)}</span></div>
+              <p><span class="mono">${e(latest.version)}</span> · data ${latest.source_date} · published ${latest.published_date} · ${n(latest.rows)} rows</p>
+              <p>${e(latest.uploader)} · ${latest.live_fields} live fields · ${latest.scope === 'shared' ? 'shared atlas' : `run ${latest.scope.slice(0, 8)}`}${latest.promoted_from ? ' · explicitly promoted' : ''}</p>
+              ${latest.models.map((model) => `<p>${e(model.behaviour)} · ${model.fitted ? `fitted · held-out loss ${model.heldout_loss?.toFixed(5)}` : 'label-only · no fitted coefficient'}</p>`).join('')}
+            </div>
+            ${action}
+          </div>
+          ${
+            ordered.length > 1
+              ? `<details class="atlas-older-versions"><summary>${n(ordered.length - 1)} older versions</summary><ul>${ordered
+                  .slice(1)
+                  .map(
+                    (version) =>
+                      `<li><div><span class="mono">${e(version.version)}</span><span>data ${version.source_date} · published ${version.published_date} · ${e(version.uploader)} · ${n(version.rows)} rows · ${version.live_fields} live fields</span></div>${version.scope === scope && scope !== 'shared' ? `<button class="text-button" data-atlas-action="promote" data-id="${version.import_id}">Promote this version…</button>` : ''}</li>`,
+                  )
+                  .join('')}</ul></details>`
+              : ''
+          }
+        </article>`;
+    })
     .join('');
 }
 

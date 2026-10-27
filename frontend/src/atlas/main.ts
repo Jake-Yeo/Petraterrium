@@ -12,6 +12,17 @@ import { escapeHtml as e } from '../views';
 import { atlasApi } from './api';
 import { importForm, mappingView, validationView } from './import_views';
 import {
+  distributionTemplate,
+  featureDraftCards,
+  featureForm,
+  featureGrid,
+  jointTemplate,
+  loadFeatureDrafts,
+  priorityList,
+  saveFeatureDrafts,
+  type FeatureDraft,
+} from './features';
+import {
   cityRows,
   coverageRows,
   dataShell,
@@ -32,6 +43,7 @@ export class DataTab {
   private validation?: ValidationReport;
   private importScope = '';
   private sourceId = '';
+  private featureDrafts: FeatureDraft[] = loadFeatureDrafts();
   private activeRunId?: string;
   private promoting?: string;
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -57,6 +69,7 @@ export class DataTab {
     host.addEventListener('change', (event) => {
       const input = event.target as HTMLInputElement;
       if (input.name === 'source_id') this.fillSourceLabel(input.value);
+      if (input.name === 'kind') this.updateFeatureKind(input.value);
       if (
         [
           'atlas-country',
@@ -151,6 +164,9 @@ export class DataTab {
       ]);
       if (!this.visible || generation !== this.generation) return;
       this.get('atlas-summary').innerHTML = summaryCards(view);
+      this.get('atlas-feature-grid').innerHTML = featureGrid(view);
+      this.get('atlas-priorities').innerHTML = priorityList(view);
+      this.renderFeatureDrafts();
       this.get('atlas-coverage').innerHTML = coverageRows(view);
       this.get('atlas-cities').innerHTML = cityRows(view.cities);
       this.get('atlas-filter-count').textContent =
@@ -184,6 +200,12 @@ export class DataTab {
           .join('') ||
         '<tr><td colspan="6" class="atlas-empty">No city observation gaps in this scope.</td></tr>';
       this.get('atlas-history').innerHTML = historyView(history, query.get('scope')!);
+      if (
+        query.get('scope') !== 'shared' &&
+        history.versions.some((version) => version.scope === query.get('scope'))
+      ) {
+        this.get<HTMLDetailsElement>('atlas-history-panel').open = true;
+      }
       this.get('atlas-load').hidden = view.backbone.loaded;
       this.get('atlas-backbone-note').textContent = view.backbone.loaded
         ? `${view.backbone.retained_rows.toLocaleString()} retained from ${view.backbone.original_rows.toLocaleString()} source records · ${view.backbone.excluded_rows.toLocaleString()} excluded · ${view.backbone.duplicate_rows} duplicate IDs`
@@ -216,8 +238,137 @@ export class DataTab {
     if (label && source) label.value = source.name;
   }
 
+  private renderFeatureDrafts(): void {
+    this.get('atlas-feature-drafts').innerHTML = featureDraftCards(this.featureDrafts);
+  }
+
+  private featureDraftById(id: string): FeatureDraft | undefined {
+    return this.featureDrafts.find((draft) => draft.id === id);
+  }
+
+  private openFeature(): void {
+    this.get('atlas-feature-body').innerHTML = featureForm();
+    this.updateFeatureKind('continuous');
+    this.get<HTMLDialogElement>('atlas-feature-dialog').showModal();
+  }
+
+  private updateFeatureKind(kind: string): void {
+    this.host.querySelectorAll<HTMLElement>('[data-kind-fields]').forEach((field) => {
+      field.hidden = field.dataset.kindFields !== kind;
+    });
+  }
+
+  private saveFeature(form: HTMLFormElement): void {
+    const values = new FormData(form);
+    const read = (name: string): string => String(values.get(name) ?? '').trim();
+    const error = this.get('atlas-feature-error');
+    const name = read('name').toLowerCase();
+    if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+      error.hidden = false;
+      error.textContent = 'Use a snake_case name starting with a letter: endurance, tiktok_use.';
+      return;
+    }
+    if (this.featureDrafts.some((draft) => draft.name === name)) {
+      error.hidden = false;
+      error.textContent = `A feature plan named ${name} already exists.`;
+      return;
+    }
+    const label = read('label');
+    const definition = read('definition');
+    if (!label || !definition) {
+      error.hidden = false;
+      error.textContent = 'Add a display label and a precise measurement definition.';
+      return;
+    }
+    const kind = read('kind') as FeatureDraft['kind'];
+    const unit = read('unit');
+    const minimum = read('minimum');
+    const maximum = read('maximum');
+    const categories = read('categories')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const outcomes = read('outcomes')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    if (outcomes.some((outcome) => !/^[a-z][a-z0-9_]*$/.test(outcome))) {
+      error.hidden = false;
+      error.textContent = 'Outcome keys must use lowercase snake_case.';
+      return;
+    }
+    if (kind === 'continuous') {
+      const lower = Number(minimum);
+      const upper = Number(maximum);
+      if (
+        !unit ||
+        !minimum ||
+        !maximum ||
+        !Number.isFinite(lower) ||
+        !Number.isFinite(upper) ||
+        lower >= upper
+      ) {
+        error.hidden = false;
+        error.textContent =
+          'Continuous features need a unit and a numeric minimum below the maximum.';
+        return;
+      }
+    }
+    const uniqueCategories = Array.from(new Set(categories));
+    if (kind === 'categorical' && uniqueCategories.length < 2) {
+      error.hidden = false;
+      error.textContent = 'Categorical features need at least two distinct categories.';
+      return;
+    }
+    this.featureDrafts = [
+      ...this.featureDrafts,
+      {
+        id:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `feature-${Date.now()}`,
+        name,
+        label,
+        kind,
+        definition,
+        unit: kind === 'continuous' ? unit : '',
+        minimum: kind === 'continuous' ? minimum : '',
+        maximum: kind === 'continuous' ? maximum : '',
+        categories: kind === 'binary' ? ['no', 'yes'] : uniqueCategories,
+        coverageLevel: read('coverage_level') as FeatureDraft['coverageLevel'],
+        outcomes: Array.from(new Set(outcomes)),
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    saveFeatureDrafts(this.featureDrafts);
+    this.get<HTMLDialogElement>('atlas-feature-dialog').close();
+    this.renderFeatureDrafts();
+    document
+      .getElementById('atlas-feature-drafts')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  private downloadFeatureTemplate(draft: FeatureDraft, kind: 'distribution' | 'joint'): void {
+    const content = kind === 'distribution' ? distributionTemplate(draft) : jointTemplate(draft);
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${draft.name}-${kind}-template.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   private onSubmit = async (event: SubmitEvent): Promise<void> => {
-    if ((event.target as HTMLElement).id !== 'atlas-import-form') return;
+    const target = event.target as HTMLElement;
+    if (target.id === 'atlas-feature-form') {
+      event.preventDefault();
+      this.saveFeature(target as HTMLFormElement);
+      return;
+    }
+    if (target.id !== 'atlas-import-form') return;
     event.preventDefault();
     const form = event.target as HTMLFormElement;
     const values = new FormData(form);
@@ -376,7 +527,33 @@ export class DataTab {
       } else if (action === 'confirm-promotion') await this.promote();
       else if (action === 'cancel-promotion')
         this.get<HTMLDialogElement>('atlas-promotion-dialog').close();
-      else if (action?.startsWith('close-'))
+      else if (action === 'add-feature') this.openFeature();
+      else if (action === 'close-feature')
+        this.get<HTMLDialogElement>('atlas-feature-dialog').close();
+      else if (action === 'delete-feature') {
+        this.featureDrafts = this.featureDrafts.filter((draft) => draft.id !== target.dataset.id);
+        saveFeatureDrafts(this.featureDrafts);
+        this.renderFeatureDrafts();
+      } else if (action === 'download-distribution' || action === 'download-joint') {
+        const draft = this.featureDraftById(target.dataset.id!);
+        if (draft) {
+          this.downloadFeatureTemplate(
+            draft,
+            action === 'download-distribution' ? 'distribution' : 'joint',
+          );
+        }
+      } else if (action === 'import-for-feature') {
+        this.openImport();
+        const kind = this.host.querySelector<HTMLSelectElement>('[name="kind"]');
+        if (kind) kind.value = 'behaviour';
+      } else if (action === 'filter-feature') {
+        this.get<HTMLSelectElement>('atlas-missing').value = target.dataset.field ?? '';
+        this.get<HTMLInputElement>('atlas-search').value = '';
+        this.get<HTMLSelectElement>('atlas-country').value = '';
+        this.page = 1;
+        await this.refresh();
+        this.get('atlas-city-browser').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (action?.startsWith('close-'))
         this.get<HTMLDialogElement>(`atlas-${action.slice(6)}-dialog`).close();
     } catch (error) {
       this.error(error);

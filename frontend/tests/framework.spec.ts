@@ -8,9 +8,7 @@ test('validate a DSL, run it, drill from place to agents, and open an exact stor
   await page.goto('/');
   await page.getByRole('tab', { name: 'DSL', exact: true }).click();
   await expect(page.getByText('✓ Valid DSL')).toBeVisible();
-  await page.getByRole('button', { name: 'Add eye colour' }).click();
-  await expect(page.getByText('LABEL-ONLY', { exact: true })).toBeVisible();
-  await expect(page.getByText(/cannot predict an action/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Manage agent features' })).toBeVisible();
   await page.getByRole('button', { name: 'Run validated DSL' }).click();
   await expect(page.getByText('✓ Run complete')).toBeVisible();
   await expect(page.locator('#run-list')).toContainText('Smoke Spread');

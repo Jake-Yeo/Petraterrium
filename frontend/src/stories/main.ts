@@ -31,12 +31,12 @@ export class StoriesView {
 
   private async render(): Promise<void> {
     if (!this.run) {
-      this.host.innerHTML = '<section class="stories-empty"><p class="eyebrow">STORIES / RECORDED OUTPUT</p><h1>Run a world to open its newsroom.</h1><p>Every headline will link back to an exact snapshot, place, and synthetic population.</p></section>';
+      this.host.innerHTML = '<section class="stories-empty"><p class="eyebrow">STORIES / RECORDED OUTPUT</p><h1>Run a world to open its newsroom.</h1></section>';
       return;
     }
     const result = await api.stories(this.run.run_id);
     this.host.innerHTML = `
-      <section class="stories-header"><div><p class="eyebrow">WEEKLY NEWSROOM / ${escapeHtml(this.run.config.scenario.toUpperCase())}</p><h1>Stories from recorded state.</h1><p>Template numbers come directly from the engine. Click through to the place and agents beneath them.</p></div><span class="mono">${result.stories.length} STORIES</span></section>
+      <section class="stories-header"><div><p class="eyebrow">WEEKLY NEWSROOM / ${escapeHtml(this.run.config.scenario.toUpperCase())}</p><h1>Stories from recorded state.</h1></div><span class="mono">${result.stories.length} STORIES</span></section>
       <div class="stories-layout"><div id="story-feed" class="story-feed">${result.stories
         .map((story) => `<button data-story-id="${escapeHtml(story.story_id)}"><span>DAY ${story.day} · ${escapeHtml(story.place)}</span><strong>${escapeHtml(story.headline)}</strong><small>${story.template ? 'Validated template' : 'Validated narrative'}</small></button>`)
         .join('') || '<p class="muted">No threshold event fired in this run.</p>'}</div><article id="story-reader" class="story-reader"><span class="small-label">SELECT A HEADLINE</span><h2>Every claim has a receipt.</h2></article></div>`;
