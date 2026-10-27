@@ -24,6 +24,7 @@ export interface FeatureDistribution {
   level: 'global' | 'region' | 'subregion' | 'country' | 'city';
   place: string;
   population: string;
+  population_count: number | null;
   coverage_percent: number;
   values: Record<string, number>;
   mean: number | null;
@@ -87,6 +88,7 @@ export interface FeatureCatalogApi {
 }
 
 export interface FeatureCatalogControllerOptions {
+  onImport?: (feature?: CatalogFeature) => void;
   renderDetailAddon?: (
     host: HTMLElement,
     feature: CatalogFeature,
@@ -115,6 +117,7 @@ function isDistribution(value: unknown): value is FeatureDistribution {
     typeof value.level === 'string' &&
     typeof value.place === 'string' &&
     typeof value.population === 'string' &&
+    (value.population_count === null || typeof value.population_count === 'number') &&
     typeof value.coverage_percent === 'number' &&
     isRecord(value.values) &&
     (value.mean === null || typeof value.mean === 'number') &&
@@ -264,18 +267,43 @@ function rowMarkup(feature: CatalogFeature, place: string): string {
     </button>`;
 }
 
-function distributionValues(distribution: FeatureDistribution): string {
-  const values = Object.entries(distribution.values);
-  if (values.length) {
-    return values.map(([label, value]) => `${e(label)} ${percent(value * 100)}`).join(' · ');
-  }
-  if (distribution.mean !== null) {
-    return `mean ${distribution.mean.toLocaleString()} · SD ${distribution.standard_deviation?.toLocaleString() ?? 'unknown'}`;
-  }
-  return 'No distribution values';
+function valueLabel(feature: CatalogFeature, label: string): string {
+  if (feature.id === 'age') return `Age ${label}`;
+  return words(label);
 }
 
-function distributionMarkup(distribution: FeatureDistribution): string {
+function distributionValues(
+  feature: CatalogFeature,
+  distribution: FeatureDistribution,
+): string {
+  const values = Object.entries(distribution.values);
+  if (values.length) {
+    const ordered = values.sort(([left], [right]) => {
+      const leftNumber = Number(left.replace('+', ''));
+      const rightNumber = Number(right.replace('+', ''));
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) return leftNumber - rightNumber;
+      return left.localeCompare(right);
+    });
+    return `<div class="feature-value-table-scroll"><table class="feature-value-table"><thead><tr><th>Value</th><th>Share</th><th>Estimated agents</th></tr></thead><tbody>${ordered
+      .map(([label, probability]) => {
+        const count =
+          distribution.population_count === null
+            ? 'Population unavailable'
+            : `${Math.round(probability * distribution.population_count).toLocaleString()} agents`;
+        return `<tr><th>${e(valueLabel(feature, label))}</th><td>${percent(probability * 100)}</td><td>${e(count)}</td></tr>`;
+      })
+      .join('')}</tbody></table></div>`;
+  }
+  if (distribution.mean !== null) {
+    return `<p class="feature-distribution-moments">Mean ${distribution.mean.toLocaleString()} · SD ${distribution.standard_deviation?.toLocaleString() ?? 'unknown'}</p>`;
+  }
+  return '<p class="feature-distribution-moments">No distribution values</p>';
+}
+
+function distributionMarkup(
+  feature: CatalogFeature,
+  distribution: FeatureDistribution,
+): string {
   const sourceDate = distribution.provenance.source_date ?? 'Undated';
   return `
     <article class="feature-catalog-distribution">
@@ -283,7 +311,7 @@ function distributionMarkup(distribution: FeatureDistribution): string {
         <div><strong>${e(distribution.place)}</strong><small>${e(distribution.level)} · ${e(distribution.method)}</small></div>
         <span class="field-status ${distribution.provenance.status === 'present' ? 'present' : 'imputed'}">${e(distribution.provenance.status)}</span>
       </div>
-      <p>${distributionValues(distribution)}</p>
+      ${distributionValues(feature, distribution)}
       <dl>
         <div><dt>Population</dt><dd>${e(distribution.population)}</dd></div>
         <div><dt>Coverage</dt><dd>${percent(distribution.coverage_percent)}</dd></div>
@@ -314,13 +342,12 @@ function createFormMarkup(): string {
       <p class="dialog-subtitle">Create the schema now and attach measured distributions later. Until then, the feature remains label-only.</p>
       <form data-feature-create-form>
         <div class="feature-catalog-form-grid">
-          <label>Feature ID<input name="id" required pattern="[a-z][a-z0-9_-]*" maxlength="80" placeholder="endurance" /></label>
           <label>Name<input name="name" required maxlength="120" placeholder="Endurance" /></label>
+          <label>Feature ID<input name="id" required pattern="[a-z][a-z0-9_-]*" maxlength="80" placeholder="endurance" /></label>
           <label>Type<select name="type"><option value="continuous">Continuous</option><option value="categorical">Categorical</option><option value="binary">Binary</option></select></label>
-          <label>Status<select name="status"><option value="pending">Pending</option><option value="awaiting_data">Awaiting data</option></select></label>
         </div>
         <label class="feature-catalog-wide">Description<textarea name="description" rows="3" maxlength="2000" placeholder="What this feature measures and how to interpret it"></textarea></label>
-        <label class="feature-catalog-wide">Provenance placeholder<input name="provenance_placeholder" required maxlength="500" placeholder="Source or instrument still needed" /></label>
+        <label class="feature-catalog-wide">Provenance placeholder<input name="provenance_placeholder" required maxlength="500" value="Representative source required" /></label>
         <label class="feature-catalog-wide" data-feature-values hidden>Canonical values<textarea name="canonical_values" rows="2" placeholder="low, medium, high"></textarea><small>Enter two or more comma-separated values. Binary features require exactly two.</small></label>
         <div class="feature-catalog-form-grid" data-feature-range>
           <label>Minimum<input name="minimum" type="number" step="any" required value="0" /></label>
@@ -338,7 +365,7 @@ export function featureCatalogShell(): string {
     <section class="feature-catalog" aria-labelledby="feature-catalog-title">
       <div class="atlas-evidence-heading feature-catalog-heading">
         <div><p class="eyebrow">UNIVERSAL FEATURE REGISTRY</p><h2 id="feature-catalog-title">Features and evidence</h2><p>Open any feature to inspect its schema, data by place, provenance, and predictor eligibility.</p></div>
-        <button class="button primary" type="button" data-feature-action="create">Add feature</button>
+        <div class="feature-catalog-heading-actions"><button class="button secondary" type="button" data-feature-action="import">Import feature data</button><button class="button primary" type="button" data-feature-action="create">Add feature</button></div>
       </div>
       <div data-feature-catalog-content><p class="muted">Loading feature registry…</p></div>
       ${createFormMarkup()}
@@ -353,6 +380,7 @@ export class FeatureCatalogController {
   private distributionPage = 1;
   private state: FeatureCatalogState;
   private disposeDetailAddon?: () => void;
+  private createIdManuallyEdited = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -438,7 +466,7 @@ export class FeatureCatalogController {
         <button class="text-button feature-catalog-back" type="button" data-feature-action="back">← Back to features</button>
         <div class="feature-catalog-detail-heading">
           <div><p class="eyebrow">${feature.custom ? 'CUSTOM FEATURE' : 'CANONICAL FEATURE'} / ${e(feature.id)}</p><h3 id="feature-detail-title">${e(feature.name)}</h3></div>
-          <div><span class="field-status ${feature.status === 'ready' ? 'present' : 'missing'}">${e(statusText(feature))}</span><span class="field-status ${feature.predictor_blocked ? 'missing' : 'present'}">${feature.predictor_blocked ? 'Label-only' : 'Predictive'}</span></div>
+          <div><button class="button secondary" type="button" data-feature-action="import" aria-label="Import data for ${e(feature.name)}">Import data</button><span class="field-status ${feature.status === 'ready' ? 'present' : 'missing'}">${e(statusText(feature))}</span><span class="field-status ${feature.predictor_blocked ? 'missing' : 'present'}">${feature.predictor_blocked ? 'Label-only' : 'Predictive'}</span></div>
         </div>
         <section class="feature-catalog-description">
           <div><h4>Description</h4><button class="text-button" type="button" data-feature-action="edit-description">Edit</button></div>
@@ -501,7 +529,7 @@ export class FeatureCatalogController {
         <label>Find a place or source<input type="search" data-feature-distribution-search value="${e(this.distributionSearch)}" placeholder="Country, region, city, or source" /></label>
         <span>${range}</span>
       </div>
-      <div class="feature-catalog-distributions" data-feature-distribution-list>${visible.map(distributionMarkup).join('') || '<p class="atlas-empty">No distributions match this search.</p>'}</div>
+      <div class="feature-catalog-distributions" data-feature-distribution-list>${visible.map((item) => distributionMarkup(feature, item)).join('') || '<p class="atlas-empty">No distributions match this search.</p>'}</div>
       <div class="feature-catalog-distribution-pagination">
         <span>Page ${this.distributionPage.toLocaleString()} of ${pageCount.toLocaleString()}</span>
         <div><button class="button secondary" type="button" data-feature-action="distribution-previous"${this.distributionPage === 1 ? ' disabled' : ''}>← Previous</button><button class="button secondary" type="button" data-feature-action="distribution-next"${this.distributionPage === pageCount ? ' disabled' : ''}>Next →</button></div>
@@ -519,6 +547,7 @@ export class FeatureCatalogController {
     const dialog = this.host.querySelector<HTMLDialogElement>('[data-feature-create-dialog]')!;
     const form = dialog.querySelector<HTMLFormElement>('[data-feature-create-form]')!;
     form.reset();
+    this.createIdManuallyEdited = false;
     this.updateCreateType(form, 'continuous');
     dialog.showModal();
   }
@@ -568,7 +597,7 @@ export class FeatureCatalogController {
       value_range: type === 'continuous' ? { minimum, maximum, unit: read('unit') } : null,
       description: read('description'),
       provenance_placeholder: read('provenance_placeholder'),
-      status: read('status') as FeatureCreateRequest['status'],
+      status: 'awaiting_data',
     };
   }
 
@@ -597,6 +626,7 @@ export class FeatureCatalogController {
       this.distributionPage++;
       this.renderDistributionBrowser();
     } else if (action === 'create') this.openCreate();
+    else if (action === 'import') this.options.onImport?.(this.detail);
     else if (action === 'cancel-create')
       this.host.querySelector<HTMLDialogElement>('[data-feature-create-dialog]')!.close();
     else if (action === 'edit-description') {
@@ -613,6 +643,17 @@ export class FeatureCatalogController {
 
   private onInput = (event: Event): void => {
     const target = event.target as HTMLInputElement;
+    if (target.form?.matches('[data-feature-create-form]')) {
+      if (target.name === 'id') this.createIdManuallyEdited = target.value.length > 0;
+      if (target.name === 'name' && !this.createIdManuallyEdited) {
+        const id = target.form.elements.namedItem('id') as HTMLInputElement;
+        id.value = target.value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+      }
+    }
     if (target.hasAttribute('data-feature-distribution-search')) {
       this.distributionSearch = target.value;
       this.distributionPage = 1;

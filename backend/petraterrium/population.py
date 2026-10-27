@@ -169,6 +169,12 @@ def sample_feature_traits(
             probabilities = list(distribution.values.values())
             traits[feature.id] = str(rng.choice(labels, p=probabilities))
             continue
+        if distribution.values:
+            labels = list(distribution.values)
+            probabilities = list(distribution.values.values())
+            selected = str(rng.choice(labels, p=probabilities)).rstrip("+")
+            traits[feature.id] = float(selected)
+            continue
         value = float(rng.normal(distribution.mean, distribution.standard_deviation))
         traits[feature.id] = float(
             np.clip(value, feature.value_range.minimum, feature.value_range.maximum)

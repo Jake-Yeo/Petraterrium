@@ -21,6 +21,12 @@
   background: #b5e7b110;
 }
 .atlas-view {
+  --atlas-surface: #0e1721;
+  --atlas-surface-raised: #101a23;
+  --atlas-surface-control: #09121a;
+  --atlas-text: #d9e2e3;
+  --atlas-text-muted: #8b9ea6;
+  --atlas-accent: #b5e7b1;
   padding: 29px 30px;
   max-width: 1800px;
   margin: auto;
@@ -44,7 +50,7 @@
   align-items: end;
   gap: 17px;
   border: 1px solid var(--line);
-  background: #101922;
+  background: var(--atlas-surface-raised);
   padding: 14px 17px;
   border-radius: 5px;
 }
@@ -66,10 +72,10 @@
 .atlas-dialog input:not([type='checkbox']),
 .atlas-dialog select,
 .atlas-dialog textarea {
-  background: #0b131b;
+  background: var(--atlas-surface-control);
   border: 1px solid #ffffff1c;
   border-radius: 4px;
-  color: #d9e2e3;
+  color: var(--atlas-text);
   padding: 9px 10px;
   min-width: 0;
   font-size: 12px;
@@ -125,10 +131,72 @@
 }
 .atlas-section {
   border: 1px solid var(--line);
-  background: #0e1721;
+  background: var(--atlas-surface);
   border-radius: 6px;
   padding: 19px;
   margin-bottom: 19px;
+}
+.atlas-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 18px 0;
+  overflow-x: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--atlas-surface-control);
+}
+.atlas-tabs button {
+  flex: 1 0 auto;
+  min-width: 104px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--atlas-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+.atlas-tabs button:hover {
+  color: var(--atlas-text);
+  background: #ffffff08;
+}
+.atlas-tabs button[aria-selected='true'] {
+  color: var(--atlas-accent);
+  background: #b5e7b112;
+  box-shadow: inset 0 0 0 1px #b5e7b126;
+}
+.atlas-tabs button:focus-visible {
+  outline: 2px solid var(--atlas-accent);
+  outline-offset: -2px;
+}
+.atlas-panel[hidden] {
+  display: none !important;
+}
+.atlas-panel:not(.atlas-section) {
+  margin-bottom: 19px;
+}
+.atlas-evidence-actions,
+.feature-catalog-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.atlas-evidence-actions .mono {
+  color: var(--atlas-text-muted);
+  font-size: 9px;
+}
+.atlas-import-target {
+  display: grid;
+  gap: 7px;
+  margin-top: 15px;
+  color: #a3b5bf;
+  font-size: 11px;
+}
+.atlas-import-target input[readonly] {
+  color: var(--atlas-accent);
+  font-family: var(--mono);
 }
 .atlas-section-heading {
   display: flex;

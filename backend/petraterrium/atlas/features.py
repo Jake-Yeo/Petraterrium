@@ -9,30 +9,6 @@ from ..dsl import (
 )
 from .ideology_axes import canonical_ideology_axes
 
-WPP_AGE_BANDS = [
-    "0-4",
-    "5-9",
-    "10-14",
-    "15-19",
-    "20-24",
-    "25-29",
-    "30-34",
-    "35-39",
-    "40-44",
-    "45-49",
-    "50-54",
-    "55-59",
-    "60-64",
-    "65-69",
-    "70-74",
-    "75-79",
-    "80-84",
-    "85-89",
-    "90-94",
-    "95-99",
-    "100+",
-]
-
 
 class FeatureResolution(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -94,13 +70,17 @@ def categorical(
 
 def canonical_feature_registry() -> FeatureRegistry:
     definitions = [
-        continuous("age", "ISO 8601 age in completed years", 0, 120, "years"),
-        categorical(
-            "age_band",
-            WPP_AGE_BANDS,
-            "UN World Population Prospects five-year age groups",
-            name="Age band",
-            description="Five-year age band, with an open-ended 100 years and older group.",
+        continuous(
+            "age",
+            "UN World Population Prospects single-year ages",
+            0,
+            120,
+            "completed years",
+            name="Age",
+            description=(
+                "Age in completed years. Atlas distributions retain every single year from zero "
+                "through the source's open-ended oldest age."
+            ),
         ),
         categorical(
             "sex",
@@ -190,7 +170,7 @@ def canonical_feature_registry() -> FeatureRegistry:
         ),
     ]
     return FeatureRegistry(
-        version="canonical-features-v4",
+        version="canonical-features-v5",
         definitions=definitions,
         distributions=[],
         joint_data=[],

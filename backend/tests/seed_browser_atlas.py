@@ -64,9 +64,9 @@ with store.connection() as conn:
 catalog = FeatureCatalogStore(store)
 registry = canonical_feature_registry()
 for country_code in ("IT", "FR", "DE"):
-    for feature_id, values in (
-        ("age_band", {"0-4": 0.2, "5-9": 0.8}),
-        ("sex", {"female": 0.51, "male": 0.49}),
+    for feature_id, values, mean, deviation in (
+        ("age", {"0": 0.2, "1": 0.8}, 0.8, 0.4),
+        ("sex", {"female": 0.51, "male": 0.49}, None, None),
     ):
         catalog.attach_distribution(
             registry,
@@ -76,8 +76,11 @@ for country_code in ("IT", "FR", "DE"):
                 level="country",
                 place=country_code,
                 population="FAKE browser-test population",
+                population_count=1000,
                 coverage_percent=100,
                 values=values,
+                mean=mean,
+                standard_deviation=deviation,
                 provenance=Evidence(
                     source="FAKE browser-test distribution",
                     version="FAKE-browser-v1",

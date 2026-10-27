@@ -12,7 +12,16 @@ from ..feature_catalog import FeatureCatalogStore
 from ..features import canonical_feature_registry
 from ..validation import validate_value
 
-INSTALL_VERSION = "registry-dump-install-v1"
+INSTALL_VERSION = "registry-dump-install-v4"
+
+PRIORITY_MARGINAL_FIELDS = {
+    "income": ("income", "world_bank_wdi"),
+    "education_isced": ("education", "world_bank_wdi"),
+    "household_size": ("household_size", "un_desa_households"),
+    "ideology_economic": ("ideology_economic", "world_values_survey"),
+    "ideology_state": ("ideology_state", "world_values_survey"),
+    "ideology_cultural": ("ideology_cultural", "world_values_survey"),
+}
 
 
 def normalized_probabilities(counts: dict[str, int]) -> dict[str, float]:
@@ -52,35 +61,65 @@ def feature_distributions(
         age_counts = defaultdict(int)
         sex_counts = defaultdict(int)
         for row in place_rows:
-            age_counts[row["age_group"]] += row["population"]
+            age_counts[row["age"]] += row["population"]
             sex_counts[row["sex"]] += row["population"]
+        source_population = sum(age_counts.values())
+        population_count = int(
+            place_rows[0].get("distribution_population") or source_population
+        )
+        imputed = any(row.get("evidence_status") == "imputed" for row in place_rows)
+        age_probabilities = normalized_probabilities(age_counts)
+        age_moments = [
+            (100 if age.rstrip("+") == "100" else int(age.rstrip("+")), probability)
+            for age, probability in age_probabilities.items()
+        ]
+        age_mean = sum(age * probability for age, probability in age_moments)
+        age_variance = sum(
+            probability * (age - age_mean) ** 2 for age, probability in age_moments
+        )
         evidence = Evidence(
-            source="UN World Population Prospects",
+            source=(
+                "UN World Population Prospects global age and sex fallback"
+                if imputed
+                else "UN World Population Prospects"
+            ),
             version=version,
-            status="present",
+            status="imputed" if imputed else "present",
             uncertainty=1,
             source_date=source_date,
         )
-        population = "De facto population on 1 July 2023"
+        population = (
+            f"{place} residents; global 2023 WPP distribution"
+            if imputed
+            else "De facto population on 1 July 2023"
+        )
+        coverage_percent = 0 if imputed else 100
+        method = "fallback" if imputed else "measured"
         result.extend(
             [
                 FeatureDistribution(
-                    feature_id="age_band",
+                    feature_id="age",
                     level=level,
                     place=place,
                     population=population,
-                    coverage_percent=100,
-                    values=normalized_probabilities(age_counts),
+                    population_count=population_count,
+                    coverage_percent=coverage_percent,
+                    values=age_probabilities,
+                    mean=age_mean,
+                    standard_deviation=age_variance**0.5,
                     provenance=evidence,
+                    method=method,
                 ),
                 FeatureDistribution(
                     feature_id="sex",
                     level=level,
                     place=place,
                     population=population,
-                    coverage_percent=100,
+                    population_count=population_count,
+                    coverage_percent=coverage_percent,
                     values=normalized_probabilities(sex_counts),
                     provenance=evidence,
+                    method=method,
                 ),
             ]
         )
@@ -103,27 +142,32 @@ def install_marginal_observations(
     store: AtlasStore,
     manifest: dict,
     country_rows: list[dict],
+    region_rows: list[dict],
 ) -> tuple[str, int]:
     wpp = manifest["wpp"]
     import_id = registry_import_id(manifest)
     version = f"{wpp['version']};transform:{INSTALL_VERSION}"
-    grouped = grouped_age_sex(country_rows, "country")
     prepared = []
-    for country_code, rows in sorted(grouped.items()):
-        counts = {
-            f"{row['sex']}_{row['age_group']}": row["population"] for row in rows
-        }
-        value = percentage_distribution(counts)
-        validate_value("age_sex", value, "percent")
-        prepared.append(
-            {
-                "geo_level": "country",
-                "geo_key": country_code,
-                "field": "age_sex",
-                "value": value,
-                "unit": "percent",
-            }
-        )
+    for geo_level, level, source_rows in (
+        ("country", "country", country_rows),
+        ("canonical_region", "region", region_rows),
+    ):
+        for place, rows in sorted(grouped_age_sex(source_rows, level).items()):
+            counts = {}
+            for row in rows:
+                age = "100_plus" if row["age"].rstrip("+") == "100" else row["age"]
+                counts[f"{row['sex']}_{age}"] = row["population"]
+            value = percentage_distribution(counts)
+            validate_value("age_sex", value, "percent")
+            prepared.append(
+                {
+                    "geo_level": geo_level,
+                    "geo_key": place,
+                    "field": "age_sex",
+                    "value": value,
+                    "unit": "percent",
+                }
+            )
     metadata = {
         "run_id": "shared",
         "kind": "marginals",
@@ -138,7 +182,12 @@ def install_marginal_observations(
         "redistribution_allowed": True,
         "processing_notes": [
             "Country observations resolve as inherited city archetypes.",
-            "Five-year age groups and source sex categories remain separate.",
+            "Canonical region observations resolve as imputed fallbacks.",
+            "Single-year ages and source sex categories remain separate.",
+            (
+                "A canonical region absent from WPP uses an explicit global WPP "
+                "distribution fallback."
+            ),
             "No projection rows are installed.",
         ],
     }
@@ -163,7 +212,7 @@ def install_marginal_observations(
                 "shared",
                 metadata["uploader"],
                 "marginals",
-                "wpp_country_age_sex.parquet",
+                "wpp_country_and_region_age_sex.parquet",
                 len(prepared),
                 "committed",
                 json.dumps(metadata, sort_keys=True),
@@ -203,6 +252,156 @@ def install_marginal_observations(
     return import_id, len(prepared)
 
 
+def priority_marginal_value(distribution: FeatureDistribution) -> tuple[object, str]:
+    definition = next(
+        item
+        for item in canonical_feature_registry().definitions
+        if item.id == distribution.feature_id
+    )
+    if distribution.values:
+        values = {label: probability * 100 for label, probability in distribution.values.items()}
+        last = next(reversed(values))
+        values[last] += 100 - sum(values.values())
+        return values, "percent"
+    return {
+        "mean": distribution.mean,
+        "standard_deviation": distribution.standard_deviation,
+    }, definition.value_range.unit if definition.value_range else "score"
+
+
+def priority_marginal_import_id(source_id: str, rows: list[dict]) -> str:
+    identity = json.dumps(
+        [source_id, INSTALL_VERSION, rows],
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return "registry-feature-" + hashlib.sha256(identity.encode()).hexdigest()[:20]
+
+
+def install_priority_marginal_observations(
+    store: AtlasStore,
+    distributions: list[FeatureDistribution],
+    inventory: list[dict],
+) -> int:
+    inventory_by_id = {record["source_id"]: record for record in inventory}
+    groups = defaultdict(list)
+    for distribution in distributions:
+        field_mapping = PRIORITY_MARGINAL_FIELDS.get(distribution.feature_id)
+        if field_mapping is None or distribution.level not in {"country", "region"}:
+            continue
+        field, source_id = field_mapping
+        value, unit = priority_marginal_value(distribution)
+        evidence_status = (
+            "measured"
+            if distribution.level == "region" or distribution.provenance.status == "present"
+            else "estimated"
+        )
+        groups[
+            (
+                source_id,
+                distribution.provenance.version,
+                distribution.provenance.source_date,
+            )
+        ].append(
+            {
+                "geo_level": "country"
+                if distribution.level == "country"
+                else "canonical_region",
+                "geo_key": distribution.place,
+                "field": field,
+                "value": value,
+                "unit": unit,
+                "evidence_status": evidence_status,
+            }
+        )
+    installed = 0
+    now = datetime.now(UTC).isoformat()
+    with store.connection() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        for (source_id, version, source_date), rows in sorted(groups.items()):
+            source = inventory_by_id[source_id]
+            import_id = priority_marginal_import_id(source_id, rows)
+            if connection.execute(
+                "SELECT 1 FROM imports WHERE import_id=?", (import_id,)
+            ).fetchone():
+                continue
+            published_date = source["source_date"] or source_date
+            metadata = {
+                "run_id": "shared",
+                "kind": "marginals",
+                "source": source["source"],
+                "source_url": source["source_url"],
+                "source_date": source_date,
+                "published_date": published_date,
+                "version": version,
+                "uploader": "bulk-source-loader",
+                "license": source["license"],
+                "mapping": source["mapping"],
+                "redistribution_allowed": True,
+                "processing_notes": [
+                    "Country distributions resolve as inherited city archetypes.",
+                    "Canonical region distributions resolve as imputed fallbacks.",
+                    "Evidence status and uncertainty remain in the feature registry.",
+                ],
+            }
+            connection.execute(
+                """INSERT INTO imports(import_id,source,source_date,published_date,version,scope,
+                uploader,kind,filename,row_count,status,metadata_json,rows_json,mapping_json,
+                audit_json,validation_json,validated_json,promoted_from,redistribution_allowed,
+                created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    import_id,
+                    source["source"],
+                    source_date,
+                    published_date,
+                    version,
+                    "shared",
+                    "bulk-source-loader",
+                    "marginals",
+                    "priority_feature_distributions.parquet",
+                    len(rows),
+                    "committed",
+                    json.dumps(metadata, sort_keys=True),
+                    "[]",
+                    "[]",
+                    json.dumps(
+                        {
+                            "provider": "deterministic-loader",
+                            "model": "none",
+                            "prompt_version": INSTALL_VERSION,
+                            "message": "No LLM mapping was used",
+                        }
+                    ),
+                    json.dumps({"valid": True, "observations": len(rows)}),
+                    json.dumps(rows, separators=(",", ":"), allow_nan=False),
+                    None,
+                    1,
+                    now,
+                ),
+            )
+            connection.executemany(
+                """INSERT INTO observations(
+                import_id,geo_level,geo_key,field,value_json,unit,evidence_status
+                ) VALUES(?,?,?,?,?,?,?)""",
+                [
+                    (
+                        import_id,
+                        row["geo_level"],
+                        row["geo_key"],
+                        row["field"],
+                        json.dumps(row["value"], separators=(",", ":"), allow_nan=False),
+                        row["unit"],
+                        row["evidence_status"],
+                    )
+                    for row in rows
+                ],
+            )
+            installed += len(rows)
+        if installed:
+            store.bump(connection)
+    return installed
+
+
 def install_feature_distributions(
     store: AtlasStore,
     distributions: list[FeatureDistribution],
@@ -214,6 +413,7 @@ def install_feature_distributions(
     now = datetime.now(UTC).isoformat()
     with store.connection() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        connection.execute("DELETE FROM feature_catalog_distributions WHERE feature_id='age_band'")
         connection.executemany(
             """INSERT INTO feature_catalog_distributions VALUES(?,?,?,?,?,?)
             ON CONFLICT(feature_id,level,place,source_version) DO UPDATE SET
@@ -332,17 +532,28 @@ def install_registry_dump(store: AtlasStore, dump_directory: Path) -> dict:
     indicators = pq.read_table(
         dump_directory / "wpp_country_demographic_indicators.parquet"
     ).to_pylist()
+    priority_path = dump_directory / "priority_feature_distributions.parquet"
+    priority_rows = pq.read_table(priority_path).to_pylist() if priority_path.exists() else []
     wpp = manifest["wpp"]
     version = f"{wpp['version']};transform:{INSTALL_VERSION}"
     source_date = f"{wpp['estimate_year']}-07-01"
     distributions = [
         *feature_distributions(country_age_sex, "country", version, source_date),
         *feature_distributions(region_age_sex, "region", version, source_date),
+        *[
+            FeatureDistribution.model_validate_json(row["distribution_json"])
+            for row in priority_rows
+        ],
     ]
-    import_id, observations = install_marginal_observations(store, manifest, country_age_sex)
+    import_id, observations = install_marginal_observations(
+        store, manifest, country_age_sex, region_age_sex
+    )
     return {
         "import_id": import_id,
         "marginal_observations": observations,
+        "priority_marginal_observations": install_priority_marginal_observations(
+            store, distributions, inventory
+        ),
         "feature_distributions": install_feature_distributions(store, distributions),
         "population_weights": install_population_weights(
             store,

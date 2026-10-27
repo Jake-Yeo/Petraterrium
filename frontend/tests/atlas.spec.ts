@@ -13,13 +13,20 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await page.goto('/');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.locator('#atlas-summary')).toContainText('5');
+  await expect(page.getByRole('tab', { name: 'Coverage', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tabpanel')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'What needs importing' })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'What needs importing' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Place hierarchy' })).toContainText('Regions');
   await page.getByRole('button', { name: 'Open countries in Europe' }).click();
   await expect(page.getByRole('navigation', { name: 'Place hierarchy' })).toContainText('Europe');
   await expect(page.getByRole('button', { name: 'Open cities in Germany' })).toBeVisible();
   await page.getByRole('button', { name: '← Back' }).click();
-  await page.locator('#atlas-city-audit summary').click();
+  await page.getByRole('tab', { name: 'Cities', exact: true }).click();
+  await expect(page.locator('#atlas-summary')).toBeHidden();
   await expect(page.locator('#atlas-cities tr')).toHaveCount(5);
   await page.getByRole('searchbox', { name: 'Search cities' }).fill('Alpha');
   await expect(page.locator('#atlas-cities tr')).toHaveCount(2);
@@ -57,6 +64,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await expect(page.getByRole('dialog')).toContainText('Confirm every column');
   await page.getByRole('button', { name: 'Close import', exact: true }).click();
   await page.getByLabel('Data scope', { exact: true }).selectOption(run);
+  await page.getByRole('tab', { name: 'Imports', exact: true }).click();
   await page.getByRole('button', { name: 'Resume review', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Confirm every column');
   await page.getByRole('button', { name: 'Validate confirmed mapping' }).click();
@@ -107,12 +115,15 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await page.goto('/');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Data coverage' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Features', exact: true }).click();
   const catalog = page.locator('#atlas-feature-catalog');
   await expect(catalog).toContainText('Economic ideology');
   await expect(catalog).toContainText('State ideology');
   await expect(catalog).toContainText('Cultural ideology');
   await expect(catalog).not.toContainText('Blood Type');
   await expect(catalog).not.toContainText('Eye Colour');
+  await expect(catalog).not.toContainText('Age band');
+  await expect(catalog).toContainText('Age');
   await expect(catalog).toContainText('MBTI');
   await expect(catalog.getByRole('button', { name: 'Open Ideology feature details' })).toHaveCount(
     0,
@@ -129,7 +140,6 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await create.getByLabel('Minimum').fill('0');
   await create.getByLabel('Maximum').fill('100');
   await create.getByLabel('Unit').fill('score');
-  await create.getByLabel('Status').selectOption('awaiting_data');
   await create.getByRole('button', { name: 'Create feature', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Endurance' })).toBeVisible();
   await expect(catalog).toContainText('Awaiting data');
@@ -154,13 +164,20 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await expect(catalog).toContainText('anti-authoritarian');
   await expect(catalog).toContainText('not identical');
   await catalog.getByRole('button', { name: '← Back to features' }).click();
-  await catalog.getByRole('button', { name: 'Open Age band feature details' }).click();
+  await catalog.getByRole('button', { name: 'Open Age feature details' }).click();
+  await catalog.getByRole('button', { name: 'Import data for Age' }).click();
+  const featureImport = page.getByRole('dialog', { name: 'Import atlas data' });
+  await expect(featureImport).toContainText('Target feature');
+  await expect(featureImport.getByLabel('Target feature')).toHaveValue('age');
+  await featureImport.getByRole('button', { name: 'Cancel' }).click();
   await expect(
     page.getByRole('heading', { name: 'Place distribution and joined filters' }),
   ).toBeVisible();
+  await catalog.getByLabel('Find a place or source').fill('IT');
+  await expect(catalog.getByRole('row', { name: /Age 1/ })).toContainText('800 agents');
   await expect(catalog.locator('[data-inheritance-result]')).toContainText('agents');
   const filterRows = catalog.locator('[data-joined-row]');
-  await filterRows.nth(0).locator('[data-filter-feature]').selectOption('age_band');
+  await filterRows.nth(0).locator('[data-filter-feature]').selectOption('age');
   await filterRows.nth(1).locator('[data-filter-feature]').selectOption('sex');
   await expect(catalog.locator('[data-joined-result]')).toContainText(
     'independence estimate — not measured',
@@ -171,8 +188,14 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
   await page.reload();
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await page.getByRole('tab', { name: 'Features', exact: true }).click();
   await page.getByRole('searchbox', { name: 'Search features' }).fill('endurance');
   await expect(catalog).toContainText('Sustained effort measured by a validated assessment.');
+  await page.getByRole('tab', { name: 'Evidence', exact: true }).click();
+  await page.getByRole('button', { name: 'Import behavior evidence' }).click();
+  const evidenceImport = page.getByRole('dialog', { name: 'Import atlas data' });
+  await expect(evidenceImport.getByLabel('Data kind')).toHaveValue('behaviour');
+  await evidenceImport.getByRole('button', { name: 'Cancel' }).click();
   expect(errors).toEqual([]);
 });
 
@@ -261,7 +284,7 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
   expect(income.research_trace.result_kind).toBe('measured');
   await dialog.getByRole('button', { name: 'Cancel auto-import' }).click();
   await expect(alphaRow).toHaveCount(0);
-  await page.locator('#atlas-city-audit summary').click();
+  await page.getByRole('tab', { name: 'Cities', exact: true }).click();
   await page.locator('#atlas-cities').getByRole('button', { name: 'Alpha', exact: true }).click();
   const cityDialog = page.locator('#atlas-city-dialog');
   const trace = cityDialog.locator('.atlas-research-trace');
@@ -272,6 +295,7 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
   await expect(trace).toContainText('Alpha income table');
   await expect(trace.getByRole('link', { name: /Alpha income table/ })).toHaveCount(0);
   await cityDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('tab', { name: 'Features', exact: true }).click();
   await page
     .locator('#atlas-feature-catalog')
     .getByRole('button', { name: 'Open Annual income feature details' })

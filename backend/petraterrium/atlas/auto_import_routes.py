@@ -778,7 +778,7 @@ def create_auto_import_router(
         as_of: date | None = None,
     ):
         mapped_fields = {
-            "age_band": ("age_sex",),
+            "age": ("age_sex",),
             "sex": ("age_sex",),
             "education_isced": ("education",),
         }

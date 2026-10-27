@@ -216,8 +216,17 @@ class FeatureCatalogStore:
                 "SELECT * FROM feature_catalog_definitions ORDER BY feature_id"
             ).fetchall()
             stored_distributions = connection.execute(
-                "SELECT distribution_json FROM feature_catalog_distributions "
-                "ORDER BY feature_id,level,place,created_at DESC"
+                """
+                SELECT distribution_json FROM (
+                  SELECT distribution_json,feature_id,level,place,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY feature_id,level,place
+                      ORDER BY created_at DESC,source_version DESC
+                    ) AS version_rank
+                  FROM feature_catalog_distributions
+                ) WHERE version_rank=1
+                ORDER BY feature_id,level,place
+                """
             ).fetchall()
             revision = self.store.revision(connection)
         definitions = list(registry.definitions)
@@ -314,8 +323,15 @@ class FeatureCatalogStore:
         with self.store.connection() as connection:
             rows = connection.execute(
                 """
-                SELECT distribution_json FROM feature_catalog_distributions
-                WHERE feature_id=? ORDER BY level,place,source_version
+                SELECT distribution_json FROM (
+                  SELECT distribution_json,level,place,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY level,place
+                      ORDER BY created_at DESC,source_version DESC
+                    ) AS version_rank
+                  FROM feature_catalog_distributions WHERE feature_id=?
+                ) WHERE version_rank=1
+                ORDER BY level,place
                 """,
                 (feature_id,),
             ).fetchall()
@@ -437,6 +453,22 @@ class FeatureCatalogStore:
                 raise ValueError(
                     "Continuous feature distributions need mean and standard deviation"
                 )
+            if distribution.values:
+                if any(value < 0 or value > 1 for value in distribution.values.values()):
+                    raise ValueError("Distribution probabilities must be between 0 and 1")
+                if abs(sum(distribution.values.values()) - 1) > 1e-9:
+                    raise ValueError("Distribution probabilities must sum to 1")
+                try:
+                    numeric_values = [float(value.rstrip("+")) for value in distribution.values]
+                except ValueError as error:
+                    raise ValueError(
+                        "Continuous histogram labels must be numeric values"
+                    ) from error
+                if feature.value_range and any(
+                    value < feature.value_range.minimum or value > feature.value_range.maximum
+                    for value in numeric_values
+                ):
+                    raise ValueError("Continuous histogram value is outside the canonical range")
             if feature.value_range and not (
                 feature.value_range.minimum <= distribution.mean <= feature.value_range.maximum
             ):

@@ -80,6 +80,7 @@ export type HierarchyBrowserOptions = {
   openImport?: (row?: HierarchyBrowserRow) => void;
   openCity?: (geonameid: number) => void;
   onError?: (message: string) => void;
+  showQueue?: boolean;
 };
 
 export type MappingPreviewColumn = {
@@ -226,9 +227,9 @@ export function mappingTarget(column: MappingPreviewColumn): string {
   return fieldLabel(column.target);
 }
 
-export function hierarchyBrowserShell(): string {
+export function hierarchyBrowserShell(showQueue = true): string {
   return `<section class="hierarchy-browser" aria-labelledby="hierarchy-browser-title">
-    <section class="hierarchy-queue-panel" aria-labelledby="hierarchy-queue-title">
+    ${showQueue ? `<section class="hierarchy-queue-panel" aria-labelledby="hierarchy-queue-title">
       <div class="hierarchy-section-heading">
         <div>
           <p class="eyebrow">IMPORT PRIORITY</p>
@@ -239,7 +240,7 @@ export function hierarchyBrowserShell(): string {
       </div>
       <div class="hierarchy-import-flow" data-hierarchy-import-flow></div>
       <div class="hierarchy-queue" data-hierarchy-queue><p class="muted">Loading priorities…</p></div>
-    </section>
+    </section>` : ''}
     <section class="hierarchy-table-panel">
       <div class="hierarchy-section-heading hierarchy-browser-heading">
         <div>
@@ -307,7 +308,7 @@ export class HierarchyBrowser {
     private readonly host: HTMLElement,
     private readonly options: HierarchyBrowserOptions = {},
   ) {
-    host.innerHTML = hierarchyBrowserShell();
+    host.innerHTML = hierarchyBrowserShell(options.showQueue ?? true);
     host.addEventListener('click', this.onClick);
     host.addEventListener('input', this.onInput);
     this.renderImportFlow();
@@ -470,7 +471,8 @@ export class HierarchyBrowser {
   }
 
   private render(current: HierarchyBrowserPage): void {
-    this.get('[data-hierarchy-queue]').innerHTML = queueRows(current.queue);
+    const queue = this.host.querySelector<HTMLElement>('[data-hierarchy-queue]');
+    if (queue) queue.innerHTML = queueRows(current.queue);
     this.get('[data-hierarchy-rows]').innerHTML = hierarchyRows(current.rows);
     const levelLabel =
       current.filtered_count === 1
@@ -502,6 +504,8 @@ export class HierarchyBrowser {
   }
 
   private renderImportFlow(): void {
+    const importFlow = this.host.querySelector<HTMLElement>('[data-hierarchy-import-flow]');
+    if (!importFlow) return;
     const activeIndex = stageOrder.indexOf(this.importStage);
     const steps = stageOrder
       .map((stage, index) => {
@@ -512,6 +516,6 @@ export class HierarchyBrowser {
     const unknown = this.unknownMappings.length
       ? `<p role="status"><strong>Unknown:</strong> ${this.unknownMappings.map(e).join(', ')}. Choose a target or explicitly ignore each column before validation.</p>`
       : '';
-    this.get('[data-hierarchy-import-flow]').innerHTML = `<ol>${steps}</ol><small class="hierarchy-validation-rule">Categorical totals must equal 100% · duplicate place-field cells are blocked · ambiguous columns stay Unknown</small>${unknown}`;
+    importFlow.innerHTML = `<ol>${steps}</ol><small class="hierarchy-validation-rule">Categorical totals must equal 100% · duplicate place-field cells are blocked · ambiguous columns stay Unknown</small>${unknown}`;
   }
 }

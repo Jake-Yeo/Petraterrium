@@ -807,6 +807,7 @@ export type FeatureDistribution = {
   level: "global" | "region" | "subregion" | "country" | "city";
   place: string;
   population: string;
+  population_count?: number | null;
   coverage_percent: number;
   values?: {
   [key: string]: number;
@@ -1174,7 +1175,7 @@ export type RegistrySource = {
   source: string;
   scope_order: number;
   level: "region" | "country" | "city";
-  access_status: "imported" | "unavailable" | "available_remote";
+  access_status: "imported" | "imported_aggregate" | "unavailable" | "available_remote";
   source_url: string;
   version: string;
   source_date: string;

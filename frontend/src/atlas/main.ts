@@ -12,7 +12,12 @@ import { escapeHtml as e } from '../views';
 import { atlasApi } from './api';
 import { autoImportClient, mountAutoImport, type AutoImportSurface } from './auto-import';
 import type { AutoImportAttempt, ResearchSource } from './auto-import-model';
-import { importForm, mappingView, validationView } from './import_views';
+import {
+  importForm,
+  mappingView,
+  type ImportFormDefaults,
+  validationView,
+} from './import_views';
 import { choiceEvidenceView } from './evidence_views';
 import {
   FeatureCatalogController,
@@ -107,6 +112,8 @@ export class DataTab {
   private validation?: ValidationReport;
   private importScope = '';
   private sourceId = '';
+  private importDefaults: ImportFormDefaults = {};
+  private activeTab = 'coverage';
   private activeRunId?: string;
   private promoting?: string;
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -118,6 +125,7 @@ export class DataTab {
   constructor(private host: HTMLElement) {
     host.innerHTML = dataShell();
     this.hierarchyBrowser = new HierarchyBrowser(this.get('atlas-hierarchy-browser'), {
+      showQueue: false,
       openImport: (row) => this.openHierarchyImport(row),
       openCity: (geonameid) => void this.openCity(geonameid),
       onError: (message) => this.error(new Error(message)),
@@ -142,6 +150,8 @@ export class DataTab {
       undefined,
       {},
       {
+        onImport: (feature) =>
+          this.openImport('', { kind: 'marginals', featureId: feature?.id }),
         renderDetailAddon: (target, feature, view) => this.mountFeatureQuery(target, feature, view),
       },
     );
@@ -190,10 +200,21 @@ export class DataTab {
     return node as T;
   }
 
+  private setTab(tab: string): void {
+    this.activeTab = tab;
+    this.host.querySelectorAll<HTMLElement>('[data-atlas-panel]').forEach((panel) => {
+      panel.hidden = panel.dataset.atlasPanel !== tab;
+    });
+    this.host.querySelectorAll<HTMLButtonElement>('[data-atlas-tab]').forEach((button) => {
+      button.setAttribute('aria-selected', String(button.dataset.atlasTab === tab));
+    });
+  }
+
   async activate(activeRunId?: string): Promise<void> {
     this.visible = true;
     this.activeRunId = activeRunId;
     this.host.hidden = false;
+    this.setTab(this.activeTab);
     try {
       const [runs, sources, scopes] = await Promise.all([
         api.list(),
@@ -315,9 +336,10 @@ export class DataTab {
     }
   }
 
-  private openImport(sourceId = ''): void {
+  private openImport(sourceId = '', defaults: ImportFormDefaults = {}): void {
     if (!this.sources) return;
     this.sourceId = sourceId;
+    this.importDefaults = defaults;
     this.preview = undefined;
     this.validation = undefined;
     this.get('atlas-import-body').innerHTML = importForm(
@@ -325,6 +347,7 @@ export class DataTab {
       this.sources,
       this.activeRunId,
       sourceId,
+      defaults,
     );
     this.fillSourceLabel(sourceId);
     this.get<HTMLDialogElement>('atlas-import-dialog').showModal();
@@ -430,6 +453,8 @@ export class DataTab {
       redistribution_allowed: values.has('redistribution_allowed'),
       processing_notes: [],
     };
+    const targetFeature = read('target_feature');
+    if (targetFeature) metadata.processing_notes.push(`Target feature: ${targetFeature}`);
     const button = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
     button.disabled = true;
     button.textContent = 'Reading and proposing mappings…';
@@ -530,6 +555,7 @@ export class DataTab {
     const action = target.dataset.atlasAction;
     try {
       if (action === 'refresh') await this.refresh();
+      else if (action === 'tab' && target.dataset.atlasTab) this.setTab(target.dataset.atlasTab);
       else if (action === 'previous') {
         this.page--;
         await this.refresh();
@@ -539,6 +565,7 @@ export class DataTab {
       } else if (action === 'city') {
         await this.openCity(Number(target.dataset.id));
       } else if (action === 'hierarchy-country') {
+        this.setTab('cities');
         this.get<HTMLSelectElement>('atlas-country').value = target.dataset.country ?? '';
         this.page = 1;
         await this.refresh();
@@ -549,6 +576,7 @@ export class DataTab {
         await atlasApi.backbone();
         await this.refresh();
       } else if (action === 'import') this.openImport();
+      else if (action === 'import-evidence') this.openImport('', { kind: 'behaviour' });
       else if (action === 'sources' && this.sources) {
         this.get('atlas-sources-list').innerHTML = sourceCards(this.sources);
         this.get<HTMLDialogElement>('atlas-sources-dialog').showModal();
@@ -561,6 +589,7 @@ export class DataTab {
           this.sources,
           this.activeRunId,
           this.sourceId,
+          this.importDefaults,
         );
       } else if (action === 'validate') await this.validate();
       else if (action === 'commit') await this.commit();

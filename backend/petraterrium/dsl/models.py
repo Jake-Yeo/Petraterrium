@@ -89,6 +89,7 @@ class FeatureDistribution(DSLModel):
     level: Literal["global", "region", "subregion", "country", "city"]
     place: str = Field(min_length=1)
     population: str = Field(min_length=1)
+    population_count: int | None = Field(default=None, ge=0)
     coverage_percent: float = Field(ge=0, le=100, allow_inf_nan=False)
     values: dict[str, float] = Field(default_factory=dict)
     mean: float | None = Field(default=None, allow_inf_nan=False)

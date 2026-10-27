@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pyarrow.parquet as pq
+
 from .downloads import sha256_file
 
 WDI_EDUCATION_MAPPING = {
@@ -25,17 +27,14 @@ WDI_EDUCATION_MAPPING = {
     "limitation": "Broad derived bands, not direct microdata-coded ISCED categories",
 }
 WDI_INCOME_MAPPING = {
-    "standard": "World Bank income-share quintiles",
+    "standard": "PPP international dollars per person per year",
     "indicators": [
-        "SI.DST.FRST.20",
-        "SI.DST.02ND.20",
-        "SI.DST.03RD.20",
-        "SI.DST.04TH.20",
-        "SI.DST.05TH.20",
+        "NY.GNP.PCAP.PP.CD",
+        "SI.POV.GINI",
     ],
     "limitation": (
-        "Income quintile shares measure each fixed population quintile's share of national income; "
-        "they do not measure person-level income bands or a city income distribution"
+        "GNI per capita and Gini parameterize a lognormal estimate; this is not an observed "
+        "person-level income distribution"
     ),
 }
 
@@ -63,6 +62,12 @@ def registry_file(registry_directory: Path, filename: str) -> dict:
         "bytes": path.stat().st_size if path.exists() else None,
         "sha256": sha256_file(path) if path.exists() else None,
     }
+
+
+def parquet_distinct_count(path: Path, column: str) -> int:
+    if not path.exists():
+        return 0
+    return len(set(pq.read_table(path, columns=[column]).column(column).to_pylist()))
 
 
 def source_record(
@@ -124,15 +129,24 @@ def source_inventory(data_directory: Path, registry_directory: Path | None = Non
             "2024-07-11",
             "CC BY 3.0 IGO",
             {
-                "age": "UN five-year age groups",
+                "age": "UN single-year ages 0 through 100+",
                 "sex": ["female", "male"],
                 "population": "persons converted from source thousands",
                 "aggregation": "Country counts summed into canonical Petraterrium regions",
+                "fallback": (
+                    "WPP global age and sex distribution for canonical regions absent from WPP"
+                ),
             },
-            fallback="No projection fallback; 2023 estimates only",
+            fallback=(
+                "Rest / unassigned uses the WPP global distribution as an explicit imputation; "
+                "no projection rows are used"
+            ),
             coverage={
-                "regions": (
-                    8 if (registry_directory / "wpp_region_population.parquet").exists() else 0
+                "age_sex_regions": parquet_distinct_count(
+                    registry_directory / "wpp_region_age_sex.parquet", "region"
+                ),
+                "direct_population_regions": parquet_distinct_count(
+                    registry_directory / "wpp_region_population.parquet", "region"
                 ),
                 "age_sex_percent_of_wpp_universe": (
                     100.0 if (registry_directory / "wpp_region_age_sex.parquet").exists() else 0.0
@@ -156,7 +170,7 @@ def source_inventory(data_directory: Path, registry_directory: Path | None = Non
             "2024-07-11",
             "CC BY 3.0 IGO",
             {
-                "age": "UN five-year age groups",
+                "age": "UN single-year ages 0 through 100+",
                 "sex": ["female", "male"],
                 "population": (
                     "De facto population on 1 July; source thousands converted to persons"
@@ -257,10 +271,10 @@ def source_inventory(data_directory: Path, registry_directory: Path | None = Non
             "World Values Survey",
             2,
             "country",
-            "unavailable",
+            "imported_aggregate",
             "https://www.worldvaluessurvey.org/AJDownloadLicense.jsp",
-            "User-selected wave required",
-            "",
+            "WVS 7 v6.0.0 (2024-04-30)",
+            "2024-04-30",
             "Non-profit use with citation; source data files may not be redistributed",
             {
                 "values": "Survey items require a versioned harmonization map",
@@ -268,17 +282,103 @@ def source_inventory(data_directory: Path, registry_directory: Path | None = Non
                 "ideology_axes": "Separate item sets for economic, state, and cultural axes",
             },
             restriction_reason=(
-                "Download requires registration and acceptance of conditions that prohibit "
-                "redistribution "
-                "of the data files"
+                "Respondent records remain local and are excluded from the public dump"
             ),
-            fallback="No self-reported values or ideology fallback is promoted",
+            fallback="Missing countries use a labelled population-weighted regional aggregate",
             required_action=(
-                "A registered user must supply the selected wave, weights, questionnaire, "
-                "and permission "
-                "for local aggregate processing"
+                "Use a representative newer wave to replace older or regional estimates"
             ),
-            coverage={"imported_countries": 0, "imported_survey_waves": 0},
+            files=[
+                local_file(data_directory, "sources/wvs7.csv"),
+                registry_file(registry_directory, "priority_feature_distributions.parquet"),
+            ],
+            coverage={"priority_countries": 10, "imported_survey_waves": 1},
+        ),
+        source_record(
+            "ilostat_occupation",
+            "ILOSTAT",
+            2,
+            "country",
+            "imported_aggregate",
+            "https://rplumber.ilo.org/data/indicator/?id=EMP_TEMP_SEX_OCU_NB_A",
+            "Bulk extract 2026-10-26",
+            "2026-10-26",
+            "Creative Commons Attribution 4.0 International",
+            {
+                "occupation": "Employment counts mapped to ISCO-08 major groups 0 through 9",
+                "legacy": "China ISCO-88 major groups retain an explicit harmonized status",
+            },
+            fallback="Missing countries use a labelled population-weighted regional aggregate",
+            files=[
+                local_file(data_directory, "sources/ilostat_employment_sex_occupation.csv.gz")
+            ],
+            coverage={"priority_countries": 10},
+        ),
+        source_record(
+            "global_preferences_survey",
+            "Global Preferences Survey via Our World in Data",
+            2,
+            "country",
+            "imported_aggregate",
+            "https://ourworldindata.org/grapher/cross-country-variation-in-risk-taking",
+            "Falk et al. 2018 GPS",
+            "2012-12-31",
+            "CC BY 4.0 for the Our World in Data grapher export",
+            {
+                "risk_aversion": "One minus the standard-normal CDF of the country risk score",
+                "time_preference": "Standard-normal CDF of the country patience score",
+            },
+            fallback="Missing countries use a labelled population-weighted regional aggregate",
+            files=[
+                local_file(data_directory, "sources/gps_risk.csv"),
+                local_file(data_directory, "sources/gps_patience.csv"),
+            ],
+            coverage={"priority_countries": 10},
+        ),
+        source_record(
+            "openpsychometrics_big5",
+            "OpenPsychometrics",
+            2,
+            "country",
+            "imported_aggregate",
+            "https://openpsychometrics.org/_rawdata/",
+            "BIG5 public responses, downloaded 2026-10-26",
+            "2012-12-31",
+            "Public research download; explicit redistribution licence not stated",
+            {
+                "big_five": "IPIP 50-item keys scored to continuous zero-to-one traits",
+                "mbti": "Exploratory Big Five threshold proxy, imputed and label-only",
+            },
+            restriction_reason=(
+                "Self-selected online sample; country estimates have high uncertainty"
+            ),
+            fallback="Missing countries use a labelled regional estimate",
+            files=[local_file(data_directory, "sources/openpsychometrics_BIG5.zip")],
+            coverage={"priority_countries": 10},
+        ),
+        source_record(
+            "schwartz_cultural_values",
+            "Schwartz cultural value orientations",
+            2,
+            "country",
+            "imported_aggregate",
+            "https://doi.org/10.9707/2307-0919.1116",
+            "Schwartz 2008 Table 5; basic-values crosswalk v1",
+            "2008-01-01",
+            "Published research summary values; source citation retained",
+            {
+                "schwartz_values": (
+                    "Culture-level orientation means crosswalked to ten normalized "
+                    "basic-value labels"
+                )
+            },
+            restriction_reason=(
+                "Culture-level means are not individual response distributions; crosswalk has "
+                "high uncertainty"
+            ),
+            fallback="Bangladesh and uncovered places use a labelled regional estimate",
+            files=[local_file(data_directory, "sources/schwartz_cultural_values_2008.pdf")],
+            coverage={"direct_priority_countries": 9, "regional_fallback_priority_countries": 1},
         ),
         source_record(
             "european_social_survey",

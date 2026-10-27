@@ -3,8 +3,12 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pyarrow.parquet as pq
+
+from ..regions import country_region
 from .downloads import download, sha256_file
 from .parquet import write_rows
+from .priority_features import build_priority_feature_distributions
 from .source_inventory import source_inventory
 from .wpp import (
     WPP_AGE_SEX_URL,
@@ -13,6 +17,7 @@ from .wpp import (
     WPP_ESTIMATE_YEAR,
     WPP_LICENSE,
     WPP_VERSION,
+    add_global_region_fallbacks,
     aggregate_region_age_sex,
     aggregate_region_populations,
     country_age_sex_rows,
@@ -21,17 +26,37 @@ from .wpp import (
 )
 
 WPP_FILES = {
-    "age_sex": "WPP2024_PopulationByAge5GroupSex_Medium.csv.gz",
+    "age_sex": "WPP2024_PopulationBySingleAgeSex_Medium_1950-2023.csv.gz",
     "demographic_indicators": "WPP2024_Demographic_Indicators_Medium.csv.gz",
     "demographic_notes": "WPP2024_Demographic_Indicators_notes.csv",
 }
+
+
+def missing_region_population_fallbacks(
+    data_directory: Path,
+    direct_regions: set[str],
+) -> dict[str, int]:
+    cities_path = data_directory / "city_feature_dump" / "cities.parquet"
+    if not cities_path.exists():
+        return {}
+    rows = pq.read_table(cities_path, columns=["country_code", "population"]).to_pylist()
+    populations = {}
+    for row in rows:
+        region = country_region(row["country_code"])
+        population = int(row["population"] or 0)
+        if region in direct_regions or population <= 0:
+            continue
+        populations[region] = populations.get(region, 0) + population
+    return populations
+
+
 WPP_URLS = {
     "age_sex": WPP_AGE_SEX_URL,
     "demographic_indicators": WPP_DEMOGRAPHIC_INDICATORS_URL,
     "demographic_notes": WPP_DEMOGRAPHIC_NOTES_URL,
 }
 EXPECTED_WPP_SHA256 = {
-    "age_sex": "a04d7d1486a5eb2832cc812d599448f0a71e8ac9e1e7e6fa4066673d6a2487cd",
+    "age_sex": "f84c75789ccbd385122ad19bac70026d6306878442afbaa24e8e50a23b4bee2f",
     "demographic_indicators": "286ac36bb1415e2e1ade03acfef0a29f0e4c087e2f78e38c48f50c5df89082bc",
     "demographic_notes": "c6063ba18b23e899c02bb7f9c78b6e410f25b30cb9d40b66eda032e1127bea49",
 }
@@ -126,8 +151,15 @@ def build_registry_dump(
     partial.mkdir(parents=True)
     country_age_sex = country_age_sex_rows(paths["age_sex"], WPP_ESTIMATE_YEAR)
     country_population = country_population_rows(paths["demographic_indicators"], WPP_ESTIMATE_YEAR)
-    region_age_sex = aggregate_region_age_sex(country_age_sex)
+    direct_region_age_sex = aggregate_region_age_sex(country_age_sex)
     region_population = aggregate_region_populations(country_population)
+    direct_regions = {row["region"] for row in region_population}
+    fallback_populations = missing_region_population_fallbacks(data_directory, direct_regions)
+    region_age_sex = add_global_region_fallbacks(
+        country_age_sex,
+        direct_region_age_sex,
+        fallback_populations,
+    )
     indicators = demographic_indicator_rows(
         paths["demographic_indicators"],
         WPP_ESTIMATE_YEAR,
@@ -138,10 +170,35 @@ def build_registry_dump(
     write_rows(partial / "wpp_country_age_sex.parquet", country_age_sex)
     write_rows(partial / "wpp_country_population.parquet", country_population)
     write_rows(partial / "wpp_country_demographic_indicators.parquet", indicators)
+    priority_source = data_directory / "city_feature_dump" / "canonical_country_marginals.parquet"
+    if priority_source.exists():
+        priority_distributions, priority_metadata = build_priority_feature_distributions(
+            data_directory,
+            country_population,
+            region_population,
+            fallback_populations,
+        )
+        write_rows(
+            partial / "priority_feature_distributions.parquet",
+            [
+                {"distribution_json": distribution.model_dump_json()}
+                for distribution in priority_distributions
+            ],
+        )
+    else:
+        priority_metadata = {
+            "version": "not-built",
+            "priority_countries": [],
+            "canonical_regions": [],
+            "country_feature_pairs": 0,
+            "region_feature_pairs": 0,
+            "sources": [],
+            "semantics": {"status": "Supporting source dumps were not present"},
+        }
     inventory = source_inventory(data_directory, partial)
     write_source_inventory(partial, inventory)
     countries = {row["country_code"] for row in country_population}
-    regions = {row["region"] for row in region_population}
+    regions = {row["region"] for row in region_age_sex}
     manifest = {
         "format_version": 1,
         "built_at": datetime.now(UTC).isoformat(),
@@ -166,6 +223,8 @@ def build_registry_dump(
             "region_population_rows": len(region_population),
             "countries": len(countries),
             "regions": len(regions),
+            "direct_regions": len(direct_regions),
+            "fallback_regions": sorted(fallback_populations),
             "represented_population": sum(row["population"] for row in country_population),
             "coverage": {
                 "country_population_percent": 100.0,
@@ -177,7 +236,7 @@ def build_registry_dump(
             },
             "mapping": {
                 "geography": "UN ISO alpha-3 to ISO alpha-2, then canonical Petraterrium region",
-                "age": "UN five-year age groups retained",
+                "age": "UN single-year ages retained",
                 "sex": "PopFemale and PopMale become separate female and male rows",
                 "population": "Source thousands multiplied by 1,000 and rounded to persons",
                 "demographic_indicators": (
@@ -186,9 +245,14 @@ def build_registry_dump(
                 "regional_aggregation": (
                     "Country counts summed, then divided by covered region population"
                 ),
+                "regional_fallback": (
+                    "A canonical region absent from WPP uses the WPP global age and sex "
+                    "distribution, labelled imputed, with its GeoNames listed-place population"
+                ),
             },
             "source_files": source_files,
         },
+        "priority_features": priority_metadata,
         "sources": inventory,
         "semantics": {
             "priority": (

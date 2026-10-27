@@ -5,6 +5,7 @@ import json
 import pyarrow.parquet as pq
 import pytest
 
+from petraterrium.atlas.contracts import RegistrySource
 from petraterrium.atlas.feature_dump.registry_dump import build_registry_dump
 from petraterrium.atlas.feature_dump.source_inventory import source_inventory
 from petraterrium.atlas.feature_dump.wpp import (
@@ -35,7 +36,7 @@ def test_wpp_uses_2023_estimates_without_projection_leakage(tmp_path):
         "Region, subregion, country or area *": "United States of America",
         "ISO3 Alpha-code": "USA",
         "Type": "Country/Area",
-        "Age": "0-4",
+        "Age": "1",
         "PopMale": "10",
         "PopFemale": "11",
     }
@@ -109,7 +110,7 @@ def test_wpp_region_aggregation_is_population_weighted():
             "country_name": "United States",
             "region": "Northern America",
             "year": 2023,
-            "age_group": "0-4",
+            "age": "0",
             "sex": "female",
             "population": 10,
             "population_percent": 10.0,
@@ -120,7 +121,7 @@ def test_wpp_region_aggregation_is_population_weighted():
             "country_name": "United States",
             "region": "Northern America",
             "year": 2023,
-            "age_group": "5-9",
+            "age": "1",
             "sex": "female",
             "population": 90,
             "population_percent": 90.0,
@@ -131,7 +132,7 @@ def test_wpp_region_aggregation_is_population_weighted():
             "country_name": "Canada",
             "region": "Northern America",
             "year": 2023,
-            "age_group": "0-4",
+            "age": "0",
             "sex": "female",
             "population": 90,
             "population_percent": 90.0,
@@ -142,7 +143,7 @@ def test_wpp_region_aggregation_is_population_weighted():
             "country_name": "Canada",
             "region": "Northern America",
             "year": 2023,
-            "age_group": "5-9",
+            "age": "1",
             "sex": "female",
             "population": 10,
             "population_percent": 10.0,
@@ -150,9 +151,9 @@ def test_wpp_region_aggregation_is_population_weighted():
         },
     ]
     result = aggregate_region_age_sex(rows)
-    assert [(row["age_group"], row["population"]) for row in result] == [
-        ("0-4", 100),
-        ("5-9", 100),
+    assert [(row["age"], row["population"]) for row in result] == [
+        ("0", 100),
+        ("1", 100),
     ]
     assert all(row["population_percent"] == 50.0 for row in result)
     assert all(row["countries_covered"] == 2 for row in result)
@@ -162,12 +163,14 @@ def test_source_inventory_has_honest_mappings_and_restrictions(tmp_path):
     records = source_inventory(tmp_path)
     by_id = {record["source_id"]: record for record in records}
     assert by_id["world_bank_wdi"]["mapping"]["education"]["standard"] == "ISCED 2011"
-    assert by_id["world_bank_wdi"]["mapping"]["income"]["limitation"].startswith(
-        "Income quintile shares"
-    )
+    assert "lognormal estimate" in by_id["world_bank_wdi"]["mapping"]["income"]["limitation"]
     assert by_id["ipums_international"]["access_status"] == "unavailable"
     assert "redistribution" in by_id["ipums_international"]["restriction_reason"].lower()
-    assert by_id["world_values_survey"]["access_status"] == "unavailable"
+    assert by_id["world_values_survey"]["access_status"] == "imported_aggregate"
+    assert RegistrySource.model_validate(by_id["world_values_survey"]).access_status == (
+        "imported_aggregate"
+    )
+    assert "respondent records" in by_id["world_values_survey"]["restriction_reason"].lower()
     assert by_id["european_social_survey"]["license"] == "CC BY-NC-SA 4.0"
     assert by_id["pew_global_attitudes"]["required_action"]
     assert by_id["worldpop"]["license"] == "CC BY 4.0"
@@ -191,7 +194,7 @@ def test_registry_manifest_orders_levels_and_records_verified_files(tmp_path, mo
                 "Type": "Country/Area",
                 "Variant": "Estimates",
                 "Time": "2023",
-                "Age": "0-4",
+                "Age": "1",
                 "PopMale": "40",
                 "PopFemale": "60",
             }

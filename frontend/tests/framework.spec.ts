@@ -54,8 +54,9 @@ test('static graph and evidence layers open without a completed run', async ({ p
   await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.locator('#atlas-feature-catalog')).toContainText('Features and evidence');
-  await expect(page.locator('#atlas-feature-catalog')).toContainText('Age band');
-  await expect(page.locator('#atlas-hierarchy-browser')).toContainText('What needs importing');
+  await expect(page.locator('#atlas-feature-catalog')).toContainText('Age');
+  await expect(page.locator('#atlas-feature-catalog')).not.toContainText('Age band');
+  await expect(page.locator('#atlas-auto-import')).toContainText('What needs importing');
   await expect(page.locator('#atlas-hierarchy-browser')).toContainText('Europe');
   await expect(page.locator('#atlas-choice-evidence')).toContainText('hint only');
   await expect(page.locator('#atlas-choice-evidence')).toContainText('No coefficient');

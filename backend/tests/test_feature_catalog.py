@@ -1,3 +1,4 @@
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -124,3 +125,63 @@ def test_feature_schema_rejects_incomplete_or_ambiguous_values():
         except ValueError:
             continue
         raise AssertionError("Invalid feature schema was accepted")
+
+
+def test_continuous_histogram_rejects_invalid_probabilities(tmp_path):
+    catalog = FeatureCatalogStore(AtlasStore(tmp_path / "atlas.sqlite3"))
+    registry = canonical_feature_registry()
+    distribution = FeatureDistribution(
+        feature_id="age",
+        level="country",
+        place="CN",
+        population="China population",
+        population_count=100,
+        coverage_percent=100,
+        values={"0": 0.7, "1": 0.4},
+        mean=0.4,
+        standard_deviation=0.49,
+        provenance={
+            "source": "Test source",
+            "version": "test-v1",
+            "status": "present",
+            "uncertainty": 0,
+            "source_date": "2023-07-01",
+        },
+    )
+    with pytest.raises(ValueError, match="sum to 1"):
+        catalog.attach_distribution(registry, "age", distribution)
+
+
+def test_feature_detail_uses_latest_distribution_version_per_place(tmp_path):
+    store = AtlasStore(tmp_path / "atlas.sqlite3")
+    catalog = FeatureCatalogStore(store)
+    registry = canonical_feature_registry()
+    catalog.create(registry, endurance_request())
+    first = endurance_distribution()
+    second = FeatureDistribution.model_validate(
+        {
+            **first.model_dump(),
+            "mean": 61,
+            "provenance": {
+                **first.provenance.model_dump(),
+                "version": "2026-v2",
+                "source_date": "2026-06-01",
+            },
+        }
+    )
+
+    catalog.attach_distribution(registry, "endurance", first)
+    catalog.attach_distribution(registry, "endurance", second)
+
+    detail = catalog.detail(registry, "endurance")
+    assert len(detail.distributions) == 1
+    assert detail.distributions[0].mean == 61
+    assert detail.distributions[0].provenance.version == "2026-v2"
+    with store.connection() as connection:
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM feature_catalog_distributions "
+                "WHERE feature_id='endurance'"
+            ).fetchone()[0]
+            == 2
+        )

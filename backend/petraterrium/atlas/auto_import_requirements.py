@@ -33,31 +33,9 @@ class CanonicalFieldRequirement(RequirementModel):
     label_aliases: dict[str, str]
 
 
-AGE_BANDS = (
-    "0_4",
-    "5_9",
-    "10_14",
-    "15_19",
-    "20_24",
-    "25_29",
-    "30_34",
-    "35_39",
-    "40_44",
-    "45_49",
-    "50_54",
-    "55_59",
-    "60_64",
-    "65_69",
-    "70_74",
-    "75_79",
-    "80_84",
-    "85_89",
-    "90_94",
-    "95_99",
-    "100_plus",
-)
+AGES = tuple(str(age) for age in range(100)) + ("100_plus",)
 AGE_SEX_VALUES = tuple(
-    f"{sex}_{age_band}" for sex in ("female", "male") for age_band in AGE_BANDS
+    f"{sex}_{age}" for sex in ("female", "male") for age in AGES
 )
 EDUCATION_VALUES = tuple(str(level) for level in range(9)) + ("unknown",)
 
@@ -96,7 +74,7 @@ CANONICAL_FIELD_REQUIREMENTS: dict[CanonicalFeatureId, CanonicalFieldRequirement
     "age_sex": _requirement(
         "age_sex",
         "Age and sex structure",
-        "Population shares by sex and five-year age band",
+        "Population shares by sex and single year of age",
         AGE_SEX_VALUES,
         "resident population",
         ("resident population", "usual resident population", "population"),

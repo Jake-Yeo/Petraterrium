@@ -18,7 +18,7 @@ Mark ambiguous=true when the meaning, units, or geography is unclear.
 Targets: geonameid, city, country_code, admin1, admin2, age_sex, income, education,
 ideology_economic, ideology_state, ideology_cultural, ideology, household_size, unit,
 behaviour, outcome, survey_weight, observation_date.
-Distribution components can use field.category, for example age_sex.female_0_14.
+Distribution components can use field.category, for example age_sex.female_1.
 Respondent traits can use trait.column_name. The three ideology axes require separate
 survey-item mappings. The old ideology target is legacy-only and cannot be split or used
 as a predictor. Marginals are distributions (JSON objects or dotted components); income

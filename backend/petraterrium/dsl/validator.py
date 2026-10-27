@@ -182,6 +182,28 @@ def validate_dsl(value) -> DSLValidationResult:
                     <= feature.value_range.maximum
                 ):
                     errors.append(issue(path, "Continuous feature mean is outside its range"))
+                if distribution.values:
+                    if any(value < 0 or value > 1 for value in distribution.values.values()):
+                        errors.append(
+                            issue(path, "Distribution probabilities must be between 0 and 1")
+                        )
+                    elif abs(sum(distribution.values.values()) - 1) > 1e-9:
+                        errors.append(issue(path, "Distribution probabilities must sum to 1"))
+                    try:
+                        histogram_values = [
+                            float(value.rstrip("+")) for value in distribution.values
+                        ]
+                    except ValueError:
+                        errors.append(issue(path, "Continuous histogram values must be numeric"))
+                    else:
+                        if feature.value_range and any(
+                            value < feature.value_range.minimum
+                            or value > feature.value_range.maximum
+                            for value in histogram_values
+                        ):
+                            errors.append(
+                                issue(path, "Continuous histogram value is outside its range")
+                            )
     for system_index, system in enumerate(config.systems):
         state = state_by_id.get(system.state)
         if state is None:

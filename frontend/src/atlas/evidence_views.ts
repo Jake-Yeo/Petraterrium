@@ -109,7 +109,7 @@ export function choiceEvidenceView(catalog: ChoiceEvidenceCatalog): string {
   return `
     <div class="atlas-evidence-heading">
       <div><p class="eyebrow">CHOICE EVIDENCE</p><h2>What agents do, separate from who they are</h2></div>
-      <span class="mono">${n(catalog.rows.length)} CONDITIONAL ROWS</span>
+      <div class="atlas-evidence-actions"><span class="mono">${n(catalog.rows.length)} CONDITIONAL ROWS</span><button class="button primary" type="button" data-atlas-action="import-evidence">Import behavior evidence</button></div>
     </div>
     <div class="table-scroll">
       <table class="choice-evidence-table">

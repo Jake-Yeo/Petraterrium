@@ -466,15 +466,15 @@ def _age_sex_label(label: str) -> str | None:
         return None
     sex = "female" if female else "male"
     numbers = re.findall(r"\d+", normalized)
-    if len(numbers) >= 2:
-        age_band = f"{numbers[0]}_{numbers[1]}"
-    elif numbers and (
+    if len(numbers) == 1 and (
         any(token in normalized for token in ("plus", "over", "以上")) or "+" in label
     ):
-        age_band = f"{numbers[0]}_plus"
+        age = f"{numbers[0]}_plus"
+    elif len(numbers) == 1:
+        age = numbers[0]
     else:
         return None
-    proposed = f"{sex}_{age_band}"
+    proposed = f"{sex}_{age}"
     return proposed if proposed in canonical_requirement("age_sex").canonical_values else None
 
 

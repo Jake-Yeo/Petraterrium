@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "built_at": "2026-10-27T04:30:57.822142+00:00",
+  "built_at": "2026-10-27T06:50:22.738395+00:00",
   "level_order": [
     "region",
     "country",
@@ -16,13 +16,17 @@
     "source_file_variant": "Medium",
     "period_classification": "estimate",
     "projection_rows_used": 0,
-    "country_age_sex_rows": 9954,
+    "country_age_sex_rows": 47874,
     "country_population_rows": 237,
     "country_demographic_indicator_rows": 12706,
-    "region_age_sex_rows": 336,
+    "region_age_sex_rows": 1818,
     "region_population_rows": 8,
     "countries": 237,
-    "regions": 8,
+    "regions": 9,
+    "direct_regions": 8,
+    "fallback_regions": [
+      "Rest / unassigned"
+    ],
     "represented_population": 8091734931,
     "coverage": {
       "country_population_percent": 100.0,
@@ -35,26 +39,28 @@
         "India",
         "Latin America & Caribbean",
         "Northern America",
-        "Oceania"
+        "Oceania",
+        "Rest / unassigned"
       ]
     },
     "mapping": {
       "geography": "UN ISO alpha-3 to ISO alpha-2, then canonical Petraterrium region",
-      "age": "UN five-year age groups retained",
+      "age": "UN single-year ages retained",
       "sex": "PopFemale and PopMale become separate female and male rows",
       "population": "Source thousands multiplied by 1,000 and rounded to persons",
       "demographic_indicators": "Indicator name, topic, and source unit joined from the official notes file",
-      "regional_aggregation": "Country counts summed, then divided by covered region population"
+      "regional_aggregation": "Country counts summed, then divided by covered region population",
+      "regional_fallback": "A canonical region absent from WPP uses the WPP global age and sex distribution, labelled imputed, with its GeoNames listed-place population"
     },
     "source_files": [
       {
         "role": "age_sex",
-        "filename": "WPP2024_PopulationByAge5GroupSex_Medium.csv.gz",
-        "bytes": 29948947,
-        "sha256": "a04d7d1486a5eb2832cc812d599448f0a71e8ac9e1e7e6fa4066673d6a2487cd",
-        "expected_sha256": "a04d7d1486a5eb2832cc812d599448f0a71e8ac9e1e7e6fa4066673d6a2487cd",
+        "filename": "WPP2024_PopulationBySingleAgeSex_Medium_1950-2023.csv.gz",
+        "bytes": 62082217,
+        "sha256": "f84c75789ccbd385122ad19bac70026d6306878442afbaa24e8e50a23b4bee2f",
+        "expected_sha256": "f84c75789ccbd385122ad19bac70026d6306878442afbaa24e8e50a23b4bee2f",
         "digest_verified": true,
-        "source_url": "https://population.un.org/wpp/assets/Excel%20Files/1_Indicator%20(Standard)/CSV_FILES/WPP2024_PopulationByAge5GroupSex_Medium.csv.gz"
+        "source_url": "https://population.un.org/wpp/assets/Excel%20Files/1_Indicator%20(Standard)/CSV_FILES/WPP2024_PopulationBySingleAgeSex_Medium_1950-2023.csv.gz"
       },
       {
         "role": "demographic_indicators",
@@ -76,6 +82,50 @@
       }
     ]
   },
+  "priority_features": {
+    "version": "priority-features-v1",
+    "priority_countries": [
+      "IN",
+      "CN",
+      "US",
+      "ID",
+      "PK",
+      "NG",
+      "BR",
+      "BD",
+      "RU",
+      "MX"
+    ],
+    "canonical_regions": [
+      "Northern America",
+      "Latin America & Caribbean",
+      "Europe",
+      "Africa",
+      "Asia excluding China and India",
+      "China",
+      "India",
+      "Oceania",
+      "Rest / unassigned"
+    ],
+    "country_feature_pairs": 180,
+    "region_feature_pairs": 162,
+    "sources": [
+      "World Bank World Development Indicators",
+      "UN DESA Database on Household Size and Composition",
+      "ILOSTAT",
+      "World Values Survey",
+      "Global Preferences Survey via Our World in Data",
+      "OpenPsychometrics",
+      "Schwartz cultural value orientations"
+    ],
+    "semantics": {
+      "direct": "Country rows retain source evidence status and uncertainty.",
+      "regional": "Regional rows are population-weighted aggregates of covered countries.",
+      "fallback": "Missing priority-country rows use their canonical regional distribution and remain imputed.",
+      "mbti": "An exploratory Big Five threshold proxy kept label-only; it is not measured MBTI.",
+      "income": "GNI PPP and Gini parameterize a lognormal estimate; it is not observed individual income."
+    }
+  },
   "sources": [
     {
       "source_id": "un_wpp_2024_regions",
@@ -88,27 +138,29 @@
       "source_date": "2024-07-11",
       "license": "CC BY 3.0 IGO",
       "mapping": {
-        "age": "UN five-year age groups",
+        "age": "UN single-year ages 0 through 100+",
         "sex": [
           "female",
           "male"
         ],
         "population": "persons converted from source thousands",
-        "aggregation": "Country counts summed into canonical Petraterrium regions"
+        "aggregation": "Country counts summed into canonical Petraterrium regions",
+        "fallback": "WPP global age and sex distribution for canonical regions absent from WPP"
       },
       "coverage": {
-        "regions": 8,
+        "age_sex_regions": 9,
+        "direct_population_regions": 8,
         "age_sex_percent_of_wpp_universe": 100.0
       },
       "restriction_reason": "",
-      "fallback": "No projection fallback; 2023 estimates only",
+      "fallback": "Rest / unassigned uses the WPP global distribution as an explicit imputation; no projection rows are used",
       "required_action": "",
       "files": [
         {
           "path": "registry_feature_dump/wpp_region_age_sex.parquet",
           "present": true,
-          "bytes": 7555,
-          "sha256": "d29c99188c8888b2942eca45dbfa0aee6f2694d6d2a7344e39de43664af2fc6d"
+          "bytes": 29341,
+          "sha256": "f1d369d894a2458740b51c71d69cd10840eb1abb58743d94b0c57b27d975b90f"
         },
         {
           "path": "registry_feature_dump/wpp_region_population.parquet",
@@ -143,6 +195,70 @@
       "files": []
     },
     {
+      "source_id": "global_preferences_survey",
+      "source": "Global Preferences Survey via Our World in Data",
+      "scope_order": 2,
+      "level": "country",
+      "access_status": "imported_aggregate",
+      "source_url": "https://ourworldindata.org/grapher/cross-country-variation-in-risk-taking",
+      "version": "Falk et al. 2018 GPS",
+      "source_date": "2012-12-31",
+      "license": "CC BY 4.0 for the Our World in Data grapher export",
+      "mapping": {
+        "risk_aversion": "One minus the standard-normal CDF of the country risk score",
+        "time_preference": "Standard-normal CDF of the country patience score"
+      },
+      "coverage": {
+        "priority_countries": 10
+      },
+      "restriction_reason": "",
+      "fallback": "Missing countries use a labelled population-weighted regional aggregate",
+      "required_action": "",
+      "files": [
+        {
+          "path": "sources/gps_risk.csv",
+          "present": true,
+          "bytes": 2276,
+          "sha256": "7347045517281c3be27de35a64bd1f73f1e5a1dca91ae25ae670881001478872"
+        },
+        {
+          "path": "sources/gps_patience.csv",
+          "present": true,
+          "bytes": 2291,
+          "sha256": "e4840e814c1a01da19e285e0b340b90bbb6a704f4e322ce7832e78fe9bd6b1d3"
+        }
+      ]
+    },
+    {
+      "source_id": "ilostat_occupation",
+      "source": "ILOSTAT",
+      "scope_order": 2,
+      "level": "country",
+      "access_status": "imported_aggregate",
+      "source_url": "https://rplumber.ilo.org/data/indicator/?id=EMP_TEMP_SEX_OCU_NB_A",
+      "version": "Bulk extract 2026-10-26",
+      "source_date": "2026-10-26",
+      "license": "Creative Commons Attribution 4.0 International",
+      "mapping": {
+        "occupation": "Employment counts mapped to ISCO-08 major groups 0 through 9",
+        "legacy": "China ISCO-88 major groups retain an explicit harmonized status"
+      },
+      "coverage": {
+        "priority_countries": 10
+      },
+      "restriction_reason": "",
+      "fallback": "Missing countries use a labelled population-weighted regional aggregate",
+      "required_action": "",
+      "files": [
+        {
+          "path": "sources/ilostat_employment_sex_occupation.csv.gz",
+          "present": true,
+          "bytes": 19832605,
+          "sha256": "d096116caa95f4d3e6dbc47194549602b0b1dfdb1851e89166d35e7b8da84a2b"
+        }
+      ]
+    },
+    {
       "source_id": "ipums_international",
       "source": "IPUMS International",
       "scope_order": 2,
@@ -167,6 +283,35 @@
       "files": []
     },
     {
+      "source_id": "openpsychometrics_big5",
+      "source": "OpenPsychometrics",
+      "scope_order": 2,
+      "level": "country",
+      "access_status": "imported_aggregate",
+      "source_url": "https://openpsychometrics.org/_rawdata/",
+      "version": "BIG5 public responses, downloaded 2026-10-26",
+      "source_date": "2012-12-31",
+      "license": "Public research download; explicit redistribution licence not stated",
+      "mapping": {
+        "big_five": "IPIP 50-item keys scored to continuous zero-to-one traits",
+        "mbti": "Exploratory Big Five threshold proxy, imputed and label-only"
+      },
+      "coverage": {
+        "priority_countries": 10
+      },
+      "restriction_reason": "Self-selected online sample; country estimates have high uncertainty",
+      "fallback": "Missing countries use a labelled regional estimate",
+      "required_action": "",
+      "files": [
+        {
+          "path": "sources/openpsychometrics_BIG5.zip",
+          "present": true,
+          "bytes": 523351,
+          "sha256": "67953298d75d3279d0486e7f4ec0195efc26a9e790b15e511cbcf4551751ba53"
+        }
+      ]
+    },
+    {
       "source_id": "pew_global_attitudes",
       "source": "Pew Research Center Global Attitudes",
       "scope_order": 2,
@@ -188,6 +333,35 @@
       "fallback": "No Pew-derived value is present",
       "required_action": "An account holder must supply a named dataset, questionnaire, weights, and authorize local processing into attributable aggregate outputs",
       "files": []
+    },
+    {
+      "source_id": "schwartz_cultural_values",
+      "source": "Schwartz cultural value orientations",
+      "scope_order": 2,
+      "level": "country",
+      "access_status": "imported_aggregate",
+      "source_url": "https://doi.org/10.9707/2307-0919.1116",
+      "version": "Schwartz 2008 Table 5; basic-values crosswalk v1",
+      "source_date": "2008-01-01",
+      "license": "Published research summary values; source citation retained",
+      "mapping": {
+        "schwartz_values": "Culture-level orientation means crosswalked to ten normalized basic-value labels"
+      },
+      "coverage": {
+        "direct_priority_countries": 9,
+        "regional_fallback_priority_countries": 1
+      },
+      "restriction_reason": "Culture-level means are not individual response distributions; crosswalk has high uncertainty",
+      "fallback": "Bangladesh and uncovered places use a labelled regional estimate",
+      "required_action": "",
+      "files": [
+        {
+          "path": "sources/schwartz_cultural_values_2008.pdf",
+          "present": true,
+          "bytes": 290802,
+          "sha256": "164a402ee1675cff3f444cad095e425c86672a8f1b6c7edc7ef31b75cc1fedfe"
+        }
+      ]
     },
     {
       "source_id": "un_desa_households",
@@ -231,7 +405,7 @@
       "source_date": "2024-07-11",
       "license": "CC BY 3.0 IGO",
       "mapping": {
-        "age": "UN five-year age groups",
+        "age": "UN single-year ages 0 through 100+",
         "sex": [
           "female",
           "male"
@@ -250,8 +424,8 @@
         {
           "path": "registry_feature_dump/wpp_country_age_sex.parquet",
           "present": true,
-          "bytes": 143003,
-          "sha256": "ea52df23fd325dbc006a01f46348711f0229f83566258074ca764606b735c138"
+          "bytes": 594547,
+          "sha256": "317f1b328aa1772a9a251694526b45fc33629bd021a1370bbdb6086df5edf675"
         },
         {
           "path": "registry_feature_dump/wpp_country_population.parquet",
@@ -294,15 +468,12 @@
           "limitation": "Broad derived bands, not direct microdata-coded ISCED categories"
         },
         "income": {
-          "standard": "World Bank income-share quintiles",
+          "standard": "PPP international dollars per person per year",
           "indicators": [
-            "SI.DST.FRST.20",
-            "SI.DST.02ND.20",
-            "SI.DST.03RD.20",
-            "SI.DST.04TH.20",
-            "SI.DST.05TH.20"
+            "NY.GNP.PCAP.PP.CD",
+            "SI.POV.GINI"
           ],
-          "limitation": "Income quintile shares measure each fixed population quintile's share of national income; they do not measure person-level income bands or a city income distribution"
+          "limitation": "GNI per capita and Gini parameterize a lognormal estimate; this is not an observed person-level income distribution"
         }
       },
       "coverage": {
@@ -327,10 +498,10 @@
       "source": "World Values Survey",
       "scope_order": 2,
       "level": "country",
-      "access_status": "unavailable",
+      "access_status": "imported_aggregate",
       "source_url": "https://www.worldvaluessurvey.org/AJDownloadLicense.jsp",
-      "version": "User-selected wave required",
-      "source_date": "",
+      "version": "WVS 7 v6.0.0 (2024-04-30)",
+      "source_date": "2024-04-30",
       "license": "Non-profit use with citation; source data files may not be redistributed",
       "mapping": {
         "values": "Survey items require a versioned harmonization map",
@@ -338,13 +509,26 @@
         "ideology_axes": "Separate item sets for economic, state, and cultural axes"
       },
       "coverage": {
-        "imported_countries": 0,
-        "imported_survey_waves": 0
+        "priority_countries": 10,
+        "imported_survey_waves": 1
       },
-      "restriction_reason": "Download requires registration and acceptance of conditions that prohibit redistribution of the data files",
-      "fallback": "No self-reported values or ideology fallback is promoted",
-      "required_action": "A registered user must supply the selected wave, weights, questionnaire, and permission for local aggregate processing",
-      "files": []
+      "restriction_reason": "Respondent records remain local and are excluded from the public dump",
+      "fallback": "Missing countries use a labelled population-weighted regional aggregate",
+      "required_action": "Use a representative newer wave to replace older or regional estimates",
+      "files": [
+        {
+          "path": "sources/wvs7.csv",
+          "present": true,
+          "bytes": 190499076,
+          "sha256": "593a18671f9edd4d53d1e0cf2101c8f5a34b159c5bed9da4de9bd07bc8d56cd4"
+        },
+        {
+          "path": "registry_feature_dump/priority_feature_distributions.parquet",
+          "present": true,
+          "bytes": 25094,
+          "sha256": "af221e0dee71b85cefada46f6954945ec5fa4008548fc9e8b8111b5dd30f04fa"
+        }
+      ]
     },
     {
       "source_id": "blue_electoral",
@@ -474,19 +658,24 @@
   },
   "files": [
     {
+      "path": "priority_feature_distributions.parquet",
+      "bytes": 25094,
+      "sha256": "af221e0dee71b85cefada46f6954945ec5fa4008548fc9e8b8111b5dd30f04fa"
+    },
+    {
       "path": "source_inventory.json",
-      "bytes": 14578,
-      "sha256": "de52fd2c55c0db7e59b1cbcf30c3b342b4085266563d98252bdd9f0c83e7c239"
+      "bytes": 19541,
+      "sha256": "983035bb53215ca880d6e2aae96a37e8e1c1734091041a9dc88e92b3b505384d"
     },
     {
       "path": "source_inventory.parquet",
-      "bytes": 12351,
-      "sha256": "9f5c0271305e7d1efe93866aeb622fd81c31a5e4fd294c94b3266d8d46df7697"
+      "bytes": 13683,
+      "sha256": "fed73e9c373359beba9e7248c6f2eae448c61c4c93a06ac301100e3fcf294180"
     },
     {
       "path": "wpp_country_age_sex.parquet",
-      "bytes": 143003,
-      "sha256": "ea52df23fd325dbc006a01f46348711f0229f83566258074ca764606b735c138"
+      "bytes": 594547,
+      "sha256": "317f1b328aa1772a9a251694526b45fc33629bd021a1370bbdb6086df5edf675"
     },
     {
       "path": "wpp_country_demographic_indicators.parquet",
@@ -500,8 +689,8 @@
     },
     {
       "path": "wpp_region_age_sex.parquet",
-      "bytes": 7555,
-      "sha256": "d29c99188c8888b2942eca45dbfa0aee6f2694d6d2a7344e39de43664af2fc6d"
+      "bytes": 29341,
+      "sha256": "f1d369d894a2458740b51c71d69cd10840eb1abb58743d94b0c57b27d975b90f"
     },
     {
       "path": "wpp_region_population.parquet",

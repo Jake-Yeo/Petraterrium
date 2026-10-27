@@ -8,11 +8,17 @@ import { escapeHtml as e, scenarioLabel } from '../views';
 import { labels } from './views';
 const n = (value: number): string => value.toLocaleString('en');
 
+export interface ImportFormDefaults {
+  kind?: 'marginals' | 'behaviour' | 'population';
+  featureId?: string;
+}
+
 export function importForm(
   runs: RunSummary[],
   sources: SourceCatalog,
   activeId?: string,
   sourceId = '',
+  defaults: ImportFormDefaults = {},
 ): string {
   const options = runs
     .map(
@@ -33,9 +39,9 @@ export function importForm(
           </select></label
         ><label
           >Data kind<select name="kind">
-            <option value="marginals">Marginals</option>
-            <option value="behaviour">Behaviour survey</option>
-            <option value="population">Population grid/density</option>
+            <option value="marginals"${defaults.kind === 'marginals' || !defaults.kind ? ' selected' : ''}>Marginals</option>
+            <option value="behaviour"${defaults.kind === 'behaviour' ? ' selected' : ''}>Behaviour survey</option>
+            <option value="population"${defaults.kind === 'population' ? ' selected' : ''}>Population grid/density</option>
           </select></label
         ><label
           >Source loader<select name="source_id">
@@ -66,6 +72,7 @@ export function importForm(
           </datalist></label
         >
       </div>
+      ${defaults.featureId ? `<label class="atlas-import-target">Target feature<input name="target_feature" value="${e(defaults.featureId)}" readonly /></label>` : ''}
       <label class="atlas-file-input"
         >Data file<input name="file" type="file" accept=".csv,.parquet,.json,.csv.gz,.zip,.tif,.tiff"
       /></label>
@@ -89,7 +96,7 @@ export function importForm(
       >
       <p class="field-hint">
         Distribution values use percentages totaling 100. Use JSON objects or dotted columns such as
-        age_sex.female_0_14. A mean income needs explicit currency/time units. Ambiguous columns must be
+        age_sex.female_1. A mean income needs explicit currency/time units. Ambiguous columns must be
         resolved or explicitly ignored.
       </p>
       <p id="atlas-import-error" class="form-error" role="alert" hidden></p>

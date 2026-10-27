@@ -9,7 +9,7 @@ from ..regions import country_region
 
 WPP_AGE_SEX_URL = (
     "https://population.un.org/wpp/assets/Excel%20Files/1_Indicator%20(Standard)/"
-    "CSV_FILES/WPP2024_PopulationByAge5GroupSex_Medium.csv.gz"
+    "CSV_FILES/WPP2024_PopulationBySingleAgeSex_Medium_1950-2023.csv.gz"
 )
 WPP_DEMOGRAPHIC_INDICATORS_URL = (
     "https://population.un.org/wpp/assets/Excel%20Files/1_Indicator%20(Standard)/"
@@ -53,7 +53,11 @@ IDENTITY_COLUMNS = {
 
 def csv_rows(path: Path):
     with gzip.open(path, "rt", encoding="utf-8-sig", newline="") as stream:
-        yield from csv.DictReader(stream)
+        try:
+            yield from csv.DictReader(stream)
+        except gzip.BadGzipFile as error:
+            if not str(error).startswith("Not a gzipped file"):
+                raise
 
 
 def parse_number(value: str | None) -> float | None:
@@ -119,7 +123,7 @@ def country_age_sex_rows(path: Path, estimate_year: int = WPP_ESTIMATE_YEAR) -> 
             "country_name": country_name,
             "region": country_region(code),
             "year": estimate_year,
-            "age_group": (source.get("AgeGrp") or source.get("Age") or "").strip(),
+            "age": (source.get("AgeGrp") or source.get("Age") or "").strip(),
             "source_variant": source.get("Variant", "").strip(),
         }
         rows.extend(
@@ -137,7 +141,7 @@ def country_age_sex_rows(path: Path, estimate_year: int = WPP_ESTIMATE_YEAR) -> 
         total = totals[row["country_code"]]
         row["population_percent"] = round(row["population"] * 100 / total, 8) if total else 0.0
     return sorted(
-        rows, key=lambda row: (row["country_code"], age_order(row["age_group"]), row["sex"])
+        rows, key=lambda row: (row["country_code"], age_order(row["age"]), row["sex"])
     )
 
 
@@ -236,29 +240,81 @@ def aggregate_region_age_sex(country_rows: list[dict]) -> list[dict]:
     region_totals = defaultdict(int)
     source_variants = defaultdict(set)
     for row in country_rows:
-        key = row["region"], row["year"], row["age_group"], row["sex"]
+        key = row["region"], row["year"], row["age"], row["sex"]
         populations[key] += row["population"]
         countries[key].add(row["country_code"])
         source_variants[key].add(row["source_variant"])
         region_totals[(row["region"], row["year"])] += row["population"]
     rows = []
-    for (region, year, age_group, sex), population in populations.items():
+    for (region, year, age, sex), population in populations.items():
         total = region_totals[(region, year)]
         rows.append(
             {
                 "region": region,
                 "year": year,
-                "age_group": age_group,
+                "age": age,
                 "sex": sex,
                 "population": population,
                 "population_percent": round(population * 100 / total, 8) if total else 0.0,
-                "countries_covered": len(countries[(region, year, age_group, sex)]),
+                "distribution_population": total,
+                "countries_covered": len(countries[(region, year, age, sex)]),
                 "source_variant": ", ".join(
-                    sorted(source_variants[(region, year, age_group, sex)])
+                    sorted(source_variants[(region, year, age, sex)])
                 ),
+                "evidence_status": "present",
             }
         )
-    return sorted(rows, key=lambda row: (row["region"], age_order(row["age_group"]), row["sex"]))
+    return sorted(rows, key=lambda row: (row["region"], age_order(row["age"]), row["sex"]))
+
+
+def add_global_region_fallbacks(
+    country_rows: list[dict],
+    region_rows: list[dict],
+    fallback_populations: dict[str, int],
+) -> list[dict]:
+    present_regions = {row["region"] for row in region_rows}
+    missing_regions = {
+        region: population
+        for region, population in fallback_populations.items()
+        if region not in present_regions and population > 0
+    }
+    if not missing_regions:
+        return region_rows
+    global_counts = defaultdict(int)
+    countries = set()
+    source_variants = set()
+    years = set()
+    for row in country_rows:
+        global_counts[(row["age"], row["sex"])] += row["population"]
+        countries.add(row["country_code"])
+        source_variants.add(row["source_variant"])
+        years.add(row["year"])
+    if len(years) != 1:
+        raise ValueError("Global age and sex fallback requires one source year")
+    total = sum(global_counts.values())
+    if total <= 0:
+        raise ValueError("Global age and sex fallback requires positive population")
+    year = next(iter(years))
+    fallback_rows = [
+        {
+            "region": region,
+            "year": year,
+            "age": age,
+            "sex": sex,
+            "population": population,
+            "population_percent": round(population * 100 / total, 8),
+            "distribution_population": target_population,
+            "countries_covered": len(countries),
+            "source_variant": ", ".join(sorted(source_variants)),
+            "evidence_status": "imputed",
+        }
+        for region, target_population in missing_regions.items()
+        for (age, sex), population in global_counts.items()
+    ]
+    return sorted(
+        [*region_rows, *fallback_rows],
+        key=lambda row: (row["region"], age_order(row["age"]), row["sex"]),
+    )
 
 
 def aggregate_region_populations(country_rows: list[dict]) -> list[dict]:

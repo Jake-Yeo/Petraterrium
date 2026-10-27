@@ -4470,6 +4470,19 @@
           "title": "Population",
           "type": "string"
         },
+        "population_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Population Count"
+        },
         "coverage_percent": {
           "maximum": 100,
           "minimum": 0,
@@ -6379,6 +6392,7 @@
         "access_status": {
           "enum": [
             "imported",
+            "imported_aggregate",
             "unavailable",
             "available_remote"
           ],

@@ -231,15 +231,48 @@ export function dataShell(): string {
       <p>Run uploads stay in their run.<br />Only explicit promotion changes the shared atlas.</p>
       <button class="text-button" data-atlas-action="refresh">Refresh ↻</button>
     </div>
-    <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
-    <div id="atlas-auto-import"></div>
-    <div id="atlas-hierarchy-browser"></div>
-    <section class="atlas-section atlas-evidence-section" id="atlas-feature-catalog"><p class="muted">Loading feature registry…</p></section>
-    <details class="atlas-section atlas-collapsible" id="atlas-choice-panel">
+    <nav class="atlas-tabs" role="tablist" aria-label="Data workspace">
+      <button type="button" role="tab" aria-selected="true" data-atlas-action="tab" data-atlas-tab="coverage">Coverage</button>
+      <button type="button" role="tab" aria-selected="false" data-atlas-action="tab" data-atlas-tab="features">Features</button>
+      <button type="button" role="tab" aria-selected="false" data-atlas-action="tab" data-atlas-tab="evidence">Evidence</button>
+      <button type="button" role="tab" aria-selected="false" data-atlas-action="tab" data-atlas-tab="cities">Cities</button>
+      <button type="button" role="tab" aria-selected="false" data-atlas-action="tab" data-atlas-tab="imports">Imports</button>
+    </nav>
+    <section class="atlas-panel" data-atlas-panel="coverage" role="tabpanel">
+      <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
+      <div id="atlas-auto-import"></div>
+      <div id="atlas-hierarchy-browser"></div>
+      <details class="atlas-section atlas-collapsible" id="atlas-coverage-panel">
+        <summary>
+          <div><span class="eyebrow">AUDIT TABLE</span><strong>Coverage calculations</strong></div>
+          <span>City counts and population-weighted percentages for every canonical field</span>
+        </summary>
+        <div class="table-scroll">
+          <table class="coverage-table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Direct cities</th>
+                <th>Direct + inherited cities</th>
+                <th>Direct population</th>
+                <th>Direct + inherited population</th>
+                <th>Imputed cities</th>
+                <th>Estimated cities</th>
+                <th>Estimated population</th>
+                <th>Missing cities</th>
+              </tr>
+            </thead>
+            <tbody id="atlas-coverage"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+    <section class="atlas-section atlas-evidence-section atlas-panel" data-atlas-panel="features" role="tabpanel" id="atlas-feature-catalog" hidden><p class="muted">Loading feature registry…</p></section>
+    <details class="atlas-section atlas-collapsible atlas-panel" data-atlas-panel="evidence" role="tabpanel" id="atlas-choice-panel" open hidden>
       <summary><div><span class="eyebrow">BEHAVIOUR EVIDENCE</span><strong>Choice evidence</strong></div><span>Measured, fitted, label-only, and missing behavioural links</span></summary>
       <section id="atlas-choice-evidence"><p class="muted">Loading choice evidence…</p></section>
     </details>
-    <details class="atlas-section atlas-collapsible" id="atlas-city-audit">
+    <details class="atlas-section atlas-collapsible atlas-panel" data-atlas-panel="cities" role="tabpanel" id="atlas-city-audit" open hidden>
       <summary><div><span class="eyebrow">CITY AUDIT</span><strong>Direct city table</strong></div><span>Advanced filters and row-level provenance</span></summary>
       <section id="atlas-city-browser">
       <div class="atlas-section-heading">
@@ -315,38 +348,14 @@ export function dataShell(): string {
       </div>
       </section>
     </details>
-    <details class="atlas-section atlas-collapsible" id="atlas-coverage-panel">
-      <summary>
-        <div><span class="eyebrow">AUDIT TABLE</span><strong>Coverage calculations</strong></div>
-        <span>City counts and population-weighted percentages for every canonical field</span>
-      </summary>
-      <div class="table-scroll">
-        <table class="coverage-table">
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Direct cities</th>
-              <th>Direct + inherited cities</th>
-              <th>Direct population</th>
-              <th>Direct + inherited population</th>
-              <th>Imputed cities</th>
-              <th>Estimated cities</th>
-              <th>Estimated population</th>
-              <th>Missing cities</th>
-            </tr>
-          </thead>
-          <tbody id="atlas-coverage"></tbody>
-        </table>
-      </div>
-    </details>
-    <details class="atlas-section atlas-collapsible" id="atlas-history-panel">
+    <details class="atlas-section atlas-collapsible atlas-panel" data-atlas-panel="imports" role="tabpanel" id="atlas-history-panel" open hidden>
       <summary>
         <div><span class="eyebrow">PROVENANCE</span><strong>Import versions</strong></div>
         <span>Latest live and draft source versions; older versions remain available below each source.</span>
       </summary>
       <div id="atlas-history"></div>
     </details>
-    <footer id="atlas-attribution" class="atlas-attribution"></footer>
+    <footer id="atlas-attribution" class="atlas-attribution atlas-panel" data-atlas-panel="imports" role="tabpanel" hidden></footer>
     <dialog id="atlas-city-dialog" class="atlas-dialog" aria-labelledby="atlas-city-title">
       <div id="atlas-city-detail"></div>
       <div class="dialog-footer">
@@ -360,7 +369,7 @@ export function dataShell(): string {
           ×
         </button>
       </div>
-      <h2 id="atlas-import-title">Bring evidence into the atlas.</h2>
+      <h2 id="atlas-import-title">Import atlas data</h2>
       <div id="atlas-import-body"></div>
     </dialog>
     <dialog id="atlas-sources-dialog" class="atlas-dialog" aria-labelledby="atlas-sources-title">
@@ -413,7 +422,7 @@ export function summaryCards(view: AtlasOverview): string {
       ><span>${n(s.direct_plus_inherited.full)} full · ${n(s.direct_plus_inherited.partial)} partial · ${n(s.direct_plus_inherited.none)} none</span>
     </div>
     <div>
-      <span class="metric-label">Unresolved field-place cells</span><strong>${n(missingCells)}</strong
+      <span class="metric-label">Missing city-field cells</span><strong>${n(missingCells)}</strong
       ><span>${n(imputedCells)} imputed · ${n(estimatedCells)} estimated; excluded from measured and effective coverage</span>
     </div>
   `;

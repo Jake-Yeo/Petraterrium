@@ -2,8 +2,11 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
+import numpy as np
+
 from petraterrium.atlas.features import canonical_feature_registry, resolve_feature_distribution
 from petraterrium.dsl import FeatureDistribution, load_dsl, validate_dsl
+from petraterrium.population import sample_feature_traits
 
 SMOKE_PATH = Path(__file__).resolve().parents[2] / "shared" / "dsl-schema" / "smoke-spread.json"
 
@@ -44,7 +47,6 @@ def test_canonical_registry_contains_relevant_population_and_behaviour_features(
     definitions = {feature.id: feature for feature in registry.definitions}
     assert {
         "age",
-        "age_band",
         "sex",
         "income",
         "household_size",
@@ -71,8 +73,37 @@ def test_canonical_registry_contains_relevant_population_and_behaviour_features(
         "lactose_intolerance",
         "sickle_cell_trait",
     }.isdisjoint(definitions)
+    assert "age_band" not in definitions
     assert definitions["mbti"].predictive is False
     assert definitions["mbti"].provenance.status == "label_only"
+
+
+def test_continuous_age_histogram_samples_single_year_values():
+    age = next(
+        feature for feature in canonical_feature_registry().definitions if feature.id == "age"
+    )
+    distribution = FeatureDistribution(
+        feature_id="age",
+        level="country",
+        place="CN",
+        population="100 people",
+        population_count=100,
+        coverage_percent=100,
+        values={"0": 0.25, "1": 0.75},
+        mean=0.75,
+        standard_deviation=0.4330127019,
+        provenance={
+            "source": "Test single-year ages",
+            "version": "test-v1",
+            "status": "present",
+            "uncertainty": 0,
+            "source_date": "2023-07-01",
+        },
+    )
+    rng = np.random.default_rng(44)
+    sampled = [sample_feature_traits([(age, distribution)], rng)["age"] for _ in range(200)]
+    assert set(sampled) == {0.0, 1.0}
+    assert 130 <= sampled.count(1.0) <= 170
 
 
 def test_registry_rejects_missing_canonical_schema_and_invalid_distribution():
@@ -107,6 +138,29 @@ def test_registry_rejects_missing_canonical_schema_and_invalid_distribution():
     ]
     invalid_sum["feature_registry"] = registry
     assert "sum to 1" in messages(invalid_sum)
+
+
+def test_registry_rejects_invalid_continuous_histogram():
+    payload = smoke_config()
+    registry = registry_payload()
+    registry["distributions"] = [
+        {
+            "feature_id": "trust",
+            "level": "country",
+            "place": "CAN",
+            "population": "Canadian adults",
+            "coverage_percent": 100,
+            "values": {"0": 0.7, "1": 0.4},
+            "mean": 0.4,
+            "standard_deviation": 0.2,
+            "provenance": registry["definitions"][0]["provenance"],
+        }
+    ]
+    payload["feature_registry"] = registry
+    assert "sum to 1" in messages(payload)
+
+    payload["feature_registry"]["distributions"][0]["values"] = {"0": 0.5, "2": 0.5}
+    assert "outside its range" in messages(payload)
 
 
 def test_global_distribution_requires_explicit_country_fallback():

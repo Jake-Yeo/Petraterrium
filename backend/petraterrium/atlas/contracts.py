@@ -316,7 +316,9 @@ class RegistrySource(Contract):
     source: str
     scope_order: int
     level: Literal["region", "country", "city"]
-    access_status: Literal["imported", "unavailable", "available_remote"]
+    access_status: Literal[
+        "imported", "imported_aggregate", "unavailable", "available_remote"
+    ]
     source_url: str
     version: str
     source_date: str
