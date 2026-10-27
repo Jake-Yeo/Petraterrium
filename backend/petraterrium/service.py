@@ -3,6 +3,7 @@ import logging
 
 from . import engine
 from .contracts import EnsembleUpdate, MissingFallback, RunConfig, RunError, StoryRecord
+from .decision_graph import record_action_logs
 from .dsl import DSLConfig, validate_dsl
 from .events import Event, detect_events, generate_story
 from .population import generate_population
@@ -22,6 +23,19 @@ def evidence_fallbacks(dsl: DSLConfig) -> list[MissingFallback]:
     )
     candidates.extend((f"behaviour.{item.id}", item.provenance) for item in dsl.behaviour_bundles)
     candidates.extend((f"leader_action.{item.id}", item.evidence) for item in dsl.leader_actions)
+    if dsl.feature_registry:
+        candidates.extend(
+            (f"feature.{item.id}", item.provenance)
+            for item in dsl.feature_registry.definitions
+        )
+        candidates.extend(
+            (f"feature.{item.feature_id}.{item.level}.{item.place}", item.provenance)
+            for item in dsl.feature_registry.distributions
+        )
+    candidates.extend(
+        (f"choice.{item.action_id}.{item.conditioning_id}", item.provenance)
+        for item in dsl.choice_evidence
+    )
     results = []
     seen = set()
     for field_name, evidence in candidates:
@@ -125,6 +139,10 @@ class RunService:
         try:
             runtime = resolve_runtime(record.config)
             record.population = generate_population(runtime.dsl, None, record.config.seed)
+            if record.outputs.agent_logs != "none":
+                record.action_logs = record_action_logs(
+                    runtime.dsl, record.population, record.config.seed
+                )
             previous = None
             for snapshot in engine.simulate(record.config, record.run_id, ENGINE_VERSION):
                 if self.store.get(record.run_id) is not record:

@@ -7,6 +7,18 @@
           "title": "Id",
           "type": "string"
         },
+        "system": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "System"
+        },
         "probability": {
           "$ref": "#/$defs/ProbabilitySpec"
         },
@@ -264,6 +276,35 @@
           "minimum": 0,
           "title": "Delay Ticks",
           "type": "integer"
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formula"
+        },
+        "conditions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "object"
+        },
+        "cross_agent": {
+          "default": false,
+          "title": "Cross Agent",
+          "type": "boolean"
+        },
+        "terminates": {
+          "default": false,
+          "title": "Terminates",
+          "type": "boolean"
         }
       },
       "required": [
@@ -320,6 +361,246 @@
         "branches"
       ],
       "title": "ChainDefinition",
+      "type": "object"
+    },
+    "ChoiceCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "traits": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "object"
+        },
+        "state": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State",
+          "type": "object"
+        },
+        "context": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Context",
+          "type": "object"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        }
+      },
+      "title": "ChoiceCondition",
+      "type": "object"
+    },
+    "ChoiceEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "conditioning_id": {
+          "minLength": 1,
+          "title": "Conditioning Id",
+          "type": "string"
+        },
+        "conditioning": {
+          "$ref": "#/$defs/ChoiceCondition"
+        },
+        "definition": {
+          "minLength": 1,
+          "title": "Definition",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "ci_low": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci Low",
+          "type": "number"
+        },
+        "ci_high": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci High",
+          "type": "number"
+        },
+        "source_type": {
+          "enum": [
+            "administrative",
+            "mobility",
+            "transaction",
+            "time_use_diary",
+            "representative_survey",
+            "small_study",
+            "poll",
+            "news",
+            "ethnography",
+            "social_media",
+            "unknown"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "tier": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Tier",
+          "type": "integer"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "denominator": {
+          "minLength": 1,
+          "title": "Denominator",
+          "type": "string"
+        },
+        "time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "friday",
+            "week",
+            "year"
+          ],
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "source_time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "friday",
+            "week",
+            "year"
+          ],
+          "title": "Source Time Unit",
+          "type": "string"
+        },
+        "explicit_time_adjustment": {
+          "default": false,
+          "title": "Explicit Time Adjustment",
+          "type": "boolean"
+        },
+        "tier_flag": {
+          "enum": [
+            "measured",
+            "imputed",
+            "hint_only",
+            "unknown"
+          ],
+          "title": "Tier Flag",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "missing_requirement": {
+          "default": "",
+          "title": "Missing Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "action_id",
+        "conditioning_id",
+        "definition",
+        "ci_low",
+        "ci_high",
+        "source_type",
+        "tier",
+        "population",
+        "denominator",
+        "time_unit",
+        "source_time_unit",
+        "tier_flag",
+        "provenance"
+      ],
+      "title": "ChoiceEvidence",
       "type": "object"
     },
     "CouplingDefinition": {
@@ -507,7 +788,8 @@
             "missing",
             "unknown",
             "label_only",
-            "literature_estimate"
+            "literature_estimate",
+            "hint_only"
           ],
           "title": "Status",
           "type": "string"
@@ -540,6 +822,229 @@
       "title": "Evidence",
       "type": "object"
     },
+    "FeatureDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "categorical",
+            "continuous",
+            "binary"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "canonical_values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Canonical Values",
+          "type": "array"
+        },
+        "value_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "predictive": {
+          "default": true,
+          "title": "Predictive",
+          "type": "boolean"
+        },
+        "ancestry_linked": {
+          "default": false,
+          "title": "Ancestry Linked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "provenance"
+      ],
+      "title": "FeatureDefinition",
+      "type": "object"
+    },
+    "FeatureDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "global",
+            "region",
+            "subregion",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "place": {
+          "minLength": 1,
+          "title": "Place",
+          "type": "string"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "coverage_percent": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Coverage Percent",
+          "type": "number"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mean"
+        },
+        "standard_deviation": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Standard Deviation"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "method": {
+          "default": "measured",
+          "enum": [
+            "measured",
+            "compositional",
+            "fallback"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "fallback_for": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallback For",
+          "type": "array"
+        },
+        "explicit_fallback": {
+          "default": false,
+          "title": "Explicit Fallback",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "feature_id",
+        "level",
+        "place",
+        "population",
+        "coverage_percent",
+        "provenance"
+      ],
+      "title": "FeatureDistribution",
+      "type": "object"
+    },
+    "FeatureRange": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        },
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum",
+        "unit"
+      ],
+      "title": "FeatureRange",
+      "type": "object"
+    },
+    "FeatureRegistry": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/FeatureDefinition"
+          },
+          "minItems": 1,
+          "title": "Definitions",
+          "type": "array"
+        },
+        "distributions": {
+          "items": {
+            "$ref": "#/$defs/FeatureDistribution"
+          },
+          "title": "Distributions",
+          "type": "array"
+        },
+        "joint_data": {
+          "items": {
+            "$ref": "#/$defs/JointDataProof"
+          },
+          "title": "Joint Data",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version",
+        "definitions"
+      ],
+      "title": "FeatureRegistry",
+      "type": "object"
+    },
     "GraphTraversal": {
       "additionalProperties": false,
       "properties": {
@@ -565,6 +1070,39 @@
         "depth"
       ],
       "title": "GraphTraversal",
+      "type": "object"
+    },
+    "JointDataProof": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "outcomes": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Outcomes",
+          "type": "array"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "feature_id",
+        "outcomes",
+        "population",
+        "provenance"
+      ],
+      "title": "JointDataProof",
       "type": "object"
     },
     "LeaderActionDefinition": {
@@ -756,6 +1294,51 @@
       "title": "ParameterDefinition",
       "type": "object"
     },
+    "PlaceHierarchy": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "country": {
+          "minLength": 1,
+          "title": "Country",
+          "type": "string"
+        },
+        "subregion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subregion"
+        },
+        "region": {
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "country",
+        "region"
+      ],
+      "title": "PlaceHierarchy",
+      "type": "object"
+    },
     "PopulationReference": {
       "additionalProperties": false,
       "properties": {
@@ -803,6 +1386,13 @@
             "type": "array"
           },
           "title": "Place Coordinates",
+          "type": "object"
+        },
+        "place_hierarchy": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PlaceHierarchy"
+          },
+          "title": "Place Hierarchy",
           "type": "object"
         },
         "initial_state_overrides": {
@@ -1242,6 +1832,24 @@
         "$ref": "#/$defs/AttributeDefinition"
       },
       "title": "Attributes",
+      "type": "array"
+    },
+    "feature_registry": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FeatureRegistry"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "choice_evidence": {
+      "items": {
+        "$ref": "#/$defs/ChoiceEvidence"
+      },
+      "title": "Choice Evidence",
       "type": "array"
     },
     "place_states": {

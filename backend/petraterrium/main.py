@@ -31,6 +31,8 @@ from .contracts import (
     AgentDetail,
     AgentPointList,
     Catalog,
+    DecisionGraph,
+    DecisionGraphFilter,
     DSLRender,
     PlaceDetail,
     RunConfig,
@@ -41,6 +43,7 @@ from .contracts import (
     StoryList,
 )
 from .data import COUNTRIES, DATA_VERSION
+from .decision_graph import run_decision_graph, static_decision_graph
 from .dsl import DSLConfig, load_dsl, render_plain_language, render_sliders, validate_dsl
 from .output_views import (
     agent_detail,
@@ -50,6 +53,7 @@ from .output_views import (
     story_detail,
 )
 from .recorder import RunRecord, RunStore
+from .runtime import resolve_runtime
 from .service import RunService
 from .versions import ENGINE_VERSION
 
@@ -122,6 +126,22 @@ def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
             sliders=[slider.model_dump() for slider in render_sliders(dsl)],
         )
 
+    @application.post("/dsl/decision-graph", response_model=DecisionGraph)
+    def static_graph_route(
+        config: Annotated[dict[str, Any], Body()],
+        state: str = "",
+        segment: str = "",
+        place: str = "",
+        role: str = "",
+    ) -> DecisionGraph:
+        result = validate_dsl(config)
+        if not result.valid:
+            raise HTTPException(422, result.model_dump())
+        return static_decision_graph(
+            load_dsl(config),
+            DecisionGraphFilter(state=state, segment=segment, place=place, role=role),
+        )
+
     @application.post("/runs", status_code=202, response_model=RunCreated)
     async def create_run(config: RunConfig, background: BackgroundTasks) -> RunCreated:
         try:
@@ -154,6 +174,34 @@ def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
     @application.get("/runs/{run_id}/stories", response_model=StoryList)
     def get_run_stories(run_id: str) -> StoryList:
         return StoryList(stories=list(require_run(run_id).stories))
+
+    @application.get("/runs/{run_id}/decision-graph", response_model=DecisionGraph)
+    def get_run_decision_graph(
+        run_id: str,
+        state: str = "",
+        segment: str = "",
+        place: str = "",
+        role: str = "",
+        tick_start: int | None = Query(default=None, ge=0),
+        tick_end: int | None = Query(default=None, ge=0),
+        agent_id: str | None = None,
+    ) -> DecisionGraph:
+        record = require_run(run_id)
+        runtime = resolve_runtime(record.config)
+        return run_decision_graph(
+            runtime.dsl,
+            record.action_logs,
+            run_id,
+            DecisionGraphFilter(
+                state=state,
+                segment=segment,
+                place=place,
+                role=role,
+                tick_start=tick_start,
+                tick_end=tick_end,
+            ),
+            agent_id,
+        )
 
     @application.get("/runs/{run_id}", response_model=RunDetail)
     def get_run(run_id: str) -> RunDetail:

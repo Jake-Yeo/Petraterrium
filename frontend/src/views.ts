@@ -52,6 +52,7 @@ export function shell(): string {
         <button role="tab" aria-selected="false" aria-controls="stories-view" data-action="stories-tab">Stories</button>
         <button role="tab" aria-selected="false" aria-controls="dsl-view" data-action="dsl-tab">DSL</button>
         <button role="tab" aria-selected="false" aria-controls="data-view" data-action="data-tab">Data</button>
+        <button role="tab" aria-selected="false" aria-controls="decision-view" data-action="graph-tab">Graph</button>
       </div>
       <div class="sidebar-section-title">
         <span>SAVED RUNS</span
@@ -236,6 +237,7 @@ export function shell(): string {
       <div id="stories-view" class="stories-view" hidden></div>
       <div id="dsl-view" class="dsl-view" hidden></div>
       <div id="data-view" class="atlas-view" hidden></div>
+      <div id="decision-view" class="decision-view" hidden></div>
     </main>
     <dialog id="new-run-dialog" class="run-dialog" aria-labelledby="new-run-title">
       <form id="run-form">

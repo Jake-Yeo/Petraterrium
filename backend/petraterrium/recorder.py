@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from .contracts import (
+    ActionLogEntry,
     BacktestComparison,
     DailySnapshot,
     EnsembleUpdate,
@@ -50,6 +51,7 @@ class RunRecord:
     ensemble_updates: list[EnsembleUpdate] = field(default_factory=list)
     stories: list[StoryRecord] = field(default_factory=list)
     backtests: list[BacktestComparison] = field(default_factory=list)
+    action_logs: list[ActionLogEntry] = field(default_factory=list)
     events: list[RecordedEvent] = field(default_factory=list)
     population: PopulationTable | None = None
     metrics: Metrics | None = None

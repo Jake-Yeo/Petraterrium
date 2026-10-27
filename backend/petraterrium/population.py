@@ -5,8 +5,16 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
+from .atlas.features import resolve_feature_distribution
 from .data import COUNTRY_BY_CODE
-from .dsl import DefaultDefinition, DSLConfig, Evidence, flatten_behaviour_bundles
+from .dsl import (
+    DefaultDefinition,
+    DSLConfig,
+    Evidence,
+    FeatureDefinition,
+    FeatureDistribution,
+    flatten_behaviour_bundles,
+)
 
 
 class PopulationModel(BaseModel):
@@ -127,8 +135,51 @@ def stable_agent_id(population_id: str, seed: int, index: int) -> str:
     return hashlib.sha256(f"{population_id}:{seed}:{index}".encode()).hexdigest()[:20]
 
 
+def feature_distributions_by_place(
+    dsl: DSLConfig,
+) -> dict[str, list[tuple[FeatureDefinition, FeatureDistribution]]]:
+    registry = dsl.feature_registry
+    if registry is None:
+        return {}
+    definitions = {feature.id: feature for feature in registry.definitions}
+    resolved = defaultdict(list)
+    for place, hierarchy in dsl.population.place_hierarchy.items():
+        for feature_id, feature in definitions.items():
+            resolution = resolve_feature_distribution(
+                registry,
+                feature_id,
+                city=hierarchy.city or place,
+                country=hierarchy.country,
+                subregion=hierarchy.subregion,
+                region=hierarchy.region,
+            )
+            if resolution.distribution is not None:
+                resolved[place].append((feature, resolution.distribution))
+    return dict(resolved)
+
+
+def sample_feature_traits(
+    distributions: list[tuple[FeatureDefinition, FeatureDistribution]],
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    traits = {}
+    for feature, distribution in distributions:
+        if feature.kind in {"categorical", "binary"}:
+            labels = list(distribution.values)
+            probabilities = list(distribution.values.values())
+            traits[feature.id] = str(rng.choice(labels, p=probabilities))
+            continue
+        value = float(rng.normal(distribution.mean, distribution.standard_deviation))
+        traits[feature.id] = float(
+            np.clip(value, feature.value_range.minimum, feature.value_range.maximum)
+        )
+    return traits
+
+
 def generate_population(dsl: DSLConfig, data_atlas, seed: int) -> PopulationTable:
     rng = np.random.default_rng(seed)
+    feature_rng = np.random.default_rng(np.random.SeedSequence([seed, 2]))
+    feature_distributions = feature_distributions_by_place(dsl)
     bundles = {bundle.id: bundle for bundle in dsl.behaviour_bundles}
     selected_bundles = []
     if bundles:
@@ -145,6 +196,7 @@ def generate_population(dsl: DSLConfig, data_atlas, seed: int) -> PopulationTabl
         latitude = coordinates[0] if coordinates else country.latitude if country else 0
         longitude = coordinates[1] if coordinates else country.longitude if country else 0
         traits = sample_default_states(dsl.default_states, place, rng)
+        traits.update(sample_feature_traits(feature_distributions.get(place, []), feature_rng))
         states = {
             state.id: str(
                 rng.choice(list(state.initial.values), p=list(state.initial.values.values()))

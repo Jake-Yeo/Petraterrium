@@ -74,6 +74,11 @@ CREATE TABLE IF NOT EXISTS label_mappings(
 );
 CREATE INDEX IF NOT EXISTS label_mappings_active
 ON label_mappings(dataset,field,active);
+CREATE TABLE IF NOT EXISTS region_mappings(
+ dataset TEXT NOT NULL, version TEXT NOT NULL, mappings_json TEXT NOT NULL,
+ active INTEGER NOT NULL, PRIMARY KEY(dataset,version)
+);
+CREATE INDEX IF NOT EXISTS region_mappings_active ON region_mappings(dataset,active);
 """
 
 

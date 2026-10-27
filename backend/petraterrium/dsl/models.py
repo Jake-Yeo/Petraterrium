@@ -15,6 +15,7 @@ EvidenceStatus = Literal[
     "unknown",
     "label_only",
     "literature_estimate",
+    "hint_only",
 ]
 
 
@@ -51,6 +52,127 @@ class AttributeDefinition(DSLModel):
     values: list[str] = Field(default_factory=list)
     distribution: Distribution | None = None
     provenance: Evidence
+
+
+class FeatureRange(DSLModel):
+    minimum: float = Field(allow_inf_nan=False)
+    maximum: float = Field(allow_inf_nan=False)
+    unit: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.maximum <= self.minimum:
+            raise ValueError("Feature range maximum must exceed minimum")
+        return self
+
+
+class FeatureDefinition(DSLModel):
+    id: str = Field(pattern=r"^[a-z][a-z0-9_-]*$")
+    kind: Literal["categorical", "continuous", "binary"]
+    canonical_values: list[str] = Field(default_factory=list)
+    value_range: FeatureRange | None = None
+    provenance: Evidence
+    predictive: bool = True
+    ancestry_linked: bool = False
+
+
+class FeatureDistribution(DSLModel):
+    feature_id: str
+    level: Literal["global", "region", "subregion", "country", "city"]
+    place: str = Field(min_length=1)
+    population: str = Field(min_length=1)
+    coverage_percent: float = Field(ge=0, le=100, allow_inf_nan=False)
+    values: dict[str, float] = Field(default_factory=dict)
+    mean: float | None = Field(default=None, allow_inf_nan=False)
+    standard_deviation: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    provenance: Evidence
+    method: Literal["measured", "compositional", "fallback"] = "measured"
+    fallback_for: list[str] = Field(default_factory=list)
+    explicit_fallback: bool = False
+
+
+class JointDataProof(DSLModel):
+    feature_id: str
+    outcomes: list[str] = Field(min_length=1)
+    population: str = Field(min_length=1)
+    provenance: Evidence
+
+
+class FeatureRegistry(DSLModel):
+    version: str = Field(min_length=1)
+    definitions: list[FeatureDefinition] = Field(min_length=1)
+    distributions: list[FeatureDistribution] = Field(default_factory=list)
+    joint_data: list[JointDataProof] = Field(default_factory=list)
+
+
+class ChoiceCondition(DSLModel):
+    traits: dict[str, str] = Field(default_factory=dict)
+    state: dict[str, str] = Field(default_factory=dict)
+    context: dict[str, str] = Field(default_factory=dict)
+    place: str | None = None
+    segment: str | None = None
+    role: str | None = None
+
+
+class ChoiceEvidence(DSLModel):
+    id: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
+    action_id: str
+    conditioning_id: str = Field(min_length=1)
+    conditioning: ChoiceCondition = Field(default_factory=ChoiceCondition)
+    definition: str = Field(min_length=1)
+    value: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    ci_low: float = Field(ge=0, le=1, allow_inf_nan=False)
+    ci_high: float = Field(ge=0, le=1, allow_inf_nan=False)
+    source_type: Literal[
+        "administrative",
+        "mobility",
+        "transaction",
+        "time_use_diary",
+        "representative_survey",
+        "small_study",
+        "poll",
+        "news",
+        "ethnography",
+        "social_media",
+        "unknown",
+    ]
+    tier: int = Field(ge=1, le=5)
+    sample_size: int | None = Field(default=None, gt=0)
+    source_date: str | None = None
+    population: str = Field(min_length=1)
+    denominator: str = Field(min_length=1)
+    time_unit: Literal["event", "hour", "day", "friday", "week", "year"]
+    source_time_unit: Literal["event", "hour", "day", "friday", "week", "year"]
+    explicit_time_adjustment: bool = False
+    tier_flag: Literal["measured", "imputed", "hint_only", "unknown"]
+    provenance: Evidence
+    missing_requirement: str = ""
+
+    @model_validator(mode="after")
+    def valid_evidence(self):
+        if self.ci_low > self.ci_high:
+            raise ValueError("Choice confidence interval is reversed")
+        if self.value is not None and not self.ci_low <= self.value <= self.ci_high:
+            raise ValueError("Choice value must be inside its confidence interval")
+        hint_sources = {"news", "ethnography", "social_media"}
+        if self.source_type in hint_sources or self.tier == 5 and self.tier_flag == "hint_only":
+            if self.tier != 5 or self.tier_flag != "hint_only" or self.value is not None:
+                raise ValueError("Tier 5 evidence must remain hint-only without a coefficient")
+        if self.source_type == "unknown" and self.tier_flag != "unknown":
+            raise ValueError("Unknown choice evidence must remain unknown")
+        if self.tier_flag == "unknown" and (
+            self.value is not None or self.ci_low != 0 or self.ci_high != 1
+        ):
+            raise ValueError("Unknown choice evidence needs a 0 to 1 interval and no coefficient")
+        if self.tier_flag == "measured" and (self.value is None or self.sample_size is None):
+            raise ValueError("Measured choice evidence needs a value and sample size")
+        if (
+            self.time_unit == "friday"
+            and self.source_time_unit != "friday"
+            and not self.explicit_time_adjustment
+        ):
+            raise ValueError("A Friday rate needs Friday-specific data or an explicit adjustment")
+        return self
 
 
 class RuleCondition(DSLModel):
@@ -120,6 +242,7 @@ class SystemDefinition(DSLModel):
 
 class ActionDefinition(DSLModel):
     id: str
+    system: str | None = None
     probability: ProbabilitySpec
     duration_minutes: float = Field(ge=0, le=1440, allow_inf_nan=False)
     priority: int = Field(ge=0, le=10)
@@ -139,6 +262,10 @@ class ChainBranch(DSLModel):
     action: str
     probability: float = Field(ge=0, le=1, allow_inf_nan=False)
     delay_ticks: int = Field(default=0, ge=0)
+    formula: str | None = None
+    conditions: dict[str, str] = Field(default_factory=dict)
+    cross_agent: bool = False
+    terminates: bool = False
 
 
 class ChainDefinition(DSLModel):
@@ -150,8 +277,12 @@ class ChainDefinition(DSLModel):
 
     @model_validator(mode="after")
     def valid_branches(self):
-        if abs(sum(branch.probability for branch in self.branches) - 1) > 1e-9:
-            raise ValueError("Chain branch probabilities must sum to 1")
+        totals = {}
+        for branch in self.branches:
+            key = tuple(sorted(branch.conditions.items()))
+            totals[key] = totals.get(key, 0) + branch.probability
+        if any(abs(total - 1) > 1e-9 for total in totals.values()):
+            raise ValueError("Chain branch probabilities must sum to 1 for each conditioning")
         return self
 
 
@@ -235,6 +366,13 @@ class OutputSpec(DSLModel):
     ensemble_updates: bool = True
 
 
+class PlaceHierarchy(DSLModel):
+    city: str | None = None
+    country: str = Field(min_length=1)
+    subregion: str | None = None
+    region: str = Field(min_length=1)
+
+
 class PopulationReference(DSLModel):
     id: str
     version: str
@@ -242,6 +380,7 @@ class PopulationReference(DSLModel):
     places: list[str] = Field(min_length=1)
     place_populations: dict[str, int] = Field(default_factory=dict)
     place_coordinates: dict[str, tuple[float, float]] = Field(default_factory=dict)
+    place_hierarchy: dict[str, PlaceHierarchy] = Field(default_factory=dict)
     initial_state_overrides: dict[str, dict[str, dict[str, int]]] = Field(default_factory=dict)
 
 
@@ -258,6 +397,8 @@ class DSLConfig(DSLModel):
     version: str
     states: list[StateDefinition] = Field(min_length=1)
     attributes: list[AttributeDefinition] = Field(default_factory=list)
+    feature_registry: FeatureRegistry | None = None
+    choice_evidence: list[ChoiceEvidence] = Field(default_factory=list)
     place_states: list[str] = Field(default_factory=list)
     parameters: list[ParameterDefinition] = Field(default_factory=list)
     systems: list[SystemDefinition] = Field(min_length=1)

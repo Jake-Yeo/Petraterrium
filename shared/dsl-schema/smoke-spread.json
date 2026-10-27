@@ -129,7 +129,8 @@
       "requires_role": null,
       "target_requires_role": null,
       "loser_outcome": "continues",
-      "effects": {}
+      "effects": {},
+      "system": "signal-system"
     },
     {
       "id": "talk",
@@ -159,7 +160,8 @@
       "requires_role": null,
       "target_requires_role": null,
       "loser_outcome": "deferred",
-      "effects": {}
+      "effects": {},
+      "system": "signal-system"
     },
     {
       "id": "scroll",
@@ -184,7 +186,8 @@
       "requires_role": null,
       "target_requires_role": null,
       "loser_outcome": "cancelled",
-      "effects": {}
+      "effects": {},
+      "system": "signal-system"
     },
     {
       "id": "repost",
@@ -209,7 +212,8 @@
       "requires_role": null,
       "target_requires_role": null,
       "loser_outcome": "cancelled",
-      "effects": {}
+      "effects": {},
+      "system": "signal-system"
     },
     {
       "id": "ignore",
@@ -234,7 +238,8 @@
       "requires_role": null,
       "target_requires_role": null,
       "loser_outcome": "continues",
-      "effects": {}
+      "effects": {},
+      "system": "signal-system"
     }
   ],
   "chains": [
@@ -245,12 +250,20 @@
         {
           "action": "repost",
           "probability": 0.2,
-          "delay_ticks": 0
+          "delay_ticks": 0,
+          "formula": "P(repost | scrolled, consumed) = 0.20",
+          "cross_agent": true,
+          "conditions": {},
+          "terminates": true
         },
         {
           "action": "ignore",
           "probability": 0.8,
-          "delay_ticks": 0
+          "delay_ticks": 0,
+          "formula": "P(ignore | scrolled, consumed) = 0.80",
+          "cross_agent": false,
+          "conditions": {},
+          "terminates": true
         }
       ],
       "max_length": 2,
@@ -436,6 +449,20 @@
         34.05,
         -118.24
       ]
+    },
+    "place_hierarchy": {
+      "Northport": {
+        "city": "Northport",
+        "country": "CAN",
+        "subregion": null,
+        "region": "Northern America"
+      },
+      "Southport": {
+        "city": "Southport",
+        "country": "USA",
+        "subregion": null,
+        "region": "Northern America"
+      }
     }
   },
   "benchmarks": [],
@@ -490,6 +517,556 @@
         "spread_rate": 0.01
       },
       "max_applications": 1
+    }
+  ],
+  "feature_registry": {
+    "version": "canonical-features-v1",
+    "definitions": [
+      {
+        "id": "age",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 120.0,
+          "unit": "years"
+        },
+        "provenance": {
+          "source": "ISO 8601 age in completed years",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "sex",
+        "kind": "categorical",
+        "canonical_values": [
+          "female",
+          "male",
+          "intersex",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Canonical demographic sex categories",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "education_isced",
+        "kind": "categorical",
+        "canonical_values": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "UNESCO ISCED 2011 levels",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "occupation_isco",
+        "kind": "categorical",
+        "canonical_values": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "ILO ISCO-08 major groups",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "openness",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Big Five trait scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "conscientiousness",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Big Five trait scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "extraversion",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Big Five trait scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "agreeableness",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Big Five trait scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "neuroticism",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Big Five trait scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "schwartz_values",
+        "kind": "categorical",
+        "canonical_values": [
+          "self_direction",
+          "stimulation",
+          "hedonism",
+          "achievement",
+          "power",
+          "security",
+          "conformity",
+          "tradition",
+          "benevolence",
+          "universalism"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Schwartz basic human values",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "risk_aversion",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Portable risk preference scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "time_preference",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Portable time preference scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "generalized_trust",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Portable generalized trust scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "religiosity",
+        "kind": "continuous",
+        "canonical_values": [],
+        "value_range": {
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "unit": "score"
+        },
+        "provenance": {
+          "source": "Portable religiosity scale",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": false
+      },
+      {
+        "id": "mbti",
+        "kind": "categorical",
+        "canonical_values": [
+          "INTJ",
+          "INTP",
+          "INFJ",
+          "INFP",
+          "ISTJ",
+          "ISTP",
+          "ISFJ",
+          "ISFP",
+          "ENTJ",
+          "ENTP",
+          "ENFJ",
+          "ENFP",
+          "ESTJ",
+          "ESTP",
+          "ESFJ",
+          "ESFP"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "MBTI labels without joint outcome evidence",
+          "version": "canonical-features-v1",
+          "status": "label_only",
+          "uncertainty": 1.0,
+          "source_date": null
+        },
+        "predictive": false,
+        "ancestry_linked": false
+      },
+      {
+        "id": "eye_colour",
+        "kind": "categorical",
+        "canonical_values": [
+          "brown",
+          "blue",
+          "green",
+          "hazel",
+          "amber",
+          "grey",
+          "other",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Population-specific biological categories",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": true
+      },
+      {
+        "id": "blood_type",
+        "kind": "categorical",
+        "canonical_values": [
+          "A+",
+          "A-",
+          "B+",
+          "B-",
+          "AB+",
+          "AB-",
+          "O+",
+          "O-",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Population-specific biological categories",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": true
+      },
+      {
+        "id": "lactose_intolerance",
+        "kind": "categorical",
+        "canonical_values": [
+          "present",
+          "absent",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Population-specific biological categories",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": true
+      },
+      {
+        "id": "sickle_cell_trait",
+        "kind": "categorical",
+        "canonical_values": [
+          "present",
+          "absent",
+          "unknown"
+        ],
+        "value_range": null,
+        "provenance": {
+          "source": "Population-specific biological categories",
+          "version": "canonical-features-v1",
+          "status": "present",
+          "uncertainty": 0.0,
+          "source_date": null
+        },
+        "predictive": true,
+        "ancestry_linked": true
+      }
+    ],
+    "distributions": [
+      {
+        "feature_id": "generalized_trust",
+        "level": "region",
+        "place": "Northern America",
+        "values": {},
+        "mean": 0.48,
+        "standard_deviation": 0.22,
+        "provenance": {
+          "source": "FAKE regional fallback demo",
+          "version": "FAKE-region-v1",
+          "status": "imputed",
+          "uncertainty": 0.65,
+          "source_date": "2026-01-01"
+        },
+        "method": "compositional",
+        "fallback_for": [],
+        "explicit_fallback": false,
+        "population": "Northern America fallback demo population",
+        "coverage_percent": 0
+      }
+    ],
+    "joint_data": []
+  },
+  "choice_evidence": [
+    {
+      "id": "fake-after-scroll-repost",
+      "action_id": "repost",
+      "conditioning_id": "after-scroll",
+      "conditioning": {
+        "traits": {},
+        "state": {},
+        "context": {
+          "prior_action": "scroll"
+        },
+        "place": "Northport",
+        "segment": null,
+        "role": null
+      },
+      "definition": "Choose repost after consuming a post",
+      "value": 0.2,
+      "ci_low": 0.16,
+      "ci_high": 0.24000000000000002,
+      "source_type": "representative_survey",
+      "tier": 3,
+      "sample_size": 1000,
+      "source_date": "2026-01-01",
+      "population": "FAKE Northport adults",
+      "denominator": "FAKE adults who consumed the post",
+      "time_unit": "event",
+      "source_time_unit": "event",
+      "explicit_time_adjustment": false,
+      "tier_flag": "measured",
+      "provenance": {
+        "source": "FAKE representative choice fixture",
+        "version": "FAKE-choice-v1",
+        "status": "present",
+        "uncertainty": 0.2,
+        "source_date": "2026-01-01"
+      },
+      "missing_requirement": ""
+    },
+    {
+      "id": "fake-after-scroll-ignore",
+      "action_id": "ignore",
+      "conditioning_id": "after-scroll",
+      "conditioning": {
+        "traits": {},
+        "state": {},
+        "context": {
+          "prior_action": "scroll"
+        },
+        "place": "Northport",
+        "segment": null,
+        "role": null
+      },
+      "definition": "Choose ignore after consuming a post",
+      "value": 0.8,
+      "ci_low": 0.76,
+      "ci_high": 0.8400000000000001,
+      "source_type": "representative_survey",
+      "tier": 3,
+      "sample_size": 1000,
+      "source_date": "2026-01-01",
+      "population": "FAKE Northport adults",
+      "denominator": "FAKE adults who consumed the post",
+      "time_unit": "event",
+      "source_time_unit": "event",
+      "explicit_time_adjustment": false,
+      "tier_flag": "measured",
+      "provenance": {
+        "source": "FAKE representative choice fixture",
+        "version": "FAKE-choice-v1",
+        "status": "present",
+        "uncertainty": 0.2,
+        "source_date": "2026-01-01"
+      },
+      "missing_requirement": ""
+    },
+    {
+      "id": "local-socializing-hint",
+      "action_id": "talk",
+      "conditioning_id": "friday-evening",
+      "conditioning": {
+        "traits": {},
+        "state": {},
+        "context": {
+          "day": "friday",
+          "time": "after_20_00"
+        },
+        "place": "Northport",
+        "segment": null,
+        "role": null
+      },
+      "definition": "Leave home after 20:00 for leisure on Friday",
+      "value": null,
+      "ci_low": 0.0,
+      "ci_high": 1.0,
+      "source_type": "news",
+      "tier": 5,
+      "sample_size": null,
+      "source_date": "2026-01-10",
+      "population": "Northport adults",
+      "denominator": "No representative denominator",
+      "time_unit": "friday",
+      "source_time_unit": "friday",
+      "explicit_time_adjustment": false,
+      "tier_flag": "hint_only",
+      "provenance": {
+        "source": "FAKE local-news demo fixture",
+        "version": "FAKE-choice-v1",
+        "status": "hint_only",
+        "uncertainty": 1.0,
+        "source_date": "2026-01-10"
+      },
+      "missing_requirement": "Needs a representative Friday time-use survey for this action"
     }
   ]
 }

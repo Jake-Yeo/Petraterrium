@@ -8,8 +8,10 @@ from pydantic import TypeAdapter
 from petraterrium.atlas.contracts import (
     AtlasOverview,
     AtlasScopes,
+    ChoiceEvidenceCatalog,
     CityDetail,
     FieldCoverage,
+    HierarchyOverview,
     ImportCommit,
     ImportHistory,
     ImportMetadata,
@@ -19,13 +21,16 @@ from petraterrium.atlas.contracts import (
     Promotion,
     SourceCatalog,
     SourceFetch,
+    UniversalFeatureOverview,
     ValidationReport,
 )
 from petraterrium.contracts import (
+    ActionLogEntry,
     AgentDetail,
     AgentPointList,
     Catalog,
     DailySnapshot,
+    DecisionGraph,
     DSLRender,
     EnsembleUpdate,
     PlaceDetail,
@@ -81,9 +86,11 @@ def typescript_type(schema: dict[str, Any]) -> str:
 def artifacts() -> dict[Path, str]:
     adapter = TypeAdapter(
         Catalog
+        | ActionLogEntry
         | AgentDetail
         | AgentPointList
         | DailySnapshot
+        | DecisionGraph
         | DSLRender
         | EnsembleUpdate
         | PlaceDetail
@@ -98,8 +105,10 @@ def artifacts() -> dict[Path, str]:
         | DSLValidationResult
         | AtlasOverview
         | AtlasScopes
+        | ChoiceEvidenceCatalog
         | CityDetail
         | FieldCoverage
+        | HierarchyOverview
         | ImportCommit
         | ImportHistory
         | ImportMetadata
@@ -109,6 +118,7 @@ def artifacts() -> dict[Path, str]:
         | Promotion
         | SourceCatalog
         | SourceFetch
+        | UniversalFeatureOverview
         | ValidationReport
     )
     schema = adapter.json_schema(mode="serialization")

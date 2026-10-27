@@ -133,8 +133,18 @@ export class DSLBuilder {
     if (!target) return;
     const states = this.dsl?.default_states ?? [];
     const attributes = this.dsl?.attributes ?? [];
+    const registry = this.dsl?.feature_registry;
     const drafts = loadFeatureDrafts();
     target.innerHTML = [
+      ...(registry?.definitions ?? []).map((feature) => {
+        const distributions = (registry?.distributions ?? []).filter(
+          (distribution) => distribution.feature_id === feature.id,
+        ).length;
+        const proofs = (registry?.joint_data ?? []).filter(
+          (proof) => proof.feature_id === feature.id,
+        ).length;
+        return `<article class="${feature.predictive ? '' : 'label-only'}"><strong>${escapeHtml(feature.id)}</strong><span>${distributions} place distributions · ${proofs} joint proofs</span><small>${escapeHtml(feature.kind)} · ${feature.predictive ? 'predictive schema; coefficients still require evidence' : 'LABEL-ONLY'}${feature.ancestry_linked ? ' · ancestry-linked' : ''}</small></article>`;
+      }),
       ...states.map(
         (state) =>
           `<article><strong>${escapeHtml(state.id)}</strong><span>Distribution attached</span><small>${escapeHtml(state.distribution.provenance.status)} · ${escapeHtml(state.distribution.provenance.source)}</small></article>`,

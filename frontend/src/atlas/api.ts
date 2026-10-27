@@ -3,7 +3,9 @@ import type {
   AtlasOverview,
   AtlasScopes,
   Backbone,
+  ChoiceEvidenceCatalog,
   CityDetail,
+  HierarchyOverview,
   ImportCommit,
   ImportHistory,
   ImportMetadata,
@@ -13,6 +15,7 @@ import type {
   Promotion,
   SourceCatalog,
   SourceFetch,
+  UniversalFeatureOverview,
   ValidationReport,
 } from '../contracts.generated';
 
@@ -35,6 +38,18 @@ export const atlasApi = {
     request(`/atlas/cities/${id}?${query}`, validator<CityDetail>('CityDetail')),
   backbone: () => request('/atlas/backbone', validator<Backbone>('Backbone'), { method: 'POST' }),
   sources: () => request('/atlas/sources', validator<SourceCatalog>('SourceCatalog')),
+  features: () =>
+    request('/atlas/features', validator<UniversalFeatureOverview>('UniversalFeatureOverview')),
+  hierarchy: (scope: string, asOf: string) =>
+    request(
+      `/atlas/hierarchy?scope=${encodeURIComponent(scope)}&as_of=${encodeURIComponent(asOf)}`,
+      validator<HierarchyOverview>('HierarchyOverview'),
+    ),
+  choices: () =>
+    request(
+      '/atlas/choice-evidence',
+      validator<ChoiceEvidenceCatalog>('ChoiceEvidenceCatalog'),
+    ),
   history: (scope: string) =>
     request(
       `/atlas/imports?scope=${encodeURIComponent(scope)}`,

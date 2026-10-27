@@ -90,6 +90,98 @@ def validate_dsl(value) -> DSLValidationResult:
                     f"Attribute {attribute.id} needs a measured distribution or label-only status",
                 )
             )
+    if config.feature_registry:
+        definitions = {item.id: item for item in config.feature_registry.definitions}
+        if len(definitions) != len(config.feature_registry.definitions):
+            errors.append(issue("feature_registry.definitions", "Duplicate feature id"))
+        joint_features = {item.feature_id for item in config.feature_registry.joint_data}
+        for feature_index, feature in enumerate(config.feature_registry.definitions):
+            path = f"feature_registry.definitions.{feature_index}"
+            if feature.kind in {"categorical", "binary"} and not feature.canonical_values:
+                errors.append(
+                    issue(path, f"Feature {feature.id} needs canonical values")
+                )
+            if feature.kind == "binary" and len(feature.canonical_values) != 2:
+                errors.append(
+                    issue(path, f"Binary feature {feature.id} needs exactly two canonical values")
+                )
+            if feature.kind == "continuous" and feature.value_range is None:
+                errors.append(
+                    issue(path, f"Continuous feature {feature.id} needs a canonical range")
+                )
+            if feature.id == "mbti" and feature.predictive and feature.id not in joint_features:
+                errors.append(
+                    issue(
+                        path,
+                        "MBTI cannot be predictive without population-specific joint data",
+                    )
+                )
+        for proof_index, proof in enumerate(config.feature_registry.joint_data):
+            if proof.feature_id not in definitions:
+                errors.append(
+                    issue(
+                        f"feature_registry.joint_data.{proof_index}.feature_id",
+                        f"Joint data references missing feature {proof.feature_id}",
+                    )
+                )
+        for distribution_index, distribution in enumerate(
+            config.feature_registry.distributions
+        ):
+            path = f"feature_registry.distributions.{distribution_index}"
+            feature = definitions.get(distribution.feature_id)
+            if feature is None:
+                errors.append(
+                    issue(
+                        path,
+                        f"Distribution references missing feature {distribution.feature_id}",
+                    )
+                )
+                continue
+            if distribution.provenance.source_date is None:
+                errors.append(issue(path, "Feature distribution needs a source date"))
+            if distribution.level == "global" and distribution.fallback_for:
+                if not distribution.explicit_fallback:
+                    errors.append(
+                        issue(
+                            path,
+                            "A global distribution needs an explicit fallback flag before "
+                            "country use",
+                        )
+                    )
+            if feature.ancestry_linked and distribution.method == "fallback":
+                errors.append(
+                    issue(
+                        path,
+                        f"Ancestry-linked feature {feature.id} requires measured or "
+                        "compositional data",
+                    )
+                )
+            if feature.kind in {"categorical", "binary"}:
+                if not distribution.values:
+                    errors.append(issue(path, "Categorical feature distribution needs values"))
+                elif any(value < 0 or value > 1 for value in distribution.values.values()):
+                    errors.append(issue(path, "Distribution probabilities must be between 0 and 1"))
+                elif abs(sum(distribution.values.values()) - 1) > 1e-9:
+                    errors.append(issue(path, "Distribution probabilities must sum to 1"))
+                unknown = set(distribution.values) - set(feature.canonical_values)
+                if unknown:
+                    errors.append(
+                        issue(path, f"Distribution uses noncanonical values {sorted(unknown)}")
+                    )
+            if feature.kind == "continuous":
+                if distribution.mean is None or distribution.standard_deviation is None:
+                    errors.append(
+                        issue(
+                            path,
+                            "Continuous feature distribution needs mean and standard deviation",
+                        )
+                    )
+                elif feature.value_range and not (
+                    feature.value_range.minimum
+                    <= distribution.mean
+                    <= feature.value_range.maximum
+                ):
+                    errors.append(issue(path, "Continuous feature mean is outside its range"))
     for system_index, system in enumerate(config.systems):
         state = state_by_id.get(system.state)
         if state is None:
@@ -139,6 +231,13 @@ def validate_dsl(value) -> DSLValidationResult:
                     )
                 )
     for action_index, action in enumerate(config.actions):
+        if action.system and action.system not in system_ids:
+            errors.append(
+                issue(
+                    f"actions.{action_index}.system",
+                    f"Action {action.id} references missing system {action.system}",
+                )
+            )
         if action.requires_role and action.requires_role not in role_ids:
             errors.append(
                 issue(
@@ -161,6 +260,15 @@ def validate_dsl(value) -> DSLValidationResult:
                     f"Role-gated action {action.id} has a target role but no actor role",
                 )
             )
+        if action.requires_role:
+            role = next((item for item in config.roles if item.id == action.requires_role), None)
+            if role and action.id not in role.actions:
+                errors.append(
+                    issue(
+                        f"actions.{action_index}.requires_role",
+                        f"Action {action.id} is unreachable from role {action.requires_role}",
+                    )
+                )
     for role_index, role in enumerate(config.roles):
         for action_id in role.actions:
             if action_id not in action_by_id:
@@ -235,11 +343,58 @@ def validate_dsl(value) -> DSLValidationResult:
                         f"Chain {chain.id} references missing action {branch.action}",
                     )
                 )
-        if chain.max_length is None and chain.continue_probability >= 1:
+        if (
+            chain.max_length is None
+            and chain.continue_probability >= 1
+            and not any(branch.terminates for branch in chain.branches)
+        ):
             errors.append(
                 issue(
                     f"chains.{chain_index}",
                     f"Chain {chain.id} has no termination bound",
+                )
+            )
+    choice_ids = set()
+    choice_groups = defaultdict(list)
+    expected_tiers = {
+        "administrative": 1,
+        "mobility": 1,
+        "transaction": 1,
+        "time_use_diary": 2,
+        "representative_survey": 3,
+        "small_study": 4,
+        "poll": 4,
+        "news": 5,
+        "ethnography": 5,
+        "social_media": 5,
+        "unknown": 5,
+    }
+    for choice_index, choice in enumerate(config.choice_evidence):
+        path = f"choice_evidence.{choice_index}"
+        if choice.id in choice_ids:
+            errors.append(issue(path, f"Duplicate choice evidence id {choice.id}"))
+        choice_ids.add(choice.id)
+        if choice.action_id not in action_by_id:
+            errors.append(
+                issue(path, f"Choice evidence references missing action {choice.action_id}")
+            )
+        expected_tier = expected_tiers[choice.source_type]
+        if choice.tier != expected_tier:
+            errors.append(
+                issue(
+                    path,
+                    f"Source type {choice.source_type} belongs to evidence tier {expected_tier}",
+                )
+            )
+        if choice.tier_flag in {"measured", "imputed"} and choice.value is not None:
+            choice_groups[choice.conditioning_id].append(choice)
+    for conditioning_id, choices in choice_groups.items():
+        total = sum(choice.value or 0 for choice in choices)
+        if abs(total - 1) > 1e-9:
+            errors.append(
+                issue(
+                    "choice_evidence",
+                    f"Choice probabilities for {conditioning_id} must sum to 1, got {total:g}",
                 )
             )
     default_ids = {default.id for default in config.default_states}
@@ -297,6 +452,14 @@ def validate_dsl(value) -> DSLValidationResult:
             issue(
                 "population.place_coordinates",
                 f"Coordinates reference missing places {sorted(unknown_coordinates)}",
+            )
+        )
+    unknown_hierarchies = set(config.population.place_hierarchy) - population_places
+    if unknown_hierarchies:
+        errors.append(
+            issue(
+                "population.place_hierarchy",
+                f"Place hierarchy references missing places {sorted(unknown_hierarchies)}",
             )
         )
     for place, (latitude, longitude) in config.population.place_coordinates.items():
@@ -403,6 +566,14 @@ def validate_dsl(value) -> DSLValidationResult:
                 issue(
                     f"parameters.{parameter.id}",
                     f"Parameter {parameter.id} is {parameter.provenance.status}",
+                )
+            )
+    for choice in config.choice_evidence:
+        if choice.tier_flag in {"hint_only", "unknown"}:
+            warnings.append(
+                issue(
+                    f"choice_evidence.{choice.id}",
+                    f"Choice {choice.action_id} is {choice.tier_flag} and is not a coefficient",
                 )
             )
     return DSLValidationResult(

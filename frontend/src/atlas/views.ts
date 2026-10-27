@@ -52,6 +52,9 @@ export function dataShell(): string {
     </div>
     <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
     ${plannerSection()}
+    <section class="atlas-section atlas-evidence-section" id="atlas-universal-features"><p class="muted">Loading feature registry…</p></section>
+    <section class="atlas-section atlas-evidence-section" id="atlas-hierarchy"><p class="muted">Loading hierarchy…</p></section>
+    <section class="atlas-section atlas-evidence-section" id="atlas-choice-evidence"><p class="muted">Loading choice evidence…</p></section>
     <section class="atlas-section" id="atlas-gap-list">
       <div class="atlas-section-heading">
         <div>

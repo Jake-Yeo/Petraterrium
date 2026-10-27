@@ -97,7 +97,10 @@ def agent_points(
     if state:
         points = [point for point in points if point.state == state]
     if action:
-        points = points if action in {"routine", "state_update", "initial_state"} else []
+        matching = {
+            entry.agent_id for entry in record.action_logs if entry.action_id == action
+        }
+        points = [point for point in points if point.agent_id in matching]
     selected = points[offset : offset + limit]
     return AgentPointList(
         agents=selected,
@@ -125,6 +128,25 @@ def agent_detail(record: RunRecord, agent: AgentRecord) -> AgentDetail:
             state_after=agent.states,
         )
     ]
+    timeline.extend(
+        AgentTimelineEntry(
+            tick=entry.tick,
+            day=int(entry.tick * record.config.dsl.tick.tick_hours // 24)
+            if record.config.dsl
+            else entry.tick,
+            action=entry.action_id,
+            chain_id=entry.chain_id,
+            previous_action_id=entry.previous_action_id,
+            chain_step_index=entry.chain_step_index,
+            target_agent_id=entry.target_agent_id,
+            state_before=entry.state_before,
+            state_after=entry.state_after,
+        )
+        for entry in sorted(
+            (item for item in record.action_logs if item.agent_id == agent.agent_id),
+            key=lambda item: (item.tick, item.chain_step_index),
+        )
+    )
     if states != agent.states:
         timeline.append(
             AgentTimelineEntry(

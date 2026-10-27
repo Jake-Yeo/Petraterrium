@@ -15,7 +15,9 @@ from .contracts import (
     AtlasScope,
     AtlasScopes,
     Backbone,
+    ChoiceEvidenceCatalog,
     CityDetail,
+    HierarchyOverview,
     ImportCommit,
     ImportHistory,
     ImportMetadata,
@@ -25,10 +27,13 @@ from .contracts import (
     Promotion,
     SourceCatalog,
     SourceFetch,
+    UniversalFeatureOverview,
     ValidationReport,
 )
 from .database import FIELDS, AtlasStore
+from .evidence_views import choice_evidence_catalog, universal_feature_overview
 from .formats import MAX_BYTES
+from .hierarchy import hierarchy_overview
 from .imports import (
     commit_import,
     import_history,
@@ -105,6 +110,22 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
     @router.get("/sources", response_model=SourceCatalog)
     def get_sources():
         return SourceCatalog(sources=SOURCES, llm_available=bool(os.getenv("OPENAI_API_KEY")))
+
+    @router.get("/features", response_model=UniversalFeatureOverview)
+    def features():
+        return universal_feature_overview()
+
+    @router.get("/hierarchy", response_model=HierarchyOverview)
+    def hierarchy(scope: str = "shared", as_of: date | None = None):
+        return hierarchy_overview(
+            store,
+            scope,
+            as_of.isoformat() if as_of else None,
+        )
+
+    @router.get("/choice-evidence", response_model=ChoiceEvidenceCatalog)
+    def choices():
+        return choice_evidence_catalog()
 
     @router.get("/scopes", response_model=AtlasScopes)
     def scopes():

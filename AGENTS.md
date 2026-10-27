@@ -93,6 +93,9 @@ The existing flat backend package remains as a stable facade instead of moving e
 | Generic numeric tick loop | `backend/petraterrium/runtime.py`, exposed by `engine.py` |
 | Old request-shape adapter | `backend/petraterrium/compatibility.py` |
 | Atlas, imports, source loaders | `backend/petraterrium/atlas/` |
+| Universal feature schemas and place distributions | `backend/petraterrium/atlas/features.py`, `backend/petraterrium/dsl/models.py` |
+| Canonical regions, hierarchy, weighted aggregation | `backend/petraterrium/atlas/regions.py`, `backend/petraterrium/atlas/hierarchy.py` |
+| Conditional choice evidence and evidence tiers | `backend/petraterrium/atlas/choice_evidence.py` |
 | Harmonization and compositional estimates | `backend/petraterrium/framework_data.py` |
 | Population, defaults, IPF, bundles | `backend/petraterrium/population.py` |
 | Actions, conflicts, chains, roles | `backend/petraterrium/actions.py` |
@@ -101,6 +104,7 @@ The existing flat backend package remains as a stable facade instead of moving e
 | Leaders and evidence table | `backend/petraterrium/leaders.py` |
 | Ensemble anchor replay | `backend/petraterrium/ensembles.py` |
 | Events, exact stories, causal receipts | `backend/petraterrium/events.py` |
+| Static and recorded action decision graphs | `backend/petraterrium/decision_graph.py`, `frontend/src/decision-graph/` |
 | Backtests and counterfactual differences | `backend/petraterrium/backtesting.py` |
 | Central LLM provider boundary | `backend/petraterrium/llm_gateway.py` |
 | Globe and WebGL picking | `frontend/src/globe.ts` |
@@ -120,6 +124,12 @@ The existing flat backend package remains as a stable facade instead of moving e
 - Synthetic agent point views are backend projections from a recorded snapshot. The browser may aggregate or format recorded values but may not advance state.
 - User imports begin in a run scope. Shared-atlas promotion remains a separate confirmed write.
 - A single sample is labelled as one sample. Only actual multi-seed results may be framed as an ensemble distribution.
+- Feature schemas are global; feature distributions are place-specific. Resolution uses city, country, subregion, region, then an explicitly approved global fallback. Unknown remains unknown.
+- Resolved feature distributions are sampled during population generation before tick zero; unknown features remain absent from agent traits.
+- MBTI remains label-only unless population-specific joint trait-and-outcome evidence is attached. An MBTI label cannot silently become a predictor.
+- Canonical regions split China and India from the rest of Asia, place Mexico in Latin America and the Caribbean, and place Russia in Europe. Dataset region labels require a versioned mapping.
+- Choice evidence keeps source tier, denominator, time unit, confidence interval, and date. Tier-five hints never become measured coefficients.
+- Decision graphs are derived deterministically from validated DSL actions and recorded action logs. The browser may lay out and filter a graph but never infer transitions or frequencies.
 
 ## Run and verify
 

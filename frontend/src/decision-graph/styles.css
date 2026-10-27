@@ -1,0 +1,308 @@
+.decision-view {
+  padding: 34px 40px 70px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+.decision-header,
+.decision-controls,
+.decision-receipt,
+.decision-workspace,
+.decision-diagnostics > div,
+.decision-matrix > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.decision-header h1 {
+  margin: 5px 0 8px;
+  font-size: 38px;
+  letter-spacing: -1.5px;
+}
+.decision-header p:last-child,
+.decision-inspector > p {
+  color: #7d919b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.decision-mode {
+  display: flex;
+  padding: 4px;
+  border: 1px solid #ffffff12;
+  border-radius: 5px;
+  background: #080f16;
+}
+.decision-mode button {
+  border: 0;
+  border-radius: 3px;
+  padding: 9px 13px;
+  background: transparent;
+  color: #728690;
+  font-size: 10px;
+}
+.decision-mode button[aria-pressed='true'] {
+  background: #b5e7b112;
+  color: #c5d8c5;
+}
+.decision-controls {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin: 24px 0 12px;
+  padding: 14px;
+  border: 1px solid #ffffff0e;
+  background: #0c151e;
+}
+.decision-controls label {
+  display: grid;
+  gap: 5px;
+  color: #728690;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.decision-controls select,
+.decision-controls input[type='search'] {
+  min-width: 125px;
+  border: 1px solid #ffffff15;
+  border-radius: 3px;
+  padding: 8px;
+  background: #071019;
+  color: #bbc8ce;
+  font-size: 10px;
+}
+.decision-controls .decision-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+.decision-receipt {
+  justify-content: flex-start;
+  margin-bottom: 12px;
+  color: #7b8f98;
+  font-size: 9px;
+}
+.decision-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  align-items: start;
+  border: 1px solid #ffffff10;
+  background: #08111a;
+}
+.decision-canvas {
+  min-height: 530px;
+  overflow: auto;
+  background-image: radial-gradient(#ffffff0c 0.7px, transparent 0.7px);
+  background-size: 19px 19px;
+}
+.decision-canvas svg {
+  display: block;
+  min-width: 780px;
+  width: 100%;
+  min-height: 530px;
+}
+#decision-arrow path {
+  fill: #6c808a;
+}
+.decision-edge {
+  fill: none;
+  stroke: #63778080;
+  transition: stroke 0.15s;
+}
+.decision-edge.path-active {
+  stroke: #e5b374;
+}
+.decision-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: pointer;
+}
+.decision-node {
+  cursor: pointer;
+  transition: opacity 0.16s;
+}
+.decision-node circle {
+  fill: color-mix(in srgb, var(--node-color) 18%, #0b151e);
+  stroke: var(--node-color);
+  stroke-width: 1.4;
+}
+.decision-node.path-active circle {
+  stroke: #efb86f;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 7px #e6a65b66);
+}
+.decision-node.search-dim {
+  opacity: 0.18;
+}
+.decision-node text {
+  pointer-events: none;
+  fill: #d4dde0;
+  font-family: 'Space Grotesk', ui-monospace, monospace;
+  font-size: 10px;
+}
+.decision-node .node-count {
+  fill: #82959e;
+  font-size: 8px;
+}
+.decision-inspector {
+  position: sticky;
+  top: 0;
+  min-height: 530px;
+  padding: 24px;
+  border-left: 1px solid #ffffff0f;
+  background: #0b141d;
+}
+.decision-inspector h2 {
+  margin: 7px 0 14px;
+  overflow-wrap: anywhere;
+}
+.decision-inspector dl {
+  margin-top: 20px;
+}
+.decision-inspector dl > div {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid #ffffff0c;
+  font-size: 9px;
+}
+.decision-inspector dt {
+  color: #6f838e;
+}
+.decision-inspector dd {
+  margin: 0;
+  color: #bac7cc;
+  overflow-wrap: anywhere;
+}
+.edge-formula {
+  padding: 12px;
+  border-left: 2px solid #b5e7b1;
+  background: #b5e7b107;
+  color: #b9cbb9 !important;
+  font-family: 'Space Grotesk', ui-monospace, monospace;
+}
+.decision-path,
+.decision-path-empty {
+  padding: 14px 18px;
+  border-top: 1px solid #ffffff0e;
+  color: #788d97;
+  font-size: 9px;
+}
+.decision-path > label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.decision-path input {
+  flex: 1;
+}
+.decision-path > .mono {
+  display: block;
+  margin: 8px 0;
+}
+.decision-path ol {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.decision-path li {
+  min-width: 125px;
+  padding: 8px;
+  border: 1px solid #ffffff0e;
+  background: #0c1720;
+}
+.decision-path li span,
+.decision-path li strong,
+.decision-path li small {
+  display: block;
+}
+.decision-path li span,
+.decision-path li small {
+  color: #70858f;
+  margin-top: 3px;
+}
+.decision-diagnostics,
+.decision-matrix {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #ffffff0f;
+  background: #0b141d;
+}
+.decision-diagnostics ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.decision-diagnostics li {
+  padding: 12px;
+  border-left: 2px solid #d69b65;
+  background: #d69b6508;
+}
+.decision-diagnostics li span,
+.decision-diagnostics li strong,
+.decision-diagnostics li p {
+  display: block;
+  margin: 0 0 5px;
+}
+.decision-diagnostics li span,
+.decision-diagnostics li p,
+.decision-matrix summary > span {
+  color: #788b95;
+  font-size: 9px;
+}
+.decision-matrix > summary {
+  list-style: none;
+}
+.decision-matrix > summary strong {
+  display: block;
+  margin-top: 5px;
+}
+.decision-loading {
+  display: grid;
+  min-height: 65vh;
+  place-items: center;
+  color: #83969f;
+}
+.decision-error {
+  color: #e49b8e;
+}
+@media (max-width: 1050px) {
+  .decision-workspace {
+    grid-template-columns: 1fr;
+  }
+  .decision-inspector {
+    position: static;
+    min-height: 0;
+    border-top: 1px solid #ffffff0f;
+    border-left: 0;
+  }
+}
+@media (max-width: 650px) {
+  .decision-view {
+    padding: 25px 15px 60px;
+  }
+  .decision-header {
+    align-items: start;
+    flex-direction: column;
+  }
+  .decision-mode,
+  .decision-mode button {
+    width: 100%;
+  }
+  .decision-controls label,
+  .decision-controls select,
+  .decision-controls input[type='search'] {
+    width: 100%;
+  }
+  .decision-controls .decision-check {
+    margin-left: 0;
+  }
+}

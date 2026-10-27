@@ -21,6 +21,43 @@ test('validate a DSL, run it, drill from place to agents, and open an exact stor
   await page.locator('[data-story-agent]').first().click();
   await expect(page.getByRole('dialog', { name: /Synthetic agent/ })).toBeVisible();
   await expect(page.locator('#agent-content')).toContainText('Current states');
-  await page.getByRole('button', { name: 'Return to globe' }).click();
+  await page
+    .getByRole('dialog', { name: /Synthetic agent/ })
+    .getByRole('button', { name: 'Open decision path' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Decision graph' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Recorded run' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('.decision-node')).toHaveCount(5);
+  await expect(page.locator('.decision-path')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('static graph and evidence layers open without a completed run', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Decision graph' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Static DSL' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('.decision-node')).toHaveCount(5);
+  await expect(page.locator('#decision-canvas')).toContainText('scroll');
+  await page.getByRole('tab', { name: 'DSL', exact: true }).click();
+  await expect(page.locator('#dsl-features')).toContainText('openness');
+  await expect(page.locator('#dsl-features')).toContainText('mbti');
+  await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await expect(page.locator('#atlas-universal-features')).toContainText(
+    'Portable schemas, place-specific distributions',
+  );
+  await expect(page.locator('#atlas-universal-features')).toContainText('REGION OVERRIDE');
+  await expect(page.locator('#atlas-hierarchy')).toContainText('Northern America');
+  await expect(page.locator('#atlas-choice-evidence')).toContainText('hint only');
+  await expect(page.locator('#atlas-choice-evidence')).toContainText('No coefficient');
   expect(errors).toEqual([]);
 });

@@ -72,6 +72,85 @@ def test_custom_dsl_run_records_generic_states_stories_agents_and_ensemble(clien
     assert place["metrics"] == run["snapshots"][-1]["places"][0]["metrics"]
 
 
+def test_static_and_recorded_decision_graph_routes_use_dsl_and_action_log(client):
+    payload = smoke_payload(17)
+    static = client.post("/dsl/decision-graph", json=payload["dsl"])
+    assert static.status_code == 200
+    assert {node["action_id"] for node in static.json()["nodes"]} == {
+        action["id"] for action in payload["dsl"]["actions"]
+    }
+    run_id = client.post("/runs", json=payload).json()["run_id"]
+    graph = client.get(f"/runs/{run_id}/decision-graph").json()
+    assert graph["view"] == "run"
+    assert graph["filter_options"]["agents"]
+    observed = sum(edge["observed_count"] for edge in graph["edges"])
+    assert observed > 0
+    agent_id = graph["filter_options"]["agents"][0]
+    spotlight = client.get(
+        f"/runs/{run_id}/decision-graph", params={"agent_id": agent_id}
+    ).json()
+    assert spotlight["path"]
+    assert all(step["agent_id"] == agent_id for step in spotlight["path"])
+
+
+def test_run_population_prefers_country_feature_data_and_flags_region_fallback(client):
+    payload = smoke_payload(29)
+    payload["dsl"]["feature_registry"]["distributions"] = [
+        {
+            "feature_id": "generalized_trust",
+            "level": "region",
+            "place": "Northern America",
+            "population": "Northern America covered population",
+            "coverage_percent": 70,
+            "mean": 0.2,
+            "standard_deviation": 0.01,
+            "provenance": {
+                "source": "FAKE regional fixture",
+                "version": "test-v1",
+                "status": "imputed",
+                "uncertainty": 0.5,
+                "source_date": "2026-01-01",
+            },
+        },
+        {
+            "feature_id": "generalized_trust",
+            "level": "country",
+            "place": "CAN",
+            "population": "Canadian adults",
+            "coverage_percent": 90,
+            "mean": 0.8,
+            "standard_deviation": 0.01,
+            "provenance": {
+                "source": "FAKE country fixture",
+                "version": "test-v1",
+                "status": "present",
+                "uncertainty": 0.1,
+                "source_date": "2026-01-01",
+            },
+        },
+    ]
+    created = client.post("/runs", json=payload).json()
+    record = client.app.state.store.get(created["run_id"])
+    northport = [
+        agent.traits["generalized_trust"]
+        for agent in record.population.agents
+        if agent.place == "Northport"
+    ]
+    southport = [
+        agent.traits["generalized_trust"]
+        for agent in record.population.agents
+        if agent.place == "Southport"
+    ]
+    assert sum(northport) / len(northport) > 0.75
+    assert sum(southport) / len(southport) < 0.25
+    detail = client.get(f"/runs/{created['run_id']}").json()
+    assert any(
+        item["field"] == "feature.generalized_trust.region.Northern America"
+        and item["status"] == "imputed"
+        for item in detail["missing_fallbacks"]
+    )
+
+
 def test_custom_dsl_cache_and_version_invalidation(client):
     payload = smoke_payload(9)
     created = client.post("/runs", json=payload).json()

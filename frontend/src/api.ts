@@ -6,6 +6,7 @@ import type {
   AgentPointList,
   Catalog,
   DailySnapshot,
+  DecisionGraph,
   DSLConfig,
   DSLRender,
   DSLValidationResult,
@@ -46,6 +47,7 @@ const validators = {
   agent: validator<AgentDetail>('AgentDetail'),
   stories: validator<StoryList>('StoryList'),
   story: validator<StoryDetail>('StoryDetail'),
+  graph: validator<DecisionGraph>('DecisionGraph'),
 };
 
 function parse<T>(data: unknown, validate: ValidateFunction<T>): T {
@@ -100,6 +102,17 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dsl),
     }),
+  staticDecisionGraph: (dsl: DSLConfig, query = new URLSearchParams()) =>
+    request(`/dsl/decision-graph?${query}`, validators.graph, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dsl),
+    }),
+  runDecisionGraph: (runId: string, query = new URLSearchParams()) =>
+    request(
+      `/runs/${encodeURIComponent(runId)}/decision-graph?${query}`,
+      validators.graph,
+    ),
   agents: (runId: string, place: string, day: number, limit = 5000) =>
     request(
       `/runs/${encodeURIComponent(runId)}/agents?place=${encodeURIComponent(place)}&day=${day}&limit=${limit}`,

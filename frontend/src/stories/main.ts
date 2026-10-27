@@ -10,6 +10,7 @@ export class StoriesView {
     private host: HTMLElement,
     private onPlace: (place: string, day: number) => void,
     private onAgent: (agentId: string) => void,
+    private onGraph: (agentId: string) => void,
   ) {
     this.host.addEventListener('click', this.onClick);
   }
@@ -46,8 +47,10 @@ export class StoriesView {
     const target = event.target as HTMLElement;
     const story = target.closest<HTMLElement>('[data-story-id]');
     const agent = target.closest<HTMLElement>('[data-story-agent]');
+    const graph = target.closest<HTMLElement>('[data-story-graph]');
     if (story?.dataset.storyId) void this.openStory(story.dataset.storyId);
     if (agent?.dataset.storyAgent) this.onAgent(agent.dataset.storyAgent);
+    if (graph?.dataset.storyGraph) this.onGraph(graph.dataset.storyGraph);
     const place = target.closest<HTMLElement>('[data-story-place]');
     if (place?.dataset.storyPlace)
       this.onPlace(place.dataset.storyPlace, Number(place.dataset.storyDay));
@@ -66,6 +69,7 @@ export class StoriesView {
       <h2>${escapeHtml(detail.story.headline)}</h2><p>${escapeHtml(detail.story.body)}</p>
       <dl>${Object.entries(detail.story.metrics).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${Number(value).toLocaleString()}</dd></div>`).join('')}</dl>
       <button class="button secondary" data-story-place="${escapeHtml(detail.story.place)}" data-story-day="${detail.story.day}">Zoom to recorded place</button>
+      ${detail.agents[0] ? `<button class="button secondary" data-story-graph="${escapeHtml(detail.agents[0].agent_id)}">Open decision path</button>` : ''}
       <h3>Synthetic agents in this place</h3><div class="story-agents">${detail.agents.map((agent) => `<button data-story-agent="${escapeHtml(agent.agent_id)}"><i style="background:${escapeHtml(agent.color)}"></i>${escapeHtml(agent.agent_id.slice(0, 8))}<span>${escapeHtml(agent.state)} · ${escapeHtml(agent.log_tier)}</span></button>`).join('')}</div>
       <p class="story-receipt">Event ${escapeHtml(detail.story.event_id)} · Arc ${escapeHtml(detail.story.arc_id)} · ${detail.story.template ? 'template exact' : 'validated narrative'}</p>`;
   }

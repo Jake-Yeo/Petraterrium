@@ -12,6 +12,7 @@ import type {
   RunSummary,
 } from './contracts.generated';
 import { DSLBuilder } from './dsl-builder/main';
+import { DecisionGraphView } from './decision-graph/main';
 import { Globe } from './globe';
 import { StoriesView } from './stories/main';
 import { countryOptions, defaults, escapeHtml, savedRunList, shell } from './views';
@@ -30,7 +31,8 @@ class Lab {
   private dataTab: DataTab;
   private dslBuilder: DSLBuilder;
   private stories: StoriesView;
-  private tab: 'simulation' | 'stories' | 'dsl' | 'data' = 'simulation';
+  private decisionGraph: DecisionGraphView;
+  private tab: 'simulation' | 'stories' | 'dsl' | 'data' | 'graph' = 'simulation';
   private catalog?: Catalog;
   private runs: RunSummary[] = [];
   private active?: RunDetail;
@@ -53,7 +55,9 @@ class Lab {
       element('stories-view'),
       (place, day) => void this.openPlace(place, day),
       (agentId) => void this.showAgent(agentId),
+      (agentId) => this.openDecisionGraph(agentId),
     );
+    this.decisionGraph = new DecisionGraphView(element('decision-view'));
     this.chart = new InfectionChart(element<HTMLCanvasElement>('infection-chart'), (index) =>
       this.selectDay(index),
     );
@@ -266,7 +270,15 @@ class Lab {
       <section><h3>Current states</h3><dl>${Object.entries(agent.states).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>
       <section><h3>Traits</h3><dl>${Object.entries(agent.traits).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}</dl></section>
       <section><h3>Timeline and logged causes</h3><ol>${agent.timeline.map((entry) => `<li><span>Day ${entry.day} · tick ${entry.tick}</span><strong>${escapeHtml(entry.action)}</strong><small>${Object.entries(entry.causes).map(([cause, magnitude]) => `${escapeHtml(cause)} ${magnitude >= 0 ? '+' : ''}${magnitude}`).join(' · ') || 'No causal magnitude was logged for this entry.'}</small></li>`).join('')}</ol></section>
-      <section><h3>Relationships</h3><ul>${agent.relationships.map((relationship) => `<li>${escapeHtml(relationship.kind)} · ${escapeHtml(relationship.target_id.slice(0, 10))} · weight ${relationship.weight}</li>`).join('') || '<li>No sampled relationship in this representative row.</li>'}</ul></section>`;
+      <section><h3>Relationships</h3><ul>${agent.relationships.map((relationship) => `<li>${escapeHtml(relationship.kind)} · ${escapeHtml(relationship.target_id.slice(0, 10))} · weight ${relationship.weight}</li>`).join('') || '<li>No sampled relationship in this representative row.</li>'}</ul></section>
+      <button class="button secondary" data-action="open-agent-graph" data-agent-id="${escapeHtml(agent.agent_id)}">Open decision path</button>`;
+  }
+
+  private openDecisionGraph(agentId: string): void {
+    if (element<HTMLDialogElement>('agent-dialog').open)
+      element<HTMLDialogElement>('agent-dialog').close();
+    this.decisionGraph.selectAgent(agentId);
+    this.changeTab('graph');
   }
 
   private async openRun(id: string): Promise<void> {
@@ -308,6 +320,7 @@ class Lab {
     this.refreshListView();
     this.attachStream();
     void this.stories.setRun(run).catch((error) => this.showError(error));
+    void this.decisionGraph.setRun(run).catch((error) => this.showError(error));
     this.setPlaying(autoplay);
   }
 
@@ -553,6 +566,7 @@ class Lab {
     this.globe?.clearAgents();
     element('agent-lod-notice').hidden = true;
     void this.stories.setRun(undefined);
+    void this.decisionGraph.setRun(undefined);
     this.index = 0;
     element('empty-state').hidden = false;
     element('stream-notice').hidden = true;
@@ -625,7 +639,10 @@ class Lab {
     if (action === 'data-tab') this.changeTab('data');
     else if (action === 'dsl-tab') this.changeTab('dsl');
     else if (action === 'stories-tab') this.changeTab('stories');
+    else if (action === 'graph-tab') this.changeTab('graph');
     else if (action === 'simulation-tab') this.changeTab('simulation');
+    else if (action === 'open-agent-graph' && target.dataset.agentId)
+      this.openDecisionGraph(target.dataset.agentId);
     else if (action === 'new') this.showNew();
     else if (action === 'cancel-new') element<HTMLDialogElement>('new-run-dialog').close();
     else if (action === 'cancel-delete') element<HTMLDialogElement>('delete-dialog').close();
@@ -652,6 +669,7 @@ class Lab {
     this.dataTab.deactivate();
     this.dslBuilder.deactivate();
     this.stories.deactivate();
+    this.decisionGraph.deactivate();
     clearInterval(this.timer);
     this.stream?.dispose();
     this.globe?.dispose();
@@ -659,18 +677,25 @@ class Lab {
     document.removeEventListener('click', this.onClick);
   }
 
-  private changeTab(tab: 'simulation' | 'stories' | 'dsl' | 'data'): void {
+  private changeTab(tab: 'simulation' | 'stories' | 'dsl' | 'data' | 'graph'): void {
     this.tab = tab;
     const labels = {
       simulation: 'Population lab',
       stories: 'Recorded stories',
       dsl: 'DSL Builder',
       data: 'Data atlas',
+      graph: 'Decision graph',
     };
     text('workspace-breadcrumb', labels[tab]);
     text(
       'workspace-data-notice',
-      tab === 'data' ? 'REAL CITY BACKBONE' : tab === 'dsl' ? 'EVIDENCE-GATED DSL' : 'FAKE SMOKE INPUTS',
+      tab === 'data'
+        ? 'REAL CITY BACKBONE'
+        : tab === 'dsl'
+          ? 'EVIDENCE-GATED DSL'
+          : tab === 'graph'
+            ? 'DETERMINISTIC ACTION LOG'
+            : 'FAKE SMOKE INPUTS',
     );
     text(
       'workspace-storage-notice',
@@ -678,6 +703,8 @@ class Lab {
         ? 'Atlas versions are saved on the API server. Run records reset on API restart.'
         : tab === 'dsl'
           ? 'Every coefficient and distribution keeps provenance and uncertainty.'
+          : tab === 'graph'
+            ? 'Static edges come from the DSL. Run frequencies come from recorded action logs.'
           : 'Runs live in server memory. Restarting the API clears them.',
     );
     document
@@ -689,19 +716,24 @@ class Lab {
     element('stories-view').hidden = tab !== 'stories';
     element('dsl-view').hidden = tab !== 'dsl';
     element('data-view').hidden = tab !== 'data';
+    element('decision-view').hidden = tab !== 'graph';
     if (tab !== 'simulation') {
       this.suspendView();
       this.dataTab.deactivate();
       this.dslBuilder.deactivate();
       this.stories.deactivate();
+      this.decisionGraph.deactivate();
       if (tab === 'data') void this.dataTab.activate(this.active?.run_id);
       if (tab === 'dsl') void this.dslBuilder.activate();
       if (tab === 'stories')
         void this.stories.activate(this.active).catch((error) => this.showError(error));
+      if (tab === 'graph')
+        void this.decisionGraph.activate(this.active).catch((error) => this.showError(error));
     } else {
       this.dataTab.deactivate();
       this.dslBuilder.deactivate();
       this.stories.deactivate();
+      this.decisionGraph.deactivate();
       this.resumeView();
     }
   }

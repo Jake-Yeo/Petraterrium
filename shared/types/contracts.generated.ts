@@ -1,5 +1,6 @@
 export type ActionDefinition = {
   id: string;
+  system?: string | null;
   probability: ProbabilitySpec;
   duration_minutes: number;
   priority: number;
@@ -17,6 +18,26 @@ export type ActionDefinition = {
   effects?: {
   [key: string]: number;
 };
+};
+
+export type ActionLogEntry = {
+  chain_id: string | null;
+  agent_id: string;
+  tick: number;
+  action_id: string;
+  target_agent_id: string | null;
+  place: string;
+  cause: string;
+  state_before: {
+  [key: string]: string;
+};
+  state_after: {
+  [key: string]: string;
+};
+  previous_action_id: string | null;
+  chain_step_index: number;
+  segment: string;
+  role: string;
 };
 
 export type AgentDetail = {
@@ -69,8 +90,14 @@ export type AgentTimelineEntry = {
   day: number;
   action: string;
   chain_id: string | null;
+  previous_action_id: string | null;
+  chain_step_index: number | null;
+  target_agent_id: string | null;
   causes: {
   [key: string]: number;
+};
+  state_before: {
+  [key: string]: string;
 };
   state_after: {
   [key: string]: string;
@@ -244,6 +271,12 @@ export type ChainBranch = {
   action: string;
   probability: number;
   delay_ticks?: number;
+  formula?: string | null;
+  conditions?: {
+  [key: string]: string;
+};
+  cross_agent?: boolean;
+  terminates?: boolean;
 };
 
 export type ChainDefinition = {
@@ -252,6 +285,48 @@ export type ChainDefinition = {
   branches: Array<ChainBranch>;
   max_length?: number | null;
   continue_probability?: number;
+};
+
+export type ChoiceCondition = {
+  traits?: {
+  [key: string]: string;
+};
+  state?: {
+  [key: string]: string;
+};
+  context?: {
+  [key: string]: string;
+};
+  place?: string | null;
+  segment?: string | null;
+  role?: string | null;
+};
+
+export type ChoiceEvidence = {
+  id: string;
+  action_id: string;
+  conditioning_id: string;
+  conditioning?: ChoiceCondition;
+  definition: string;
+  value?: number | null;
+  ci_low: number;
+  ci_high: number;
+  source_type: "administrative" | "mobility" | "transaction" | "time_use_diary" | "representative_survey" | "small_study" | "poll" | "news" | "ethnography" | "social_media" | "unknown";
+  tier: number;
+  sample_size?: number | null;
+  source_date?: string | null;
+  population: string;
+  denominator: string;
+  time_unit: "event" | "hour" | "day" | "friday" | "week" | "year";
+  source_time_unit: "event" | "hour" | "day" | "friday" | "week" | "year";
+  explicit_time_adjustment?: boolean;
+  tier_flag: "measured" | "imputed" | "hint_only" | "unknown";
+  provenance: Evidence;
+  missing_requirement?: string;
+};
+
+export type ChoiceEvidenceCatalog = {
+  rows: Array<ChoiceEvidence>;
 };
 
 export type CityDetail = {
@@ -300,6 +375,8 @@ export type DSLConfig = {
   version: string;
   states: Array<StateDefinition>;
   attributes?: Array<AttributeDefinition>;
+  feature_registry?: FeatureRegistry | null;
+  choice_evidence?: Array<ChoiceEvidence>;
   place_states?: Array<string>;
   parameters?: Array<ParameterDefinition>;
   systems: Array<SystemDefinition>;
@@ -355,6 +432,100 @@ export type DataGap = {
   suggested_source: string;
 };
 
+export type DecisionGraph = {
+  view: "static" | "run";
+  run_id: string | null;
+  unfiltered: boolean;
+  filters: DecisionGraphFilter;
+  nodes: Array<DecisionGraphNode>;
+  edges: Array<DecisionGraphEdge>;
+  diagnostics: Array<DecisionGraphDiagnostic>;
+  path: Array<DecisionPathStep>;
+  transition_matrix: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  filter_options: DecisionGraphFilterOptions;
+};
+
+export type DecisionGraphDiagnostic = {
+  kind: "orphan" | "dead_end" | "nonterminating_loop" | "unreachable_role" | "choice_sum" | "chain_length";
+  subject: string;
+  message: string;
+};
+
+export type DecisionGraphEdge = {
+  edge_id: string;
+  source: string;
+  target: string;
+  chain_id: string;
+  intended_probability: number;
+  formula: string;
+  delay_ticks: number;
+  delay_label: string;
+  conditions: {
+  [key: string]: string;
+};
+  cross_agent: boolean;
+  terminates: boolean;
+  observed_count: number;
+  observed_frequency: number;
+  sample_agents: Array<string>;
+};
+
+export type DecisionGraphFilter = {
+  state: string;
+  segment: string;
+  place: string;
+  role: string;
+  tick_start: number | null;
+  tick_end: number | null;
+};
+
+export type DecisionGraphFilterOptions = {
+  states: Array<string>;
+  segments: Array<string>;
+  places: Array<string>;
+  roles: Array<string>;
+  agents: Array<string>;
+  maximum_tick: number;
+};
+
+export type DecisionGraphNode = {
+  action_id: string;
+  system: string;
+  base_probability: number;
+  time_unit: string;
+  parameter: string | null;
+  source_state: string | null;
+  opportunity: string | null;
+  requires_role: string | null;
+  target_requires_role: string | null;
+  priority: number;
+  interruptible: boolean;
+  protected: boolean;
+  reschedulable: boolean;
+  loser_outcome: string;
+  duration_minutes: number;
+  compatible_with: Array<string>;
+  priority_modifiers: {
+  [key: string]: number;
+};
+  observed_count: number;
+};
+
+export type DecisionPathStep = {
+  agent_id: string;
+  action_id: string;
+  previous_action_id: string | null;
+  chain_id: string | null;
+  chain_step_index: number;
+  tick: number;
+  place: string;
+  target_agent_id: string | null;
+};
+
 export type DefaultDefinition = {
   id: string;
   distribution: Distribution;
@@ -397,9 +568,65 @@ export type EventDefinition = {
 export type Evidence = {
   source: string;
   version: string;
-  status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
+  status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
   uncertainty: number;
   source_date?: string | null;
+};
+
+export type FeatureDefinition = {
+  id: string;
+  kind: "categorical" | "continuous" | "binary";
+  canonical_values?: Array<string>;
+  value_range?: FeatureRange | null;
+  provenance: Evidence;
+  predictive?: boolean;
+  ancestry_linked?: boolean;
+};
+
+export type FeatureDistribution = {
+  feature_id: string;
+  level: "global" | "region" | "subregion" | "country" | "city";
+  place: string;
+  population: string;
+  coverage_percent: number;
+  values?: {
+  [key: string]: number;
+};
+  mean?: number | null;
+  standard_deviation?: number | null;
+  provenance: Evidence;
+  method?: "measured" | "compositional" | "fallback";
+  fallback_for?: Array<string>;
+  explicit_fallback?: boolean;
+};
+
+export type FeatureRange = {
+  minimum: number;
+  maximum: number;
+  unit: string;
+};
+
+export type FeatureRegistry = {
+  version: string;
+  definitions: Array<FeatureDefinition>;
+  distributions?: Array<FeatureDistribution>;
+  joint_data?: Array<JointDataProof>;
+};
+
+export type FeatureResolutionRecord = {
+  feature_id: string;
+  city: string;
+  country: string;
+  region: string;
+  status: string;
+  resolved_level: string;
+  source: string | null;
+  version: string | null;
+  source_date: string | null;
+  population: string | null;
+  coverage_percent: number | null;
+  region_override: boolean;
+  missing_requirement: string;
 };
 
 export type FieldCoverage = {
@@ -419,6 +646,33 @@ export type GraphTraversal = {
   primitive?: "neighbors";
   network: string;
   depth: number;
+};
+
+export type HierarchyOverview = {
+  rows: Array<HierarchyRow>;
+  scope: string;
+  as_of: string;
+  resolution_order: Array<string>;
+  mapping_version: string;
+};
+
+export type HierarchyRow = {
+  row_id: string;
+  level: "global" | "region" | "subregion" | "country" | "city";
+  parent_id: string | null;
+  label: string;
+  country_code: string | null;
+  population: number;
+  city_count: number;
+  statuses: {
+  [key: string]: "present" | "inherited" | "imputed" | "missing";
+};
+  coverage_by_field: {
+  [key: string]: number;
+};
+  region_override: boolean;
+  weight_source: string;
+  children_paged: boolean;
 };
 
 export type ImpliedAggregate = {
@@ -481,6 +735,13 @@ export type ImportVersion = {
   promoted_from: string | null;
   redistribution_allowed: boolean;
   models: Array<BehaviourModel>;
+};
+
+export type JointDataProof = {
+  feature_id: string;
+  outcomes: Array<string>;
+  population: string;
+  provenance: Evidence;
 };
 
 export type LeaderActionDefinition = {
@@ -549,7 +810,7 @@ export type Metrics = {
 
 export type MissingFallback = {
   field: string;
-  status: "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
+  status: "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
   fallback: string;
   impact: string;
 };
@@ -597,6 +858,13 @@ export type PlaceDetail = {
   arc: Array<string>;
 };
 
+export type PlaceHierarchy = {
+  city?: string | null;
+  country: string;
+  subregion?: string | null;
+  region: string;
+};
+
 export type PlaceSnapshot = {
   country: string;
   latitude: number | null;
@@ -625,6 +893,9 @@ export type PopulationReference = {
 };
   place_coordinates?: {
   [key: string]: [number, number];
+};
+  place_hierarchy?: {
+  [key: string]: PlaceHierarchy;
 };
   initial_state_overrides?: {
   [key: string]: {
@@ -785,7 +1056,7 @@ export type SliderSpec = {
   parameter: string;
   value: number;
   unit: string;
-  evidence_status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
+  evidence_status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
 };
 
 export type SourceCatalog = {
@@ -859,6 +1130,11 @@ export type TransitionDefinition = {
   from_state: string;
   to_state: string;
   probability: ProbabilitySpec;
+};
+
+export type UniversalFeatureOverview = {
+  registry: FeatureRegistry;
+  resolutions: Array<FeatureResolutionRecord>;
 };
 
 export type ValidationReport = {

@@ -11,6 +11,7 @@ import type {
 import { escapeHtml as e } from '../views';
 import { atlasApi } from './api';
 import { importForm, mappingView, validationView } from './import_views';
+import { choiceEvidenceView, hierarchyView, universalFeatureView } from './evidence_views';
 import {
   distributionTemplate,
   featureDraftCards,
@@ -158,12 +159,18 @@ export class DataTab {
     this.get('atlas-error').hidden = true;
     try {
       const query = this.query();
-      const [view, history] = await Promise.all([
+      const [view, history, features, hierarchy, choices] = await Promise.all([
         atlasApi.overview(query),
         atlasApi.history(query.get('scope')!),
+        atlasApi.features(),
+        atlasApi.hierarchy(query.get('scope')!, query.get('as_of')!),
+        atlasApi.choices(),
       ]);
       if (!this.visible || generation !== this.generation) return;
       this.get('atlas-summary').innerHTML = summaryCards(view);
+      this.get('atlas-universal-features').innerHTML = universalFeatureView(features);
+      this.get('atlas-hierarchy').innerHTML = hierarchyView(hierarchy);
+      this.get('atlas-choice-evidence').innerHTML = choiceEvidenceView(choices);
       this.get('atlas-feature-grid').innerHTML = featureGrid(view);
       this.get('atlas-priorities').innerHTML = priorityList(view);
       this.renderFeatureDrafts();
@@ -492,6 +499,11 @@ export class DataTab {
         const detail = await atlasApi.city(Number(target.dataset.id), this.query());
         this.get('atlas-city-detail').innerHTML = detailView(detail);
         this.get<HTMLDialogElement>('atlas-city-dialog').showModal();
+      } else if (action === 'hierarchy-country') {
+        this.get<HTMLSelectElement>('atlas-country').value = target.dataset.country ?? '';
+        this.page = 1;
+        await this.refresh();
+        this.get('atlas-city-browser').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else if (action === 'load') {
         target.textContent = 'Loading the complete dump…';
         (target as HTMLButtonElement).disabled = true;

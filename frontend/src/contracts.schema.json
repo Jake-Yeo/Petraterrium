@@ -7,6 +7,18 @@
           "title": "Id",
           "type": "string"
         },
+        "system": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "System"
+        },
         "probability": {
           "$ref": "#/$defs/ProbabilitySpec"
         },
@@ -107,6 +119,113 @@
         "loser_outcome"
       ],
       "title": "ActionDefinition",
+      "type": "object"
+    },
+    "ActionLogEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "chain_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Id"
+        },
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "tick": {
+          "minimum": 0,
+          "title": "Tick",
+          "type": "integer"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "target_agent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Agent Id"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "cause": {
+          "title": "Cause",
+          "type": "string"
+        },
+        "state_before": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State Before",
+          "type": "object"
+        },
+        "state_after": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State After",
+          "type": "object"
+        },
+        "previous_action_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Action Id"
+        },
+        "chain_step_index": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Chain Step Index",
+          "type": "integer"
+        },
+        "segment": {
+          "title": "Segment",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chain_id",
+        "agent_id",
+        "tick",
+        "action_id",
+        "target_agent_id",
+        "place",
+        "cause",
+        "state_before",
+        "state_after",
+        "previous_action_id",
+        "chain_step_index",
+        "segment",
+        "role"
+      ],
+      "title": "ActionLogEntry",
       "type": "object"
     },
     "AgentDetail": {
@@ -345,11 +464,55 @@
           "default": null,
           "title": "Chain Id"
         },
+        "previous_action_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Action Id"
+        },
+        "chain_step_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Step Index"
+        },
+        "target_agent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Agent Id"
+        },
         "causes": {
           "additionalProperties": {
             "type": "number"
           },
           "title": "Causes",
+          "type": "object"
+        },
+        "state_before": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State Before",
           "type": "object"
         },
         "state_after": {
@@ -365,7 +528,11 @@
         "day",
         "action",
         "chain_id",
+        "previous_action_id",
+        "chain_step_index",
+        "target_agent_id",
         "causes",
+        "state_before",
         "state_after"
       ],
       "title": "AgentTimelineEntry",
@@ -1226,6 +1393,35 @@
           "minimum": 0,
           "title": "Delay Ticks",
           "type": "integer"
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formula"
+        },
+        "conditions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "object"
+        },
+        "cross_agent": {
+          "default": false,
+          "title": "Cross Agent",
+          "type": "boolean"
+        },
+        "terminates": {
+          "default": false,
+          "title": "Terminates",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1282,6 +1478,263 @@
         "branches"
       ],
       "title": "ChainDefinition",
+      "type": "object"
+    },
+    "ChoiceCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "traits": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "object"
+        },
+        "state": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State",
+          "type": "object"
+        },
+        "context": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Context",
+          "type": "object"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        }
+      },
+      "title": "ChoiceCondition",
+      "type": "object"
+    },
+    "ChoiceEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "conditioning_id": {
+          "minLength": 1,
+          "title": "Conditioning Id",
+          "type": "string"
+        },
+        "conditioning": {
+          "$ref": "#/$defs/ChoiceCondition"
+        },
+        "definition": {
+          "minLength": 1,
+          "title": "Definition",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "ci_low": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci Low",
+          "type": "number"
+        },
+        "ci_high": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci High",
+          "type": "number"
+        },
+        "source_type": {
+          "enum": [
+            "administrative",
+            "mobility",
+            "transaction",
+            "time_use_diary",
+            "representative_survey",
+            "small_study",
+            "poll",
+            "news",
+            "ethnography",
+            "social_media",
+            "unknown"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "tier": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Tier",
+          "type": "integer"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "denominator": {
+          "minLength": 1,
+          "title": "Denominator",
+          "type": "string"
+        },
+        "time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "friday",
+            "week",
+            "year"
+          ],
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "source_time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "friday",
+            "week",
+            "year"
+          ],
+          "title": "Source Time Unit",
+          "type": "string"
+        },
+        "explicit_time_adjustment": {
+          "default": false,
+          "title": "Explicit Time Adjustment",
+          "type": "boolean"
+        },
+        "tier_flag": {
+          "enum": [
+            "measured",
+            "imputed",
+            "hint_only",
+            "unknown"
+          ],
+          "title": "Tier Flag",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "missing_requirement": {
+          "default": "",
+          "title": "Missing Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "action_id",
+        "conditioning_id",
+        "definition",
+        "ci_low",
+        "ci_high",
+        "source_type",
+        "tier",
+        "population",
+        "denominator",
+        "time_unit",
+        "source_time_unit",
+        "tier_flag",
+        "provenance"
+      ],
+      "title": "ChoiceEvidence",
+      "type": "object"
+    },
+    "ChoiceEvidenceCatalog": {
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/ChoiceEvidence"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rows"
+      ],
+      "title": "ChoiceEvidenceCatalog",
       "type": "object"
     },
     "CityDetail": {
@@ -1518,6 +1971,24 @@
             "$ref": "#/$defs/AttributeDefinition"
           },
           "title": "Attributes",
+          "type": "array"
+        },
+        "feature_registry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRegistry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "choice_evidence": {
+          "items": {
+            "$ref": "#/$defs/ChoiceEvidence"
+          },
+          "title": "Choice Evidence",
           "type": "array"
         },
         "place_states": {
@@ -1841,6 +2312,561 @@
       "title": "DataGap",
       "type": "object"
     },
+    "DecisionGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "view": {
+          "enum": [
+            "static",
+            "run"
+          ],
+          "title": "View",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "unfiltered": {
+          "title": "Unfiltered",
+          "type": "boolean"
+        },
+        "filters": {
+          "$ref": "#/$defs/DecisionGraphFilter"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/DecisionGraphNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/DecisionGraphEdge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/DecisionGraphDiagnostic"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/DecisionPathStep"
+          },
+          "title": "Path",
+          "type": "array"
+        },
+        "transition_matrix": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "Transition Matrix",
+          "type": "object"
+        },
+        "filter_options": {
+          "$ref": "#/$defs/DecisionGraphFilterOptions"
+        }
+      },
+      "required": [
+        "view",
+        "run_id",
+        "unfiltered",
+        "filters",
+        "nodes",
+        "edges",
+        "diagnostics",
+        "path",
+        "transition_matrix",
+        "filter_options"
+      ],
+      "title": "DecisionGraph",
+      "type": "object"
+    },
+    "DecisionGraphDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "orphan",
+            "dead_end",
+            "nonterminating_loop",
+            "unreachable_role",
+            "choice_sum",
+            "chain_length"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "subject",
+        "message"
+      ],
+      "title": "DecisionGraphDiagnostic",
+      "type": "object"
+    },
+    "DecisionGraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "chain_id": {
+          "title": "Chain Id",
+          "type": "string"
+        },
+        "intended_probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Intended Probability",
+          "type": "number"
+        },
+        "formula": {
+          "title": "Formula",
+          "type": "string"
+        },
+        "delay_ticks": {
+          "minimum": 0,
+          "title": "Delay Ticks",
+          "type": "integer"
+        },
+        "delay_label": {
+          "title": "Delay Label",
+          "type": "string"
+        },
+        "conditions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "object"
+        },
+        "cross_agent": {
+          "default": false,
+          "title": "Cross Agent",
+          "type": "boolean"
+        },
+        "terminates": {
+          "default": false,
+          "title": "Terminates",
+          "type": "boolean"
+        },
+        "observed_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Observed Count",
+          "type": "integer"
+        },
+        "observed_frequency": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Observed Frequency",
+          "type": "number"
+        },
+        "sample_agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sample Agents",
+          "type": "array"
+        }
+      },
+      "required": [
+        "edge_id",
+        "source",
+        "target",
+        "chain_id",
+        "intended_probability",
+        "formula",
+        "delay_ticks",
+        "delay_label",
+        "conditions",
+        "cross_agent",
+        "terminates",
+        "observed_count",
+        "observed_frequency",
+        "sample_agents"
+      ],
+      "title": "DecisionGraphEdge",
+      "type": "object"
+    },
+    "DecisionGraphFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "default": "",
+          "title": "State",
+          "type": "string"
+        },
+        "segment": {
+          "default": "",
+          "title": "Segment",
+          "type": "string"
+        },
+        "place": {
+          "default": "",
+          "title": "Place",
+          "type": "string"
+        },
+        "role": {
+          "default": "",
+          "title": "Role",
+          "type": "string"
+        },
+        "tick_start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tick Start"
+        },
+        "tick_end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tick End"
+        }
+      },
+      "required": [
+        "state",
+        "segment",
+        "place",
+        "role",
+        "tick_start",
+        "tick_end"
+      ],
+      "title": "DecisionGraphFilter",
+      "type": "object"
+    },
+    "DecisionGraphFilterOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "states": {
+          "items": {
+            "type": "string"
+          },
+          "title": "States",
+          "type": "array"
+        },
+        "segments": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "places": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "maximum_tick": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Maximum Tick",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "states",
+        "segments",
+        "places",
+        "roles",
+        "agents",
+        "maximum_tick"
+      ],
+      "title": "DecisionGraphFilterOptions",
+      "type": "object"
+    },
+    "DecisionGraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "system": {
+          "title": "System",
+          "type": "string"
+        },
+        "base_probability": {
+          "minimum": 0,
+          "title": "Base Probability",
+          "type": "number"
+        },
+        "time_unit": {
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "parameter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter"
+        },
+        "source_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source State"
+        },
+        "opportunity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opportunity"
+        },
+        "requires_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires Role"
+        },
+        "target_requires_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Requires Role"
+        },
+        "priority": {
+          "title": "Priority",
+          "type": "integer"
+        },
+        "interruptible": {
+          "title": "Interruptible",
+          "type": "boolean"
+        },
+        "protected": {
+          "title": "Protected",
+          "type": "boolean"
+        },
+        "reschedulable": {
+          "title": "Reschedulable",
+          "type": "boolean"
+        },
+        "loser_outcome": {
+          "title": "Loser Outcome",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "minimum": 0,
+          "title": "Duration Minutes",
+          "type": "number"
+        },
+        "compatible_with": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Compatible With",
+          "type": "array"
+        },
+        "priority_modifiers": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Priority Modifiers",
+          "type": "object"
+        },
+        "observed_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Observed Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action_id",
+        "system",
+        "base_probability",
+        "time_unit",
+        "parameter",
+        "source_state",
+        "opportunity",
+        "requires_role",
+        "target_requires_role",
+        "priority",
+        "interruptible",
+        "protected",
+        "reschedulable",
+        "loser_outcome",
+        "duration_minutes",
+        "compatible_with",
+        "priority_modifiers",
+        "observed_count"
+      ],
+      "title": "DecisionGraphNode",
+      "type": "object"
+    },
+    "DecisionPathStep": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "previous_action_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Previous Action Id"
+        },
+        "chain_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Id"
+        },
+        "chain_step_index": {
+          "minimum": 0,
+          "title": "Chain Step Index",
+          "type": "integer"
+        },
+        "tick": {
+          "minimum": 0,
+          "title": "Tick",
+          "type": "integer"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "target_agent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Agent Id"
+        }
+      },
+      "required": [
+        "agent_id",
+        "action_id",
+        "previous_action_id",
+        "chain_id",
+        "chain_step_index",
+        "tick",
+        "place",
+        "target_agent_id"
+      ],
+      "title": "DecisionPathStep",
+      "type": "object"
+    },
     "DefaultDefinition": {
       "additionalProperties": false,
       "properties": {
@@ -2037,7 +3063,8 @@
             "missing",
             "unknown",
             "label_only",
-            "literature_estimate"
+            "literature_estimate",
+            "hint_only"
           ],
           "title": "Status",
           "type": "string"
@@ -2068,6 +3095,345 @@
         "uncertainty"
       ],
       "title": "Evidence",
+      "type": "object"
+    },
+    "FeatureDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "categorical",
+            "continuous",
+            "binary"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "canonical_values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Canonical Values",
+          "type": "array"
+        },
+        "value_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeatureRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "predictive": {
+          "default": true,
+          "title": "Predictive",
+          "type": "boolean"
+        },
+        "ancestry_linked": {
+          "default": false,
+          "title": "Ancestry Linked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "provenance"
+      ],
+      "title": "FeatureDefinition",
+      "type": "object"
+    },
+    "FeatureDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "global",
+            "region",
+            "subregion",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "place": {
+          "minLength": 1,
+          "title": "Place",
+          "type": "string"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "coverage_percent": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Coverage Percent",
+          "type": "number"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mean"
+        },
+        "standard_deviation": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Standard Deviation"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "method": {
+          "default": "measured",
+          "enum": [
+            "measured",
+            "compositional",
+            "fallback"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "fallback_for": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallback For",
+          "type": "array"
+        },
+        "explicit_fallback": {
+          "default": false,
+          "title": "Explicit Fallback",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "feature_id",
+        "level",
+        "place",
+        "population",
+        "coverage_percent",
+        "provenance"
+      ],
+      "title": "FeatureDistribution",
+      "type": "object"
+    },
+    "FeatureRange": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        },
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum",
+        "unit"
+      ],
+      "title": "FeatureRange",
+      "type": "object"
+    },
+    "FeatureRegistry": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "definitions": {
+          "items": {
+            "$ref": "#/$defs/FeatureDefinition"
+          },
+          "minItems": 1,
+          "title": "Definitions",
+          "type": "array"
+        },
+        "distributions": {
+          "items": {
+            "$ref": "#/$defs/FeatureDistribution"
+          },
+          "title": "Distributions",
+          "type": "array"
+        },
+        "joint_data": {
+          "items": {
+            "$ref": "#/$defs/JointDataProof"
+          },
+          "title": "Joint Data",
+          "type": "array"
+        }
+      },
+      "required": [
+        "version",
+        "definitions"
+      ],
+      "title": "FeatureRegistry",
+      "type": "object"
+    },
+    "FeatureResolutionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "city": {
+          "title": "City",
+          "type": "string"
+        },
+        "country": {
+          "title": "Country",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "resolved_level": {
+          "title": "Resolved Level",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "population": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Population"
+        },
+        "coverage_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage Percent"
+        },
+        "region_override": {
+          "title": "Region Override",
+          "type": "boolean"
+        },
+        "missing_requirement": {
+          "title": "Missing Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature_id",
+        "city",
+        "country",
+        "region",
+        "status",
+        "resolved_level",
+        "source",
+        "version",
+        "source_date",
+        "population",
+        "coverage_percent",
+        "region_override",
+        "missing_requirement"
+      ],
+      "title": "FeatureResolutionRecord",
       "type": "object"
     },
     "FieldCoverage": {
@@ -2161,6 +3527,154 @@
         "depth"
       ],
       "title": "GraphTraversal",
+      "type": "object"
+    },
+    "HierarchyOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/HierarchyRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "as_of": {
+          "title": "As Of",
+          "type": "string"
+        },
+        "resolution_order": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Resolution Order",
+          "type": "array"
+        },
+        "mapping_version": {
+          "title": "Mapping Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rows",
+        "scope",
+        "as_of",
+        "resolution_order",
+        "mapping_version"
+      ],
+      "title": "HierarchyOverview",
+      "type": "object"
+    },
+    "HierarchyRow": {
+      "additionalProperties": false,
+      "properties": {
+        "row_id": {
+          "title": "Row Id",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "global",
+            "region",
+            "subregion",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "country_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country Code"
+        },
+        "population": {
+          "minimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "city_count": {
+          "minimum": 0,
+          "title": "City Count",
+          "type": "integer"
+        },
+        "statuses": {
+          "additionalProperties": {
+            "enum": [
+              "present",
+              "inherited",
+              "imputed",
+              "missing"
+            ],
+            "type": "string"
+          },
+          "title": "Statuses",
+          "type": "object"
+        },
+        "coverage_by_field": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Coverage By Field",
+          "type": "object"
+        },
+        "region_override": {
+          "default": false,
+          "title": "Region Override",
+          "type": "boolean"
+        },
+        "weight_source": {
+          "title": "Weight Source",
+          "type": "string"
+        },
+        "children_paged": {
+          "default": false,
+          "title": "Children Paged",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "row_id",
+        "level",
+        "parent_id",
+        "label",
+        "country_code",
+        "population",
+        "city_count",
+        "statuses",
+        "coverage_by_field",
+        "region_override",
+        "weight_source",
+        "children_paged"
+      ],
+      "title": "HierarchyRow",
       "type": "object"
     },
     "ImpliedAggregate": {
@@ -2505,6 +4019,39 @@
       "title": "ImportVersion",
       "type": "object"
     },
+    "JointDataProof": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "outcomes": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Outcomes",
+          "type": "array"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "feature_id",
+        "outcomes",
+        "population",
+        "provenance"
+      ],
+      "title": "JointDataProof",
+      "type": "object"
+    },
     "LeaderActionDefinition": {
       "additionalProperties": false,
       "properties": {
@@ -2826,7 +4373,8 @@
             "missing",
             "unknown",
             "label_only",
-            "literature_estimate"
+            "literature_estimate",
+            "hint_only"
           ],
           "title": "Status",
           "type": "string"
@@ -3067,6 +4615,51 @@
       "title": "PlaceDetail",
       "type": "object"
     },
+    "PlaceHierarchy": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "country": {
+          "minLength": 1,
+          "title": "Country",
+          "type": "string"
+        },
+        "subregion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subregion"
+        },
+        "region": {
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "country",
+        "region"
+      ],
+      "title": "PlaceHierarchy",
+      "type": "object"
+    },
     "PlaceSnapshot": {
       "additionalProperties": false,
       "properties": {
@@ -3201,6 +4794,13 @@
             "type": "array"
           },
           "title": "Place Coordinates",
+          "type": "object"
+        },
+        "place_hierarchy": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PlaceHierarchy"
+          },
+          "title": "Place Hierarchy",
           "type": "object"
         },
         "initial_state_overrides": {
@@ -4104,7 +5704,8 @@
             "missing",
             "unknown",
             "label_only",
-            "literature_estimate"
+            "literature_estimate",
+            "hint_only"
           ],
           "title": "Evidence Status",
           "type": "string"
@@ -4448,6 +6049,27 @@
       "title": "TransitionDefinition",
       "type": "object"
     },
+    "UniversalFeatureOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "registry": {
+          "$ref": "#/$defs/FeatureRegistry"
+        },
+        "resolutions": {
+          "items": {
+            "$ref": "#/$defs/FeatureResolutionRecord"
+          },
+          "title": "Resolutions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "registry",
+        "resolutions"
+      ],
+      "title": "UniversalFeatureOverview",
+      "type": "object"
+    },
     "ValidationReport": {
       "additionalProperties": false,
       "properties": {
@@ -4547,6 +6169,9 @@
       "$ref": "#/$defs/Catalog"
     },
     {
+      "$ref": "#/$defs/ActionLogEntry"
+    },
+    {
       "$ref": "#/$defs/AgentDetail"
     },
     {
@@ -4554,6 +6179,9 @@
     },
     {
       "$ref": "#/$defs/DailySnapshot"
+    },
+    {
+      "$ref": "#/$defs/DecisionGraph"
     },
     {
       "$ref": "#/$defs/DSLRender"
@@ -4598,10 +6226,16 @@
       "$ref": "#/$defs/AtlasScopes"
     },
     {
+      "$ref": "#/$defs/ChoiceEvidenceCatalog"
+    },
+    {
       "$ref": "#/$defs/CityDetail"
     },
     {
       "$ref": "#/$defs/FieldCoverage"
+    },
+    {
+      "$ref": "#/$defs/HierarchyOverview"
     },
     {
       "$ref": "#/$defs/ImportCommit"
@@ -4629,6 +6263,9 @@
     },
     {
       "$ref": "#/$defs/SourceFetch"
+    },
+    {
+      "$ref": "#/$defs/UniversalFeatureOverview"
     },
     {
       "$ref": "#/$defs/ValidationReport"

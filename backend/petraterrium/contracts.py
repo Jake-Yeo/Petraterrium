@@ -127,6 +127,7 @@ class MissingFallback(Contract):
         "unknown",
         "label_only",
         "literature_estimate",
+        "hint_only",
     ]
     fallback: str
     impact: str
@@ -179,8 +180,121 @@ class AgentTimelineEntry(Contract):
     day: int = Field(ge=0)
     action: str
     chain_id: str | None = None
+    previous_action_id: str | None = None
+    chain_step_index: int | None = Field(default=None, ge=0)
+    target_agent_id: str | None = None
     causes: dict[str, float] = Field(default_factory=dict)
+    state_before: dict[str, str] = Field(default_factory=dict)
     state_after: dict[str, str] = Field(default_factory=dict)
+
+
+class ActionLogEntry(Contract):
+    chain_id: str | None = None
+    agent_id: str
+    tick: int = Field(ge=0)
+    action_id: str
+    target_agent_id: str | None = None
+    place: str
+    cause: str
+    state_before: dict[str, str] = Field(default_factory=dict)
+    state_after: dict[str, str] = Field(default_factory=dict)
+    previous_action_id: str | None = None
+    chain_step_index: int = Field(default=0, ge=0)
+    segment: str
+    role: str
+
+
+class DecisionGraphFilter(Contract):
+    state: str = ""
+    segment: str = ""
+    place: str = ""
+    role: str = ""
+    tick_start: int | None = Field(default=None, ge=0)
+    tick_end: int | None = Field(default=None, ge=0)
+
+
+class DecisionGraphNode(Contract):
+    action_id: str
+    system: str
+    base_probability: float = Field(ge=0)
+    time_unit: str
+    parameter: str | None = None
+    source_state: str | None = None
+    opportunity: str | None = None
+    requires_role: str | None = None
+    target_requires_role: str | None = None
+    priority: int
+    interruptible: bool
+    protected: bool
+    reschedulable: bool
+    loser_outcome: str
+    duration_minutes: float = Field(ge=0)
+    compatible_with: list[str]
+    priority_modifiers: dict[str, int]
+    observed_count: int = Field(default=0, ge=0)
+
+
+class DecisionGraphEdge(Contract):
+    edge_id: str
+    source: str
+    target: str
+    chain_id: str
+    intended_probability: float = Field(ge=0, le=1)
+    formula: str
+    delay_ticks: int = Field(ge=0)
+    delay_label: str
+    conditions: dict[str, str] = Field(default_factory=dict)
+    cross_agent: bool = False
+    terminates: bool = False
+    observed_count: int = Field(default=0, ge=0)
+    observed_frequency: float = Field(default=0, ge=0, le=1)
+    sample_agents: list[str] = Field(default_factory=list)
+
+
+class DecisionGraphDiagnostic(Contract):
+    kind: Literal[
+        "orphan",
+        "dead_end",
+        "nonterminating_loop",
+        "unreachable_role",
+        "choice_sum",
+        "chain_length",
+    ]
+    subject: str
+    message: str
+
+
+class DecisionPathStep(Contract):
+    agent_id: str
+    action_id: str
+    previous_action_id: str | None = None
+    chain_id: str | None = None
+    chain_step_index: int = Field(ge=0)
+    tick: int = Field(ge=0)
+    place: str
+    target_agent_id: str | None = None
+
+
+class DecisionGraphFilterOptions(Contract):
+    states: list[str] = Field(default_factory=list)
+    segments: list[str] = Field(default_factory=list)
+    places: list[str] = Field(default_factory=list)
+    roles: list[str] = Field(default_factory=list)
+    agents: list[str] = Field(default_factory=list)
+    maximum_tick: int = Field(default=0, ge=0)
+
+
+class DecisionGraph(Contract):
+    view: Literal["static", "run"]
+    run_id: str | None = None
+    unfiltered: bool
+    filters: DecisionGraphFilter
+    nodes: list[DecisionGraphNode]
+    edges: list[DecisionGraphEdge]
+    diagnostics: list[DecisionGraphDiagnostic]
+    path: list[DecisionPathStep] = Field(default_factory=list)
+    transition_matrix: dict[str, dict[str, int]] = Field(default_factory=dict)
+    filter_options: DecisionGraphFilterOptions
 
 
 class AgentRelationship(Contract):

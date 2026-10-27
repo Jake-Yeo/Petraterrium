@@ -88,7 +88,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();
-  await page.screenshot({ path: 'test-results/data-atlas-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/data-atlas-mobile.png' });
   await page.getByRole('tab', { name: 'Simulation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Trace the state.' })).toBeVisible();
   expect(errors).toEqual([]);

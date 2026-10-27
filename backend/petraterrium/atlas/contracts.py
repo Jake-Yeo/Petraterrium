@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from ..contracts import Contract
+from ..dsl import ChoiceEvidence, FeatureRegistry
 
 MarginalName = Literal["age_sex", "income", "education", "ideology", "household_size"]
 FieldStatus = Literal["present", "inherited", "imputed", "missing"]
@@ -298,3 +299,51 @@ class SourceFetch(Contract):
     url: str
     metadata: ImportMetadata
     access_confirmed: bool = False
+
+
+class FeatureResolutionRecord(Contract):
+    feature_id: str
+    city: str
+    country: str
+    region: str
+    status: str
+    resolved_level: str
+    source: str | None = None
+    version: str | None = None
+    source_date: str | None = None
+    population: str | None = None
+    coverage_percent: float | None = Field(default=None, ge=0, le=100)
+    region_override: bool
+    missing_requirement: str
+
+
+class UniversalFeatureOverview(Contract):
+    registry: FeatureRegistry
+    resolutions: list[FeatureResolutionRecord]
+
+
+class ChoiceEvidenceCatalog(Contract):
+    rows: list[ChoiceEvidence]
+
+
+class HierarchyRow(Contract):
+    row_id: str
+    level: Literal["global", "region", "subregion", "country", "city"]
+    parent_id: str | None = None
+    label: str
+    country_code: str | None = None
+    population: int = Field(ge=0)
+    city_count: int = Field(ge=0)
+    statuses: dict[str, FieldStatus]
+    coverage_by_field: dict[str, float]
+    region_override: bool = False
+    weight_source: str
+    children_paged: bool = False
+
+
+class HierarchyOverview(Contract):
+    rows: list[HierarchyRow]
+    scope: str
+    as_of: str
+    resolution_order: list[str]
+    mapping_version: str
