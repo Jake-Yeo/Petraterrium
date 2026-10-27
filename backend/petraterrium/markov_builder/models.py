@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -8,6 +9,17 @@ class BuilderModel(BaseModel):
 
 
 ProposalOrigin = Literal["user_explicit", "model_proposal", "structural", "manual_edit"]
+
+
+class ProposalAudit(BuilderModel):
+    provider: str
+    model: str
+    prompt_version: str
+    generated_at: datetime | None = None
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    estimated_cost_usd: float | None = Field(default=None, ge=0)
+    message: str
 
 
 class ChainNodeDraft(BuilderModel):
@@ -37,6 +49,7 @@ class ChainDraft(BuilderModel):
     nodes: list[ChainNodeDraft]
     transitions: list[ChainTransitionDraft]
     revision: int = Field(default=0, ge=0)
+    proposal_audit: ProposalAudit | None = None
 
 
 class ChainProposalRequest(BuilderModel):
@@ -44,16 +57,6 @@ class ChainProposalRequest(BuilderModel):
     chain_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]*$")
     name: str | None = Field(default=None, min_length=1, max_length=160)
     use_llm: bool = True
-
-
-class ProposalAudit(BuilderModel):
-    provider: str
-    model: str
-    prompt_version: str
-    input_tokens: int = Field(default=0, ge=0)
-    output_tokens: int = Field(default=0, ge=0)
-    estimated_cost_usd: float | None = Field(default=None, ge=0)
-    message: str
 
 
 ValidationSeverity = Literal["error", "warning"]
@@ -107,6 +110,7 @@ class ConfirmedChainGraph(BuilderModel):
     nodes: list[ChainNodeDraft]
     transitions: list[ChainTransitionDraft]
     revision: int
+    proposal_audit: ProposalAudit | None = None
 
     @model_validator(mode="after")
     def contains_only_resolved_transitions(self):

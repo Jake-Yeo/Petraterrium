@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pydantic import Field
 
+from ..llm_gateway import AIProviderError
 from .auto_import_requirements import canonical_requirement
 from .auto_import_research import (
     AutoImportAttempt,
@@ -164,6 +165,7 @@ class AutoImportResearchService:
         languages = list(attempt.languages_searched)
         direct: list[SourceCandidate] = []
         hints: list[SourceCandidate] = []
+        ai_failures: list[str] = []
         seen_candidates = {candidate.candidate_id for candidate in attempt.sources}
         completed_automatic = {
             (entry.language, entry.engine, entry.query_or_source, entry.source_kind)
@@ -205,6 +207,12 @@ class AutoImportResearchService:
                 )
                 candidate_ids, rejection_reasons, accepted_count = evaluate(candidates)
                 outcome = self._outcome(candidates, accepted_count)
+            except AIProviderError as error:
+                candidates = []
+                candidate_ids = ()
+                rejection_reasons = (str(error),)
+                outcome = "error"
+                ai_failures.append(str(error))
             except Exception as error:
                 candidates = []
                 candidate_ids = ()
@@ -248,6 +256,11 @@ class AutoImportResearchService:
                     candidates = self.provider.search(step, attempt.target, attempt.requirement)
                     candidate_ids, rejection_reasons, accepted_count = evaluate(candidates)
                     outcome = self._outcome(candidates, accepted_count)
+                except AIProviderError as error:
+                    candidate_ids = ()
+                    rejection_reasons = (str(error),)
+                    outcome = "error"
+                    ai_failures.append(str(error))
                 except Exception as error:
                     candidate_ids = ()
                     rejection_reasons = (str(error),)
@@ -273,7 +286,9 @@ class AutoImportResearchService:
         mapping_preview = None
         status = "not_found"
         failure_reason = (
-            "No credible source met the feature, place, denominator, date, and unit checks"
+            ai_failures[-1]
+            if ai_failures
+            else "No credible source met the feature, place, denominator, date, and unit checks"
         )
         if direct:
             chosen = direct[0]

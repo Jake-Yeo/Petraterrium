@@ -1,3 +1,39 @@
+export type AIConnectionTest = {
+  ok: boolean;
+  message?: string | null;
+  error?: string | null;
+  provenance?: AISourceProvenance | null;
+};
+
+export type AISettingsUpdate = {
+  source?: "openai_cli" | "openai_api" | null;
+  cli_command?: string | null;
+  cli_model?: string | null;
+  api_model?: string | null;
+  api_key?: string | null;
+  clear_api_key?: boolean;
+};
+
+export type AISettingsView = {
+  source: "openai_cli" | "openai_api";
+  cli_command: string;
+  cli_model: string;
+  api_model: string;
+  api_key_configured: boolean;
+  api_key_storage: string;
+  updated_at: string;
+};
+
+export type AISourceProvenance = {
+  source: "openai_cli" | "openai_api";
+  source_label: "OpenAI CLI" | "OpenAI API";
+  model: string;
+  generated_at: string;
+  prompt_version: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+};
+
 export type ActionDefinition = {
   id: string;
   system?: string | null;
@@ -40,6 +76,21 @@ export type ActionLogEntry = {
   role: string;
 };
 
+export type AgentBehaviorProposalDraft = {
+  schema_version?: "2";
+  id: string;
+  prompt: string;
+  imported_feature_ids?: Array<string>;
+  types: Array<AgentTypeDefinition>;
+  audit: AgentTypeProposalAudit;
+  status?: "awaiting_confirmation";
+  revision?: number;
+  routine_drafts?: Array<RoutineProposalDraft>;
+  decision_tree_drafts: DecisionTreeRegistryDefinition;
+  decision_inputs?: Array<DecisionEdgeInputPlan>;
+  evidence_requirements?: Array<BehaviorEvidenceRequirement>;
+};
+
 export type AgentDetail = {
   agent_id: string;
   run_id: string;
@@ -62,6 +113,42 @@ export type AgentDetail = {
   media: Array<string>;
 };
 
+export type AgentHousehold = {
+  household_id: string;
+  members: Array<HouseholdMember>;
+};
+
+export type AgentInitialStateProvenance = {
+  source_template_id: string;
+  sampling_basis: "measured_joint" | "measured_marginal" | "imputed" | "unknown";
+  household_evidence: EvidenceReference;
+  field_evidence: {
+  [key: string]: EvidenceReference;
+};
+  unknown_fields: Array<string>;
+};
+
+export type AgentInteractionDetail = {
+  tick: number;
+  role: "initiator" | "target";
+  interaction_type: string;
+  channel: string;
+  other_agent_id: string;
+  other_agent_name: string;
+  place: string;
+  state_deltas: Array<AppliedStateDelta>;
+  relationship_deltas: Array<AppliedRelationshipDelta>;
+  interaction_tree?: InteractionTreeTrace | null;
+};
+
+export type AgentLocation = {
+  country: string;
+  region?: string | null;
+  city: string;
+  neighbourhood?: string | null;
+  specific_place?: string | null;
+};
+
 export type AgentPoint = {
   agent_id: string;
   place: string;
@@ -79,10 +166,40 @@ export type AgentPointList = {
   representative: boolean;
 };
 
+export type AgentRecord = {
+  agent_id: string;
+  place: string;
+  latitude: number;
+  longitude: number;
+  role: string;
+  log_tier: "spotlight" | "sampled" | "mass";
+  traits: {
+  [key: string]: unknown;
+};
+  states: {
+  [key: string]: string;
+};
+  behaviour: {
+  [key: string]: number;
+};
+  behaviour_provenance: {
+  [key: string]: Evidence;
+};
+  relationships: Array<Relationship>;
+  weight: number;
+};
+
 export type AgentRelationship = {
   target_id: string;
   kind: string;
   weight: number;
+};
+
+export type AgentRoutineEffect = {
+  kind?: "agent_routine";
+  participant: "actor" | "target";
+  operation: "add" | "remove";
+  routine_id: string;
 };
 
 export type AgentTimelineEntry = {
@@ -104,11 +221,117 @@ export type AgentTimelineEntry = {
 };
 };
 
+export type AgentTimelinePoint = {
+  day: number;
+  date: string;
+  tick: number;
+  elapsed_hours: number;
+  module: string;
+  state: string;
+  location: string;
+  actions: Array<string>;
+  routine_actions: Array<string>;
+  interactions: Array<string>;
+  interaction_details?: Array<AgentInteractionDetail>;
+  decision_path: Array<petraterrium__simulation__run_service__DecisionPathStep>;
+  location_transitions: Array<LocationTransitionStep>;
+};
+
+export type AgentTypeDefinition = {
+  id: string;
+  name: string;
+  description?: string | null;
+  parent_ids?: Array<string>;
+  traits?: Array<AgentTypeMember>;
+  routines?: Array<AgentTypeMember>;
+  decisions?: Array<AgentTypeMember>;
+  overrides?: Array<AgentTypeOverride>;
+};
+
+export type AgentTypeMember = {
+  id: string;
+  name: string;
+  definition: string;
+  description?: string | null;
+  source_feature_ids?: Array<string>;
+};
+
+export type AgentTypeOverride = {
+  member_kind: "trait" | "routine" | "decision";
+  member_id: string;
+  source_type_id: string;
+};
+
+export type AgentTypeProposalAudit = {
+  provider: "openai_cli" | "openai_api" | "deterministic" | "manual";
+  model: string;
+  generated_at: string;
+  prompt_version: string;
+};
+
+export type AgentTypeProposalDraft = {
+  schema_version?: "1";
+  id: string;
+  prompt: string;
+  imported_feature_ids?: Array<string>;
+  types: Array<AgentTypeDefinition>;
+  audit: AgentTypeProposalAudit;
+  status?: "awaiting_confirmation";
+  revision?: number;
+};
+
+export type AgentTypeProposalRequest = {
+  prompt: string;
+};
+
+export type AgentTypeRegistryView = {
+  configured: boolean;
+  confirmed: ConfirmedAgentTypeRegistry | null;
+  resolved: ResolvedAgentTypeRegistry;
+};
+
 export type AggregateBenchmark = {
   action_id: string;
   population: number;
   observed_annual_count: number;
   tolerance_factor?: number;
+};
+
+export type AppliedRelationshipDelta = {
+  source_agent_id: string;
+  target_agent_id: string;
+  field: "weight" | "trust" | "similarity";
+  before: number;
+  delta: number;
+  after: number;
+};
+
+export type AppliedStateDelta = {
+  agent_id: string;
+  state: string;
+  before: number;
+  delta: number;
+  after: number;
+};
+
+export type AtlasAgentTypeAssignment = {
+  status: "confirmed";
+  fallback_agent_type_id: string;
+  rules: Array<AtlasAgentTypeRule>;
+};
+
+export type AtlasAgentTypeCondition = {
+  field: string;
+  operator: "equals" | "not_equals" | "one_of" | "at_least" | "at_most" | "between";
+  value?: string | number | null;
+  upper_value?: string | number | null;
+  values?: Array<string | number>;
+};
+
+export type AtlasAgentTypeRule = {
+  id: string;
+  agent_type_ids: Array<string>;
+  conditions: Array<AtlasAgentTypeCondition>;
 };
 
 export type AtlasCity = {
@@ -153,6 +376,35 @@ export type AtlasOverview = {
   countries: Array<AtlasCountry>;
   gaps: Array<DataGap>;
   backbone: Backbone;
+};
+
+export type AtlasPopulationFeatureCoverage = {
+  feature_id: string;
+  measured_agents: number;
+  imputed_agents: number;
+  unknown_agents: number;
+  sources: Array<string>;
+};
+
+export type AtlasPopulationRequest = {
+  population_id?: string;
+  selector: PlaceSelector;
+  scope?: string;
+  seed?: number;
+  target_agents?: number;
+  agent_type_id?: string;
+  type_assignment?: AtlasAgentTypeAssignment | null;
+};
+
+export type AtlasPopulationResult = {
+  selector: PlaceSelector;
+  scope: string;
+  materialization: InitialPopulationMaterialization;
+  feature_coverage: Array<AtlasPopulationFeatureCoverage>;
+  agent_type_counts: {
+  [key: string]: number;
+};
+  warnings: Array<string>;
 };
 
 export type AtlasScope = {
@@ -383,6 +635,7 @@ export type AutoImportResearchSource = {
   translated_excerpt: string | null;
   accepted: boolean;
   rejection_reason: string | null;
+  ai_provenance: AISourceProvenance | null;
 };
 
 export type AutoImportSearchEntry = {
@@ -442,6 +695,22 @@ export type BacktestComparison = {
   provenance: string;
 };
 
+export type BehaviorEvidenceRequirement = {
+  id: string;
+  kind: "routine_schedule" | "decision_probability";
+  status: "matched" | "missing";
+  target_id: string;
+  source_feature_ids?: Array<string>;
+  outcome: string;
+  population_scope: string;
+  place_scope: "global" | "region" | "country" | "city";
+  time_scope: string;
+  accepted_bases: Array<"measured" | "user_defined" | "measured_joint" | "fitted_model">;
+  required_fields: Array<string>;
+  matched_evidence_ids?: Array<string>;
+  message: string;
+};
+
 export type BehaviourBundle = {
   id: string;
   layer: number;
@@ -475,6 +744,12 @@ export type BehaviourModel = {
   traits: Array<string>;
 };
 
+export type BrokenModuleReference = {
+  module_id: string;
+  node_id: string;
+  target_module_id: string;
+};
+
 export type Catalog = {
   countries: Array<Country>;
   engine_version: string;
@@ -503,12 +778,37 @@ export type ChainDefinition = {
   continue_probability?: number;
 };
 
+export type ChainDraft = {
+  schema_version?: "1";
+  id: string;
+  name: string;
+  source_text: string;
+  entry_node?: string | null;
+  nodes: Array<ChainNodeDraft>;
+  transitions: Array<ChainTransitionDraft>;
+  revision?: number;
+  proposal_audit?: ProposalAudit | null;
+};
+
 export type ChainNodeDraft = {
   id: string;
   label: string;
   terminal?: boolean;
   origin: "user_explicit" | "model_proposal" | "structural" | "manual_edit";
   source_excerpt?: string | null;
+};
+
+export type ChainProposalRequest = {
+  text: string;
+  chain_id?: string | null;
+  name?: string | null;
+  use_llm?: boolean;
+};
+
+export type ChainProposalResult = {
+  draft: ChainDraft;
+  validation: ChainValidationResult;
+  audit: ProposalAudit;
 };
 
 export type ChainTransitionDraft = {
@@ -519,6 +819,26 @@ export type ChainTransitionDraft = {
   condition?: string | null;
   origin: "user_explicit" | "model_proposal" | "structural" | "manual_edit";
   source_excerpt?: string | null;
+};
+
+export type ChainValidationIssue = {
+  code: string;
+  severity: "error" | "warning";
+  path: string;
+  message: string;
+};
+
+export type ChainValidationResult = {
+  valid: boolean;
+  can_confirm: boolean;
+  issues: Array<ChainValidationIssue>;
+  outgoing_totals: Array<OutgoingProbabilityTotal>;
+  terminal_states: Array<string>;
+  dead_ends: Array<string>;
+  non_terminating_loops: Array<Array<string>>;
+  missing_conditions: Array<string>;
+  missing_probabilities: Array<string>;
+  unreachable_nodes: Array<string>;
 };
 
 export type ChoiceCondition = {
@@ -586,6 +906,77 @@ export type ConditionClause = {
   value: string | number | number | boolean | Array<string | number | number | boolean>;
 };
 
+export type ConfirmAgentBehaviorProposalRequest = {
+  draft: AgentBehaviorProposalDraft;
+  user_confirmed: true;
+};
+
+export type ConfirmAgentTypeProposalRequest = {
+  draft: AgentTypeProposalDraft;
+  user_confirmed: true;
+};
+
+export type ConfirmChainRequest = {
+  draft: ChainDraft;
+  user_confirmed: true;
+};
+
+export type ConfirmDecisionEvidenceRegistryRequest = {
+  registry: {
+  [key: string]: unknown;
+};
+  user_confirmed: true;
+};
+
+export type ConfirmDecisionTreeRegistryRequest = {
+  registry: DecisionTreeRegistryDefinition;
+  user_confirmed: true;
+};
+
+export type ConfirmInteractionProgramRequest = {
+  program: InteractionProgramDefinition;
+  user_confirmed: true;
+};
+
+export type ConfirmMobilityRequest = {
+  registry: MobilityRegistryDefinition;
+  user_confirmed: true;
+};
+
+export type ConfirmRoutineRegistryRequest = {
+  registry: RoutineRegistryDefinition;
+  user_confirmed: true;
+};
+
+export type ConfirmationResult = {
+  chain: ConfirmedChainGraph;
+  validation: ChainValidationResult;
+  persisted: boolean;
+  persistence_id?: string | null;
+};
+
+export type ConfirmedAgentBehaviorBundle = {
+  schema_version?: "2";
+  agent_types: ConfirmedAgentTypeRegistry;
+  routines: RoutineRegistryDefinition;
+  decision_trees: DecisionTreeRegistryDefinition;
+  evidence_requirements: Array<BehaviorEvidenceRequirement>;
+  audit: AgentTypeProposalAudit;
+  confirmed?: true;
+  revision: number;
+};
+
+export type ConfirmedAgentTypeRegistry = {
+  schema_version?: "1";
+  id: string;
+  imported_feature_ids: Array<string>;
+  types: Array<AgentTypeDefinition>;
+  resolved: ResolvedAgentTypeRegistry;
+  audit: AgentTypeProposalAudit;
+  confirmed?: true;
+  revision: number;
+};
+
 export type ConfirmedChainGraph = {
   schema_version?: "1";
   id: string;
@@ -595,6 +986,7 @@ export type ConfirmedChainGraph = {
   nodes: Array<ChainNodeDraft>;
   transitions: Array<ChainTransitionDraft>;
   revision: number;
+  proposal_audit?: ProposalAudit | null;
 };
 
 export type Country = {
@@ -687,6 +1079,94 @@ export type DataGap = {
   suggested_source: string;
 };
 
+export type DecisionEdgeInputPlan = {
+  tree_id: string;
+  module_id: string;
+  edge_id: string;
+  source_feature_ids?: Array<string>;
+  outcome: string;
+  population_scope: string;
+  place_scope: "global" | "region" | "country" | "city";
+  time_scope: string;
+  decision_id?: string | null;
+  evidence_edge_id?: string | null;
+};
+
+export type DecisionEdgeTemplate = {
+  id: string;
+  decision_id: string;
+  domain: "work" | "social" | "family" | "health" | "consumption" | "political" | "other";
+  from_state: string;
+  to_state: string;
+  label: string;
+  formula: DecisionProbabilityFormula;
+  source: ResearchCitation | NoSourceAttachment;
+};
+
+export type DecisionEvidenceCatalogItem = {
+  id: string;
+  name: string;
+  domain: string;
+  status: string;
+  edge_count: number;
+  evidence_count: number;
+};
+
+export type DecisionEvidenceDetail = {
+  template: DecisionTreeTemplate;
+  evidence: Array<DecisionFactorEvidence>;
+};
+
+export type DecisionEvidenceRegistryDefinition = {
+  version: string;
+  templates?: Array<DecisionTreeTemplate>;
+  evidence?: Array<DecisionFactorEvidence>;
+};
+
+export type DecisionEvidenceRegistryStatus = {
+  configured: boolean;
+  version?: string | null;
+  template_count?: number;
+  evidence_count?: number;
+  valid?: boolean | null;
+  issue_count?: number;
+};
+
+export type DecisionEvidenceRegistryView = {
+  status: DecisionEvidenceRegistryStatus;
+  registry: DecisionEvidenceRegistryDefinition | null;
+  validation: DecisionEvidenceValidation | null;
+  catalog: Array<DecisionEvidenceCatalogItem>;
+};
+
+export type DecisionEvidenceValidation = {
+  valid: boolean;
+  issues: Array<DecisionEvidenceValidationIssue>;
+};
+
+export type DecisionEvidenceValidationIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
+export type DecisionFactorEvidence = {
+  id: string;
+  decision_id: string;
+  edge_id: string;
+  factor_id: string;
+  place: EvidencePlace;
+  predicate: EvidencePredicate;
+  basis: "measured_joint" | "fitted_model" | "marginal";
+  estimate: number;
+  ci_low: number;
+  ci_high: number;
+  sample_size: number;
+  held_out_sample_size?: number | null;
+  fittable: boolean;
+  source: ResearchCitation;
+};
+
 export type DecisionGraph = {
   view: "static" | "run";
   run_id: string | null;
@@ -695,7 +1175,7 @@ export type DecisionGraph = {
   nodes: Array<DecisionGraphNode>;
   edges: Array<DecisionGraphEdge>;
   diagnostics: Array<DecisionGraphDiagnostic>;
-  path: Array<DecisionPathStep>;
+  path: Array<petraterrium__contracts__DecisionPathStep>;
   transition_matrix: {
   [key: string]: {
   [key: string]: number;
@@ -770,15 +1250,103 @@ export type DecisionGraphNode = {
   observed_count: number;
 };
 
-export type DecisionPathStep = {
-  agent_id: string;
-  action_id: string;
-  previous_action_id: string | null;
-  chain_id: string | null;
-  chain_step_index: number;
-  tick: number;
-  place: string;
-  target_agent_id: string | null;
+export type DecisionNodeTemplate = {
+  id: string;
+  label: string;
+  kind: "decision" | "state" | "action" | "terminal";
+};
+
+export type DecisionProbabilityFormula = {
+  id: string;
+  name: string;
+  combination: "product";
+  factors: Array<ProbabilityFactor>;
+};
+
+export type DecisionTreeDefinition = {
+  id: string;
+  version: string;
+  name: string;
+  description?: string;
+  root_module_id: string;
+  agent_type_ids?: Array<string>;
+  place_ids?: Array<string>;
+  source: string;
+  status: "draft" | "ready" | "blocked" | "deprecated";
+  proposal_audit?: DecisionTreeProposalAudit | null;
+};
+
+export type DecisionTreeEdge = {
+  id: string;
+  from_node: string;
+  to_node: string;
+  label?: string;
+  condition?: string;
+  decision_id?: string | null;
+  evidence_edge_id?: string | null;
+};
+
+export type DecisionTreeLink = {
+  tree_id: string;
+  name: string;
+  agent_type: string;
+  inherited_from?: string | null;
+};
+
+export type DecisionTreeModule = {
+  id: string;
+  version: string;
+  name: string;
+  description?: string;
+  entry_node: string;
+  nodes: Array<DecisionTreeNode>;
+  edges?: Array<DecisionTreeEdge>;
+  source: string;
+  status: "draft" | "ready" | "blocked" | "deprecated";
+  proposal_audit?: DecisionTreeProposalAudit | null;
+};
+
+export type DecisionTreeNode = {
+  id: string;
+  label: string;
+  kind: "decision" | "action" | "terminal" | "module_reference";
+  description?: string;
+  target_module_id?: string | null;
+};
+
+export type DecisionTreeProposalAudit = {
+  origin: "ai" | "deterministic" | "manual";
+  source_id: string;
+  source_label: string;
+  model: string;
+  generated_at?: string | null;
+  prompt_version: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  estimated_cost_usd?: number | null;
+  message: string;
+};
+
+export type DecisionTreeRegistryDefinition = {
+  version: string;
+  trees: Array<DecisionTreeDefinition>;
+  modules: Array<DecisionTreeModule>;
+};
+
+export type DecisionTreeRegistryView = {
+  registry: DecisionTreeRegistryDefinition;
+  validation: TreeRegistryValidation;
+};
+
+export type DecisionTreeTemplate = {
+  id: string;
+  name: string;
+  domain: "work" | "social" | "family" | "health" | "consumption" | "political" | "other";
+  status: "awaiting_evidence" | "ready";
+  entry_state: string;
+  terminal_states: Array<string>;
+  nodes: Array<DecisionNodeTemplate>;
+  edges: Array<DecisionEdgeTemplate>;
 };
 
 export type DefaultDefinition = {
@@ -791,6 +1359,16 @@ export type DefaultDefinition = {
   place?: string | null;
   age_min?: number | null;
   age_max?: number | null;
+};
+
+export type DirectedRelationship = {
+  source_agent_id: string;
+  target_agent_id: string;
+  eligible: boolean;
+  relationship_type: string;
+  states?: {
+  [key: string]: number;
+};
 };
 
 export type Distribution = {
@@ -813,6 +1391,32 @@ export type EnsembleUpdate = {
   evidence_table_version: string;
 };
 
+export type EvaluatedInteractionFactor = {
+  kind: "base" | "relationship" | "co_location" | "place" | "time" | "context";
+  factor: InteractionFactor;
+};
+
+export type EvaluatedInteractionProbabilityFactor = {
+  factor_id: string;
+  label: string;
+  case_id: string;
+  multiplier: number;
+  inputs: {
+  [key: string]: number | string | boolean;
+};
+  evidence: InteractionTransitionEvidence;
+};
+
+export type EvaluatedInteractionTransition = {
+  transition_id: string;
+  outcome: string;
+  base_probability: number;
+  unnormalized_weight: number;
+  probability: number;
+  factors?: Array<EvaluatedInteractionProbabilityFactor>;
+  evidence: InteractionTransitionEvidence;
+};
+
 export type EventDefinition = {
   id: string;
   metric: string;
@@ -826,6 +1430,43 @@ export type Evidence = {
   status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
   uncertainty: number;
   source_date?: string | null;
+};
+
+export type EvidencePlace = {
+  level: "city" | "country" | "region" | "global";
+  place_id: string;
+  region_id?: string | null;
+  country_id?: string | null;
+  city_id?: string | null;
+};
+
+export type EvidencePredicate = {
+  operator: "exact" | "one_of" | "between" | "any";
+  value?: string | number | number | boolean | null;
+  values?: Array<string | number | number | boolean>;
+  lower?: number | null;
+  upper?: number | null;
+};
+
+export type EvidenceReference = {
+  evidence_id: string;
+  source: string;
+  source_version: string;
+  observed_at: string;
+  licence: string;
+  place: string;
+  status: "measured_joint" | "measured_marginal" | "imputed" | "unknown";
+  fields: Array<string>;
+  uncertainty: string;
+  url?: string | null;
+};
+
+export type FamilyRelationship = {
+  target_agent_id: string;
+  display_name: string;
+  relationship: string;
+  age?: number | null;
+  weight: number;
 };
 
 export type FeatureDefinition = {
@@ -935,6 +1576,48 @@ export type HierarchyRow = {
   children_paged: boolean;
 };
 
+export type HouseholdMember = {
+  agent_id: string;
+  display_name: string;
+  age?: number | null;
+  relationship: string;
+  agent_types: Array<string>;
+};
+
+export type HouseholdMemberSeed = {
+  member_id: string;
+  name?: string | null;
+  age: number;
+  sex: string;
+  relationship_to_reference: "self" | "spouse" | "child" | "parent" | "sibling" | "other";
+  agent_types: Array<string>;
+  traits?: {
+  [key: string]: unknown;
+};
+  states?: {
+  [key: string]: string;
+};
+  field_evidence?: {
+  [key: string]: string;
+};
+};
+
+export type HouseholdSeed = {
+  template_id: string;
+  place: string;
+  country: string;
+  country_id?: string | null;
+  region?: string | null;
+  city: string;
+  city_id?: string | null;
+  neighbourhood?: string | null;
+  latitude: number;
+  longitude: number;
+  weight: number;
+  evidence_id: string;
+  members: Array<HouseholdMemberSeed>;
+};
+
 export type ImpliedAggregate = {
   action_id: string;
   implied_annual_count: number;
@@ -997,10 +1680,496 @@ export type ImportVersion = {
   models: Array<BehaviourModel>;
 };
 
+export type InitialAgentDetail = {
+  agent_id: string;
+  display_name: string;
+  agent_types: Array<string>;
+  age?: number | null;
+  sex: string;
+  country: string;
+  city: string;
+  current_location?: string | null;
+  household_id?: string | null;
+  household_size: number;
+  family_status: string;
+  location: AgentLocation;
+  household?: AgentHousehold | null;
+  family_relationships: Array<FamilyRelationship>;
+  traits: {
+  [key: string]: unknown;
+};
+  initial_states: {
+  [key: string]: string;
+};
+  occupation?: string | null;
+  income?: string | number | number | null;
+  education?: string | null;
+  health?: string | null;
+  routines: Array<RoutineLink>;
+  decision_trees: Array<DecisionTreeLink>;
+  interaction_context: InitialInteractionContext;
+  representative_weight: number;
+};
+
+export type InitialAgentFacets = {
+  agent_types: Array<string>;
+  countries: Array<string>;
+  cities: Array<string>;
+  family_statuses: Array<string>;
+};
+
+export type InitialAgentListItem = {
+  agent_id: string;
+  display_name: string;
+  agent_types: Array<string>;
+  age?: number | null;
+  sex: string;
+  country: string;
+  city: string;
+  current_location?: string | null;
+  household_id?: string | null;
+  household_size: number;
+  family_status: string;
+};
+
+export type InitialAgentPage = {
+  items: Array<InitialAgentListItem>;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  facets: InitialAgentFacets;
+};
+
+export type InitialInteractionContext = {
+  program_status: "absent" | "draft" | "confirmed";
+  program_version?: string | null;
+  history_available?: boolean;
+  history_message: string;
+  counterparts: Array<InitialInteractionCounterpart>;
+  rules: Array<InitialInteractionRule>;
+};
+
+export type InitialInteractionCounterpart = {
+  target_agent_id: string;
+  display_name: string;
+  relationship: string;
+  relationship_kind: string;
+  weight: number;
+  trust?: number | null;
+  similarity?: number | null;
+  evidence: InitialInteractionEvidence;
+  specific_place?: string | null;
+  target_specific_place?: string | null;
+  same_specific_place: boolean | null;
+  in_person_eligibility: "eligible" | "ineligible" | "unknown";
+  eligibility_reason: string;
+  applicable_rule_ids: Array<string>;
+};
+
+export type InitialInteractionEvidence = {
+  status: string;
+  source?: string | null;
+  version?: string | null;
+  source_date?: string | null;
+  evidence_id?: string | null;
+  licence?: string | null;
+  uncertainty?: number | null;
+};
+
+export type InitialInteractionFactor = {
+  kind: "base" | "relationship" | "co_location" | "place" | "time" | "context";
+  condition: string;
+  factor_id: string;
+  label: string;
+  value: number;
+  provenance: InitialInteractionEvidence;
+};
+
+export type InitialInteractionRule = {
+  rule_id: string;
+  source_action: string;
+  interaction_type: string;
+  channel: string;
+  interaction_tree_id?: string | null;
+  formula: string;
+  factors: Array<InitialInteractionFactor>;
+};
+
+export type InitialPopulationMaterialization = {
+  population: PopulationTable;
+  provenance: {
+  [key: string]: AgentInitialStateProvenance;
+};
+  validation: InitialPopulationValidation;
+  input_hash: string;
+};
+
+export type InitialPopulationRequest = {
+  population_id: string;
+  version: string;
+  seed: number;
+  target_agents: number;
+  household_templates: Array<HouseholdSeed>;
+  evidence: Array<EvidenceReference>;
+};
+
+export type InitialPopulationStatus = {
+  configured: boolean;
+  population_id?: string | null;
+  version?: string | null;
+  seed?: number | null;
+  agent_count?: number;
+  input_hash?: string | null;
+  agent_type_mix?: {
+  [key: string]: number;
+};
+};
+
+export type InitialPopulationValidation = {
+  valid: boolean;
+  issues: Array<InitialPopulationValidationIssue>;
+};
+
+export type InitialPopulationValidationIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
 export type InputBinding = {
   target_input: string;
   source_kind: "input" | "output" | "external";
   source_id: string;
+};
+
+export type InteractionBreakdown = {
+  by_relationship: {
+  [key: string]: number;
+};
+  by_channel: {
+  [key: string]: number;
+};
+  by_place: {
+  [key: string]: number;
+};
+  by_counterparty: {
+  [key: string]: number;
+};
+};
+
+export type InteractionEventDetail = {
+  event_id: string;
+  tick: number;
+  hour: number;
+  weekday: number;
+  rule_id: string;
+  interaction_type: string;
+  channel: "in_person" | "phone_message" | "online";
+  initiator_id: string;
+  initiator_name: string;
+  target_id: string;
+  target_name: string;
+  place_id: string;
+  relationship_type: string;
+  probability: number;
+  effect_count: number;
+  relationship_weight: number;
+  trust: number;
+  similarity: number;
+  factors: Array<EvaluatedInteractionFactor>;
+  state_deltas: Array<AppliedStateDelta>;
+  relationship_deltas: Array<AppliedRelationshipDelta>;
+  interaction_tree?: InteractionTreeTrace | null;
+};
+
+export type InteractionFacets = {
+  agents: {
+  [key: string]: string;
+};
+  interaction_types: Array<string>;
+  channels: Array<"in_person" | "phone_message" | "online">;
+  relationships: Array<string>;
+  places: Array<string>;
+};
+
+export type InteractionFactor = {
+  id: string;
+  label: string;
+  value: number;
+  provenance: InteractionFactorProvenance;
+};
+
+export type InteractionFactorProvenance = {
+  source: string;
+  version: string;
+  source_date?: string | null;
+  evidence_id?: string | null;
+  licence?: string | null;
+  status: "measured_joint" | "fitted_model" | "approved_estimate" | "unknown" | "label_only" | "ambiguous" | "legacy";
+  uncertainty: number;
+  user_approved?: boolean;
+};
+
+export type InteractionListItem = {
+  event_id: string;
+  tick: number;
+  hour: number;
+  weekday: number;
+  rule_id: string;
+  interaction_type: string;
+  channel: "in_person" | "phone_message" | "online";
+  initiator_id: string;
+  initiator_name: string;
+  target_id: string;
+  target_name: string;
+  place_id: string;
+  relationship_type: string;
+  probability: number;
+  effect_count: number;
+};
+
+export type InteractionPage = {
+  items: Array<InteractionListItem>;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  facets: InteractionFacets;
+  breakdown: InteractionBreakdown;
+};
+
+export type InteractionParticipant = {
+  agent_id: string;
+  place_id: string;
+  traits?: {
+  [key: string]: number | string | boolean;
+};
+  states?: {
+  [key: string]: number;
+};
+  routines?: Array<string>;
+};
+
+export type InteractionPathStep = {
+  tree_id?: string | null;
+  node_id: string;
+  transition_id: string;
+  outcome: string;
+  probability: number;
+  draw: number;
+  evidence: InteractionTransitionEvidence;
+  factors?: Array<EvaluatedInteractionProbabilityFactor>;
+  outgoing_probabilities?: Array<EvaluatedInteractionTransition>;
+};
+
+export type InteractionPlaceContext = {
+  id: string;
+  kind: string;
+  states?: {
+  [key: string]: number;
+};
+};
+
+export type InteractionProbabilityFactor = {
+  id: string;
+  label: string;
+  cases: Array<InteractionProbabilityFactorCase>;
+  evidence: InteractionTransitionEvidence;
+};
+
+export type InteractionProbabilityFactorCase = {
+  id: string;
+  conditions: Array<InteractionTreeCondition>;
+  multiplier: number;
+};
+
+export type InteractionProgramDefinition = {
+  version: string;
+  status: "draft" | "confirmed";
+  relationship_evidence?: Array<RelationshipKindEvidence>;
+  rules?: Array<InteractionRule>;
+};
+
+export type InteractionProgramValidation = {
+  valid: boolean;
+  issues: Array<InteractionProgramValidationIssue>;
+};
+
+export type InteractionProgramValidationIssue = {
+  path: string;
+  message: string;
+};
+
+export type InteractionProgramView = {
+  configured: boolean;
+  program: InteractionProgramDefinition;
+};
+
+export type InteractionQuery = {
+  search?: string;
+  agent_id?: string | null;
+  direction?: "either" | "initiator" | "target";
+  interaction_type?: string | null;
+  channel?: "in_person" | "phone_message" | "online" | null;
+  relationship_type?: string | null;
+  place_id?: string | null;
+  page?: number;
+  page_size?: number;
+};
+
+export type InteractionRule = {
+  id: string;
+  source_action: string;
+  interaction_type: string;
+  channel: "in_person" | "phone_message" | "online";
+  max_targets_per_initiator: number;
+  allowed_relationships?: Array<string>;
+  allowed_place_kinds?: Array<string>;
+  base_factor: InteractionFactor;
+  relationship_factors: {
+  [key: string]: InteractionFactor;
+};
+  colocation_factors: {
+  [key: string]: InteractionFactor;
+};
+  place_factors: {
+  [key: string]: InteractionFactor;
+};
+  time_factors: Array<TimeFactorWindow>;
+  context_factors?: Array<InteractionFactor>;
+  unrelated_relationship?: RelationshipProfile | null;
+  agent_effects?: Array<petraterrium__simulation__interactions__AgentStateEffect>;
+  relationship_effects?: Array<petraterrium__simulation__interactions__RelationshipStateEffect>;
+  interaction_tree_id?: string | null;
+  interaction_tree_context?: {
+  [key: string]: string | number | boolean;
+};
+};
+
+export type InteractionTimeContext = {
+  weekday: number;
+  hour: number;
+};
+
+export type InteractionTransitionEvidence = {
+  source: string;
+  version: string;
+  status: "measured_joint" | "fitted_model" | "approved_estimate";
+  uncertainty: number;
+  source_date?: string | null;
+  evidence_id?: string | null;
+};
+
+export type InteractionTreeChange = {
+  recipient: "actor" | "target" | "relationship";
+  field: string;
+  before: number | string | boolean;
+  after: number | string | boolean;
+};
+
+export type InteractionTreeCondition = {
+  input: string;
+  operator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+  value: number | string | boolean;
+};
+
+export type InteractionTreeContext = {
+  actor: InteractionParticipant;
+  target: InteractionParticipant;
+  relationship: DirectedRelationship;
+  place: InteractionPlaceContext;
+  time: InteractionTimeContext;
+  channel: string;
+  attributes?: {
+  [key: string]: number | string | boolean;
+};
+};
+
+export type InteractionTreeDefinition = {
+  id: string;
+  name: string;
+  version: string;
+  entry_node: string;
+  allowed_channels: Array<string>;
+  co_location_policy: "required" | "remote_allowed";
+  nodes: Array<InteractionTreeNode>;
+  transitions: Array<InteractionTreeTransition>;
+};
+
+export type InteractionTreeNode = {
+  id: string;
+  label: string;
+  terminal: boolean;
+  target_tree_id?: string | null;
+};
+
+export type InteractionTreeReceipt = {
+  actor_id: string;
+  target_id: string;
+  relationship_direction: string;
+  place_id: string;
+  channel: string;
+  weekday: number;
+  hour: number;
+};
+
+export type InteractionTreeRequest = {
+  seed: number;
+  tick: number;
+  tree: InteractionTreeDefinition;
+  trees?: {
+  [key: string]: InteractionTreeDefinition;
+};
+  context: InteractionTreeContext;
+};
+
+export type InteractionTreeResult = {
+  tree_id: string;
+  tree_version: string;
+  seed: number;
+  tick: number;
+  outcome_node: string;
+  outcome: string;
+  path: Array<InteractionPathStep>;
+  receipt: InteractionTreeReceipt;
+  actor_before: InteractionParticipant;
+  actor_after: InteractionParticipant;
+  target_before: InteractionParticipant;
+  target_after: InteractionParticipant;
+  relationship_before: DirectedRelationship;
+  relationship_after: DirectedRelationship;
+  changes: Array<InteractionTreeChange>;
+};
+
+export type InteractionTreeSummary = {
+  id: string;
+  name: string;
+  version: string;
+  node_count: number;
+  transition_count: number;
+  co_location_policy: "required" | "remote_allowed";
+  allowed_channels: Array<string>;
+};
+
+export type InteractionTreeTrace = {
+  tree_id: string;
+  tree_version: string;
+  outcome_node: string;
+  outcome: string;
+  path: Array<InteractionPathStep>;
+};
+
+export type InteractionTreeTransition = {
+  id: string;
+  from_node: string;
+  to_node: string;
+  outcome: string;
+  probability: number;
+  probability_factors?: Array<InteractionProbabilityFactor>;
+  evidence: InteractionTransitionEvidence;
+  conditions?: Array<InteractionTreeCondition>;
+  effects?: Array<unknown>;
 };
 
 export type JointDataProof = {
@@ -1027,6 +2196,107 @@ export type LegacyMarginalField = {
   unit: string;
   provenance: Provenance;
   predictive: false;
+};
+
+export type LocationAgentDetail = {
+  agent_id: string;
+  display_name: string;
+  current_location: LocationPlaceSummary;
+  ancestry: Array<LocationPlaceSummary>;
+  history: Array<LocationHistoryRecord>;
+  co_located_agents: Array<LocationAgentSummary>;
+  elsewhere_agents: Array<LocationAgentSummary>;
+  effective_place_state: {
+  [key: string]: number;
+};
+};
+
+export type LocationAgentSummary = {
+  agent_id: string;
+  display_name: string;
+  current_location_id: string;
+};
+
+export type LocationDecisionTreeAvailability = {
+  tree_id: string;
+  tree_name: string;
+  available: boolean;
+  required_place_kinds: Array<string>;
+  reason?: string | null;
+};
+
+export type LocationEvidence = {
+  source_title: string;
+  source_version: string;
+  source_date: string;
+  licence: string;
+  evidence_id: string;
+  status: "measured" | "user_defined";
+  uncertainty: number;
+};
+
+export type LocationHistoryRecord = {
+  tick: number;
+  agent_id: string;
+  from_location_id: string;
+  to_location_id: string;
+  route_location_ids: Array<string>;
+};
+
+export type LocationLivePlaceState = {
+  runtime_place_index: number;
+  runtime_place_id: string;
+  location_id: string;
+  kind: string;
+  accepts_arrivals: boolean;
+  allows_in_person: boolean;
+  capacity?: number | null;
+  occupancy: number;
+  crowd_density?: number | null;
+  state: {
+  [key: string]: number;
+};
+};
+
+export type LocationPlaceSummary = {
+  id: string;
+  name: string;
+  level: "country" | "region" | "state" | "city" | "district" | "building" | "room";
+  parent_id: string | null;
+  child_ids: Array<string>;
+  current_agent_count: number;
+  accepts_arrivals: boolean;
+  allows_in_person: boolean;
+  capacity: number | null;
+  state: {
+  [key: string]: number;
+};
+  state_source?: "rust_numeric_core" | "location_registry";
+  runtime_place_id?: string | null;
+  runtime_place_kind?: string | null;
+  evidence: LocationEvidence | null;
+  decision_trees: Array<LocationDecisionTreeAvailability>;
+};
+
+export type LocationRunSnapshot = {
+  run_id: string;
+  tick: number;
+  root_location_ids: Array<string>;
+  places: Array<LocationPlaceSummary>;
+  agents: Array<LocationAgentSummary>;
+};
+
+export type LocationTransitionStep = {
+  tick: number;
+  kind: string;
+  source: string;
+  schedule?: string | null;
+  from_location: string;
+  to_location: string;
+  destination_location: string;
+  provenance: {
+  [key: string]: unknown;
+};
 };
 
 export type MappingAudit = {
@@ -1117,6 +2387,29 @@ export type MissingFallback = {
   impact: string;
 };
 
+export type MobilityEvidence = {
+  status: "measured" | "user_defined" | "unknown" | "imputed";
+  source_title?: string | null;
+  source_version?: string | null;
+  source_date?: string | null;
+  licence?: string | null;
+  evidence_id?: string | null;
+  uncertainty?: number | null;
+  note?: string | null;
+};
+
+export type MobilityRegistryDefinition = {
+  version: string;
+  status: "draft" | "confirmed";
+  place_profiles: Array<PlaceProfileDefinition>;
+  routes: Array<TravelRouteDefinition>;
+};
+
+export type MobilityRegistryView = {
+  configured: boolean;
+  registry: MobilityRegistryDefinition | null;
+};
+
 export type ModuleInput = {
   id: string;
   kind: "agent_trait" | "place" | "time" | "context" | "persisted_state" | "place_state" | "media_state";
@@ -1158,6 +2451,20 @@ export type NetworkDefinition = {
   friend_weight?: number;
   stranger_weight?: number;
   enemy_weight?: number;
+};
+
+export type NoSourceAttachment = {
+  kind?: "none";
+  label?: "no source attached \u2014 estimated / unknown";
+  reason: string;
+};
+
+export type OutgoingProbabilityTotal = {
+  node_id: string;
+  known_total: number;
+  unknown_count: number;
+  complete: boolean;
+  sums_to_one: boolean;
 };
 
 export type OutputSpec = {
@@ -1202,6 +2509,28 @@ export type PlaceHierarchy = {
   region: string;
 };
 
+export type PlaceLevel = "global" | "region" | "subregion" | "country" | "city";
+
+export type PlaceProfileDefinition = {
+  id: string;
+  place_id?: string | null;
+  place_kind: string;
+  accepts_arrivals: boolean;
+  allows_in_person: boolean;
+  capacity: number | null;
+  state: {
+  [key: string]: number;
+};
+  available_decision_tree_ids: Array<string>;
+  evidence: MobilityEvidence;
+};
+
+export type PlaceSelector = {
+  level: PlaceLevel;
+  place: string;
+  label: string;
+};
+
 export type PlaceSnapshot = {
   country: string;
   latitude: number | null;
@@ -1243,6 +2572,21 @@ export type PopulationReference = {
 };
 };
 
+export type PopulationTable = {
+  population_id: string;
+  version: string;
+  seed: number;
+  agents: Array<AgentRecord>;
+};
+
+export type ProbabilityFactor = {
+  id: string;
+  name: string;
+  input_kind: "trait" | "place" | "time" | "context";
+  input_key: string;
+  feature_id?: string | null;
+};
+
 export type ProbabilityQuery = {
   outcome_id: string;
   conditioning_id: string;
@@ -1273,6 +2617,17 @@ export type ProgramExit = {
 export type Promotion = {
   confirmed: boolean;
   redistribution_confirmed: boolean;
+};
+
+export type ProposalAudit = {
+  provider: string;
+  model: string;
+  prompt_version: string;
+  generated_at?: string | null;
+  input_tokens?: number;
+  output_tokens?: number;
+  estimated_cost_usd?: number | null;
+  message: string;
 };
 
 export type Provenance = {
@@ -1309,9 +2664,181 @@ export type RegistrySource = {
 }>;
 };
 
+export type Relationship = {
+  target_id: string;
+  kind: "family" | "household" | "friend" | "enemy" | "workplace" | "school";
+  weight: number;
+  trust?: number | null;
+  similarity?: number | null;
+  evidence_id?: string | null;
+  evidence_status?: "measured_joint" | "fitted_model" | "approved_estimate" | "user_defined" | "imputed" | "unknown" | null;
+};
+
+export type RelationshipKindEffect = {
+  kind?: "relationship_kind";
+  relationship_type: string;
+};
+
+export type RelationshipKindEvidence = {
+  kind: string;
+  weight: number;
+  trust: number;
+  similarity: number;
+  provenance: InteractionFactorProvenance;
+};
+
+export type RelationshipProfile = {
+  kind: string;
+  weight: number;
+  trust: number;
+  similarity: number;
+};
+
+export type ResearchCitation = {
+  kind: "article" | "research_paper";
+  imported_source_id: string;
+  title: string;
+  source: string;
+  publication_date: string;
+  population_studied: string;
+  link_or_reference: string;
+  supports_decision_ids: Array<string>;
+  supports_factor_ids: Array<string>;
+};
+
+export type ResolvedAgentRoutines = {
+  agent_type_id: string;
+  agent_type_name: string;
+  routines: Array<ResolvedRoutine>;
+};
+
+export type ResolvedAgentType = {
+  id: string;
+  name: string;
+  description?: string | null;
+  parent_ids: Array<string>;
+  traits: Array<ResolvedAgentTypeMember>;
+  routines: Array<ResolvedAgentTypeMember>;
+  decisions: Array<ResolvedAgentTypeMember>;
+};
+
+export type ResolvedAgentTypeMember = {
+  member: AgentTypeMember;
+  source_type_id: string;
+  inherited: boolean;
+  explicit_override: boolean;
+  overridden_source_type_ids?: Array<string>;
+};
+
+export type ResolvedAgentTypeRegistry = {
+  types: Array<ResolvedAgentType>;
+};
+
+export type ResolvedRoutine = {
+  routine: RoutineDefinition;
+  source_type_id: string;
+  inherited: boolean;
+  explicit_override: boolean;
+  overridden_source_type_ids?: Array<string>;
+};
+
+export type ResolvedRoutineRegistry = {
+  agent_types: Array<ResolvedAgentRoutines>;
+};
+
 export type RoleDefinition = {
   id: string;
   actions?: Array<string>;
+};
+
+export type RoutineDefinition = {
+  id: string;
+  name: string;
+  agent_type_id: string;
+  description?: string | null;
+  evidence: RoutineEvidence;
+  steps: Array<RoutineStep>;
+};
+
+export type RoutineEvidence = {
+  status: "measured" | "user_defined" | "illustrative" | "unknown";
+  source_title?: string | null;
+  source_date?: string | null;
+  source_uri?: string | null;
+  note?: string | null;
+};
+
+export type RoutineLink = {
+  routine_id: string;
+  name: string;
+  agent_type: string;
+  inherited_from?: string | null;
+};
+
+export type RoutineProposalDraft = {
+  id: string;
+  name: string;
+  agent_type_id: string;
+  description?: string | null;
+  source_feature_ids?: Array<string>;
+  evidence: RoutineEvidence;
+  steps: Array<RoutineStepProposal>;
+};
+
+export type RoutineRegistryDefinition = {
+  agent_types: Array<AgentTypeDefinition>;
+  routines?: Array<RoutineDefinition>;
+};
+
+export type RoutineRegistryStatus = {
+  configured: boolean;
+  agent_type_count?: number;
+  routine_count?: number;
+  valid?: boolean | null;
+  issue_count?: number;
+};
+
+export type RoutineRegistryView = {
+  status: RoutineRegistryStatus;
+  registry: RoutineRegistryDefinition | null;
+  validation: RoutineValidationResult | null;
+  resolved: ResolvedRoutineRegistry | null;
+};
+
+export type RoutineSchedule = {
+  days: Array<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">;
+  start_time: string;
+  end_time: string;
+  ends_next_day?: boolean;
+  place_ids: Array<string>;
+  role_ids: Array<string>;
+};
+
+export type RoutineStep = {
+  id: string;
+  name: string;
+  activity: string;
+  schedule: RoutineSchedule;
+  decision_tree_module_id?: string | null;
+};
+
+export type RoutineStepProposal = {
+  id: string;
+  name: string;
+  activity: string;
+  decision_tree_module_id?: string | null;
+  schedule?: RoutineSchedule | null;
+};
+
+export type RoutineValidationIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
+export type RoutineValidationResult = {
+  valid: boolean;
+  issues: Array<RoutineValidationIssue>;
 };
 
 export type RuleCondition = {
@@ -1329,6 +2856,43 @@ export type RuleDefinition = {
   [key: string]: number;
 };
   max_applications?: number;
+};
+
+export type RunAgentDetail = {
+  agent_id: string;
+  display_name: string;
+  final_module: string;
+  final_state: string;
+  final_location: string;
+  initial_module: string;
+  initial_state: string;
+  initial_location: string;
+  traits: {
+  [key: string]: string | number;
+};
+  memory: {
+  [key: string]: number;
+};
+  initial_profile?: {
+  [key: string]: unknown;
+};
+  timeline: Array<AgentTimelinePoint>;
+};
+
+export type RunAgentPage = {
+  items: Array<RunAgentSummary>;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+};
+
+export type RunAgentSummary = {
+  agent_id: string;
+  display_name: string;
+  final_module: string;
+  final_state: string;
+  final_location: string;
 };
 
 export type RunComplete = {
@@ -1395,6 +2959,27 @@ export type RunError = {
   message: string;
 };
 
+export type RunEvent = {
+  day: number;
+  date: string;
+  tick: number;
+  kind: "action" | "routine" | "transition" | "location" | "availability" | "synchronization" | "interaction";
+  label: string;
+  agent_ids: Array<string>;
+  location?: string | null;
+  details?: {
+  [key: string]: unknown;
+};
+};
+
+export type RunEventPage = {
+  items: Array<RunEvent>;
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+};
+
 export type RunFailed = {
   run_id: string;
   status: "failed";
@@ -1427,11 +3012,72 @@ export type ScenarioDefinition = {
   events?: Array<string>;
 };
 
+export type SimulationPlaceScope = {
+  level: "global" | "region" | "country" | "city";
+  identifier?: string | null;
+};
+
+export type SimulationResult = {
+  source?: "rust";
+  protocol_version: string;
+  engine_version: string;
+  data_version: string;
+  program_version: string;
+  input_hash: string;
+  output_hash: string;
+  snapshots: Array<SnapshotSummary>;
+};
+
+export type SimulationRunConfig = {
+  population_size: number;
+  seed: number;
+  days: number;
+  tick_interval_hours: number;
+  start_date: string;
+  place_scope: SimulationPlaceScope;
+  agent_type_mix?: {
+  [key: string]: number;
+};
+};
+
+export type SimulationRunView = {
+  run_id: string;
+  config: SimulationRunConfig;
+  status: "queued" | "running" | "cancelling" | "cancelled" | "completed" | "failed";
+  progress: number;
+  completed_ticks: number;
+  total_ticks: number;
+  result?: SimulationResult | null;
+  error?: string | null;
+};
+
 export type SliderSpec = {
   parameter: string;
   value: number;
   unit: string;
   evidence_status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
+};
+
+export type SnapshotSummary = {
+  day: number;
+  date: string;
+  tick: number;
+  elapsed_hours: number;
+  state_counts: {
+  [key: string]: number;
+};
+  place_counts: {
+  [key: string]: number;
+};
+  live_places?: Array<LocationLivePlaceState>;
+  transition_counts: Array<{
+  [key: string]: unknown;
+}>;
+  interaction_outcome_counts?: {
+  [key: string]: number;
+};
+  event_count: number;
+  interaction_count: number;
 };
 
 export type SourceCatalog = {
@@ -1493,6 +3139,13 @@ export type TickConfig = {
   update_order?: "double_buffered" | "seeded_random";
 };
 
+export type TimeFactorWindow = {
+  weekdays: Array<number>;
+  start_hour: number;
+  end_hour: number;
+  factor: InteractionFactor;
+};
+
 export type Totals = {
   population: number;
   susceptible: number;
@@ -1535,6 +3188,31 @@ export type TransitionEvidence = {
   provenance: Evidence;
 };
 
+export type TravelRouteDefinition = {
+  id: string;
+  from_place_kind: string;
+  to_place_kind: string;
+  transit_place_kind: string;
+  duration_minutes: number;
+  evidence: MobilityEvidence;
+};
+
+export type TreeModuleIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
+export type TreeRegistryValidation = {
+  valid: boolean;
+  issues: Array<TreeModuleIssue>;
+  broken_references: Array<BrokenModuleReference>;
+  reference_cycles: Array<Array<string>>;
+  unreachable_nodes: {
+  [key: string]: Array<string>;
+};
+};
+
 export type UniversalFeatureOverview = {
   registry: FeatureRegistry;
   resolutions: Array<FeatureResolutionRecord>;
@@ -1558,7 +3236,68 @@ export type petraterrium__atlas__contracts__ValidationIssue = {
   message: string;
 };
 
+export type petraterrium__contracts__DecisionPathStep = {
+  agent_id: string;
+  action_id: string;
+  previous_action_id: string | null;
+  chain_id: string | null;
+  chain_step_index: number;
+  tick: number;
+  place: string;
+  target_agent_id: string | null;
+};
+
 export type petraterrium__dsl__models__ValidationIssue = {
   path: string;
   message: string;
+};
+
+export type petraterrium__simulation__interaction_trees__AgentStateEffect = {
+  kind?: "agent_state";
+  participant: "actor" | "target";
+  field: string;
+  operation: "set" | "add";
+  value: number;
+  minimum?: number | null;
+  maximum?: number | null;
+  scale_by?: Array<string>;
+};
+
+export type petraterrium__simulation__interaction_trees__RelationshipStateEffect = {
+  kind?: "relationship_state";
+  field: string;
+  operation: "set" | "add";
+  value: number;
+  minimum?: number | null;
+  maximum?: number | null;
+  scale_by?: Array<string>;
+};
+
+export type petraterrium__simulation__interactions__AgentStateEffect = {
+  recipient: "initiator" | "target";
+  state: string;
+  delta: number;
+  minimum: number;
+  maximum: number;
+  scale_by?: Array<"relationship_weight" | "trust" | "similarity">;
+};
+
+export type petraterrium__simulation__interactions__RelationshipStateEffect = {
+  direction: "initiator_to_target" | "target_to_initiator";
+  field: "weight" | "trust" | "similarity";
+  delta: number;
+  minimum: number;
+  maximum: number;
+};
+
+export type petraterrium__simulation__run_service__DecisionPathStep = {
+  tick: number;
+  module: string;
+  transition: string;
+  from_state: string;
+  to_state: string;
+  probability: number;
+  provenance: {
+  [key: string]: unknown;
+};
 };

@@ -42,42 +42,56 @@ export function shell(): string {
         ><span>Petraterrium<span class="brand-subtitle">POPULATION DYNAMICS LAB</span></span></a
       >
       <div class="workspace-label">
-        <span class="status-dot"></span> SANDBOX WORKSPACE <span class="version">V0.1</span>
+        <span class="status-dot"></span> SIMULATION WORKSPACE <span class="version">V0.2</span>
       </div>
-      <button class="button primary new-run-button" data-action="new" disabled>
+      <button class="button primary new-run-button" data-action="new">
         <span>＋</span> New experiment <span class="button-arrow">↗</span>
       </button>
       <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
         <button role="tab" aria-selected="true" aria-controls="simulation-view" data-action="simulation-tab">Simulation</button>
         <button role="tab" aria-selected="false" aria-controls="stories-view" data-action="stories-tab">Stories</button>
-        <button role="tab" aria-selected="false" aria-controls="dsl-view" data-action="dsl-tab">DSL</button>
         <button role="tab" aria-selected="false" aria-controls="data-view" data-action="data-tab">Data</button>
-        <button role="tab" aria-selected="false" aria-controls="decision-view" data-action="graph-tab">Graph</button>
       </div>
-      <div class="sidebar-section-title">
+      <div class="sidebar-section-title" hidden aria-hidden="true">
         <span>SAVED RUNS</span
         ><button class="icon-button" data-action="refresh" aria-label="Refresh saved runs">↻</button>
       </div>
-      <nav aria-label="Saved runs">
+      <nav aria-label="Recorded compatibility runs" hidden aria-hidden="true">
         <ul id="run-list" class="run-list">
           <li class="sidebar-empty">Connecting to your session…</li>
         </ul>
       </nav>
       <div class="sidebar-footer">
-        <span class="small-label">THE DSL SIMULATION FRAMEWORK</span>
-        <div class="fake-tag" id="workspace-data-notice">FAKE DATA ONLY</div>
-        <p class="muted" id="workspace-storage-notice">Runs live in server memory.<br />Restarting the API clears them.</p>
+        <span class="small-label">SIMULATION FRAMEWORK</span>
+        <div class="fake-tag" id="workspace-data-notice">SIMULATION WORKSPACE</div>
+        <p class="muted" id="workspace-storage-notice">Simulation runs, timelines, and events are saved on the API server.</p>
       </div>
     </aside>
     <main>
       <header class="topbar">
         <span class="breadcrumb">Workspace <span>/</span> <span id="workspace-breadcrumb">Population lab</span></span>
         <div class="topbar-right">
-          <span id="api-status" class="api-status">Connecting</span
+          <button class="text-button" data-action="settings" aria-label="Open settings">Settings</button
+          ><span id="api-status" class="api-status">Connecting</span
           ><span class="avatar" aria-hidden="true">P</span>
         </div>
       </header>
-      <div class="lab" id="simulation-view">
+      <div class="simulation-workspace" id="simulation-view">
+        <nav class="simulation-sections" role="tablist" aria-label="Simulation sections">
+          <button role="tab" aria-selected="true" aria-controls="simulation-graph-view" data-simulation-section="graph">Graph</button>
+          <button role="tab" aria-selected="false" aria-controls="simulation-agents-view" data-simulation-section="agents">Initial Agents</button>
+          <button role="tab" aria-selected="false" aria-controls="simulation-trees-view" data-simulation-section="trees">Decision Trees</button>
+          <button role="tab" aria-selected="false" aria-controls="simulation-run-view" data-simulation-section="run">Run Simulation</button>
+          <button class="simulation-settings-button" type="button" data-action="settings">AI Settings</button>
+        </nav>
+        <section id="simulation-graph-view" class="simulation-section"></section>
+        <section id="simulation-agents-view" class="simulation-section" hidden></section>
+        <section id="simulation-trees-view" class="simulation-section" hidden></section>
+        <div class="lab simulation-section" id="simulation-run-view" hidden>
+        <div id="rust-run-panel" class="simulation-rust-run"></div>
+        <details class="legacy-run-details" hidden aria-hidden="true">
+          <summary>Recorded compatibility runs</summary>
+          <div class="legacy-run-content">
         <div id="error-banner" class="notice error-notice" role="alert" hidden>
           <span id="error-message"></span><button class="text-button" data-action="retry">Retry</button
           ><button class="icon-button" data-action="dismiss-error" aria-label="Dismiss error">×</button>
@@ -85,7 +99,7 @@ export function shell(): string {
         <section class="hero">
           <div>
             <p class="eyebrow">
-              <span class="tiny-globe">⊕</span> DSL SYSTEM <span class="slash">/</span> RECORDED RUN
+              <span class="tiny-globe">⊕</span> SIMULATION <span class="slash">/</span> RECORDED RUN
             </p>
             <h1>Trace the state.</h1>
           </div>
@@ -233,11 +247,12 @@ export function shell(): string {
           <span>PETRATERRIUM <span class="muted">/ A SMALL WORLD, MADE CHECKABLE</span></span
           ><span class="muted">CONDITIONAL OUTPUT · VERSIONED RECEIPTS</span>
         </footer>
+          </div>
+        </details>
+        </div>
       </div>
       <div id="stories-view" class="stories-view" hidden></div>
-      <div id="dsl-view" class="dsl-view" hidden></div>
       <div id="data-view" class="atlas-view" hidden></div>
-      <div id="decision-view" class="decision-view" hidden></div>
     </main>
     <dialog id="new-run-dialog" class="run-dialog" aria-labelledby="new-run-title">
       <form id="run-form">
@@ -372,6 +387,11 @@ export function shell(): string {
       <h2 id="agent-title">Synthetic agent</h2><p id="agent-scope" class="dialog-subtitle"></p><div id="agent-content"></div>
       <div class="dialog-footer"><button class="button secondary" data-action="close-agent">Return to globe</button></div>
     </dialog>
+    <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title">
+      <div class="dialog-top"><span class="small-label">GLOBAL SETTINGS</span><button class="icon-button" data-action="close-settings" aria-label="Close settings">×</button></div>
+      <h2 id="settings-title">Settings</h2>
+      <div id="ai-settings-panel"></div>
+    </dialog>
   `;
 }
 
@@ -386,7 +406,7 @@ export function countryOptions(catalog: Catalog): string {
 
 export function savedRunList(runs: RunSummary[], activeId?: string): string {
   if (!runs.length)
-    return '<li class="sidebar-empty"><span class="empty-runs-icon">⊞</span>No experiments yet.<br>Your next question starts here.</li>';
+    return '<li class="sidebar-empty"><span class="empty-runs-icon">⊞</span>No saved runs.</li>';
   return runs
     .map(
       (run) =>

@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from petraterrium.ai_provider import AIProviderError
 from petraterrium.atlas.auto_import_requirements import canonical_requirement
 from petraterrium.atlas.auto_import_research import (
     ConfirmedLabelMapping,
@@ -435,4 +436,27 @@ def test_no_credible_result_stays_missing_and_persists_search_log_without_repeat
     assert repeated.status == "not_found"
     assert second_provider.searches == []
     assert repeated.search_log == researched.search_log
+
+
+def test_selected_ai_source_failure_is_the_visible_attempt_error():
+    class FailingProvider(ScriptedProvider):
+        def search(self, step, target, requirement):
+            self.searches.append(step)
+            raise AIProviderError(
+                "openai_cli_failed",
+                "OpenAI CLI failed with exit code 17: selected source unavailable; "
+                "no fallback was attempted.",
+            )
+
+    auto_import = service(FailingProvider())
+    attempt = auto_import.create_attempt(target())
+
+    researched = auto_import.research(attempt.attempt_id)
+
+    assert researched.status == "not_found"
+    assert researched.failure_reason == (
+        "OpenAI CLI failed with exit code 17: selected source unavailable; "
+        "no fallback was attempted."
+    )
+    assert all(entry.outcome == "error" for entry in researched.search_log)
 

@@ -1,0 +1,985 @@
+.tree-navigator {
+  --tree-surface: #0f1821;
+  --tree-raised: #14212a;
+  --tree-control: #09121a;
+  --tree-line: #ffffff16;
+  --tree-line-strong: #668676;
+  --tree-text: #dbe4e6;
+  --tree-muted: #71838d;
+  --tree-accent: var(--green, #b5e7b1);
+  --tree-danger: #e39a80;
+  color: var(--tree-text);
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+:root[data-theme='light'] .tree-navigator,
+:root[data-color-scheme='light'] .tree-navigator,
+:root.theme-light .tree-navigator {
+  --tree-surface: #f3f6f5;
+  --tree-raised: #e7efeb;
+  --tree-control: #fff;
+  --tree-line: #17312924;
+  --tree-line-strong: #527864;
+  --tree-text: #172822;
+  --tree-muted: #60736c;
+  --tree-accent: #376f50;
+  --tree-danger: #9b493a;
+}
+
+.tree-navigator-header,
+.tree-module-heading,
+.tree-module-topline,
+.tree-catalog > div,
+.tree-reference-list > div {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.tree-navigator :is(h2, h3, h4, p, ol, ul, dl) {
+  margin: 0;
+}
+
+.tree-navigator-header h2 {
+  font-size: 24px;
+  font-weight: 550;
+  letter-spacing: -0.035em;
+  margin: 4px 0 5px;
+}
+
+.tree-navigator-header p,
+.tree-module-heading p {
+  color: var(--tree-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.tree-kicker,
+.tree-registry-version,
+.tree-toolbar label > span,
+.tree-module-heading > div:first-child > span,
+.tree-node-select span,
+.tree-node-detail > span,
+.tree-reference-list > div span {
+  color: var(--tree-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tree-registry-version {
+  border: 1px solid var(--tree-line);
+  border-radius: 999px;
+  padding: 6px 9px;
+}
+
+.tree-toolbar {
+  align-items: end;
+  background: var(--tree-surface);
+  border: 1px solid var(--tree-line);
+  border-radius: 6px;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: minmax(190px, 1.5fr) repeat(4, minmax(115px, 0.75fr));
+  padding: 11px;
+  position: relative;
+  z-index: 5;
+}
+
+.tree-toolbar label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tree-toolbar :is(input, select) {
+  appearance: none;
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  color: var(--tree-text);
+  font-size: 10px;
+  min-height: 36px;
+  min-width: 0;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.tree-toolbar select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--tree-muted) 50%),
+    linear-gradient(135deg, var(--tree-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 13px) 15px,
+    calc(100% - 9px) 15px;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  padding-right: 26px;
+}
+
+.tree-toolbar :is(input, select):hover {
+  border-color: var(--tree-line-strong);
+}
+
+.tree-toolbar :is(input, select):focus-visible {
+  border-color: var(--tree-accent);
+  outline: 2px solid color-mix(in srgb, var(--tree-accent) 20%, transparent);
+  outline-offset: 1px;
+}
+
+.tree-toolbar option {
+  background: var(--tree-control);
+  color: var(--tree-text);
+}
+
+.tree-search-results {
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line-strong);
+  border-radius: 5px;
+  box-shadow: 0 18px 45px #00000042;
+  left: 11px;
+  max-height: 300px;
+  overflow-y: auto;
+  position: absolute;
+  right: 11px;
+  top: calc(100% - 3px);
+}
+
+.tree-search-results button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--tree-line);
+  color: var(--tree-text);
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.tree-search-results button:hover,
+.tree-search-results button:focus-visible {
+  background: var(--tree-raised);
+}
+
+.tree-search-results strong {
+  font-size: 11px;
+}
+
+.tree-search-results span,
+.tree-search-results p {
+  color: var(--tree-muted);
+  font-size: 9px;
+}
+
+.tree-search-results p {
+  padding: 15px;
+}
+
+.tree-navigator-layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 225px minmax(0, 1fr);
+  min-height: 650px;
+}
+
+.tree-catalog,
+.tree-module-workspace {
+  background: var(--tree-surface);
+  border: 1px solid var(--tree-line);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.tree-catalog {
+  align-content: start;
+  display: grid;
+  gap: 5px;
+  max-height: 760px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.tree-catalog > div {
+  align-items: center;
+  padding: 3px 3px 8px;
+}
+
+.tree-catalog h3 {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tree-catalog > div span {
+  color: var(--tree-muted);
+  font-size: 9px;
+}
+
+.tree-catalog-item {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--tree-text);
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  text-align: left;
+}
+
+.tree-catalog-item:hover {
+  background: var(--tree-raised);
+}
+
+.tree-catalog-item.is-active {
+  background: color-mix(in srgb, var(--tree-accent) 8%, var(--tree-control));
+  border-color: color-mix(in srgb, var(--tree-accent) 42%, transparent);
+}
+
+.tree-catalog-item strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tree-catalog-item span {
+  color: var(--tree-muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.tree-module-workspace {
+  padding: 13px;
+}
+
+.tree-module-topline {
+  align-items: center;
+  border-bottom: 1px solid var(--tree-line);
+  justify-content: flex-start;
+  margin: -2px -2px 13px;
+  padding: 0 2px 11px;
+}
+
+.tree-module-topline > button,
+.tree-module-topline nav button {
+  background: transparent;
+  border: 0;
+  color: var(--tree-muted);
+  font-size: 9px;
+  padding: 4px 6px;
+}
+
+.tree-module-topline > button {
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+}
+
+.tree-module-topline button:hover:not(:disabled) {
+  color: var(--tree-accent);
+}
+
+.tree-module-topline nav ol {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+}
+
+.tree-module-topline nav li:not(:last-child)::after {
+  color: var(--tree-muted);
+  content: '/';
+  font-size: 9px;
+}
+
+.tree-module-topline nav span {
+  color: var(--tree-text);
+  font-size: 9px;
+  padding: 4px 6px;
+}
+
+.tree-module-heading {
+  margin-bottom: 12px;
+}
+
+.tree-module-heading h3 {
+  font-size: 19px;
+  font-weight: 550;
+  letter-spacing: -0.025em;
+  margin: 3px 0;
+}
+
+.tree-module-meta {
+  align-items: flex-end;
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.tree-module-meta span {
+  color: var(--tree-muted);
+  font-size: 8px;
+}
+
+.tree-module-meta span:first-child {
+  border: 1px solid var(--tree-line);
+  border-radius: 999px;
+  padding: 4px 7px;
+}
+
+.tree-module-meta button {
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  color: var(--tree-text);
+  font-size: 9px;
+  margin-top: 3px;
+  padding: 6px 9px;
+}
+
+.tree-module-meta button:hover,
+.tree-module-meta button:focus-visible {
+  border-color: var(--tree-accent);
+  color: var(--tree-accent);
+}
+
+.tree-editor-notice {
+  background: color-mix(in srgb, var(--tree-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tree-accent) 35%, transparent);
+  border-radius: 4px;
+  color: var(--tree-accent);
+  font-size: 9px;
+  margin-bottom: 10px !important;
+  padding: 8px 10px;
+}
+
+.tree-module-meta .status-ready {
+  color: var(--tree-accent);
+}
+
+.tree-module-meta .status-blocked,
+.tree-module-meta .status-deprecated {
+  color: var(--tree-danger);
+}
+
+.tree-module-diagnostics {
+  align-items: center;
+  background: color-mix(in srgb, var(--tree-danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tree-danger) 35%, transparent);
+  border-radius: 5px;
+  color: var(--tree-danger);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 9px;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 9px 11px;
+}
+
+.tree-viewport-shell {
+  border: 1px solid var(--tree-line);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tree-zoom-controls {
+  align-items: center;
+  background: color-mix(in srgb, var(--tree-control) 92%, transparent);
+  border: 1px solid var(--tree-line);
+  border-radius: 5px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  position: absolute;
+  right: 9px;
+  top: 9px;
+  z-index: 4;
+}
+
+.tree-zoom-controls button {
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--tree-muted);
+  font-size: 11px;
+  min-width: 28px;
+  padding: 6px;
+}
+
+.tree-zoom-controls button:hover {
+  background: var(--tree-raised);
+  color: var(--tree-text);
+}
+
+.tree-zoom-controls output {
+  color: var(--tree-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  min-width: 36px;
+  text-align: center;
+}
+
+.tree-module-viewport {
+  background-color: var(--tree-control);
+  background-image: radial-gradient(var(--tree-line) 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
+  cursor: grab;
+  height: 450px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+}
+
+.tree-module-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.tree-module-plane {
+  position: relative;
+  transform-origin: 0 0;
+}
+
+.tree-module-plane svg {
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tree-module-edge path {
+  fill: none;
+  stroke: var(--tree-line-strong);
+  stroke-width: 1.3;
+}
+
+.tree-module-edge text {
+  fill: var(--tree-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  text-anchor: middle;
+}
+
+.tree-module-edge-button {
+  background: color-mix(in srgb, var(--tree-control) 94%, transparent);
+  border: 1px solid var(--tree-line-strong);
+  border-radius: 4px;
+  color: var(--tree-text);
+  display: grid;
+  gap: 2px;
+  max-width: 220px;
+  min-width: 180px;
+  padding: 7px 9px;
+  position: absolute;
+  text-align: center;
+  z-index: 2;
+}
+
+.tree-module-edge-button strong {
+  font-size: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-module-edge-button span {
+  color: var(--tree-muted);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.tree-module-edge-button .tree-edge-formula {
+  border-top: 1px solid var(--tree-line);
+  display: grid;
+  gap: 2px;
+  line-height: 1.35;
+  margin-top: 3px;
+  padding-top: 5px;
+  text-transform: none;
+  white-space: normal;
+}
+
+.tree-edge-formula b {
+  color: var(--tree-text);
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.tree-edge-formula em {
+  color: var(--tree-muted);
+  font-size: 7px;
+  font-style: normal;
+}
+
+.tree-edge-formula.is-missing {
+  color: var(--tree-muted);
+}
+
+.tree-module-edge-button:hover,
+.tree-module-edge-button:focus-visible,
+.tree-module-edge-button.is-selected {
+  border-color: var(--tree-accent);
+  box-shadow: 0 0 0 1px var(--tree-accent);
+  color: var(--tree-accent);
+  outline: none;
+}
+
+.tree-module-node {
+  background: var(--tree-surface);
+  border: 1px solid var(--tree-line);
+  border-radius: 5px;
+  box-shadow: 0 10px 28px #00000020;
+  display: grid;
+  height: 94px;
+  position: absolute;
+  width: 196px;
+}
+
+.tree-module-node:hover {
+  border-color: var(--tree-line-strong);
+}
+
+.tree-module-node:hover,
+.tree-module-node:focus-within {
+  z-index: 3;
+}
+
+.tree-module-node.is-selected {
+  border-color: var(--tree-accent);
+  box-shadow: 0 0 0 1px var(--tree-accent);
+}
+
+.tree-module-node.is-broken,
+.tree-module-node.is-unreachable {
+  border-color: color-mix(in srgb, var(--tree-danger) 55%, transparent);
+}
+
+.tree-node-select {
+  background: transparent;
+  border: 0;
+  color: var(--tree-text);
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  text-align: left;
+}
+
+.tree-node-select strong {
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-node-collapse {
+  align-items: center;
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line);
+  border-radius: 50%;
+  color: var(--tree-muted);
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: -11px;
+  top: 35px;
+  width: 22px;
+  z-index: 2;
+}
+
+.tree-node-collapse:hover {
+  border-color: var(--tree-accent);
+  color: var(--tree-accent);
+}
+
+.tree-reference-open,
+.tree-reference-broken {
+  align-self: end;
+  background: color-mix(in srgb, var(--tree-accent) 8%, transparent);
+  border: 0;
+  border-top: 1px solid var(--tree-line);
+  color: var(--tree-accent);
+  font-size: 8px;
+  overflow: hidden;
+  padding: 7px 10px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-reference-preview {
+  background: var(--tree-raised);
+  border: 1px solid var(--tree-line-strong);
+  border-radius: 5px;
+  bottom: -9px;
+  box-shadow: 0 14px 35px #00000045;
+  color: var(--tree-text);
+  left: 50%;
+  opacity: 0;
+  padding: 10px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, 100%);
+  transition:
+    opacity 120ms ease,
+    visibility 120ms ease;
+  visibility: hidden;
+  width: 230px;
+  z-index: 5;
+}
+
+.tree-module-node:hover .tree-reference-preview,
+.tree-module-node:focus-within .tree-reference-preview {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tree-reference-preview > span,
+.tree-reference-preview dt {
+  color: var(--tree-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tree-reference-preview > strong {
+  display: block;
+  font-size: 10px;
+  margin: 3px 0 8px;
+}
+
+.tree-reference-preview dl {
+  display: grid;
+  font-size: 9px;
+  gap: 5px 8px;
+  grid-template-columns: 38px 1fr;
+}
+
+.tree-reference-preview dd {
+  line-height: 1.45;
+  margin: 0;
+}
+
+.tree-module-editor {
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line-strong);
+  border-radius: 5px;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 13px;
+}
+
+.tree-module-editor-heading,
+.tree-module-editor-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.tree-module-editor-heading span,
+.tree-module-editor label > span {
+  color: var(--tree-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tree-module-editor-heading h4 {
+  font-size: 14px;
+  margin: 2px 0;
+}
+
+.tree-module-editor-heading p,
+.tree-module-editor-actions output {
+  color: var(--tree-muted);
+  font-size: 9px;
+}
+
+.tree-module-editor-heading > button,
+.tree-module-editor-actions button {
+  background: var(--tree-raised);
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  color: var(--tree-text);
+  font-size: 9px;
+  padding: 7px 10px;
+}
+
+.tree-module-editor-heading > button {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.tree-module-editor-actions button[type='submit'] {
+  background: var(--tree-accent);
+  border-color: var(--tree-accent);
+  color: var(--tree-control);
+}
+
+.tree-module-editor button:hover:not(:disabled),
+.tree-module-editor button:focus-visible {
+  border-color: var(--tree-accent);
+}
+
+.tree-module-editor button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.tree-module-editor-meta,
+.tree-module-editor-columns {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tree-module-editor label,
+.tree-module-editor-columns > section {
+  display: grid;
+  gap: 5px;
+}
+
+.tree-module-editor :is(input, textarea) {
+  background: var(--tree-surface);
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  color: var(--tree-text);
+  font: inherit;
+  font-size: 10px;
+  min-width: 0;
+  padding: 8px;
+  resize: vertical;
+  width: 100%;
+}
+
+.tree-module-editor :is(input, textarea):focus-visible {
+  border-color: var(--tree-accent);
+  outline: 2px solid color-mix(in srgb, var(--tree-accent) 20%, transparent);
+  outline-offset: 1px;
+}
+
+.tree-module-editor h5 {
+  font-size: 10px;
+  margin: 0;
+}
+
+.tree-module-editor fieldset {
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  padding: 9px;
+}
+
+.tree-module-editor legend {
+  color: var(--tree-muted);
+  font-size: 8px;
+  padding: 0 4px;
+}
+
+.tree-module-editor-actions {
+  border-top: 1px solid var(--tree-line);
+  justify-content: flex-end;
+  padding-top: 11px;
+}
+
+.tree-module-editor-actions output {
+  margin-right: auto;
+}
+
+.tree-module-editor-actions output.is-error {
+  color: var(--tree-danger);
+}
+
+.tree-reference-broken {
+  background: color-mix(in srgb, var(--tree-danger) 8%, transparent);
+  color: var(--tree-danger);
+}
+
+.tree-module-inspector {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+  margin-top: 10px;
+}
+
+.tree-node-detail,
+.tree-reference-list {
+  background: var(--tree-control);
+  border: 1px solid var(--tree-line);
+  border-radius: 5px;
+  min-height: 115px;
+  padding: 12px;
+}
+
+.tree-node-detail h4,
+.tree-reference-list h4 {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 4px 0 6px;
+}
+
+.tree-node-detail p,
+.tree-node-detail.is-empty {
+  color: var(--tree-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.tree-node-detail dl {
+  display: grid;
+  font-size: 8px;
+  gap: 3px;
+  grid-template-columns: auto 1fr;
+  margin-top: 9px;
+}
+
+.tree-node-detail dt {
+  color: var(--tree-muted);
+}
+
+.tree-node-detail dd {
+  margin: 0;
+}
+
+.tree-edge-detail {
+  min-width: 0;
+}
+
+.tree-edge-detail [data-edge-evidence] {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.tree-evidence-loading,
+.tree-evidence-error,
+.tree-evidence-unlinked {
+  border: 1px solid var(--tree-line);
+  border-radius: 4px;
+  color: var(--tree-muted);
+  font-size: 9px;
+  padding: 10px;
+}
+
+.tree-evidence-error {
+  border-color: color-mix(in srgb, var(--tree-danger) 45%, transparent);
+  color: var(--tree-danger);
+}
+
+.tree-reference-list ul {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin-top: 8px;
+  max-height: 125px;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.tree-reference-list li button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--tree-text);
+  display: grid;
+  gap: 2px 8px;
+  grid-template-columns: 70px 1fr auto;
+  padding: 6px;
+  text-align: left;
+  width: 100%;
+}
+
+.tree-reference-list li button:hover {
+  background: var(--tree-raised);
+  border-color: var(--tree-line);
+}
+
+.tree-reference-list li span,
+.tree-reference-list li small {
+  color: var(--tree-muted);
+  font-size: 8px;
+}
+
+.tree-reference-list li strong {
+  font-size: 9px;
+}
+
+.tree-empty {
+  color: var(--tree-muted);
+  font-size: 9px;
+  line-height: 1.5;
+  padding: 10px;
+}
+
+.tree-module-empty {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 500px;
+}
+
+@media (max-width: 1050px) {
+  .tree-toolbar {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .tree-search {
+    grid-column: 1 / -1;
+  }
+
+  .tree-navigator-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .tree-toolbar,
+  .tree-navigator-layout,
+  .tree-module-inspector {
+    grid-template-columns: 1fr;
+  }
+
+  .tree-catalog {
+    max-height: 220px;
+  }
+
+  .tree-module-heading {
+    align-items: flex-start;
+    display: grid;
+  }
+
+  .tree-module-meta {
+    justify-items: start;
+  }
+
+  .tree-module-editor-meta,
+  .tree-module-editor-columns {
+    grid-template-columns: 1fr;
+  }
+}

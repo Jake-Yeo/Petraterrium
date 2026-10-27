@@ -2,6 +2,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from ..ai_settings import AISourceProvenance
 from ..contracts import Contract
 
 
@@ -86,6 +87,7 @@ class AutoImportResearchSource(Contract):
     translated_excerpt: str | None
     accepted: bool
     rejection_reason: str | None
+    ai_provenance: AISourceProvenance | None
 
 
 class AutoImportSearchEntry(Contract):

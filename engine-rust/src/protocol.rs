@@ -2,6 +2,8 @@ use crate::agent_types::AgentProgramRequest;
 use crate::aggregate::AggregateDslRequest;
 use crate::csr::CsrMatvecRequest;
 use crate::error::{CoreError, CoreResult};
+use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
+use crate::locations::{LocationError, LocationTickRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -14,6 +16,8 @@ pub enum Request {
     Health,
     RunAggregateDsl(AggregateDslRequest),
     RunAgents(AgentProgramRequest),
+    RunLocationTick(LocationTickRequest),
+    RunInteractionTree(InteractionTreeRequest),
     CsrMatvec(CsrMatvecRequest),
 }
 
@@ -60,8 +64,22 @@ pub fn execute(request: Request) -> CoreResult<Value> {
         })),
         Request::RunAggregateDsl(request) => serialize(crate::aggregate::run(request)?),
         Request::RunAgents(request) => serialize(crate::agents::run(request)?),
+        Request::RunLocationTick(request) => {
+            serialize(crate::locations::run_location_tick(request).map_err(location_error)?)
+        }
+        Request::RunInteractionTree(request) => {
+            serialize(crate::interaction_trees::run(request).map_err(interaction_tree_error)?)
+        }
         Request::CsrMatvec(request) => serialize(crate::csr::run_matvec(request)?),
     }
+}
+
+fn location_error(error: LocationError) -> CoreError {
+    CoreError::at(error.code, error.message, error.path)
+}
+
+fn interaction_tree_error(error: InteractionTreeError) -> CoreError {
+    CoreError::at(error.code, error.message, error.path)
 }
 
 fn serialize<T: Serialize>(value: T) -> CoreResult<Value> {

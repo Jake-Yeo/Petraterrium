@@ -70,6 +70,27 @@ class FeatureFilter(JointEstimateModel):
         return self
 
 
+class MeasuredHouseholdMember(JointEstimateModel):
+    relationship_to_reference: Literal[
+        "self", "spouse", "child", "parent", "sibling", "other"
+    ]
+    minimum_age: int = Field(ge=0, le=125)
+    maximum_age: int = Field(ge=0, le=125)
+    allowed_sexes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def valid_age_range(self):
+        if self.minimum_age > self.maximum_age:
+            raise ValueError("Household member age range is reversed")
+        if self.relationship_to_reference == "self" and self.minimum_age < 18:
+            raise ValueError("Household reference member must be an adult")
+        if self.relationship_to_reference == "spouse" and self.minimum_age < 16:
+            raise ValueError("Household spouse must be at least 16")
+        if len(set(self.allowed_sexes)) != len(self.allowed_sexes):
+            raise ValueError("Household member allowed sexes must be unique")
+        return self
+
+
 class MeasuredJointData(JointEstimateModel):
     level: PlaceLevel
     place: str = Field(min_length=1)
@@ -83,6 +104,10 @@ class MeasuredJointData(JointEstimateModel):
     provenance: Evidence
     fallback_for: list[str] = Field(default_factory=list)
     explicit_fallback: bool = False
+    household_members: list[MeasuredHouseholdMember] = Field(default_factory=list)
+    population_distribution_id: str | None = Field(
+        default=None, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+    )
 
     @model_validator(mode="after")
     def valid_measurement(self):
@@ -96,6 +121,35 @@ class MeasuredJointData(JointEstimateModel):
             raise ValueError("Measured joint data needs a source date")
         if self.level == "global" and self.fallback_for and not self.explicit_fallback:
             raise ValueError("Global joint fallback needs explicit_fallback")
+        if self.population_distribution_id is not None:
+            if self.provenance.status != "present":
+                raise ValueError("Population joint distribution must be measured")
+            if any(
+                condition.operator != "eq" or len(condition.values) != 1
+                for condition in self.conditions
+            ):
+                raise ValueError("Population joint distribution cells must use exact values")
+        if self.household_members:
+            if self.population_distribution_id is None:
+                raise ValueError("Household composition needs a population distribution id")
+            if self.provenance.status != "present":
+                raise ValueError("Household composition evidence must be measured")
+            references = [
+                member
+                for member in self.household_members
+                if member.relationship_to_reference == "self"
+            ]
+            if len(references) != 1:
+                raise ValueError("Measured household composition needs one reference member")
+            by_feature = {condition.feature_id: condition for condition in self.conditions}
+            size = by_feature.get("household_size")
+            composition = by_feature.get("household_composition")
+            if size is None or size.operator != "eq" or len(size.values) != 1:
+                raise ValueError("Measured household composition needs an exact household size")
+            if composition is None or composition.operator != "eq":
+                raise ValueError("Measured household composition needs a composition label")
+            if int(float(size.values[0])) != len(self.household_members):
+                raise ValueError("Measured household size does not match its member profiles")
         return self
 
 

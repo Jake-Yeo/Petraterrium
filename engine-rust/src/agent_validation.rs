@@ -63,7 +63,40 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
             "places",
         ));
     }
+    if let Some((index, _)) = request
+        .places
+        .iter()
+        .enumerate()
+        .find(|(_, place)| place.kind.trim().is_empty() || place.capacity == Some(0))
+    {
+        return Err(CoreError::at(
+            "INVALID_PLACE_PROFILE",
+            "Place kind must be non-empty and capacity must be at least one",
+            format!("places.{index}"),
+        ));
+    }
     validate_agent_columns(&request.agents, request.places.len())?;
+    let mut occupancy = vec![0usize; request.places.len()];
+    for place in &request.agents.place {
+        occupancy[*place] += 1;
+    }
+    if let Some((index, place)) = request.places.iter().enumerate().find(|(index, place)| {
+        place
+            .capacity
+            .is_some_and(|limit| occupancy[*index] > limit)
+    }) {
+        return Err(CoreError::at(
+            "INITIAL_PLACE_CAPACITY_EXCEEDED",
+            format!(
+                "Initial occupancy {} exceeds place {} capacity {}",
+                occupancy[index],
+                place.id,
+                place.capacity.expect("capacity checked"),
+            ),
+            format!("places.{index}.capacity"),
+        ));
+    }
+    validate_continuation(request)?;
     validate_modules(request)?;
     validate_schedules(request)?;
     let action_ids: BTreeSet<_> = request
@@ -131,6 +164,86 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
     Ok(())
 }
 
+fn validate_continuation(request: &AgentProgramRequest) -> CoreResult<()> {
+    let Some(continuation) = &request.continuation else {
+        return Ok(());
+    };
+    if continuation.rng_word_position.parse::<u128>().is_err() {
+        return Err(CoreError::at(
+            "INVALID_RNG_POSITION",
+            "Continuation RNG position must be an unsigned integer",
+            "continuation.rng_word_position",
+        ));
+    }
+    if continuation.active_travel.len() != request.agents.state.len() {
+        return Err(CoreError::at(
+            "INVALID_TRAVEL_CONTINUATION",
+            "Travel continuation must contain one value per agent",
+            "continuation.active_travel",
+        ));
+    }
+    for (agent, travel) in continuation.active_travel.iter().enumerate() {
+        let Some(travel) = travel else {
+            continue;
+        };
+        if travel.schedule.trim().is_empty()
+            || travel.destination_place_index >= request.places.len()
+            || travel.arrival_tick <= continuation.completed_tick
+        {
+            return Err(CoreError::at(
+                "INVALID_TRAVEL_CONTINUATION",
+                "Active travel requires a schedule, existing destination, and future arrival tick",
+                format!("continuation.active_travel.{agent}"),
+            ));
+        }
+    }
+    if !continuation.live_places.is_empty() {
+        let expected = live_place_states(&request.places, &request.agents.place);
+        if continuation.live_places.len() != expected.len() {
+            return Err(CoreError::at(
+                "INVALID_PLACE_CONTINUATION",
+                "Continuation live place state must contain every runtime place",
+                "continuation.live_places",
+            ));
+        }
+        for (index, (place, expected_place)) in
+            continuation.live_places.iter().zip(expected).enumerate()
+        {
+            let occupancy = place.state.get("occupancy").copied();
+            let expected_density = place
+                .capacity
+                .map(|capacity| place.occupancy as f64 / capacity as f64);
+            let coherent_density = match (place.crowd_density, expected_density) {
+                (Some(actual), Some(expected)) => actual == expected,
+                (None, None) => true,
+                _ => false,
+            };
+            let state_density = place.state.get("crowd_density").copied();
+            let coherent_state_density = match (state_density, expected_density) {
+                (Some(actual), Some(expected)) => actual == expected,
+                (None, None) => true,
+                _ => false,
+            };
+            if place.place_index != index
+                || place.place_id != expected_place.place_id
+                || place.kind != expected_place.kind
+                || place.occupancy != expected_place.occupancy
+                || occupancy != Some(place.occupancy as f64)
+                || !coherent_density
+                || !coherent_state_density
+                || place.state.values().any(|value| !value.is_finite())
+            {
+                return Err(CoreError::at(
+                    "INVALID_PLACE_CONTINUATION",
+                    "Continuation live place state must match continued identities and occupancy",
+                    format!("continuation.live_places.{index}"),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_agent_columns(agents: &AgentColumnsInput, place_count: usize) -> CoreResult<()> {
     let count = agents.state.len();
     if count == 0 || agents.module.len() != count || agents.place.len() != count {
@@ -139,6 +252,19 @@ fn validate_agent_columns(agents: &AgentColumnsInput, place_count: usize) -> Cor
             "module, state, and place columns must have the same non-zero length",
             "agents",
         ));
+    }
+    if !agents.agent_ids.is_empty() {
+        let unique_ids: BTreeSet<_> = agents.agent_ids.iter().collect();
+        if agents.agent_ids.len() != count
+            || unique_ids.len() != count
+            || agents.agent_ids.iter().any(|value| value.trim().is_empty())
+        {
+            return Err(CoreError::at(
+                "INVALID_AGENT_IDS",
+                "agent_ids must contain one unique non-empty identifier per agent",
+                "agents.agent_ids",
+            ));
+        }
     }
     if agents.place.iter().any(|place| *place >= place_count) {
         return Err(CoreError::at(
@@ -218,6 +344,23 @@ fn validate_modules(request: &AgentProgramRequest) -> CoreResult<()> {
             "modules",
         ));
     }
+    for (place_index, place) in request.places.iter().enumerate() {
+        let Some(available_modules) = &place.available_decision_modules else {
+            continue;
+        };
+        let unique_modules: BTreeSet<_> = available_modules.iter().collect();
+        if unique_modules.len() != available_modules.len()
+            || available_modules
+                .iter()
+                .any(|module_id| !module_ids.contains(module_id))
+        {
+            return Err(CoreError::at(
+                "INVALID_PLACE_DECISION_MODULES",
+                "Place decision modules must be unique existing module identifiers",
+                format!("places.{place_index}.available_decision_modules"),
+            ));
+        }
+    }
     for (module_index, module) in request.modules.iter().enumerate() {
         let path = format!("modules.{module_index}");
         if module.states.is_empty() {
@@ -255,6 +398,19 @@ fn validate_modules(request: &AgentProgramRequest) -> CoreResult<()> {
         }
         let input_names: BTreeSet<_> = module.inputs.iter().collect();
         let output_names: BTreeSet<_> = module.outputs.iter().collect();
+        let available_place_kinds: BTreeSet<_> = module.available_place_kinds.iter().collect();
+        if available_place_kinds.len() != module.available_place_kinds.len()
+            || module
+                .available_place_kinds
+                .iter()
+                .any(|kind| kind.trim().is_empty())
+        {
+            return Err(CoreError::at(
+                "INVALID_MODULE_PLACE_KINDS",
+                "Available module place kinds must be unique and non-empty",
+                format!("{path}.available_place_kinds"),
+            ));
+        }
         if input_names.len() != module.inputs.len() || output_names.len() != module.outputs.len() {
             return Err(CoreError::at(
                 "DUPLICATE_MODULE_INTERFACE",
@@ -399,6 +555,22 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
             format!("{path}.provenance.status"),
         ));
     }
+    if let Some(resolution_status) = provenance.resolution_status.as_deref() {
+        if !["direct", "inherited", "imputed"].contains(&resolution_status) {
+            return Err(CoreError::at(
+                "INVALID_RESOLUTION_STATUS",
+                format!("Unknown evidence resolution status {resolution_status}"),
+                format!("{path}.provenance.resolution_status"),
+            ));
+        }
+        if resolution_status == "imputed" {
+            return Err(CoreError::at(
+                "NON_PREDICTIVE_EVIDENCE",
+                "Imputed evidence cannot drive a transition",
+                format!("{path}.provenance.resolution_status"),
+            ));
+        }
+    }
     if !provenance.uncertainty.is_finite() || !(0.0..=1.0).contains(&provenance.uncertainty) {
         return Err(CoreError::at(
             "INVALID_UNCERTAINTY",
@@ -424,6 +596,16 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
         }
     }
     for (condition_index, condition) in rule.conditions.iter().enumerate() {
+        if condition.categorical_value.is_some()
+            && (condition.input != "place.kind"
+                || !["eq", "ne"].contains(&condition.operator.as_str()))
+        {
+            return Err(CoreError::at(
+                "INVALID_CATEGORICAL_CONDITION",
+                "Categorical conditions support place.kind with eq or ne",
+                format!("{path}.conditions.{condition_index}"),
+            ));
+        }
         if !condition.value.is_finite() {
             return Err(CoreError::at(
                 "INVALID_CONDITION",
@@ -493,6 +675,13 @@ fn validate_schedules(request: &AgentProgramRequest) -> CoreResult<()> {
     }
     for (index, schedule) in request.schedules.iter().enumerate() {
         let path = format!("schedules.{index}");
+        if schedule.id.trim().is_empty() || schedule.action.trim().is_empty() {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE",
+                "Schedule identifiers and actions must be non-empty",
+                &path,
+            ));
+        }
         if schedule.weekdays.is_empty() || schedule.weekdays.iter().any(|day| *day > 6) {
             return Err(CoreError::at(
                 "INVALID_SCHEDULE_WEEKDAYS",
@@ -511,6 +700,189 @@ fn validate_schedules(request: &AgentProgramRequest) -> CoreResult<()> {
                 "INVALID_SCHEDULE_HOURS",
                 "Schedule hours must fall within a day",
                 path,
+            ));
+        }
+        let required_places: BTreeSet<_> = schedule.required_place_indices.iter().collect();
+        if required_places.len() != schedule.required_place_indices.len()
+            || schedule
+                .required_place_indices
+                .iter()
+                .any(|place| *place >= request.places.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_PLACES",
+                "Required schedule places must be unique existing place indices",
+                format!("{path}.required_place_indices"),
+            ));
+        }
+        let eligible_agents: BTreeSet<_> = schedule.eligible_agent_indices.iter().collect();
+        if eligible_agents.len() != schedule.eligible_agent_indices.len()
+            || schedule
+                .eligible_agent_indices
+                .iter()
+                .any(|agent| *agent >= request.agents.state.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_AGENTS",
+                "Eligible schedule agents must be unique existing agent indices",
+                format!("{path}.eligible_agent_indices"),
+            ));
+        }
+        if schedule
+            .destination_place_index
+            .is_some_and(|place| place >= request.places.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_DESTINATION",
+                "Schedule destination must reference an existing place index",
+                format!("{path}.destination_place_index"),
+            ));
+        }
+        if !schedule.destination_place_by_agent.is_empty()
+            && schedule.destination_place_by_agent.len() != request.agents.state.len()
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_DESTINATION_COLUMN",
+                "Per-agent schedule destinations must contain one value per agent",
+                format!("{path}.destination_place_by_agent"),
+            ));
+        }
+        if schedule
+            .destination_place_by_agent
+            .iter()
+            .flatten()
+            .any(|place| *place >= request.places.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_DESTINATION",
+                "Per-agent schedule destinations must reference existing place indices",
+                format!("{path}.destination_place_by_agent"),
+            ));
+        }
+        if !schedule.activate_module_by_agent.is_empty()
+            && schedule.activate_module_by_agent.len() != request.agents.state.len()
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_MODULE_COLUMN",
+                "Per-agent schedule modules must contain one value per agent",
+                format!("{path}.activate_module_by_agent"),
+            ));
+        }
+        if !schedule.travel_by_agent.is_empty()
+            && schedule.travel_by_agent.len() != request.agents.state.len()
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_TRAVEL_COLUMN",
+                "Per-agent travel plans must contain one value per agent",
+                format!("{path}.travel_by_agent"),
+            ));
+        }
+        if !schedule.unavailable_reason_by_agent.is_empty()
+            && schedule.unavailable_reason_by_agent.len() != request.agents.state.len()
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_UNAVAILABLE_COLUMN",
+                "Per-agent unavailable reasons must contain one value per agent",
+                format!("{path}.unavailable_reason_by_agent"),
+            ));
+        }
+        for (agent, plan) in schedule.travel_by_agent.iter().enumerate() {
+            let Some(plan) = plan else {
+                continue;
+            };
+            if plan.from_place_index >= request.places.len()
+                || plan.travel_place_index >= request.places.len()
+            {
+                return Err(CoreError::at(
+                    "INVALID_SCHEDULE_TRAVEL_PLACE",
+                    "Travel plans must reference existing source and transit places",
+                    format!("{path}.travel_by_agent.{agent}"),
+                ));
+            }
+            if plan.travel_ticks == 0 {
+                return Err(CoreError::at(
+                    "INVALID_SCHEDULE_TRAVEL_DURATION",
+                    "Travel plans require at least one travel tick",
+                    format!("{path}.travel_by_agent.{agent}.travel_ticks"),
+                ));
+            }
+            if plan.route_id.trim().is_empty() {
+                return Err(CoreError::at(
+                    "INVALID_SCHEDULE_TRAVEL_ROUTE",
+                    "Travel plans require a route ID",
+                    format!("{path}.travel_by_agent.{agent}.route_id"),
+                ));
+            }
+            if schedule
+                .unavailable_reason_by_agent
+                .get(agent)
+                .is_some_and(Option::is_some)
+            {
+                return Err(CoreError::at(
+                    "AMBIGUOUS_SCHEDULE_TRAVEL",
+                    "A schedule cannot provide both a travel plan and an unavailable reason",
+                    format!("{path}.travel_by_agent.{agent}"),
+                ));
+            }
+        }
+        let module_ids: BTreeSet<_> = request.modules.iter().map(|module| &module.id).collect();
+        if schedule
+            .activate_module_by_agent
+            .iter()
+            .flatten()
+            .any(|module| !module_ids.contains(module))
+        {
+            return Err(CoreError::at(
+                "UNKNOWN_SCHEDULE_MODULE",
+                "Per-agent schedule modules must reference existing modules",
+                format!("{path}.activate_module_by_agent"),
+            ));
+        }
+        let effective_destinations = (0..request.agents.state.len())
+            .filter_map(|agent| {
+                schedule
+                    .destination_place_by_agent
+                    .get(agent)
+                    .copied()
+                    .flatten()
+                    .or(schedule.destination_place_index)
+            })
+            .collect::<Vec<_>>();
+        if schedule
+            .travel_place_index
+            .is_some_and(|place| place >= request.places.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_TRAVEL_PLACE",
+                "Schedule travel place must reference an existing place index",
+                format!("{path}.travel_place_index"),
+            ));
+        }
+        if effective_destinations.is_empty()
+            && (schedule.travel_place_index.is_some() || schedule.travel_ticks.is_some())
+        {
+            return Err(CoreError::at(
+                "MISSING_SCHEDULE_DESTINATION",
+                "Travel configuration requires an explicit schedule destination",
+                &path,
+            ));
+        }
+        if schedule.travel_place_index.is_some() && schedule.travel_ticks.unwrap_or(0) == 0 {
+            return Err(CoreError::at(
+                "INVALID_SCHEDULE_TRAVEL_DURATION",
+                "A travel place requires at least one travel tick",
+                format!("{path}.travel_ticks"),
+            ));
+        }
+        if !schedule.required_place_indices.is_empty()
+            && effective_destinations
+                .iter()
+                .any(|destination| !schedule.required_place_indices.contains(destination))
+        {
+            return Err(CoreError::at(
+                "SCHEDULE_DESTINATION_NOT_ALLOWED",
+                "Schedule destination must be one of its required action places",
+                format!("{path}.required_place_indices"),
             ));
         }
     }

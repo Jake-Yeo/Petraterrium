@@ -27,4 +27,5 @@ def confirmed_chain_from_draft(
         nodes=draft.nodes,
         transitions=draft.transitions,
         revision=draft.revision,
+        proposal_audit=draft.proposal_audit,
     )

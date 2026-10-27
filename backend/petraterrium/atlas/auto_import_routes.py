@@ -186,6 +186,9 @@ def _attempt_view(attempt) -> dict[str, Any]:
                 "rejection_reason": "; ".join(rejected_source.verification.reasons)
                 if rejected_source
                 else None,
+                "ai_provenance": source.ai_provenance.model_dump(mode="json")
+                if source.ai_provenance
+                else None,
             }
         )
     search_log = [
@@ -585,6 +588,7 @@ def _batch_view(review, service: AutoImportResearchService) -> dict[str, Any]:
 def create_auto_import_router(
     store: AtlasStore,
     provider: ResearchProvider | None = None,
+    ai_provider=None,
 ) -> APIRouter:
     router = APIRouter(prefix="/atlas/auto-import", tags=["Atlas auto-import"])
     repository = SQLiteAttemptRepository(store)
@@ -592,7 +596,7 @@ def create_auto_import_router(
     writer = AtlasAutoImportPromotionWriter(store, missing_path)
     service = AutoImportResearchService(
         repository,
-        provider or PublicResearchProvider(),
+        provider or PublicResearchProvider(ai_provider=ai_provider),
         writer,
     )
 

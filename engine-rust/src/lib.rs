@@ -5,6 +5,9 @@ pub mod aggregate;
 pub mod csr;
 pub mod error;
 pub mod event_queue;
+pub mod interaction_trees;
+pub mod interactions;
+pub mod locations;
 pub mod protocol;
 pub mod random;
 

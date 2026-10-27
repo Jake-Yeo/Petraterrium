@@ -23,11 +23,18 @@ from .validation import validate_rows
 
 
 def stage_import(
-    store: AtlasStore, filename: str, metadata: ImportMetadata, rows: list[dict], use_llm=True
+    store: AtlasStore,
+    filename: str,
+    metadata: ImportMetadata,
+    rows: list[dict],
+    use_llm=True,
+    ai_provider=None,
 ) -> ImportPreview:
     sample = preview_rows(rows)
     headers = list(dict.fromkeys(key for row in rows for key in row))
-    mappings, audit = propose_mapping(store, metadata.run_id, headers, sample, use_llm)
+    mappings, audit = propose_mapping(
+        store, metadata.run_id, headers, sample, use_llm, ai_provider
+    )
     identity = uuid4().hex
     with store.connection() as conn:
         conn.execute(

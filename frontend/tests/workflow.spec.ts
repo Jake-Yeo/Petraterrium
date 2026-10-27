@@ -1,74 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-test('create, inspect, play, export, reopen, cancel deletion, delete, and recover from an API error', async ({
-  page,
-  request,
-}) => {
-  const runs = await request.get('http://127.0.0.1:8011/runs');
-  for (const run of (await runs.json()).runs)
-    await request.delete(`http://127.0.0.1:8011/runs/${run.run_id}`);
-  const pageErrors: string[] = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
+test('global new experiment opens the Rust Simulation run workflow', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('API connected')).toBeVisible();
-  await expect(page.getByText('No experiments yet.')).toBeVisible();
-  await page.getByRole('button', { name: 'Create your first run' }).click();
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+
   await page.getByRole('button', { name: 'New experiment' }).click();
-  await page.getByLabel('End day', { exact: true }).fill('120');
-  await page.getByRole('button', { name: 'Launch experiment' }).click();
-  await expect(page.getByText('✓ Run complete')).toBeVisible();
-  await expect(page.locator('#record-count')).toHaveText('121 DAYS RECORDED');
-  await page.getByRole('button', { name: 'Pause timeline' }).click();
-  await page.locator('#timeline').evaluate((input: HTMLInputElement) => {
-    input.value = '55';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await expect(page.locator('#timeline-day')).toHaveText('DAY 055');
-  await page.getByRole('button', { name: 'Play timeline' }).click();
-  await expect(page.locator('#timeline-day')).not.toHaveText('DAY 055');
-  await page.getByRole('button', { name: 'Pause timeline' }).click();
-  await page.getByText('↳ Snapshot receipt', { exact: true }).click();
-  await expect(page.locator('#snapshot-table tr')).toHaveCount(4);
-  await expect(page.locator('#provenance')).toContainText('FAKE-atlas');
-  await expect(page.locator('#metric-population')).toHaveText('3,900,000');
-  await page.getByText('Export ↓', { exact: true }).click();
-  const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Run as JSON' }).click();
-  expect((await download).suggestedFilename()).toMatch(/^petraterrium-FAKE-.*\.json$/);
-  await page.getByText('Export ↓', { exact: true }).click();
-  await page.screenshot({ path: 'test-results/lab-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'New experiment' }).click();
-  await page.getByLabel('Random seed', { exact: true }).fill('43');
-  await page.getByLabel('End day', { exact: true }).fill('30');
-  await page.getByRole('button', { name: 'Launch experiment' }).click();
-  await expect(page.locator('.saved-run')).toHaveCount(2);
-  await expect(page.getByText('✓ Run complete')).toBeVisible();
-  await page.locator('.run-open').filter({ hasText: '#42' }).click();
-  await expect(page.locator('#record-count')).toHaveText('121 DAYS RECORDED');
-  await page.getByRole('button', { name: 'Delete run with seed 42' }).click();
-  await page.getByRole('button', { name: 'Keep run' }).click();
-  await expect(page.locator('.saved-run')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Delete run with seed 42' }).click();
-  await page.getByRole('button', { name: 'Delete run', exact: true }).click();
-  await expect(page.locator('.saved-run')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Create your first run' })).toBeVisible();
-  await page.route('**/api/runs', (route) => route.abort());
-  await page.getByRole('button', { name: 'Refresh saved runs' }).click();
-  await expect(page.locator('#error-banner')).toContainText('Cannot reach the backend');
-  await page.unroute('**/api/runs');
-  await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.locator('#error-banner')).not.toBeVisible();
-  await page.locator('.run-open').click();
-  await expect(page.locator('#record-count')).toHaveText('31 DAYS RECORDED');
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'New experiment' })).toBeVisible();
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-  ).toBeTruthy();
-  await page.screenshot({ path: 'test-results/lab-mobile.png', fullPage: true });
-  expect(pageErrors).toEqual([]);
+
+  await expect(page.getByRole('tab', { name: 'Simulation', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: 'Run Simulation', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.locator('#rust-run-panel')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Set the world in motion.' })).not.toBeVisible();
+  await expect(page.getByText('Recorded compatibility runs', { exact: true })).not.toBeVisible();
+  await expect(page.getByText('Pandemic', { exact: true })).not.toBeVisible();
 });
 
 test('a resumed stream starts after the last received sequence', async ({ page, request }) => {

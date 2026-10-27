@@ -144,9 +144,13 @@ function sourceView(source: ResearchSource): string {
   const translation = source.translated_excerpt
     ? `<div><dt>English translation</dt><dd>${e(source.translated_excerpt)}</dd></div>`
     : '';
+  const aiProvenance = source.ai_provenance
+    ? `<p><strong>AI extraction</strong> · ${e(source.ai_provenance.source_label)} · ${e(source.ai_provenance.model)} · ${e(source.ai_provenance.prompt_version)} · ${e(source.ai_provenance.generated_at)}</p>`
+    : '';
   return `<article class="auto-import-source ${status}">
     <div><span class="auto-import-source-status">${status}</span><h4>${e(source.title)}</h4>${link}</div>
     <p>${metadata || 'Source metadata unavailable'}</p>
+    ${aiProvenance}
     ${source.rejection_reason ? `<p class="auto-import-rejection">${e(source.rejection_reason)}</p>` : ''}
     ${excerpt || translation ? `<details><summary>Source text and translation</summary><dl>${excerpt}${translation}</dl></details>` : ''}
   </article>`;

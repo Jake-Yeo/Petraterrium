@@ -254,9 +254,12 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
                 },
                 country_name=countries.get(row["country_code"], row["country_code"]),
                 population_status="present" if row["population"] > 0 else "missing",
-                tier_reason="Top metro tier; execution awaits a real-data engine"
+                tier_reason="Top metro tier; eligible for explicit place execution"
                 if row["simulation_tier"] == "simulated"
-                else "Country population-share tier; density adjustment requires a population grid",
+                else (
+                    "Country population-share tier; disaggregated with density adjustment "
+                    "when available"
+                ),
                 coverage_percent=row["direct"] * 100 / len(FIELDS),
                 inherited_coverage_percent=(row["direct"] + row["inherited"])
                 * 100
@@ -492,8 +495,8 @@ def city_detail(
             ],
             revision=store.revision(conn),
             simulation_note=(
-                "Tier assignments organize the future country/top-metro engine. The"
-                " current simulator remains FAKE and country-only; no city simulation"
-                " values are invented."
+                "Simulation tiers distinguish engine compartments from places"
+                " disaggregated by population and density. Atlas evidence remains"
+                " separate from recorded simulation output."
             ),
         )

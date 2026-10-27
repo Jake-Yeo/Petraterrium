@@ -1,6 +1,6 @@
 # Petraterrium
 
-Petraterrium is a DSL plus a generic deterministic engine, a versioned data atlas, and a globe-and-stories interface. A scenario is a validated config. The engine has no scenario-name branches, and the frontend displays state recorded by the backend rather than running its own simulation.
+Petraterrium is a deterministic Rust population simulator, a versioned data atlas, and a globe-and-stories interface. Validated DSL remains the stored model format under the Simulation workspace. The engine has no scenario-name branches, and the frontend displays state recorded by the backend rather than running its own simulation.
 
 The framework keeps three things separate:
 
@@ -12,18 +12,19 @@ The bundled [smoke DSL](shared/dsl-schema/smoke-spread.json) uses explicit **FAK
 
 ## What works
 
-- Strict JSON/YAML DSL loading with a generated [shared schema](shared/dsl-schema/petraterrium-dsl.schema.json), semantic validation, plain-language rendering, and parameter sliders.
-- Vectorized, double-buffered NumPy transitions with explicit tick/time scaling and daily snapshot aggregation.
-- Stable run contracts, `202` job launch, ordered resumable SSE, cache identity across config, seed, source, evidence, and population versions, stored errors, exact metrics, and `ensemble_update` messages.
-- Deterministic population generation, conditional defaults, behavior inheritance, IPF, typed relationships, homophilic sampled friends, role-gated actions, conflict receipts, bounded chains, sparse influence, media response, leaders, anchor replay, events, stories, and no-hindsight backtest units.
-- Three.js globe clusters and dynamic place markers, viewport-limited WebGL agent points, picking, synthetic-agent receipts, a story newsroom, and a manual DSL Builder.
+- Strict JSON/YAML DSL loading with a generated [shared schema](shared/dsl-schema/petraterrium-dsl.schema.json) and semantic validation behind the user-facing decision-tree tools.
+- A Rust numeric core with struct-of-arrays agents, double-buffered modular transitions, seeded batch sampling, CSR neighbour influence, typed routines, travel states, interaction trees, place shards, and explicit synchronization records.
+- A Simulation workspace for agent-type inheritance, atlas-backed initial populations, modular decision trees, two-agent interaction programs, AI-source settings, and durable Rust runs with progress, cancellation, daily snapshots, events, and per-agent timelines.
+- Stable run contracts, SQLite-backed run records, exact provenance, deterministic replay, and recoverable error states.
+- Deterministic population generation, conditional defaults, behavior inheritance, IPF, typed relationships, homophilic sampled friends, role-gated actions, conflict receipts, bounded chains, sparse influence, media response, leader-provider primitives, anchor replay, events, stories, and no-hindsight backtest units.
+- Three.js globe clusters and dynamic place markers, viewport-limited WebGL agent points, picking, synthetic-agent receipts, and a story newsroom.
 - The Data tab with the complete GeoNames cities500 backbone when loaded, server-side search/paging, direct/inherited/imputed/missing coverage, versioned run-scoped imports, validation, explicit promotion, source loaders, and behavior fitting.
 
 The flat backend package is retained as a stable facade around cohesive modules. The map from the framework design to actual files is in [AGENTS.md](AGENTS.md).
 
 ## Run locally
 
-Requirements are Python 3.13, [uv](https://docs.astral.sh/uv/), and Node.js 22.12 or newer. Simulation and exact schema mapping need no API key. Optional LLM-assisted import mapping uses `OPENAI_API_KEY` through the central provider boundary.
+Requirements are Python 3.13, [uv](https://docs.astral.sh/uv/), a Rust toolchain, and Node.js 22.12 or newer. Numeric simulation and manual data mapping need no AI provider. AI features use the source selected in Settings: the local OpenAI CLI with the existing CLI login, or the OpenAI API with a key stored in macOS Keychain. There is no automatic provider fallback.
 
 Start the backend:
 
@@ -46,7 +47,7 @@ npm run dev
 
 Open <http://127.0.0.1:5173>. Vite proxies `/api` to FastAPI. API documentation is at <http://127.0.0.1:8000/docs>.
 
-The **Simulation** tab still accepts the original request shape and resolves it through a compatibility DSL. The **DSL** tab loads the smoke config, validates edits live, exposes evidence status, and launches the full DSL request. The **Stories** tab opens exact snapshot-backed headlines and synthetic agents. The **Data** tab manages atlas coverage and imports.
+The **Simulation** tab contains the agent-type graph, initial agents, decision trees, and the Rust run panel. Decision trees are stored as validated DSL underneath; there is no standalone DSL or Graph tab. The **Stories** tab opens exact snapshot-backed headlines and synthetic agents. The **Data** tab manages atlas coverage and imports.
 
 ## Run the smoke DSL through the API
 
@@ -75,20 +76,31 @@ PY
 3. Declare parameters with units, provenance, evidence status, and uncertainty.
 4. Add transitions, rules, bounded network traversal, actions, roles, events, media rules, leader actions, and explicit couplings as needed.
 5. Set the population reference, tick config, and output spec before launch.
-6. Submit the config to `POST /dsl/validate`; review missing references, distribution sums, role gates, chain termination, and implied aggregate checks.
-7. Run it without changing Python engine code.
+6. Import or build the modules in the Simulation Decision Trees view, review broken references and missing evidence, and explicitly confirm the registry.
+7. Compile and run it through the Rust engine without changing engine code.
 8. Add dated observed outcomes and backtest. Correct the rule, coefficient, or population input when validation fails; do not tune an unexplained number until a curve looks right.
 
-The manual Builder is the first editing surface. An LLM designer can later propose the same JSON, but human confirmation and the same validator remain mandatory.
+The Decision Trees view is the editing surface. Its natural-language builder can propose the same validated graph through the selected AI provider, but it preserves unknown probabilities and requires human confirmation before saving.
+
+The Rust run launcher also requires executable decision evidence for every selected agent. Population marginals describe who agents are; they do not establish how agents act. A run remains blocked until linked behavior observations or held-out fitted behavior evidence has been explicitly promoted to the shared atlas and attached to confirmed trees.
 
 ## API
 
 | Route | Behavior |
 | --- | --- |
-| `GET /dsl/schema` | Canonical DSL JSON schema |
-| `GET /dsl/smoke` | Thin FAKE smoke config |
-| `POST /dsl/validate` | Semantic errors, warnings, and implied aggregates |
-| `POST /dsl/render` | Plain-language summary and evidence-labelled sliders |
+| `GET /simulation/agent-types` | Confirmed agent-type inheritance and resolved members |
+| `POST /simulation/agent-types/proposals` | Editable AI proposal using imported feature and evidence context |
+| `GET /simulation/initial-agents` | Searchable, paginated initial agents and household state |
+| `POST /simulation/initial-population/atlas/materialize` | Deterministic atlas-backed initial population |
+| `GET /simulation/decision-trees` | Modular decision-tree registry and reference validation |
+| `POST /markov-builder/proposals` | Natural-language graph proposal without silent probability invention |
+| `GET/PATCH /settings/ai`, `POST /settings/ai/test` | Select, save, and test OpenAI CLI or OpenAI API settings |
+| `POST /ai-features/leader-decision` | Weekly leader proposal through the selected AI source with provenance |
+| `POST /ai-features/narration` | Recorded-context narration through the selected AI source with provenance |
+| `POST /simulation/runs` | Launch an evidence-gated Rust simulation |
+| `GET /simulation/runs`, `GET /simulation/runs/{id}` | Durable run status, progress, versions, and daily snapshots |
+| `GET /simulation/runs/{id}/agents` | Recorded final state and per-agent timelines |
+| `GET /simulation/runs/{id}/events` | Decision, routine, travel, availability, and interaction events |
 | `POST /runs` | `202`; queued new run or cached record |
 | `GET /runs`, `GET /runs/{id}` | Status, output spec, snapshots, metrics, stories, versions, and missing fallbacks |
 | `GET /runs/{id}/stream` | Ordered resumable `snapshot`, `ensemble_update`, and terminal SSE events |
@@ -134,6 +146,10 @@ uv run python scripts/export_contracts.py --check
 cd ../frontend
 npm run build
 npm run test:e2e
+cd ../engine-rust
+cargo fmt --check
+cargo check --locked
+cargo test --locked
 cd ..
 git diff --check
 ```
@@ -142,4 +158,4 @@ The tests cover DSL failures, deterministic state transitions, golden output, ca
 
 ## Intentionally not built
 
-This framework task does not ship full pandemic, controversy, election, advertising, sports, environment, or zombie products. It does not claim to predict an outcome from one sample. Provider-backed leaders, full vector coupling of every thin module, durable workers, production spatial indexing, complete causal agent histories, and the saved backtest UI remain follow-up work recorded in [MISSING.md](MISSING.md).
+This framework does not claim to predict an outcome from one sample. External resumable workers, production spatial indexing for the legacy globe path, broad measured conditional-choice evidence, durable weekly leader and narration integration, and the saved backtest UI remain follow-up work recorded in [MISSING.md](MISSING.md).

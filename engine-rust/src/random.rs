@@ -18,6 +18,14 @@ impl DeterministicRng {
         self.inner.r#gen::<f64>()
     }
 
+    pub fn set_word_position(&mut self, position: u128) {
+        self.inner.set_word_pos(position);
+    }
+
+    pub fn word_position(&self) -> u128 {
+        self.inner.get_word_pos()
+    }
+
     pub fn categorical(&mut self, probabilities: &[f64], path: &str) -> CoreResult<usize> {
         validate_distribution(probabilities, path)?;
         let draw = self.draw();

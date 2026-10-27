@@ -91,6 +91,8 @@ The existing flat backend package remains as a stable facade instead of moving e
 | Shared run and API contracts | `backend/petraterrium/contracts.py` |
 | DSL schema, validation, loading, rendering | `backend/petraterrium/dsl/` |
 | Generic numeric tick loop | `backend/petraterrium/runtime.py`, exposed by `engine.py` |
+| Rust agent simulation core and bridge | `engine-rust/`, `backend/petraterrium/rust_core/` |
+| Agent types, initial population, decisions, routines, travel, interactions, and durable runs | `backend/petraterrium/simulation/` |
 | Old request-shape adapter | `backend/petraterrium/compatibility.py` |
 | Atlas, imports, source loaders | `backend/petraterrium/atlas/` |
 | Universal feature schemas and place distributions | `backend/petraterrium/atlas/features.py`, `backend/petraterrium/dsl/models.py` |
@@ -106,10 +108,10 @@ The existing flat backend package remains as a stable facade instead of moving e
 | Events, exact stories, causal receipts | `backend/petraterrium/events.py` |
 | Static and recorded action decision graphs | `backend/petraterrium/decision_graph.py`, `frontend/src/decision-graph/` |
 | Backtests and counterfactual differences | `backend/petraterrium/backtesting.py` |
-| Central LLM provider boundary | `backend/petraterrium/llm_gateway.py` |
+| Central selected AI provider and settings | `backend/petraterrium/llm_gateway.py`, `backend/petraterrium/ai_provider.py`, `backend/petraterrium/ai_settings.py` |
 | Globe and WebGL picking | `frontend/src/globe.ts` |
 | Stories and agent drill-down | `frontend/src/stories/`, `frontend/src/main.ts` |
-| Manual DSL Builder | `frontend/src/dsl-builder/` |
+| Simulation workspace and decision-tree builders | `frontend/src/simulation/`, `frontend/src/markov-builder/` |
 | Data Organizer | `frontend/src/atlas/` |
 | Shared generated schema and types | `shared/dsl-schema/`, `shared/types/` |
 

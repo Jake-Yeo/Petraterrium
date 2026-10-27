@@ -3,7 +3,7 @@ from collections import defaultdict, deque
 from typing import Any, Literal
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .atlas.features import resolve_feature_distribution
 from .data import COUNTRY_BY_CODE
@@ -25,6 +25,34 @@ class Relationship(PopulationModel):
     target_id: str
     kind: Literal["family", "household", "friend", "enemy", "workplace", "school"]
     weight: float = Field(ge=-1, le=1)
+    trust: float | None = Field(default=None, ge=-1, le=1)
+    similarity: float | None = Field(default=None, ge=-1, le=1)
+    evidence_id: str | None = Field(default=None, min_length=1)
+    evidence_status: Literal[
+        "measured_joint",
+        "fitted_model",
+        "approved_estimate",
+        "user_defined",
+        "imputed",
+        "unknown",
+    ] | None = None
+
+    @model_validator(mode="after")
+    def complete_interaction_evidence(self):
+        fields = (
+            self.trust,
+            self.similarity,
+            self.evidence_id,
+            self.evidence_status,
+        )
+        if any(value is not None for value in fields) and not all(
+            value is not None for value in fields
+        ):
+            raise ValueError(
+                "Relationship interaction evidence requires trust, similarity, "
+                "evidence_id, and evidence_status"
+            )
+        return self
 
 
 class AgentRecord(PopulationModel):

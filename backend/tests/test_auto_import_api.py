@@ -4,15 +4,22 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
+from petraterrium.ai_settings import AISourceProvenance
 from petraterrium.atlas.auto_import_research import SourceCandidate
 from petraterrium.atlas.database import AtlasStore
 from petraterrium.main import create_app
 
 
 class ScriptedResearchProvider:
-    def __init__(self, failed_places: set[str] | None = None, evidence_kind="measured"):
+    def __init__(
+        self,
+        failed_places: set[str] | None = None,
+        evidence_kind="measured",
+        ai_provenance: AISourceProvenance | None = None,
+    ):
         self.failed_places = failed_places or set()
         self.evidence_kind = evidence_kind
+        self.ai_provenance = ai_provenance
         self.steps = []
 
     def candidate(self, target, source_kind, language="en"):
@@ -39,6 +46,7 @@ class ScriptedResearchProvider:
             sample_size=1_000,
             source_version="2024-table-1",
             license="CC BY 4.0",
+            ai_provenance=self.ai_provenance,
         )
 
     def inspect_user_source(self, source, target, requirement):
@@ -190,7 +198,15 @@ def test_queue_uses_default_city_threshold_and_separate_lower_priority_cohort(tm
 def test_mapping_requires_review_and_explicit_promotion_updates_queue_and_trace(tmp_path):
     path = tmp_path / "atlas.sqlite3"
     store = seed_atlas(path)
-    provider = ScriptedResearchProvider()
+    provider = ScriptedResearchProvider(
+        ai_provenance=AISourceProvenance(
+            source="openai_cli",
+            source_label="OpenAI CLI",
+            model="gpt-test",
+            generated_at="2026-10-27T12:00:00Z",
+            prompt_version="atlas-source-extraction-v1",
+        )
+    )
     with TestClient(create_app(atlas_path=path, research_provider=provider)) as client:
         target = next(item for item in queue(client)["items"] if item["place_id"] == "1")
         attempt = start(client, target)
@@ -220,6 +236,10 @@ def test_mapping_requires_review_and_explicit_promotion_updates_queue_and_trace(
     assert len(evidence_attempts) == 1
     assert evidence_attempts[0]["target"]["place_label"] == "Alpha"
     assert evidence_attempts[0]["sources"][0]["original_excerpt"]
+    assert evidence_attempts[0]["sources"][0]["ai_provenance"]["source_label"] == "OpenAI CLI"
+    assert income["research_trace"]["sources"]["accepted"][0]["ai_provenance"][
+        "prompt_version"
+    ] == "atlas-source-extraction-v1"
     assert "Resolved with measured evidence" in (tmp_path / "MISSING.md").read_text()
 
 

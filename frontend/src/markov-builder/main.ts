@@ -90,7 +90,7 @@ export class MarkovChainBuilder {
       <section class="markov-builder" aria-labelledby="markov-builder-title">
         <header class="markov-builder-header">
           <div>
-            <p class="eyebrow">DSL / MARKOV CHAIN BUILDER</p>
+            <p class="eyebrow">DECISION TREE BUILDER</p>
             <h1 id="markov-builder-title">Describe a decision</h1>
             <p>Turn explicit states and transitions into a reviewable draft. Unknown numbers stay unknown until you supply evidence.</p>
           </div>
@@ -111,7 +111,7 @@ export class MarkovChainBuilder {
 
   private feedback(): string {
     const audit = this.audit
-      ? `<div class="markov-audit"><strong>${e(this.audit.provider === 'openai' ? this.audit.model : 'Explicit parser')}</strong><span>${e(this.audit.message)}</span></div>`
+      ? `<div class="markov-audit"><strong>${e(this.audit.provider === 'deterministic-parser' ? 'Explicit parser' : this.audit.model)}</strong><span>${e(this.audit.message)}</span></div>`
       : '';
     const message = this.message ? `<p class="markov-message">${e(this.message)}</p>` : '';
     const error = this.error ? `<p class="markov-error" role="alert">${e(this.error)}</p>` : '';
@@ -154,7 +154,7 @@ export class MarkovChainBuilder {
         ${this.transitionEditor()}
         <footer class="markov-confirm">
           <div><strong>Explicit confirmation required</strong><p>Saving is blocked until every transition has a probability and condition, each outgoing total is 100%, and every path terminates.</p></div>
-          <button class="button primary" data-markov-action="confirm" ${!validation?.can_confirm || this.busy ? 'disabled' : ''}>Confirm and save to DSL</button>
+          <button class="button primary" data-markov-action="confirm" ${!validation?.can_confirm || this.busy ? 'disabled' : ''}>Confirm and save decision tree</button>
         </footer>
       </section>`;
   }
@@ -484,10 +484,10 @@ export class MarkovChainBuilder {
       const result = await this.api.confirm(this.draft);
       await this.options.onConfirmed?.(result);
       this.message = this.options.onConfirmed
-        ? 'Saved to this DSL. Transition probabilities remain blocked until matching measured or held-out fitted evidence is attached.'
+        ? 'Decision tree saved. Transition probabilities remain blocked until matching measured or held-out fitted evidence is attached.'
         : result.persisted
           ? `Saved as ${result.persistence_id ?? result.chain.id}.`
-          : 'Confirmed graph is ready for DSL integration.';
+          : 'Confirmed decision graph is ready.';
     } catch (error) {
       this.error = error instanceof Error ? error.message : String(error);
     } finally {

@@ -158,9 +158,9 @@ Run scopes with imported data remain selectable as archived scopes after the sim
 
 ## LLM mapping
 
-The centralized mapper uses the [OpenAI Responses structured-output interface](https://developers.openai.com/api/docs/guides/structured-outputs). Set `OPENAI_API_KEY` on the API process. `ATLAS_MAPPING_MODEL` defaults to `gpt-4.1-mini`; model, prompt version, usage, and an estimated cost are recorded. Estimates for that default use its [published token rates](https://developers.openai.com/api/docs/models/gpt-4.1-mini); estimates for other models are unavailable rather than invented.
+The centralized mapper uses the AI source selected in **Settings → AI source**. OpenAI CLI runs the configured local command with the user's existing CLI login and does not read `OPENAI_API_KEY`. OpenAI API reads its key from macOS Keychain. Each source has its own configurable model, and there is no automatic fallback between them.
 
-Only headers and five sample rows are submitted, with `store=false`. Mapping proposals are cached within their run, model, prompt version, and sample/header identity. Provider failures are disclosed and not permanently cached. Exact canonical-header suggestions remain available without an LLM; ambiguous columns still require human resolution. The model never commits, rewrites data, infers coefficients, or fills missing observations.
+Only headers and five sample rows are submitted. API calls use `store=false`; CLI calls use an ephemeral, read-only workspace. Mapping proposals are cached within their run, selected source, model, prompt version, and sample/header identity. Provider failures are disclosed and not permanently cached. Exact canonical-header suggestions remain available without an LLM; ambiguous columns still require human resolution. The model never commits, rewrites data, infers coefficients, or fills missing observations.
 
 ## Behaviour fitting
 
@@ -168,7 +168,7 @@ Behaviour surveys are tracked separately from marginals. Map respondent traits a
 
 Linked observations feed a deterministic, weighted classical logistic regression. At least 30 linked rows and both outcomes in both partitions are required. The split is 80/20 by a stable row hash; feature encodings are learned on training rows only. A candidate becomes available only if its held-out weighted log loss beats the existing comparable model on that same holdout, or an intercept-only baseline when no model exists. Incomparable incumbent features block replacement. Rejected candidates remain versioned, with metrics, and cannot displace a better model. Missing survey weights use uniform weights; this is a fitting convention, not an invented behaviour coefficient.
 
-Shared promotion repeats the held-out comparison in the destination scope. Country behaviour availability and provenance appear in city rows and details. No fitted atlas model is silently connected to the FAKE simulator.
+Shared promotion repeats the held-out comparison in the destination scope. Country behaviour availability and provenance appear in city rows and details. No fitted atlas model silently becomes a simulation decision coefficient.
 
 Historical views filter both declared observation/source date and publication date. Future-dated imports are rejected. `GET /atlas/overview?scope=…&as_of=YYYY-MM-DD` resolves eligible historical versions; `GET /atlas/cities/{id}` applies the same rule. An imported `observation_date` later than its declared data date is rejected. Dates are provenance supplied by the source/uploader and still need to be checked against the actual release.
 

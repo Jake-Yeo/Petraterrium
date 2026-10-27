@@ -105,7 +105,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   ).toBeTruthy();
   await page.screenshot({ path: 'test-results/data-atlas-mobile.png' });
   await page.getByRole('tab', { name: 'Simulation', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Trace the state.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agent type inheritance' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -187,9 +187,6 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
     'independence estimate — not measured',
   );
   await expect(catalog.locator('[data-joined-result]')).toContainText('Joint data needed');
-  await page.getByRole('tab', { name: 'DSL', exact: true }).click();
-  await expect(page.locator('#dsl-features')).toContainText('Endurance');
-  await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
   await page.reload();
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await page.getByRole('tab', { name: 'Features', exact: true }).click();

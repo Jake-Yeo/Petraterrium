@@ -1,4 +1,5 @@
 import type {
+  AISourceProvenance,
   AtlasCity,
   AtlasOverview,
   CityDetail,
@@ -37,6 +38,7 @@ type StoredResearchSource = {
   language: string;
   original_excerpt: string;
   translated_excerpt: string | null;
+  ai_provenance?: AISourceProvenance | null;
 };
 
 type StoredMapping = {
@@ -124,6 +126,7 @@ function storedSource(
   return `<article>
     <div>${title}<span class="field-status ${status === 'accepted' ? 'present' : 'missing'}">${e(status)}</span></div>
     <small>${e(source.source_kind)} · ${e(source.language)} · observed ${e(source.observation_date ?? 'undated')} · published ${e(source.published_date ?? 'undated')} · ${e(source.source_version)} · ${e(source.license)}</small>
+    ${source.ai_provenance ? `<small>AI extraction · ${e(source.ai_provenance.source_label)} · ${e(source.ai_provenance.model)} · ${e(source.ai_provenance.prompt_version)} · ${e(source.ai_provenance.generated_at)}</small>` : ''}
     ${reasons.length ? `<p>${reasons.map(e).join('<br>')}</p>` : ''}
     <p><b>Original</b> ${e(source.original_excerpt)}</p>
     ${source.translated_excerpt ? `<p><b>Translation</b> ${e(source.translated_excerpt)}</p>` : ''}

@@ -2,6 +2,7 @@ from copy import deepcopy
 from datetime import date
 
 import numpy as np
+import pytest
 import yaml
 
 from petraterrium.actions import (
@@ -15,6 +16,7 @@ from petraterrium.actions import (
     eligible_actions,
     resolve_conflict,
 )
+from petraterrium.ai_settings import AISourceProvenance
 from petraterrium.atlas.database import AtlasStore
 from petraterrium.backtesting import backtest
 from petraterrium.dsl import (
@@ -51,6 +53,7 @@ from petraterrium.ensembles import ensemble_replay
 from petraterrium.events import causal_deep_dive, detect_events, generate_story
 from petraterrium.framework_data import MappingRegistry, compositional_estimate
 from petraterrium.leaders import EvidenceTable, anchor_run
+from petraterrium.llm_gateway import AIGeneration
 from petraterrium.media import MediaObject, media_probabilities, media_response, rank_feed
 from petraterrium.network import influence_update
 from petraterrium.population import generate_population
@@ -63,6 +66,27 @@ def evidence(source="FAKE framework fixture", status="present", uncertainty=0.05
         status=status,
         uncertainty=uncertainty,
     )
+
+
+class SelectedLeaderProvider:
+    def generate_structured(
+        self,
+        user_prompt,
+        response_format,
+        *,
+        system_prompt,
+        prompt_version,
+    ):
+        return AIGeneration(
+            output=response_format(action="address", target="ITA", parameters={}),
+            provenance=AISourceProvenance(
+                source="openai_cli",
+                source_label="OpenAI CLI",
+                model="test-cli-model",
+                generated_at="2026-10-27T12:00:00Z",
+                prompt_version=prompt_version,
+            ),
+        )
 
 
 def framework_dsl() -> DSLConfig:
@@ -516,6 +540,23 @@ def test_harmonization_composition_network_media_leaders_and_stories_are_auditab
         "news",
         "friend",
     }
+
+
+def test_leader_ai_uses_selected_source_and_never_silently_falls_back():
+    table = EvidenceTable({"address": evidence("Evidence table")})
+    anchor = anchor_run(
+        framework_dsl(),
+        weeks=1,
+        provider=SelectedLeaderProvider(),
+        evidence_table=table,
+    )
+
+    assert anchor.timeline[0].provider == "OpenAI CLI"
+    assert anchor.timeline[0].ai_provenance is not None
+    assert anchor.timeline[0].ai_provenance.model == "test-cli-model"
+
+    with pytest.raises(ValueError, match="require the selected AI source"):
+        anchor_run(framework_dsl(), weeks=1, evidence_table=table)
 
 
 def test_mapping_versions_persist_and_backtests_reject_hindsight(tmp_path):

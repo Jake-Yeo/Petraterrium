@@ -7,9 +7,6 @@ import type {
   Catalog,
   DailySnapshot,
   DecisionGraph,
-  DSLConfig,
-  DSLRender,
-  DSLValidationResult,
   EnsembleUpdate,
   RunComplete,
   RunConfig,
@@ -40,9 +37,6 @@ const validators = {
   complete: validator<RunComplete>('RunComplete'),
   failed: validator<RunFailed>('RunFailed'),
   ensemble: validator<EnsembleUpdate>('EnsembleUpdate'),
-  dsl: validator<DSLConfig>('DSLConfig'),
-  dslValidation: validator<DSLValidationResult>('DSLValidationResult'),
-  dslRender: validator<DSLRender>('DSLRender'),
   agentPoints: validator<AgentPointList>('AgentPointList'),
   agent: validator<AgentDetail>('AgentDetail'),
   stories: validator<StoryList>('StoryList'),
@@ -89,28 +83,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     }),
-  smokeDSL: () => request('/dsl/smoke', validators.dsl),
-  validateDSL: (dsl: DSLConfig) =>
-    request('/dsl/validate', validators.dslValidation, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dsl),
-    }),
-  renderDSL: (dsl: DSLConfig) =>
-    request('/dsl/render', validators.dslRender, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dsl),
-    }),
-  staticDecisionGraph: (dsl: DSLConfig, query = new URLSearchParams()) =>
-    request(`/dsl/decision-graph?${query}`, validators.graph, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dsl),
-    }),
   runDecisionGraph: (runId: string, query = new URLSearchParams()) =>
     request(
-      `/runs/${encodeURIComponent(runId)}/decision-graph?${query}`,
+      `/simulation/recorded-runs/${encodeURIComponent(runId)}/graph?${query}`,
       validators.graph,
     ),
   agents: (runId: string, place: string, day: number, limit = 5000) =>

@@ -15,25 +15,12 @@ def stream_kinds(body):
     ]
 
 
-def test_dsl_schema_validation_and_plain_language_routes(client):
+def test_user_facing_dsl_routes_are_removed(client):
     dsl = smoke_payload()["dsl"]
-    schema = client.get("/dsl/schema")
-    assert schema.status_code == 200
-    assert schema.json()["title"] == "DSLConfig"
-    validation = client.post("/dsl/validate", json=dsl).json()
-    assert validation["valid"] is True
-    rendered = client.post("/dsl/render", json=dsl).json()
-    assert "signal-system" in rendered["plain_language"]
-    assert {slider["parameter"] for slider in rendered["sliders"]} == {
-        "spread_rate",
-        "resolution_rate",
-        "place_mixing",
-    }
-    invalid = json.loads(json.dumps(dsl))
-    invalid["systems"][0]["state"] = "absent"
-    report = client.post("/dsl/validate", json=invalid).json()
-    assert report["valid"] is False
-    assert "missing state" in " ".join(item["message"] for item in report["errors"]).lower()
+    assert client.get("/dsl/schema").status_code == 404
+    assert client.get("/dsl/smoke").status_code == 404
+    assert client.post("/dsl/validate", json=dsl).status_code == 404
+    assert client.post("/dsl/render", json=dsl).status_code == 404
 
 
 def test_custom_dsl_run_records_generic_states_stories_agents_and_ensemble(client):
@@ -72,25 +59,12 @@ def test_custom_dsl_run_records_generic_states_stories_agents_and_ensemble(clien
     assert place["metrics"] == run["snapshots"][-1]["places"][0]["metrics"]
 
 
-def test_static_and_recorded_decision_graph_routes_use_dsl_and_action_log(client):
+def test_standalone_decision_graph_routes_are_removed(client):
     payload = smoke_payload(17)
     static = client.post("/dsl/decision-graph", json=payload["dsl"])
-    assert static.status_code == 200
-    assert {node["action_id"] for node in static.json()["nodes"]} == {
-        action["id"] for action in payload["dsl"]["actions"]
-    }
+    assert static.status_code == 404
     run_id = client.post("/runs", json=payload).json()["run_id"]
-    graph = client.get(f"/runs/{run_id}/decision-graph").json()
-    assert graph["view"] == "run"
-    assert graph["filter_options"]["agents"]
-    observed = sum(edge["observed_count"] for edge in graph["edges"])
-    assert observed > 0
-    agent_id = graph["filter_options"]["agents"][0]
-    spotlight = client.get(
-        f"/runs/{run_id}/decision-graph", params={"agent_id": agent_id}
-    ).json()
-    assert spotlight["path"]
-    assert all(step["agent_id"] == agent_id for step in spotlight["path"])
+    assert client.get(f"/runs/{run_id}/decision-graph").status_code == 404
 
 
 def test_run_population_prefers_country_feature_data_and_flags_region_fallback(client):

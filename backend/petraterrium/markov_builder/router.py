@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, HTTPException
 
+from ..llm_gateway import AIProviderError, SelectedAIProvider
 from .confirmation import ChainConfirmationError, confirmed_chain_from_draft
 from .models import (
     ChainDraft,
@@ -22,12 +23,16 @@ PersistenceCallback = Callable[
 
 def create_markov_builder_router(
     persist_chain: PersistenceCallback | None = None,
+    ai_provider: SelectedAIProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/markov-builder", tags=["Markov chain builder"])
 
     @router.post("/proposals", response_model=ChainProposalResult)
     def create_proposal(request: ChainProposalRequest) -> ChainProposalResult:
-        return propose_chain(request)
+        try:
+            return propose_chain(request, ai_provider=ai_provider)
+        except AIProviderError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
 
     @router.post("/validation")
     def validate_proposal(draft: ChainDraft):

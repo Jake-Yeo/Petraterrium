@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 from datetime import date
 from pathlib import Path
 from typing import Annotated
@@ -9,6 +8,7 @@ import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import ValidationError
 
+from ..llm_gateway import AIProviderError
 from .backbone import load_cities500
 from .contracts import (
     AtlasOverview,
@@ -49,7 +49,7 @@ from .source_adapters import source_rows
 from .sources import SOURCE_BY_ID, SOURCES, fetch_source
 
 
-def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
+def create_atlas_router(store: AtlasStore, run_store, ai_provider=None) -> APIRouter:
     router = APIRouter(prefix="/atlas", tags=["Data atlas"])
 
     def require_run(run_id: str):
@@ -69,6 +69,8 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
             raise HTTPException(
                 502, "Source download failed; check source access or upload an authorized export"
             ) from exc
+        except AIProviderError as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     @router.get("/overview", response_model=AtlasOverview)
     def get_overview(
@@ -127,7 +129,7 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
             ]
         return SourceCatalog(
             sources=SOURCES,
-            llm_available=bool(os.getenv("OPENAI_API_KEY")),
+            llm_available=ai_provider is not None,
             registry_sources=registry_sources,
         )
 
@@ -213,7 +215,7 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
             checked, source_rows, store, filename, contents, parsed
         )
         return await asyncio.to_thread(
-            checked, stage_import, store, filename, parsed, rows, use_llm
+            checked, stage_import, store, filename, parsed, rows, use_llm, ai_provider
         )
 
     @router.post("/sources/{source_id}/fetch", response_model=ImportPreview)
@@ -226,7 +228,7 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
             update={"source_id": source_id, "source": SOURCE_BY_ID[source_id].name}
         )
         rows, metadata = checked(source_rows, store, filename, contents, metadata)
-        return checked(stage_import, store, filename, metadata, rows, True)
+        return checked(stage_import, store, filename, metadata, rows, True, ai_provider)
 
     @router.post("/imports/{import_id}/validate", response_model=ValidationReport)
     def validate(import_id: str, request: MappingConfirmation, scope: str):

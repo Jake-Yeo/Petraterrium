@@ -1,11 +1,13 @@
 import hashlib
-import os
 import re
 import unicodedata
-from collections.abc import Callable
 from typing import Any
 
-from ..llm_gateway import LLMUsage, structured_call
+from ..llm_gateway import (
+    AIProviderError,
+    SelectedAIProvider,
+    selected_provider_identity,
+)
 from .models import (
     ChainDraft,
     ChainNodeDraft,
@@ -18,7 +20,6 @@ from .models import (
 from .validation import validate_chain_draft
 
 PROMPT_VERSION = "markov-chain-proposal-v1"
-MODEL = os.getenv("PETRATERRIUM_MARKOV_MODEL", "gpt-5-mini")
 PROMPT = """Convert the user's description into an editable Markov-chain draft.
 Return only states and directed transitions that the text states or directly entails as a choice.
 Every state and transition needs an exact source_excerpt copied from the user's text.
@@ -27,7 +28,7 @@ the text gives that exact number. A condition must be null unless the text gives
 true only when the text explicitly says a state ends or terminates the chain. The result is only a
 proposal and will require human editing and confirmation before persistence."""
 
-_PROPOSAL_CACHE: dict[str, tuple[LLMGraphProposal, LLMUsage]] = {}
+_SELECTED_PROPOSAL_CACHE: dict[str, tuple[LLMGraphProposal, Any]] = {}
 
 
 def slugify(value: str, fallback: str = "state") -> str:
@@ -221,12 +222,8 @@ def _arrow_draft(request: ChainProposalRequest) -> ChainDraft | None:
     transition_ids: set[str] = set()
     transitions = []
     for source, target, probability, condition, excerpt in parsed:
-        source_label = re.sub(
-            r"\s*\[(?:terminal|end)\]\s*$", "", source, flags=re.I
-        ).strip()
-        target_label = re.sub(
-            r"\s*\[(?:terminal|end)\]\s*$", "", target, flags=re.I
-        ).strip()
+        source_label = re.sub(r"\s*\[(?:terminal|end)\]\s*$", "", source, flags=re.I).strip()
+        target_label = re.sub(r"\s*\[(?:terminal|end)\]\s*$", "", target, flags=re.I).strip()
         preferred = f"{ids[source_label]}_to_{ids[target_label]}"[:72]
         transitions.append(
             ChainTransitionDraft(
@@ -288,10 +285,14 @@ def _llm_draft(request: ChainProposalRequest, proposal: LLMGraphProposal) -> Cha
     nodes = []
     for label in labels:
         item = proposal_by_label.get(label)
-        excerpt = item.source_excerpt if item else next(
-            transition.source_excerpt
-            for transition in valid_transitions
-            if label in {transition.from_label, transition.to_label}
+        excerpt = (
+            item.source_excerpt
+            if item
+            else next(
+                transition.source_excerpt
+                for transition in valid_transitions
+                if label in {transition.from_label, transition.to_label}
+            )
         )
         nodes.append(
             ChainNodeDraft(
@@ -331,77 +332,65 @@ def _llm_draft(request: ChainProposalRequest, proposal: LLMGraphProposal) -> Cha
     )
 
 
-def _cached_structured_call(
-    request: ChainProposalRequest, client_factory: Callable[..., Any]
-) -> tuple[LLMGraphProposal, LLMUsage]:
-    payload = request.text
-    key = hashlib.sha256(
-        f"{MODEL}\0{PROMPT_VERSION}\0{payload}".encode()
-    ).hexdigest()
-    cached = _PROPOSAL_CACHE.get(key)
-    if cached:
-        return cached
-    result = structured_call(
-        client_factory,
-        "openai",
-        MODEL,
-        PROMPT_VERSION,
-        PROMPT,
-        payload,
-        LLMGraphProposal,
-    )
-    _PROPOSAL_CACHE[key] = result
-    return result
-
-
 def propose_chain(
     request: ChainProposalRequest,
-    client_factory: Callable[..., Any] | None = None,
+    ai_provider: SelectedAIProvider | None = None,
 ) -> ChainProposalResult:
-    fallback = deterministic_proposal(request)
+    if not request.use_llm:
+        draft = deterministic_proposal(request)
+        audit = ProposalAudit(
+            provider="deterministic-parser",
+            model="none",
+            prompt_version=PROMPT_VERSION,
+            message=(
+                "Only explicit choices and arrow syntax were extracted. Unknown "
+                "probabilities, conditions, and terminal states remain unresolved."
+            ),
+        )
+        draft = draft.model_copy(update={"proposal_audit": audit})
+        return ChainProposalResult(
+            draft=draft,
+            validation=validate_chain_draft(draft),
+            audit=audit,
+        )
+    if ai_provider is None:
+        raise AIProviderError(
+            "ai_provider_unavailable",
+            "No AI source is configured. Choose OpenAI CLI or OpenAI API in AI Settings; "
+            "no fallback was attempted.",
+        )
+    selected_source, selected_model = selected_provider_identity(ai_provider)
+    cache_key = hashlib.sha256(
+        f"{selected_source}\0{selected_model}\0{PROMPT_VERSION}\0{request.text}".encode()
+    ).hexdigest()
+    cached = _SELECTED_PROPOSAL_CACHE.get(cache_key)
+    if cached is None:
+        generated = ai_provider.generate_structured(
+            request.text,
+            LLMGraphProposal,
+            system_prompt=PROMPT,
+            prompt_version=PROMPT_VERSION,
+        )
+        cached = (generated.output, generated.provenance)
+        _SELECTED_PROPOSAL_CACHE[cache_key] = cached
+    proposal, provenance = cached
+    draft = _llm_draft(request, proposal)
     audit = ProposalAudit(
-        provider="deterministic-parser",
-        model="none",
-        prompt_version=PROMPT_VERSION,
+        provider=provenance.source,
+        model=provenance.model,
+        prompt_version=provenance.prompt_version,
+        generated_at=provenance.generated_at,
+        input_tokens=provenance.input_tokens or 0,
+        output_tokens=provenance.output_tokens or 0,
         message=(
-            "Only explicit choices and arrow syntax were extracted. Unknown probabilities, "
-            "conditions, and terminal states remain unresolved."
+            f"Unsaved proposal generated {provenance.generated_at.isoformat()} via "
+            f"{provenance.source_label}. Model-proposed elements are labelled, and "
+            "unsupported probabilities and conditions remain unknown."
         ),
     )
-    use_provider = request.use_llm and (client_factory is not None or os.getenv("OPENAI_API_KEY"))
-    if use_provider:
-        try:
-            if client_factory is None:
-                from openai import OpenAI
-
-                client_factory = OpenAI
-            proposal, usage = _cached_structured_call(request, client_factory)
-            draft = _llm_draft(request, proposal)
-            if draft.nodes or draft.transitions:
-                fallback = draft
-            audit = ProposalAudit(
-                provider=usage.provider,
-                model=usage.model,
-                prompt_version=usage.prompt_version,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-                estimated_cost_usd=usage.estimated_cost_usd,
-                message=(
-                    "This is an unsaved proposal. Model-proposed elements are labelled, and "
-                    "unsupported probabilities and conditions remain unknown."
-                ),
-            )
-        except Exception as error:
-            audit = audit.model_copy(
-                update={
-                    "message": (
-                        f"Model proposal unavailable ({type(error).__name__}). "
-                        "The deterministic explicit-information draft is shown."
-                    )
-                }
-            )
+    draft = draft.model_copy(update={"proposal_audit": audit})
     return ChainProposalResult(
-        draft=fallback,
-        validation=validate_chain_draft(fallback),
+        draft=draft,
+        validation=validate_chain_draft(draft),
         audit=audit,
     )

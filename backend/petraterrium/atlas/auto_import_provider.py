@@ -12,7 +12,8 @@ from xml.etree import ElementTree
 import httpx
 from pydantic import BaseModel, ConfigDict
 
-from ..llm_gateway import structured_call
+from ..ai_settings import AISourceProvenance
+from ..llm_gateway import AIProviderError
 from .auto_import_requirements import CanonicalFieldRequirement
 from .auto_import_research import (
     PlaceFeatureTarget,
@@ -60,10 +61,13 @@ class _PageParser(HTMLParser):
 
 
 class PublicResearchProvider:
-    def __init__(self, fixture_path: str | Path | None = None):
-        self.fixture_path = Path(
-            fixture_path or os.getenv("PETRATERRIUM_RESEARCH_FIXTURE", "")
-        ) if fixture_path or os.getenv("PETRATERRIUM_RESEARCH_FIXTURE") else None
+    def __init__(self, fixture_path: str | Path | None = None, ai_provider=None):
+        self.fixture_path = (
+            Path(fixture_path or os.getenv("PETRATERRIUM_RESEARCH_FIXTURE", ""))
+            if fixture_path or os.getenv("PETRATERRIUM_RESEARCH_FIXTURE")
+            else None
+        )
+        self.ai_provider = ai_provider
         self.client = httpx.Client(
             timeout=15,
             follow_redirects=False,
@@ -201,13 +205,15 @@ class PublicResearchProvider:
                 _attribute_candidate(candidate, locator, source_kind, language)
                 for candidate in structured
             ]
-        if not os.getenv("OPENAI_API_KEY"):
-            return []
         text = _visible_text(content, content_type)[:MAX_PAGE_TEXT]
         if not text:
             return []
-        from openai import OpenAI
-
+        if self.ai_provider is None:
+            raise AIProviderError(
+                "ai_provider_unavailable",
+                "No AI source is configured for research extraction. Choose OpenAI CLI or "
+                "OpenAI API in AI Settings; no fallback was attempted.",
+            )
         payload = json.dumps(
             {
                 "target": target.model_dump(mode="json"),
@@ -219,27 +225,28 @@ class PublicResearchProvider:
             },
             ensure_ascii=False,
         )
-        result, _ = structured_call(
-            OpenAI,
-            "openai",
-            os.getenv("PETRATERRIUM_RESEARCH_MODEL", "gpt-5-mini"),
-            "atlas-source-extraction-v1",
-            (
-                "Extract only explicitly stated distributions and metadata from the supplied "
-                "source. Return no candidate when feature, place, denominator, population or "
-                "sample universe, observation date, publication date, time basis, units, and "
-                "category values "
-                "are not stated. Preserve a "
-                "short original-language excerpt and translate it to English when needed. "
-                "Classify news and indirect survey figures as hints. Never calculate, infer, "
-                "complete, or guess a missing value."
-            ),
+        prompt = (
+            "Extract only explicitly stated distributions and metadata from the supplied "
+            "source. Return no candidate when feature, place, denominator, population or "
+            "sample universe, observation date, publication date, time basis, units, and "
+            "category values are not stated. Preserve a short original-language excerpt and "
+            "translate it to English when needed. Classify news and indirect survey figures "
+            "as hints. Never calculate, infer, complete, or guess a missing value."
+        )
+        generated = self.ai_provider.generate_structured(
             payload,
             _CandidateEnvelope,
+            system_prompt=prompt,
+            prompt_version="atlas-source-extraction-v1",
         )
+        result = generated.output
         return [
             _attribute_candidate(
-                candidate.model_dump(mode="json"), locator, source_kind, language
+                candidate.model_dump(mode="json"),
+                locator,
+                source_kind,
+                language,
+                generated.provenance,
             )
             for candidate in result.candidates
         ]
@@ -258,6 +265,7 @@ def _attribute_candidate(
     locator: str | None,
     source_kind: str,
     expected_language: str | None,
+    ai_provenance: AISourceProvenance | None = None,
 ) -> SourceCandidate:
     candidate = SourceCandidate.model_validate(value)
     supplied_language = value.get("language")
@@ -274,6 +282,7 @@ def _attribute_candidate(
             "url": url,
             "source_kind": source_kind,
             "language": language,
+            "ai_provenance": ai_provenance,
         }
     )
 
@@ -303,9 +312,7 @@ def _result_links(content: str, content_type: str, base_url: str) -> list[str]:
         try:
             root = ElementTree.fromstring(content)
             links.extend(
-                element.text.strip()
-                for element in root.findall(".//item/link")
-                if element.text
+                element.text.strip() for element in root.findall(".//item/link") if element.text
             )
         except ElementTree.ParseError:
             pass
@@ -357,12 +364,8 @@ def _structured_candidates(content: str, content_type: str) -> list[dict]:
         rows = list(csv.DictReader(io.StringIO(text)))
         if rows and {"category", "value"}.issubset(rows[0]):
             metadata = {
-                key: value
-                for key, value in rows[0].items()
-                if key not in {"category", "value"}
+                key: value for key, value in rows[0].items() if key not in {"category", "value"}
             }
-            metadata["distribution"] = {
-                row["category"]: float(row["value"]) for row in rows
-            }
+            metadata["distribution"] = {row["category"]: float(row["value"]) for row in rows}
             return [metadata]
     return []

@@ -188,6 +188,10 @@ def test_exact_coverage_statuses_weighting_and_missing_priorities(atlas):
         "missing",
     ]
     assert cities[3].coverage_percent == 0 and cities[3].resolved_coverage_percent == 100
+    assert cities[5].tier_reason == "Top metro tier; eligible for explicit place execution"
+    assert cities[1].tier_reason == (
+        "Country population-share tier; disaggregated with density adjustment when available"
+    )
     assert all(gap.population == 5000 for gap in result.gaps[:4])
     assert set(city_detail(atlas, 5, "run-a").missing_fields) == set(FIELDS) - {"age_sex"}
 

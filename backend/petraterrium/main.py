@@ -1,12 +1,10 @@
 import asyncio
-import json
 from datetime import date
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import (
     BackgroundTasks,
-    Body,
     FastAPI,
     File,
     Form,
@@ -19,9 +17,12 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from .ai_feature_routes import create_ai_feature_router
+from .ai_settings import AISettingsStore, create_ai_settings_router, default_ai_settings_store
 from .atlas.auto_import_routes import create_auto_import_router
 from .atlas.contracts import ImportMetadata, ImportPreview
 from .atlas.database import FIELDS, AtlasStore
+from .atlas.evidence_receipts import AtlasEvidenceReceiptRegistry
 from .atlas.feature_catalog import create_feature_catalog_router
 from .atlas.feature_queries import create_feature_query_router
 from .atlas.features import canonical_feature_registry
@@ -37,7 +38,6 @@ from .contracts import (
     Catalog,
     DecisionGraph,
     DecisionGraphFilter,
-    DSLRender,
     PlaceDetail,
     RunConfig,
     RunCreated,
@@ -47,8 +47,8 @@ from .contracts import (
     StoryList,
 )
 from .data import COUNTRIES, DATA_VERSION
-from .decision_graph import run_decision_graph, static_decision_graph
-from .dsl import DSLConfig, load_dsl, render_plain_language, render_sliders, validate_dsl
+from .decision_graph import run_decision_graph
+from .llm_gateway import AIProviderError, SelectedAIProvider
 from .markov_builder import create_markov_builder_router
 from .output_views import (
     agent_detail,
@@ -60,30 +60,126 @@ from .output_views import (
 from .recorder import RunRecord, RunStore
 from .runtime import resolve_runtime
 from .service import RunService
+from .simulation.agent_type_routes import create_agent_type_router
+from .simulation.decision_evidence_routes import create_decision_evidence_router
+from .simulation.evidence_guard import require_trusted_simulation_evidence
+from .simulation.interaction_program_routes import create_interaction_program_router
+from .simulation.interaction_trees import (
+    InteractionTreeRegistry,
+    create_interaction_tree_router,
+)
+from .simulation.interactions import InteractionRunRegistry, create_interaction_router
+from .simulation.locations import LocationRunRegistry, create_location_router
+from .simulation.mobility_routes import create_mobility_router
+from .simulation.population_routes import create_population_router
+from .simulation.registry_store import SimulationRegistryStore
+from .simulation.routines_routes import create_routine_router
+from .simulation.run_persistence import SimulationRunRecorder
+from .simulation.run_preparation import LazyRustCoreClient, prepare_registry_run
+from .simulation.run_routes import create_simulation_run_router
+from .simulation.run_service import SimulationRunService
+from .simulation.tree_routes import create_decision_tree_router
 from .versions import ENGINE_VERSION
 
 
-def create_app(store: RunStore | None = None, atlas_path=None, research_provider=None) -> FastAPI:
+def create_app(
+    store: RunStore | None = None,
+    atlas_path=None,
+    research_provider=None,
+    ai_settings_store: AISettingsStore | None = None,
+    ai_provider=None,
+    simulation_registry_store: SimulationRegistryStore | None = None,
+    simulation_run_service: SimulationRunService | None = None,
+) -> FastAPI:
     run_store = store or RunStore()
     service = RunService(run_store)
-    application = FastAPI(title="Petraterrium · DSL simulation framework", version="0.2.0")
+    application = FastAPI(title="Petraterrium · Simulation framework", version="0.2.0")
     application.state.store = run_store
     application.state.service = service
     atlas_store = AtlasStore(atlas_path)
+    evidence_receipts = AtlasEvidenceReceiptRegistry(atlas_store)
+    settings_store = ai_settings_store or default_ai_settings_store()
+    selected_ai = ai_provider or SelectedAIProvider(settings_store)
+    simulation_registry = simulation_registry_store or SimulationRegistryStore()
+    interaction_registry = InteractionRunRegistry()
+    location_registry = LocationRunRegistry()
+    interaction_tree_registry = InteractionTreeRegistry(
+        simulation_registry.interaction_trees(),
+        simulation_registry.save_interaction_tree,
+        evidence_receipts,
+    )
+    rust_core = LazyRustCoreClient()
+
+    def prepare_simulation(config):
+        require_trusted_simulation_evidence(
+            simulation_registry,
+            evidence_receipts,
+            interaction_tree_registry,
+        )
+        return prepare_registry_run(simulation_registry, config)
+
+    simulation_runs = simulation_run_service or SimulationRunService(
+        prepare_simulation,
+        rust_core,
+        record_interactions=interaction_registry.record,
+        record_locations=location_registry.record,
+        persistence=SimulationRunRecorder(),
+    )
     application.state.atlas = atlas_store
-    application.include_router(create_atlas_router(atlas_store, run_store))
-    application.include_router(create_auto_import_router(atlas_store, research_provider))
+    application.state.ai_settings = settings_store
+    application.state.ai_provider = selected_ai
+    application.state.simulation_registry = simulation_registry
+    application.state.simulation_runs = simulation_runs
+    application.state.simulation_interactions = interaction_registry
+    application.state.simulation_locations = location_registry
+    application.state.simulation_interaction_trees = interaction_tree_registry
+    application.include_router(create_atlas_router(atlas_store, run_store, selected_ai))
+    application.include_router(
+        create_auto_import_router(atlas_store, research_provider, selected_ai)
+    )
     application.include_router(
         create_feature_catalog_router(atlas_store, canonical_feature_registry)
     )
     application.include_router(create_feature_query_router(atlas_store))
-    application.include_router(create_markov_builder_router())
+    application.include_router(
+        create_markov_builder_router(
+            persist_chain=simulation_registry.save_confirmed_chain,
+            ai_provider=selected_ai,
+        )
+    )
+    application.include_router(
+        create_agent_type_router(simulation_registry, selected_ai, atlas_store)
+    )
+    application.include_router(create_population_router(simulation_registry, atlas_store))
+    application.include_router(create_decision_tree_router(simulation_registry))
+    application.include_router(create_routine_router(simulation_registry))
+    application.include_router(create_mobility_router(simulation_registry))
+    application.include_router(
+        create_decision_evidence_router(simulation_registry, evidence_receipts)
+    )
+    application.include_router(
+        create_interaction_program_router(simulation_registry, evidence_receipts)
+    )
+    application.include_router(create_simulation_run_router(simulation_runs))
+    application.include_router(create_interaction_router(interaction_registry))
+    application.include_router(create_location_router(location_registry))
+    application.include_router(
+        create_interaction_tree_router(
+            interaction_tree_registry,
+            rust_core.run_interaction_tree,
+        )
+    )
+    application.include_router(
+        create_ai_settings_router(settings_store, lambda _: selected_ai)
+    )
+    application.include_router(create_ai_feature_router(selected_ai))
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
+    application.router.add_event_handler("shutdown", simulation_runs.shutdown)
 
     def require_run(run_id: str) -> RunRecord:
         record = run_store.get(run_id)
@@ -108,49 +204,9 @@ def create_app(store: RunStore | None = None, atlas_path=None, research_provider
             engine_version=ENGINE_VERSION,
             data_version=DATA_VERSION,
             notice=(
-                "The generic DSL engine is operational. The bundled smoke population and "
+                "The generic simulation engine is operational. The bundled smoke population and "
                 "compatibility coefficients are FAKE and unfitted."
             ),
-        )
-
-    @application.get("/dsl/schema")
-    def dsl_schema() -> dict[str, Any]:
-        return DSLConfig.model_json_schema(mode="serialization")
-
-    @application.get("/dsl/smoke")
-    def smoke_dsl() -> dict[str, Any]:
-        path = Path(__file__).resolve().parents[2] / "shared" / "dsl-schema" / "smoke-spread.json"
-        return json.loads(path.read_text())
-
-    @application.post("/dsl/validate")
-    def validate_dsl_route(config: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
-        return validate_dsl(config).model_dump()
-
-    @application.post("/dsl/render", response_model=DSLRender)
-    def render_dsl_route(config: Annotated[dict[str, Any], Body()]) -> DSLRender:
-        result = validate_dsl(config)
-        if not result.valid:
-            raise HTTPException(422, result.model_dump())
-        dsl = load_dsl(config)
-        return DSLRender(
-            plain_language=render_plain_language(dsl),
-            sliders=[slider.model_dump() for slider in render_sliders(dsl)],
-        )
-
-    @application.post("/dsl/decision-graph", response_model=DecisionGraph)
-    def static_graph_route(
-        config: Annotated[dict[str, Any], Body()],
-        state: str = "",
-        segment: str = "",
-        place: str = "",
-        role: str = "",
-    ) -> DecisionGraph:
-        result = validate_dsl(config)
-        if not result.valid:
-            raise HTTPException(422, result.model_dump())
-        return static_decision_graph(
-            load_dsl(config),
-            DecisionGraphFilter(state=state, segment=segment, place=place, role=role),
         )
 
     @application.post("/runs", status_code=202, response_model=RunCreated)
@@ -186,8 +242,11 @@ def create_app(store: RunStore | None = None, atlas_path=None, research_provider
     def get_run_stories(run_id: str) -> StoryList:
         return StoryList(stories=list(require_run(run_id).stories))
 
-    @application.get("/runs/{run_id}/decision-graph", response_model=DecisionGraph)
-    def get_run_decision_graph(
+    @application.get(
+        "/simulation/recorded-runs/{run_id}/graph",
+        response_model=DecisionGraph,
+    )
+    def get_recorded_action_graph(
         run_id: str,
         state: str = "",
         segment: str = "",
@@ -198,9 +257,8 @@ def create_app(store: RunStore | None = None, atlas_path=None, research_provider
         agent_id: str | None = None,
     ) -> DecisionGraph:
         record = require_run(run_id)
-        runtime = resolve_runtime(record.config)
         return run_decision_graph(
-            runtime.dsl,
+            resolve_runtime(record.config).dsl,
             record.action_logs,
             run_id,
             DecisionGraphFilter(
@@ -329,10 +387,18 @@ def create_app(store: RunStore | None = None, atlas_path=None, research_provider
                 source_rows, atlas_store, filename, contents, parsed
             )
             return await asyncio.to_thread(
-                stage_import, atlas_store, filename, parsed, rows, use_llm
+                stage_import,
+                atlas_store,
+                filename,
+                parsed,
+                rows,
+                use_llm,
+                selected_ai,
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+        except AIProviderError as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     return application
 

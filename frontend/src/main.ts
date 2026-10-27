@@ -6,14 +6,13 @@ import type {
   AgentDetail,
   Catalog,
   DailySnapshot,
-  DSLConfig,
   RunConfig,
   RunDetail,
   RunSummary,
 } from './contracts.generated';
-import { DSLBuilder } from './dsl-builder/main';
-import { DecisionGraphView } from './decision-graph/main';
 import { Globe } from './globe';
+import { AISettingsPanel } from './simulation/ai-settings';
+import { SimulationWorkspace, type SimulationSection } from './simulation/workspace';
 import { StoriesView } from './stories/main';
 import { countryOptions, defaults, escapeHtml, savedRunList, shell } from './views';
 
@@ -29,10 +28,10 @@ const text = (id: string, value: string): void => {
 
 class Lab {
   private dataTab: DataTab;
-  private dslBuilder: DSLBuilder;
   private stories: StoriesView;
-  private decisionGraph: DecisionGraphView;
-  private tab: 'simulation' | 'stories' | 'dsl' | 'data' | 'graph' = 'simulation';
+  private workspace: SimulationWorkspace;
+  private aiSettings: AISettingsPanel;
+  private tab: 'simulation' | 'stories' | 'data' = 'simulation';
   private catalog?: Catalog;
   private runs: RunSummary[] = [];
   private active?: RunDetail;
@@ -48,16 +47,17 @@ class Lab {
   constructor() {
     element('app').innerHTML = shell();
     this.dataTab = new DataTab(element('data-view'));
-    this.dslBuilder = new DSLBuilder(element('dsl-view'), (dsl, seed) =>
-      this.runDSL(dsl, seed),
-    );
     this.stories = new StoriesView(
       element('stories-view'),
       (place, day) => void this.openPlace(place, day),
       (agentId) => void this.showAgent(agentId),
       (agentId) => this.openDecisionGraph(agentId),
     );
-    this.decisionGraph = new DecisionGraphView(element('decision-view'));
+    this.workspace = new SimulationWorkspace({
+      onSectionChange: (section) => this.onSimulationSectionChange(section),
+      onError: (error) => this.showError(error),
+    });
+    this.aiSettings = new AISettingsPanel(element('ai-settings-panel'));
     this.chart = new InfectionChart(element<HTMLCanvasElement>('infection-chart'), (index) =>
       this.selectDay(index),
     );
@@ -69,9 +69,12 @@ class Lab {
     element('playback-speed').addEventListener('change', () => {
       if (this.playing) this.setPlaying(true);
     });
-    for (const id of ['new-run-dialog', 'delete-dialog', 'agent-dialog']) {
+    for (const id of ['new-run-dialog', 'delete-dialog', 'agent-dialog', 'settings-dialog']) {
       element<HTMLDialogElement>(id).addEventListener('close', () => this.resumeView());
     }
+    element<HTMLDialogElement>('settings-dialog').addEventListener('close', () =>
+      this.aiSettings.deactivate(),
+    );
     window.addEventListener('pagehide', () => this.dispose(), { once: true });
     void this.load();
   }
@@ -132,16 +135,14 @@ class Lab {
   }
 
   private resumeView(): void {
-    if (this.tab !== 'simulation') return;
+    if (this.tab !== 'simulation' || this.workspace.currentSection() !== 'run') return;
     this.globe?.setVisible(true);
     this.attachStream();
   }
 
   private showNew(): void {
-    if (!this.catalog) return;
-    this.suspendView();
-    element('form-error').hidden = true;
-    element<HTMLDialogElement>('new-run-dialog').showModal();
+    this.changeTab('simulation');
+    this.workspace.show('run');
   }
 
   private onSubmit = async (event: SubmitEvent): Promise<void> => {
@@ -202,36 +203,10 @@ class Lab {
     }
   };
 
-  private async runDSL(dsl: DSLConfig, seed: number): Promise<void> {
-    const durationDays = Math.max(
-      1,
-      Math.ceil(((dsl.tick.tick_hours ?? 24) * (dsl.tick.total_ticks ?? 30)) / 24),
-    );
-    const config: RunConfig = {
-      scenario: dsl.id,
-      countries: [...dsl.population.places],
-      start_day: 0,
-      end_day: durationDays,
-      seed,
-      parameters: defaults.parameters,
-      dsl,
-      population: dsl.population,
-      tick: dsl.tick,
-      outputs: dsl.outputs,
-      evidence_table_version: 'FAKE-evidence-v1',
-    };
-    const run = await api.create(config);
-    this.useRun(run, true);
-    if (run.cached) {
-      text('stream-message', 'Identical DSL, population, evidence version, and seed found.');
-      element('stream-notice').hidden = false;
-    }
-    await this.refreshList();
-  }
-
   private async openPlace(place: string, day: number): Promise<void> {
     if (!this.active) return;
     this.changeTab('simulation');
+    this.workspace.show('run');
     const index = this.active.snapshots.findIndex((snapshot) => snapshot.day === day);
     if (index >= 0) {
       this.index = index;
@@ -277,8 +252,8 @@ class Lab {
   private openDecisionGraph(agentId: string): void {
     if (element<HTMLDialogElement>('agent-dialog').open)
       element<HTMLDialogElement>('agent-dialog').close();
-    this.decisionGraph.selectAgent(agentId);
-    this.changeTab('graph');
+    this.workspace.selectAgent(agentId);
+    this.changeTab('simulation');
   }
 
   private async openRun(id: string): Promise<void> {
@@ -298,6 +273,7 @@ class Lab {
 
   private useRun(run: RunDetail, autoplay = false): void {
     if (this.tab !== 'simulation') this.changeTab('simulation');
+    this.workspace.show('run');
     ++this.generation;
     this.stream?.dispose();
     this.stream = undefined;
@@ -320,7 +296,7 @@ class Lab {
     this.refreshListView();
     this.attachStream();
     void this.stories.setRun(run).catch((error) => this.showError(error));
-    void this.decisionGraph.setRun(run).catch((error) => this.showError(error));
+    this.workspace.setRun(run);
     this.setPlaying(autoplay);
   }
 
@@ -566,7 +542,7 @@ class Lab {
     this.globe?.clearAgents();
     element('agent-lod-notice').hidden = true;
     void this.stories.setRun(undefined);
-    void this.decisionGraph.setRun(undefined);
+    this.workspace.setRun(undefined);
     this.index = 0;
     element('empty-state').hidden = false;
     element('stream-notice').hidden = true;
@@ -627,6 +603,17 @@ class Lab {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  private onSimulationSectionChange(section: SimulationSection): void {
+    if (this.tab === 'simulation' && section === 'run') this.resumeView();
+    else this.suspendView();
+  }
+
+  private showSettings(): void {
+    this.suspendView();
+    void this.aiSettings.activate();
+    element<HTMLDialogElement>('settings-dialog').showModal();
+  }
+
   private onClick = (event: MouseEvent): void => {
     const place = (event.target as HTMLElement).closest<HTMLElement>('[data-place]');
     if (place?.dataset.place) {
@@ -637,10 +624,11 @@ class Lab {
     if (!target || (target instanceof HTMLButtonElement && target.disabled)) return;
     const action = target.dataset.action;
     if (action === 'data-tab') this.changeTab('data');
-    else if (action === 'dsl-tab') this.changeTab('dsl');
     else if (action === 'stories-tab') this.changeTab('stories');
-    else if (action === 'graph-tab') this.changeTab('graph');
     else if (action === 'simulation-tab') this.changeTab('simulation');
+    else if (action === 'settings') this.showSettings();
+    else if (action === 'close-settings')
+      element<HTMLDialogElement>('settings-dialog').close();
     else if (action === 'open-agent-graph' && target.dataset.agentId)
       this.openDecisionGraph(target.dataset.agentId);
     else if (action === 'new') this.showNew();
@@ -667,9 +655,9 @@ class Lab {
 
   private dispose(): void {
     this.dataTab.deactivate();
-    this.dslBuilder.deactivate();
     this.stories.deactivate();
-    this.decisionGraph.deactivate();
+    this.workspace.destroy();
+    this.aiSettings.destroy();
     clearInterval(this.timer);
     this.stream?.dispose();
     this.globe?.dispose();
@@ -677,35 +665,25 @@ class Lab {
     document.removeEventListener('click', this.onClick);
   }
 
-  private changeTab(tab: 'simulation' | 'stories' | 'dsl' | 'data' | 'graph'): void {
+  private changeTab(tab: 'simulation' | 'stories' | 'data'): void {
     this.tab = tab;
     const labels = {
       simulation: 'Population lab',
       stories: 'Recorded stories',
-      dsl: 'DSL Builder',
       data: 'Data atlas',
-      graph: 'Decision graph',
     };
     text('workspace-breadcrumb', labels[tab]);
     text(
       'workspace-data-notice',
       tab === 'data'
         ? 'REAL CITY BACKBONE'
-        : tab === 'dsl'
-          ? 'EVIDENCE-GATED DSL'
-          : tab === 'graph'
-            ? 'DETERMINISTIC ACTION LOG'
-            : 'FAKE SMOKE INPUTS',
+        : 'SIMULATION WORKSPACE',
     );
     text(
       'workspace-storage-notice',
       tab === 'data'
-        ? 'Atlas versions are saved on the API server. Run records reset on API restart.'
-        : tab === 'dsl'
-          ? 'Every coefficient and distribution keeps provenance and uncertainty.'
-          : tab === 'graph'
-            ? 'Static edges come from the DSL. Run frequencies come from recorded action logs.'
-          : 'Runs live in server memory. Restarting the API clears them.',
+        ? 'Atlas versions and simulation run records are saved on the API server.'
+        : 'Agent types, initial population, decision trees, and durable Rust runs share one workspace.',
     );
     document
       .querySelectorAll<HTMLElement>('[role="tab"][data-action]')
@@ -714,27 +692,19 @@ class Lab {
       );
     element('simulation-view').hidden = tab !== 'simulation';
     element('stories-view').hidden = tab !== 'stories';
-    element('dsl-view').hidden = tab !== 'dsl';
     element('data-view').hidden = tab !== 'data';
-    element('decision-view').hidden = tab !== 'graph';
     if (tab !== 'simulation') {
       this.suspendView();
       this.dataTab.deactivate();
-      this.dslBuilder.deactivate();
       this.stories.deactivate();
-      this.decisionGraph.deactivate();
+      this.workspace.deactivate();
       if (tab === 'data') void this.dataTab.activate(this.active?.run_id);
-      if (tab === 'dsl') void this.dslBuilder.activate();
       if (tab === 'stories')
         void this.stories.activate(this.active).catch((error) => this.showError(error));
-      if (tab === 'graph')
-        void this.decisionGraph.activate(this.active).catch((error) => this.showError(error));
     } else {
       this.dataTab.deactivate();
-      this.dslBuilder.deactivate();
       this.stories.deactivate();
-      this.decisionGraph.deactivate();
-      this.resumeView();
+      this.workspace.activate();
     }
   }
 }

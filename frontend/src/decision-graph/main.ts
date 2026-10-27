@@ -3,12 +3,10 @@ import { api } from '../api';
 import type {
   DecisionGraph,
   DecisionGraphEdge,
-  DSLConfig,
   RunDetail,
 } from '../contracts.generated';
 import { escapeHtml as e } from '../views';
 
-type GraphMode = 'static' | 'run';
 type Position = { x: number; y: number };
 
 const option = (value: string, selected: string): string =>
@@ -68,9 +66,7 @@ function layout(graph: DecisionGraph): Map<string, Position> {
 
 export class DecisionGraphView {
   private active = false;
-  private mode: GraphMode = 'static';
   private run?: RunDetail;
-  private dsl?: DSLConfig;
   private graph?: DecisionGraph;
   private agentId = '';
   private state = '';
@@ -90,8 +86,11 @@ export class DecisionGraphView {
   async activate(run?: RunDetail): Promise<void> {
     this.active = true;
     this.run = run;
-    if (!this.dsl) this.dsl = run?.config.dsl ?? (await api.smokeDSL());
-    if (this.mode === 'run' && !run) this.mode = 'static';
+    if (!run) {
+      this.host.innerHTML =
+        '<section class="decision-loading">Run a simulation to inspect recorded action transitions.</section>';
+      return;
+    }
     await this.load();
   }
 
@@ -101,13 +100,11 @@ export class DecisionGraphView {
 
   async setRun(run?: RunDetail): Promise<void> {
     this.run = run;
-    if (run?.config.dsl) this.dsl = run.config.dsl;
-    if (this.active) await this.load();
+    if (this.active) await this.activate(run);
   }
 
   selectAgent(agentId: string): void {
     this.agentId = agentId;
-    this.mode = this.run ? 'run' : 'static';
   }
 
   private query(): URLSearchParams {
@@ -117,7 +114,7 @@ export class DecisionGraphView {
       ['segment', this.segment],
       ['place', this.place],
       ['role', this.role],
-      ['agent_id', this.mode === 'run' ? this.agentId : ''],
+      ['agent_id', this.agentId],
     ]) {
       if (value) query.set(key, value);
     }
@@ -125,13 +122,10 @@ export class DecisionGraphView {
   }
 
   private async load(): Promise<void> {
-    if (!this.dsl) return;
+    if (!this.run) return;
     this.host.innerHTML = '<section class="decision-loading">Loading decision graph…</section>';
     try {
-      this.graph =
-        this.mode === 'run' && this.run
-          ? await api.runDecisionGraph(this.run.run_id, this.query())
-          : await api.staticDecisionGraph(this.dsl, this.query());
+      this.graph = await api.runDecisionGraph(this.run.run_id, this.query());
       this.timeline = this.graph.filter_options.maximum_tick;
       if (this.active) this.render();
     } catch (error) {
@@ -144,15 +138,14 @@ export class DecisionGraphView {
     const graph = this.graph;
     this.host.innerHTML = `
       <section class="decision-header">
-        <div><p class="eyebrow">DSL / ACTION TRANSITIONS</p><h1>Decision graph</h1><p>Inspect allowed transitions, recorded frequencies, role gates, delays, and spotlight paths.</p></div>
-        <div class="decision-mode" role="group" aria-label="Graph source"><button data-graph-action="static" aria-pressed="${this.mode === 'static'}">Static DSL</button><button data-graph-action="run" aria-pressed="${this.mode === 'run'}" ${this.run ? '' : 'disabled'}>Recorded run</button></div>
+        <div><p class="eyebrow">RECORDED ACTION TRANSITIONS</p><h1>Decision graph</h1><p>Inspect recorded frequencies, role gates, delays, and spotlight paths.</p></div>
       </section>
       <section class="decision-controls">
         <label>State<select id="graph-state">${option('', this.state)}${graph.filter_options.states.map((value) => option(value, this.state)).join('')}</select></label>
         <label>Segment<select id="graph-segment">${option('', this.segment)}${graph.filter_options.segments.map((value) => option(value, this.segment)).join('')}</select></label>
         <label>Place<select id="graph-place">${option('', this.place)}${graph.filter_options.places.map((value) => option(value, this.place)).join('')}</select></label>
         <label>Role<select id="graph-role">${option('', this.role)}${graph.filter_options.roles.map((value) => option(value, this.role)).join('')}</select></label>
-        <label>Spotlight agent<select id="graph-agent" ${this.mode === 'run' ? '' : 'disabled'}>${option('', this.agentId)}${graph.filter_options.agents.map((value) => option(value, this.agentId)).join('')}</select></label>
+        <label>Spotlight agent<select id="graph-agent">${option('', this.agentId)}${graph.filter_options.agents.map((value) => option(value, this.agentId)).join('')}</select></label>
         <label>Find action<input id="graph-search" type="search" value="${e(this.search)}" placeholder="repost"></label>
         <label class="decision-check"><input id="graph-top" type="checkbox" ${this.topOnly ? 'checked' : ''}> Top transitions</label>
       </section>
@@ -170,7 +163,7 @@ export class DecisionGraphView {
     if (!this.graph) return [];
     const sorted = [...this.graph.edges].sort(
       (left, right) =>
-        (this.mode === 'run' ? right.observed_count - left.observed_count : right.intended_probability - left.intended_probability) ||
+        right.observed_count - left.observed_count ||
         left.edge_id.localeCompare(right.edge_id),
     );
     return this.topOnly ? sorted.slice(0, Math.max(1, Math.ceil(sorted.length / 2))) : sorted;
@@ -204,7 +197,7 @@ export class DecisionGraphView {
             const source = positions.get(edge.source)!;
             const destination = positions.get(edge.target)!;
             const active = path.edges.has(`${edge.source}:${edge.target}`);
-            const width = 1 + (this.mode === 'run' ? edge.observed_frequency : edge.intended_probability) * 7;
+            const width = 1 + edge.observed_frequency * 7;
             const curve = Math.max(40, Math.abs(destination.x - source.x) * 0.45);
             const d = `M ${source.x} ${source.y} C ${source.x + curve} ${source.y}, ${destination.x - curve} ${destination.y}, ${destination.x} ${destination.y}`;
             return `<path class="decision-edge ${active ? 'path-active' : ''}" d="${d}" style="stroke-width:${width}" marker-end="url(#decision-arrow)" ${edge.delay_ticks ? 'stroke-dasharray="7 6"' : ''}></path><path class="decision-edge-hit" d="${d}" data-graph-edge="${index}" aria-label="${e(edge.source)} to ${e(edge.target)}"></path>`;
@@ -213,9 +206,9 @@ export class DecisionGraphView {
         <g class="decision-nodes">${this.graph.nodes
           .map((node) => {
             const point = positions.get(node.action_id)!;
-            const radius = 31 + (this.mode === 'run' ? Math.sqrt(node.observed_count / maximumCount) * 13 : 0);
+            const radius = 31 + Math.sqrt(node.observed_count / maximumCount) * 13;
             const matches = !this.search || node.action_id.toLowerCase().includes(this.search.toLowerCase());
-            return `<g class="decision-node ${path.actions.has(node.action_id) ? 'path-active' : ''} ${matches ? '' : 'search-dim'}" transform="translate(${point.x} ${point.y})" data-graph-node="${e(node.action_id)}" tabindex="0" role="button" aria-label="Inspect ${e(node.action_id)}"><circle r="${radius}" style="--node-color:${systemColor(node.system)}"></circle><text text-anchor="middle" y="-3">${e(node.action_id)}</text><text class="node-count" text-anchor="middle" y="13">${this.mode === 'run' ? `${node.observed_count} logs` : `P ${node.base_probability}`}</text></g>`;
+            return `<g class="decision-node ${path.actions.has(node.action_id) ? 'path-active' : ''} ${matches ? '' : 'search-dim'}" transform="translate(${point.x} ${point.y})" data-graph-node="${e(node.action_id)}" tabindex="0" role="button" aria-label="Inspect ${e(node.action_id)}"><circle r="${radius}" style="--node-color:${systemColor(node.system)}"></circle><text text-anchor="middle" y="-3">${e(node.action_id)}</text><text class="node-count" text-anchor="middle" y="13">${node.observed_count} logs</text></g>`;
           })
           .join('')}</g>
       </svg>`;
@@ -267,20 +260,13 @@ export class DecisionGraphView {
   }
 
   private transitionMatrix(): string {
-    if (!this.graph || this.mode !== 'run') return '';
+    if (!this.graph) return '';
     const rows = Object.entries(this.graph.transition_matrix);
     return `<details class="decision-matrix"><summary><div><span class="eyebrow">MASSES</span><strong>Aggregated transition matrix</strong></div><span>${rows.length} source actions</span></summary><div class="table-scroll"><table><thead><tr><th>From</th><th>To</th><th>Recorded count</th></tr></thead><tbody>${rows.flatMap(([source, targets]) => Object.entries(targets).map(([target, count]) => `<tr><th>${e(source)}</th><td>${e(target)}</td><td>${count.toLocaleString()}</td></tr>`)).join('')}</tbody></table></div></details>`;
   }
 
   private onClick = (event: MouseEvent): void => {
     const element = event.target as Element;
-    const action = element.closest<HTMLElement>('[data-graph-action]')?.dataset.graphAction;
-    if (action === 'static' || action === 'run') {
-      this.mode = action;
-      this.agentId = action === 'static' ? '' : this.agentId;
-      void this.load();
-      return;
-    }
     const node = element.closest<SVGGElement>('[data-graph-node]');
     if (node?.dataset.graphNode) this.inspectNode(node.dataset.graphNode);
     const edgeElement = element.closest<SVGPathElement>('[data-graph-edge]');

@@ -1,0 +1,280 @@
+.decision-evidence {
+  --decision-surface: #0d161e;
+  --decision-surface-raised: #121e27;
+  --decision-line: #ffffff17;
+  --decision-text: #e7ecee;
+  --decision-muted: #83949e;
+  --decision-accent: #b6e8b3;
+  --decision-warning: #e9c98c;
+  --decision-error: #ffad98;
+  width: 100%;
+  border: 1px solid var(--decision-line);
+  border-radius: 10px;
+  background: var(--decision-surface);
+  color: var(--decision-text);
+  overflow: hidden;
+}
+
+:root[data-theme='light'] .decision-evidence,
+:root[data-color-scheme='light'] .decision-evidence,
+:root.theme-light .decision-evidence {
+  --decision-surface: #f4f7f6;
+  --decision-surface-raised: #ffffff;
+  --decision-line: #17241b24;
+  --decision-text: #17211d;
+  --decision-muted: #5b6b65;
+  --decision-accent: #347244;
+  --decision-warning: #8b641b;
+  --decision-error: #a63f29;
+}
+
+.decision-evidence-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--decision-line);
+}
+
+.decision-evidence-header h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+
+.decision-evidence-eyebrow {
+  margin: 0;
+  color: var(--decision-muted);
+  font: 600 9px/1.4 'Space Grotesk', ui-monospace, monospace;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.decision-evidence-status {
+  max-width: 260px;
+  border: 1px solid color-mix(in srgb, var(--decision-accent) 35%, transparent);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--decision-accent);
+  font-size: 10px;
+  text-align: center;
+}
+
+.decision-evidence.is-independence_estimate .decision-evidence-status {
+  border-color: color-mix(in srgb, var(--decision-warning) 45%, transparent);
+  color: var(--decision-warning);
+}
+
+.decision-evidence.is-unknown .decision-evidence-status {
+  border-color: color-mix(in srgb, var(--decision-error) 45%, transparent);
+  color: var(--decision-error);
+}
+
+.decision-formula {
+  display: grid;
+  gap: 14px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--decision-line);
+  background: color-mix(in srgb, var(--decision-surface-raised) 55%, transparent);
+}
+
+.decision-formula code {
+  overflow-x: auto;
+  border: 1px solid var(--decision-line);
+  border-radius: 6px;
+  padding: 11px 12px;
+  background: var(--decision-surface);
+  color: var(--decision-text);
+  font: 11px/1.5 'Space Grotesk', ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.decision-probability-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.decision-probability-summary > div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--decision-line);
+  border-radius: 6px;
+  padding: 10px 11px;
+  background: var(--decision-surface-raised);
+}
+
+.decision-probability-summary span,
+.decision-factor-values dt,
+.decision-source dt {
+  color: var(--decision-muted);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.decision-probability-summary strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.decision-factor-list-section,
+.decision-citation-section {
+  padding: 18px 22px;
+}
+
+.decision-factor-list-section {
+  border-bottom: 1px solid var(--decision-line);
+}
+
+.decision-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.decision-section-heading h4,
+.decision-citation-section h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.decision-section-heading > span {
+  color: var(--decision-muted);
+  font-size: 10px;
+}
+
+.decision-factor-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.decision-factor {
+  border: 1px solid var(--decision-line);
+  border-left: 3px solid var(--decision-accent);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--decision-surface-raised);
+}
+
+.decision-factor.is-independence_estimate {
+  border-left-color: var(--decision-warning);
+}
+
+.decision-factor.is-unknown,
+.decision-factor.is-label_only,
+.decision-factor.is-ambiguous {
+  border-left-color: var(--decision-error);
+}
+
+.decision-factor-heading,
+.decision-factor-heading > div,
+.decision-source-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.decision-factor-kind {
+  border-radius: 3px;
+  padding: 2px 5px;
+  background: color-mix(in srgb, var(--decision-accent) 12%, transparent);
+  color: var(--decision-accent);
+  font-size: 8px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.decision-factor-heading strong,
+.decision-source-heading strong {
+  font-size: 11px;
+}
+
+.decision-factor-estimate {
+  color: var(--decision-text);
+  font: 600 11px/1 'Space Grotesk', ui-monospace, monospace;
+}
+
+.decision-factor-values,
+.decision-source dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 11px 0 0;
+}
+
+.decision-factor-values > div,
+.decision-source dl > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.decision-factor-values dd,
+.decision-source dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--decision-text);
+  font-size: 10px;
+}
+
+.decision-factor-message {
+  margin: 10px 0 0;
+  color: var(--decision-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.decision-source {
+  display: grid;
+  gap: 5px;
+  margin-top: 11px;
+  border: 1px solid var(--decision-line);
+  border-radius: 6px;
+  padding: 11px;
+  background: color-mix(in srgb, var(--decision-surface) 72%, transparent);
+}
+
+.decision-source-heading > span {
+  color: var(--decision-muted);
+  font-size: 9px;
+}
+
+.decision-source.is-missing {
+  border-color: color-mix(in srgb, var(--decision-error) 35%, transparent);
+}
+
+.decision-source.is-missing strong {
+  color: var(--decision-error);
+  font-size: 10px;
+}
+
+.decision-source.is-missing span {
+  color: var(--decision-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.decision-factor .decision-source {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .decision-evidence-header {
+    display: grid;
+  }
+
+  .decision-probability-summary,
+  .decision-factor-values,
+  .decision-source dl {
+    grid-template-columns: 1fr;
+  }
+}

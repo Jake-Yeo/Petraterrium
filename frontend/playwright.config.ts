@@ -19,7 +19,12 @@ export default defineConfig({
         'uv run --project ../backend uvicorn petraterrium.main:app --host 127.0.0.1 --port 8011',
       url: 'http://127.0.0.1:8011/health',
       reuseExistingServer: false,
-      env: { PETRATERRIUM_ATLAS_PATH: resolve('.playwright/atlas.sqlite3') },
+      env: {
+        PETRATERRIUM_ATLAS_PATH: resolve('.playwright/atlas.sqlite3'),
+        PETRATERRIUM_SIMULATION_REGISTRY_PATH: resolve('.playwright/simulation-registry.json'),
+        PETRATERRIUM_SIMULATION_RUNS_PATH: resolve('.playwright/simulation-runs.sqlite3'),
+        PETRATERRIUM_AI_SETTINGS_PATH: resolve('.playwright/ai-settings.json'),
+      },
     },
     {
       command: 'npm run dev -- --port 5181',

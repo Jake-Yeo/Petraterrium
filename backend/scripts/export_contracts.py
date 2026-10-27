@@ -5,6 +5,12 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from petraterrium.ai_settings import (
+    AIConnectionTest,
+    AISettingsUpdate,
+    AISettingsView,
+    AISourceProvenance,
+)
 from petraterrium.atlas.auto_import_contracts import (
     AutoImportAttemptView,
     AutoImportBatchPromotionRequest,
@@ -53,6 +59,86 @@ from petraterrium.contracts import (
     StoryList,
 )
 from petraterrium.dsl import DSLConfig, DSLValidationResult
+from petraterrium.markov_builder.models import (
+    ChainProposalRequest,
+    ChainProposalResult,
+    ChainValidationResult,
+    ConfirmationResult,
+    ConfirmChainRequest,
+)
+from petraterrium.simulation.agent_behavior_proposals import (
+    AgentBehaviorProposalDraft,
+    BehaviorEvidenceRequirement,
+    ConfirmAgentBehaviorProposalRequest,
+    ConfirmedAgentBehaviorBundle,
+)
+from petraterrium.simulation.agent_type_routes import (
+    AgentTypeProposalRequest,
+    AgentTypeRegistryView,
+)
+from petraterrium.simulation.agent_types import (
+    AgentTypeProposalDraft,
+    ConfirmAgentTypeProposalRequest,
+    ConfirmedAgentTypeRegistry,
+)
+from petraterrium.simulation.atlas_population import (
+    AtlasPopulationFeatureCoverage,
+    AtlasPopulationRequest,
+    AtlasPopulationResult,
+)
+from petraterrium.simulation.decision_evidence_routes import (
+    ConfirmDecisionEvidenceRegistryRequest,
+    DecisionEvidenceDetail,
+    DecisionEvidenceRegistryView,
+    DecisionEvidenceValidation,
+)
+from petraterrium.simulation.initial_agents import InitialAgentDetail, InitialAgentPage
+from petraterrium.simulation.interaction_program_routes import (
+    ConfirmInteractionProgramRequest,
+    InteractionProgramValidation,
+    InteractionProgramValidationIssue,
+    InteractionProgramView,
+)
+from petraterrium.simulation.interaction_trees import (
+    InteractionTreeDefinition,
+    InteractionTreeRequest,
+    InteractionTreeResult,
+    InteractionTreeSummary,
+)
+from petraterrium.simulation.interactions import (
+    InteractionBreakdown,
+    InteractionEventDetail,
+    InteractionPage,
+    InteractionProgramDefinition,
+    InteractionQuery,
+    RelationshipKindEvidence,
+)
+from petraterrium.simulation.locations import LocationAgentDetail, LocationRunSnapshot
+from petraterrium.simulation.mobility_routes import (
+    ConfirmMobilityRequest,
+    MobilityRegistryView,
+)
+from petraterrium.simulation.population_generation import (
+    InitialPopulationMaterialization,
+    InitialPopulationRequest,
+    InitialPopulationValidation,
+)
+from petraterrium.simulation.population_routes import InitialPopulationStatus
+from petraterrium.simulation.routines_routes import (
+    ConfirmRoutineRegistryRequest,
+    RoutineRegistryView,
+)
+from petraterrium.simulation.run_service import (
+    RunAgentDetail,
+    RunAgentPage,
+    RunEventPage,
+    SimulationRunConfig,
+    SimulationRunView,
+)
+from petraterrium.simulation.tree_routes import (
+    ConfirmDecisionTreeRegistryRequest,
+    DecisionTreeRegistryView,
+)
 
 TARGET = Path(__file__).resolve().parents[2] / "frontend" / "src"
 DSL_TARGET = Path(__file__).resolve().parents[2] / "shared" / "dsl-schema"
@@ -140,6 +226,64 @@ def artifacts() -> dict[Path, str]:
         | AutoImportMappingReview
         | AutoImportPromotionRequest
         | AutoImportQueuePageView
+        | AIConnectionTest
+        | AISettingsUpdate
+        | AISettingsView
+        | AISourceProvenance
+        | ChainProposalRequest
+        | ChainProposalResult
+        | ChainValidationResult
+        | ConfirmationResult
+        | ConfirmChainRequest
+        | AgentTypeProposalRequest
+        | AgentTypeRegistryView
+        | AgentTypeProposalDraft
+        | ConfirmAgentTypeProposalRequest
+        | ConfirmedAgentTypeRegistry
+        | AgentBehaviorProposalDraft
+        | BehaviorEvidenceRequirement
+        | ConfirmAgentBehaviorProposalRequest
+        | ConfirmedAgentBehaviorBundle
+        | AtlasPopulationFeatureCoverage
+        | AtlasPopulationRequest
+        | AtlasPopulationResult
+        | ConfirmDecisionEvidenceRegistryRequest
+        | DecisionEvidenceDetail
+        | DecisionEvidenceRegistryView
+        | DecisionEvidenceValidation
+        | InitialAgentDetail
+        | InitialAgentPage
+        | InteractionTreeDefinition
+        | InteractionTreeRequest
+        | InteractionTreeResult
+        | InteractionTreeSummary
+        | ConfirmInteractionProgramRequest
+        | InteractionProgramValidation
+        | InteractionProgramValidationIssue
+        | InteractionProgramView
+        | InteractionBreakdown
+        | InteractionEventDetail
+        | InteractionProgramDefinition
+        | InteractionPage
+        | InteractionQuery
+        | RelationshipKindEvidence
+        | LocationAgentDetail
+        | LocationRunSnapshot
+        | ConfirmMobilityRequest
+        | MobilityRegistryView
+        | InitialPopulationMaterialization
+        | InitialPopulationRequest
+        | InitialPopulationValidation
+        | InitialPopulationStatus
+        | ConfirmRoutineRegistryRequest
+        | RoutineRegistryView
+        | RunAgentDetail
+        | RunAgentPage
+        | RunEventPage
+        | SimulationRunConfig
+        | SimulationRunView
+        | ConfirmDecisionTreeRegistryRequest
+        | DecisionTreeRegistryView
     )
     schema = adapter.json_schema(mode="serialization")
     schema["$id"] = "petraterrium-contracts"

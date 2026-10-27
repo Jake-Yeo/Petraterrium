@@ -159,6 +159,12 @@ class RustCoreClient:
     def run_agents(self, request: Mapping[str, Any]) -> dict[str, Any]:
         return self.call({**request, "operation": "run_agents"})
 
+    def run_location_tick(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        return self.call({**request, "operation": "run_location_tick"})
+
+    def run_interaction_tree(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        return self.call({**request, "operation": "run_interaction_tree"})
+
     def run_compiled_markov(
         self,
         program: Any,

@@ -4,6 +4,17 @@ export type ProposalOrigin =
   | 'structural'
   | 'manual_edit';
 
+export interface ProposalAudit {
+  provider: string;
+  model: string;
+  prompt_version: string;
+  generated_at: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number | null;
+  message: string;
+}
+
 export interface ChainNodeDraft {
   id: string;
   label: string;
@@ -31,16 +42,7 @@ export interface ChainDraft {
   nodes: ChainNodeDraft[];
   transitions: ChainTransitionDraft[];
   revision: number;
-}
-
-export interface ProposalAudit {
-  provider: string;
-  model: string;
-  prompt_version: string;
-  input_tokens: number;
-  output_tokens: number;
-  estimated_cost_usd: number | null;
-  message: string;
+  proposal_audit: ProposalAudit | null;
 }
 
 export interface ChainValidationIssue {
@@ -86,6 +88,7 @@ export interface ConfirmedChainGraph {
   nodes: ChainNodeDraft[];
   transitions: ChainTransitionDraft[];
   revision: number;
+  proposal_audit: ProposalAudit | null;
 }
 
 export interface ConfirmationResult {

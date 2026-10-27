@@ -1,6 +1,9 @@
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from petraterrium.ai_provider import AIGeneration, AIProviderError
+from petraterrium.ai_settings import AISourceProvenance
 from petraterrium.main import create_app
 from petraterrium.markov_builder import (
     ChainConfirmationError,
@@ -8,12 +11,14 @@ from petraterrium.markov_builder import (
     ChainNodeDraft,
     ChainProposalRequest,
     ChainTransitionDraft,
+    ProposalAudit,
     confirmed_chain_from_draft,
     create_markov_builder_router,
     deterministic_proposal,
     propose_chain,
     validate_chain_draft,
 )
+from petraterrium.simulation.registry_store import SimulationRegistryStore
 
 
 def valid_draft() -> ChainDraft:
@@ -23,15 +28,9 @@ def valid_draft() -> ChainDraft:
         source_text="Choose home or outside with supplied evidence",
         entry_node="decision",
         nodes=[
-            ChainNodeDraft(
-                id="decision", label="Decision", origin="manual_edit"
-            ),
-            ChainNodeDraft(
-                id="home", label="Stay home", terminal=True, origin="manual_edit"
-            ),
-            ChainNodeDraft(
-                id="outside", label="Go out", terminal=True, origin="manual_edit"
-            ),
+            ChainNodeDraft(id="decision", label="Decision", origin="manual_edit"),
+            ChainNodeDraft(id="home", label="Stay home", terminal=True, origin="manual_edit"),
+            ChainNodeDraft(id="outside", label="Go out", terminal=True, origin="manual_edit"),
         ],
         transitions=[
             ChainTransitionDraft(
@@ -91,17 +90,26 @@ def test_explicit_arrow_syntax_can_produce_a_complete_draft():
     assert result.outgoing_totals[0].sums_to_one is True
 
 
-def test_model_proposal_uses_gateway_and_drops_unsupported_probability():
+def test_model_proposal_uses_selected_source_and_drops_unsupported_probability():
     captured = {}
 
-    class Usage:
-        input_tokens = 11
-        output_tokens = 7
-
-    class Responses:
-        def parse(self, **kwargs):
-            captured.update(kwargs)
-            output = kwargs["text_format"].model_validate(
+    class Provider:
+        def generate_structured(
+            self,
+            user_prompt,
+            response_format,
+            *,
+            system_prompt,
+            prompt_version,
+        ):
+            captured.update(
+                {
+                    "user_prompt": user_prompt,
+                    "system_prompt": system_prompt,
+                    "prompt_version": prompt_version,
+                }
+            )
+            output = response_format.model_validate(
                 {
                     "name": "Friday choice",
                     "entry_label": "Decision",
@@ -142,26 +150,37 @@ def test_model_proposal_uses_gateway_and_drops_unsupported_probability():
                     ],
                 }
             )
-            return type("Response", (), {"output_parsed": output, "usage": Usage()})()
-
-    class Client:
-        def __init__(self, **kwargs):
-            captured["client"] = kwargs
-            self.responses = Responses()
+            return AIGeneration(
+                output=output,
+                provenance=AISourceProvenance(
+                    source="openai_cli",
+                    source_label="OpenAI CLI",
+                    model="test-cli-model",
+                    generated_at="2026-10-27T12:00:00Z",
+                    prompt_version=prompt_version,
+                    input_tokens=11,
+                    output_tokens=7,
+                ),
+            )
 
     result = propose_chain(
-        ChainProposalRequest(
-            text="On Friday an agent decides whether to stay home or go outside"
-        ),
-        client_factory=Client,
+        ChainProposalRequest(text="On Friday an agent decides whether to stay home or go outside"),
+        ai_provider=Provider(),
     )
 
-    assert result.audit.provider == "openai"
+    assert result.audit.provider == "openai_cli"
+    assert result.audit.model == "test-cli-model"
+    assert "2026-10-27T12:00:00+00:00 via OpenAI CLI" in result.audit.message
+    assert result.draft.proposal_audit == result.audit
     assert all(edge.origin == "model_proposal" for edge in result.draft.transitions)
     assert all(edge.probability is None for edge in result.draft.transitions)
     assert all(edge.condition == "Friday" for edge in result.draft.transitions)
-    assert captured["store"] is False
-    assert captured["model"]
+    assert captured["prompt_version"] == "markov-chain-proposal-v1"
+
+
+def test_model_proposal_requires_the_selected_source():
+    with pytest.raises(AIProviderError, match="no fallback was attempted"):
+        propose_chain(ChainProposalRequest(text="An agent chooses home or outside"))
 
 
 def test_validation_reports_probability_total_dead_end_and_nonterminating_loop():
@@ -256,9 +275,7 @@ def test_router_persists_only_through_confirm_endpoint():
     persisted = []
     application = FastAPI()
     application.include_router(
-        create_markov_builder_router(
-            lambda chain: persisted.append(chain) or f"dsl:{chain.id}"
-        )
+        create_markov_builder_router(lambda chain: persisted.append(chain) or f"dsl:{chain.id}")
     )
     client = TestClient(application)
     draft = valid_draft()
@@ -298,3 +315,91 @@ def test_application_exposes_the_markov_builder_workflow(tmp_path):
     payload = proposal.json()
     assert payload["draft"]["id"] == "weekend_choice"
     assert payload["validation"]["can_confirm"] is True
+
+
+def test_confirmed_builder_chain_stays_blocked_until_evidence_is_attached(tmp_path):
+    registry = SimulationRegistryStore(tmp_path / "simulation-registry.json")
+    application = create_app(
+        atlas_path=tmp_path / "atlas.sqlite3",
+        simulation_registry_store=registry,
+    )
+
+    with TestClient(application) as client:
+        proposal = client.post(
+            "/markov-builder/proposals",
+            json={
+                "text": (
+                    "Decision -> Stay home [terminal] | 60% if weekend; "
+                    "Decision -> Go out [terminal] | 40% if weekend"
+                ),
+                "chain_id": "weekend_choice",
+                "use_llm": False,
+            },
+        ).json()
+        confirmation = client.post(
+            "/markov-builder/confirm",
+            json={"draft": proposal["draft"], "user_confirmed": True},
+        )
+
+    assert confirmation.status_code == 200
+    saved = registry.decision_trees()
+    assert saved.trees[0].status == "blocked"
+    assert saved.modules[0].status == "blocked"
+    assert saved.modules[0].source == (
+        "User-confirmed natural-language proposal · deterministic parser · evidence pending"
+    )
+    assert saved.trees[0].proposal_audit.origin == "deterministic"
+    assert saved.trees[0].proposal_audit.source_id == "deterministic-parser"
+    assert saved.trees[0].proposal_audit.source_label == "Deterministic parser"
+    assert saved.trees[0].proposal_audit.prompt_version == "markov-chain-proposal-v1"
+    assert saved.modules[0].proposal_audit == saved.trees[0].proposal_audit
+    assert all(edge.decision_id is None for edge in saved.modules[0].edges)
+    assert all("evidence pending" in edge.label for edge in saved.modules[0].edges)
+
+
+def test_confirmed_builder_chain_persists_full_selected_ai_provenance(tmp_path):
+    registry = SimulationRegistryStore(tmp_path / "simulation-registry.json")
+    audit = ProposalAudit(
+        provider="openai_cli",
+        model="gpt-test",
+        prompt_version="markov-chain-proposal-v7",
+        generated_at="2026-10-27T12:00:00Z",
+        input_tokens=41,
+        output_tokens=23,
+        estimated_cost_usd=0.0042,
+        message="Unsaved proposal generated via OpenAI CLI.",
+    )
+    chain = confirmed_chain_from_draft(
+        valid_draft().model_copy(update={"proposal_audit": audit}),
+        user_confirmed=True,
+    )
+
+    registry.save_confirmed_chain(chain)
+
+    saved = SimulationRegistryStore(registry.path).decision_trees()
+    expected = {
+        "origin": "ai",
+        "source_id": "openai_cli",
+        "source_label": "OpenAI CLI",
+        "model": "gpt-test",
+        "generated_at": "2026-10-27T12:00:00Z",
+        "prompt_version": "markov-chain-proposal-v7",
+        "input_tokens": 41,
+        "output_tokens": 23,
+        "estimated_cost_usd": 0.0042,
+        "message": "Unsaved proposal generated via OpenAI CLI.",
+    }
+    assert saved.trees[0].proposal_audit.model_dump(mode="json") == expected
+    assert saved.modules[0].proposal_audit.model_dump(mode="json") == expected
+
+
+def test_confirmed_manual_chain_is_labelled_without_ai_provenance(tmp_path):
+    registry = SimulationRegistryStore(tmp_path / "simulation-registry.json")
+    chain = confirmed_chain_from_draft(valid_draft(), user_confirmed=True)
+
+    registry.save_confirmed_chain(chain)
+
+    saved = registry.decision_trees()
+    assert saved.trees[0].proposal_audit.origin == "manual"
+    assert saved.trees[0].proposal_audit.source_label == "Manual confirmation"
+    assert saved.modules[0].proposal_audit == saved.trees[0].proposal_audit

@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..ai_settings import AISourceProvenance
 from .auto_import_requirements import CanonicalFieldRequirement, canonical_requirement
 
 PlaceLevel = Literal["region", "country", "city"]
@@ -119,6 +120,7 @@ class SourceCandidate(ResearchModel):
     sample_size: int | None = Field(default=None, ge=1)
     source_version: str = "unknown"
     license: str = "unknown"
+    ai_provenance: AISourceProvenance | None = None
 
 
 class VerificationCheck(ResearchModel):

@@ -1,0 +1,484 @@
+.interaction-tree-inspector {
+  --interaction-surface: #0f1821;
+  --interaction-raised: #14212a;
+  --interaction-control: #09121a;
+  --interaction-line: #ffffff17;
+  --interaction-line-strong: #638071;
+  --interaction-text: #dce5e7;
+  --interaction-muted: #7d8f98;
+  --interaction-accent: var(--green, #b5e7b1);
+  --interaction-path: #6bb990;
+  color: var(--interaction-text);
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+:root[data-theme='light'] .interaction-tree-inspector,
+:root[data-color-scheme='light'] .interaction-tree-inspector,
+:root.theme-light .interaction-tree-inspector {
+  --interaction-surface: #f3f6f5;
+  --interaction-raised: #e6efea;
+  --interaction-control: #fff;
+  --interaction-line: #17312924;
+  --interaction-line-strong: #547663;
+  --interaction-text: #172822;
+  --interaction-muted: #63766e;
+  --interaction-accent: #376f50;
+  --interaction-path: #2f7a52;
+}
+
+.interaction-tree-inspector :is(h2, h3, h4, p, dl, ul) {
+  margin: 0;
+}
+
+.interaction-tree-navigation {
+  align-items: center;
+  background: var(--interaction-surface);
+  border: 1px solid var(--interaction-line);
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px;
+}
+
+.interaction-tree-navigation > button,
+.interaction-tree-navigation li button {
+  background: var(--interaction-control);
+  border: 1px solid var(--interaction-line);
+  border-radius: 4px;
+  color: var(--interaction-text);
+  cursor: pointer;
+  font:
+    9px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  padding: 6px 8px;
+}
+
+.interaction-tree-navigation > button:disabled {
+  color: var(--interaction-muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.interaction-tree-navigation ol {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.interaction-tree-navigation li {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+}
+
+.interaction-tree-navigation li:not(:last-child)::after {
+  color: var(--interaction-muted);
+  content: '/';
+  font-size: 9px;
+}
+
+.interaction-tree-navigation li button[aria-current='page'] {
+  border-color: var(--interaction-accent);
+  color: var(--interaction-accent);
+}
+
+.interaction-tree-navigation button:hover:not(:disabled),
+.interaction-tree-navigation button:focus-visible {
+  border-color: var(--interaction-accent);
+  outline: none;
+}
+
+.interaction-tree-header,
+.interaction-tree-header > dl,
+.interaction-transition-detail > header,
+.interaction-result > header,
+.interaction-result-party > div,
+.interaction-result-party li,
+.interaction-result footer {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.interaction-tree-header {
+  background: var(--interaction-surface);
+  border: 1px solid var(--interaction-line);
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.interaction-tree-header > div > span,
+.interaction-transition-detail header span,
+.interaction-result header span,
+.interaction-tree-node-heading span {
+  color: var(--interaction-muted);
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.interaction-tree-header h2 {
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -0.035em;
+  margin: 3px 0 4px;
+}
+
+.interaction-tree-header p,
+.interaction-tree-header dt,
+.interaction-tree-header dd {
+  color: var(--interaction-muted);
+  font-size: 10px;
+}
+
+.interaction-tree-header > dl {
+  align-items: stretch;
+}
+
+.interaction-tree-header dl > div {
+  border-left: 1px solid var(--interaction-line);
+  display: grid;
+  gap: 3px;
+  min-width: 95px;
+  padding-left: 12px;
+}
+
+.interaction-tree-header dd {
+  color: var(--interaction-text);
+  margin: 0;
+}
+
+.interaction-tree-layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.38fr);
+  min-height: 390px;
+}
+
+.interaction-tree-map,
+.interaction-tree-layout > aside,
+.interaction-result,
+.interaction-result-empty {
+  background: var(--interaction-surface);
+  border: 1px solid var(--interaction-line);
+  border-radius: 6px;
+}
+
+.interaction-tree-map {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+  max-height: 590px;
+  overflow: auto;
+  padding: 14px;
+}
+
+.interaction-tree-node {
+  background: var(--interaction-control);
+  border: 1px solid var(--interaction-line);
+  border-radius: 5px;
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+}
+
+.interaction-tree-node.is-terminal {
+  border-style: dashed;
+}
+
+.interaction-tree-node.is-reference {
+  background: color-mix(in srgb, var(--interaction-raised) 58%, var(--interaction-control));
+  border-color: var(--interaction-line-strong);
+  border-style: solid;
+  box-shadow: inset 3px 0 var(--interaction-line-strong);
+}
+
+.interaction-tree-node.is-outcome {
+  border-color: var(--interaction-path);
+  box-shadow: inset 3px 0 var(--interaction-path);
+}
+
+.interaction-tree-node-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.interaction-tree-node-heading strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.interaction-tree-incoming,
+.interaction-result-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.interaction-tree-incoming span,
+.interaction-result-context span {
+  background: var(--interaction-raised);
+  border-radius: 999px;
+  color: var(--interaction-muted);
+  font-size: 8px;
+  padding: 4px 7px;
+}
+
+.interaction-tree-edges {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.interaction-tree-reference {
+  align-items: center;
+  background: var(--interaction-raised);
+  border: 1px solid var(--interaction-line-strong);
+  border-radius: 4px;
+  color: var(--interaction-text);
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  padding: 8px;
+  text-align: left;
+}
+
+button.interaction-tree-reference {
+  cursor: pointer;
+  width: 100%;
+}
+
+.interaction-tree-reference span {
+  color: var(--interaction-muted);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.interaction-tree-reference strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.interaction-tree-reference:hover,
+.interaction-tree-reference:focus-visible {
+  border-color: var(--interaction-accent);
+  outline: none;
+}
+
+.interaction-tree-reference.is-broken {
+  border-color: #c66b6b;
+  color: #e7a0a0;
+}
+
+.interaction-tree-reference.is-loading {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.interaction-tree-edge {
+  background: var(--interaction-raised);
+  border: 1px solid var(--interaction-line);
+  border-radius: 4px;
+  color: var(--interaction-text);
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: 1fr auto;
+  padding: 8px;
+  text-align: left;
+}
+
+.interaction-tree-edge small {
+  color: var(--interaction-muted);
+  font-size: 8px;
+  grid-column: 1 / -1;
+}
+
+.interaction-tree-edge.is-path {
+  border-color: color-mix(in srgb, var(--interaction-path) 70%, transparent);
+}
+
+.interaction-tree-edge:hover,
+.interaction-tree-edge:focus-visible,
+.interaction-tree-edge.is-selected {
+  border-color: var(--interaction-accent);
+  outline: none;
+}
+
+.interaction-tree-edge:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interaction-accent) 24%, transparent);
+}
+
+.interaction-tree-layout > aside {
+  max-height: 590px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.interaction-transition-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.interaction-transition-detail header h3,
+.interaction-result header h3 {
+  font-size: 17px;
+  font-weight: 550;
+  margin-top: 3px;
+}
+
+.interaction-transition-detail header > strong {
+  color: var(--interaction-accent);
+  font-size: 18px;
+}
+
+.interaction-transition-detail dl {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.interaction-transition-detail dl > div {
+  background: var(--interaction-control);
+  border: 1px solid var(--interaction-line);
+  border-radius: 4px;
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+}
+
+.interaction-transition-detail dt,
+.interaction-transition-detail dd,
+.interaction-transition-detail li,
+.interaction-transition-source span {
+  color: var(--interaction-muted);
+  font-size: 9px;
+}
+
+.interaction-transition-detail dd {
+  color: var(--interaction-text);
+  margin: 0;
+}
+
+.interaction-transition-detail section {
+  display: grid;
+  gap: 7px;
+}
+
+.interaction-transition-detail h4,
+.interaction-result-party h4 {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.interaction-transition-detail ul,
+.interaction-result-party ul {
+  display: grid;
+  gap: 5px;
+  list-style: none;
+  padding: 0;
+}
+
+.interaction-transition-detail li,
+.interaction-result-party li {
+  background: var(--interaction-control);
+  border-radius: 4px;
+  padding: 7px;
+}
+
+.interaction-transition-detail code {
+  color: var(--interaction-text);
+  font-size: 9px;
+}
+
+.interaction-transition-source {
+  border-top: 1px solid var(--interaction-line);
+  padding-top: 12px;
+}
+
+.interaction-transition-source strong {
+  font-size: 10px;
+}
+
+.interaction-tree-empty,
+.interaction-result-empty {
+  color: var(--interaction-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 18px;
+}
+
+.interaction-result {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.interaction-result > header > strong {
+  color: var(--interaction-accent);
+  font-size: 10px;
+}
+
+.interaction-result-parties {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.interaction-result-party {
+  background: var(--interaction-raised);
+  border: 1px solid var(--interaction-line);
+  border-radius: 5px;
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+}
+
+.interaction-result-party > div span,
+.interaction-result-party li,
+.interaction-result footer {
+  color: var(--interaction-muted);
+  font-size: 8px;
+}
+
+.interaction-result-party li strong {
+  color: var(--interaction-text);
+  font-weight: 550;
+  text-align: right;
+}
+
+.interaction-result-party li.is-empty {
+  display: block;
+}
+
+.interaction-result footer {
+  border-top: 1px solid var(--interaction-line);
+  padding-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .interaction-tree-layout,
+  .interaction-result-parties {
+    grid-template-columns: 1fr;
+  }
+
+  .interaction-tree-header,
+  .interaction-result footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

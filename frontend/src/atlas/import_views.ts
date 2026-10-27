@@ -89,7 +89,7 @@ export function importForm(
       </details>
       <label class="atlas-checkbox"
         ><input name="use_llm" type="checkbox" ${sources.llm_available ? 'checked' : ''} />Propose mappings with an LLM
-        using headers and five sample rows${sources.llm_available ? '' : ' (API key not configured)'}</label
+        using headers and five sample rows${sources.llm_available ? '' : ' (AI source unavailable)'}</label
       ><label class="atlas-checkbox"
         ><input name="redistribution_allowed" type="checkbox" />This source allows redistribution. Keep
         unchecked for restricted microdata.</label
