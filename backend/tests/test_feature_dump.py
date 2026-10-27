@@ -165,9 +165,10 @@ def test_ucdb_polygon_matches_are_spatial_imputations():
     assert country_code("Dem. People's Republic of Korea") == "KP"
     assert country_code("China, Taiwan Province of China") == "TW"
     assert country_code("Turkey") == "TR"
-    assert attribute_pattern("SD_LUE_LPR_XXXX_XXXX").match(
-        "SD_LUE_LPR_1975_1990"
-    ).groups() == ("1975", "1990")
+    assert attribute_pattern("SD_LUE_LPR_XXXX_XXXX").match("SD_LUE_LPR_1975_1990").groups() == (
+        "1975",
+        "1990",
+    )
     fallback = catalog_rows({"UNINDEXED": "climate.parquet"}, [])[0]
     assert fallback["theme"] == "Climate"
     assert fallback["source"] == "GHS-UCDB R2024A"
@@ -205,7 +206,7 @@ def test_household_latest_rows_and_streaming_xlsx_reader():
     shared = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        '<si><t>country</t></si><si><t>AA</t></si></sst>'
+        "<si><t>country</t></si><si><t>AA</t></si></sst>"
     )
     sheet = (
         '<?xml version="1.0" encoding="UTF-8"?>'
@@ -225,7 +226,7 @@ def test_household_latest_rows_and_streaming_xlsx_reader():
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         '<Relationship Id="rId1" Target="worksheets/sheet1.xml" '
         'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/>'
-        '</Relationships>'
+        "</Relationships>"
     )
     buffer = io.BytesIO()
     with ZipFile(buffer, "w") as archive:

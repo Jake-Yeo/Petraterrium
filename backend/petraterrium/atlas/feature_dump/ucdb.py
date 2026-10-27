@@ -99,9 +99,7 @@ def haversine(latitude_a, longitude_a, latitude_b, longitude_b):
     lat_b = np.radians(latitude_b)
     delta_lat = lat_b - lat_a
     delta_lon = np.radians(longitude_b - longitude_a)
-    value = np.sin(delta_lat / 2) ** 2 + np.cos(lat_a) * np.cos(lat_b) * np.sin(
-        delta_lon / 2
-    ) ** 2
+    value = np.sin(delta_lat / 2) ** 2 + np.cos(lat_a) * np.cos(lat_b) * np.sin(delta_lon / 2) ** 2
     return 6371.0088 * 2 * np.arctan2(np.sqrt(value), np.sqrt(1 - value))
 
 
@@ -319,9 +317,7 @@ def catalog_rows(feature_tables, metadata):
                 "feature_id": feature_id,
                 "table": table,
                 "theme": (
-                    match_row["theme"]
-                    if match_row
-                    else Path(table).stem.replace("_", " ").title()
+                    match_row["theme"] if match_row else Path(table).stem.replace("_", " ").title()
                 ),
                 "group": match_row["group"] if match_row else "",
                 "name": match_row["name"] if match_row else feature_id,
@@ -342,9 +338,7 @@ def export_ucdb(archive_path: Path, geopackage_path: Path, cities, output: Path)
     connection = sqlite3.connect(geopackage_path)
     try:
         centres = urban_centres(connection)
-        centre_rows = [
-            row | {"geometry": to_wkb(from_wkb(row["geometry"]))} for row in centres
-        ]
+        centre_rows = [row | {"geometry": to_wkb(from_wkb(row["geometry"]))} for row in centres]
         write_rows(output / "ucdb_urban_centres.parquet", centre_rows)
         matches = match_cities_to_urban_centres(cities, centres)
         import pyarrow.parquet as pq
@@ -375,13 +369,9 @@ def export_ucdb(archive_path: Path, geopackage_path: Path, cities, output: Path)
         "urban_centres_matched": len(matched_ids),
         "cities_spatially_matched": matches.num_rows,
         "features": len(feature_tables),
-        "features_without_index_metadata": sum(
-            row["name"] == row["feature_id"] for row in catalog
-        ),
+        "features_without_index_metadata": sum(row["name"] == row["feature_id"] for row in catalog),
         "theme_tables": len(tables),
         "feature_counts": dict(counts),
-        "city_matches": {
-            row["geonameid"]: row["ucdb_id"] for row in matches.to_pylist()
-        },
+        "city_matches": {row["geonameid"]: row["ucdb_id"] for row in matches.to_pylist()},
         "release_date": "2026-05-15",
     }

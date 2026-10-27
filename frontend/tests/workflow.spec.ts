@@ -88,6 +88,9 @@ test('a resumed stream starts after the last received sequence', async ({ page, 
         snapshot: (_snapshot, sequence) => {
           sequences.push(sequence);
         },
+        ensemble: (_update, sequence) => {
+          sequences.push(sequence);
+        },
         complete: (_event, sequence) => {
           sequences.push(sequence);
           stream.dispose();
@@ -99,7 +102,7 @@ test('a resumed stream starts after the last received sequence', async ({ page, 
       });
     });
   }, id);
-  expect(received.sequences).toEqual([4, 5, 6, 7, 8]);
+  expect(received.sequences).toEqual([4, 5, 6, 7, 8, 9]);
 });
 
 test('an interrupted SSE connection resumes without skipping or duplicating recorded days', async ({
@@ -143,6 +146,9 @@ test('an interrupted SSE connection resumes without skipping or duplicating reco
         snapshot: (_snapshot, sequence) => {
           sequences.push(sequence);
         },
+        ensemble: (_update, sequence) => {
+          sequences.push(sequence);
+        },
         complete: (_event, sequence) => {
           sequences.push(sequence);
           stream.dispose();
@@ -156,7 +162,7 @@ test('an interrupted SSE connection resumes without skipping or duplicating reco
       });
     });
   }, id);
-  expect(result.sequences).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  expect(result.sequences).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   expect(result.reconnects).toBeGreaterThanOrEqual(1);
   expect(resumeCursors).toEqual(['3', '3']);
 });

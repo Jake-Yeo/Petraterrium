@@ -2,14 +2,22 @@ import Ajv, { type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import schema from './contracts.schema.json';
 import type {
+  AgentDetail,
+  AgentPointList,
   Catalog,
   DailySnapshot,
+  DSLConfig,
+  DSLRender,
+  DSLValidationResult,
+  EnsembleUpdate,
   RunComplete,
   RunConfig,
   RunCreated,
   RunDetail,
   RunFailed,
   RunList,
+  StoryDetail,
+  StoryList,
 } from './contracts.generated';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -30,6 +38,14 @@ const validators = {
   snapshot: validator<DailySnapshot>('DailySnapshot'),
   complete: validator<RunComplete>('RunComplete'),
   failed: validator<RunFailed>('RunFailed'),
+  ensemble: validator<EnsembleUpdate>('EnsembleUpdate'),
+  dsl: validator<DSLConfig>('DSLConfig'),
+  dslValidation: validator<DSLValidationResult>('DSLValidationResult'),
+  dslRender: validator<DSLRender>('DSLRender'),
+  agentPoints: validator<AgentPointList>('AgentPointList'),
+  agent: validator<AgentDetail>('AgentDetail'),
+  stories: validator<StoryList>('StoryList'),
+  story: validator<StoryDetail>('StoryDetail'),
 };
 
 function parse<T>(data: unknown, validate: ValidateFunction<T>): T {
@@ -71,6 +87,36 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     }),
+  smokeDSL: () => request('/dsl/smoke', validators.dsl),
+  validateDSL: (dsl: DSLConfig) =>
+    request('/dsl/validate', validators.dslValidation, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dsl),
+    }),
+  renderDSL: (dsl: DSLConfig) =>
+    request('/dsl/render', validators.dslRender, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dsl),
+    }),
+  agents: (runId: string, place: string, day: number, limit = 5000) =>
+    request(
+      `/runs/${encodeURIComponent(runId)}/agents?place=${encodeURIComponent(place)}&day=${day}&limit=${limit}`,
+      validators.agentPoints,
+    ),
+  agent: (agentId: string, runId: string) =>
+    request(
+      `/agents/${encodeURIComponent(agentId)}?run_id=${encodeURIComponent(runId)}`,
+      validators.agent,
+    ),
+  stories: (runId: string) =>
+    request(`/runs/${encodeURIComponent(runId)}/stories`, validators.stories),
+  story: (storyId: string, runId: string) =>
+    request(
+      `/stories/${encodeURIComponent(storyId)}?run_id=${encodeURIComponent(runId)}`,
+      validators.story,
+    ),
   async delete(id: string): Promise<void> {
     let response: Response;
     try {
@@ -85,6 +131,7 @@ export const api = {
 
 export type StreamHandlers = {
   snapshot: (snapshot: DailySnapshot, sequence: number) => void;
+  ensemble: (update: EnsembleUpdate, sequence: number) => void;
   complete: (result: RunComplete, sequence: number) => void;
   failed: (result: RunFailed, sequence: number) => void;
   connection: (state: 'connected' | 'reconnecting') => void;
@@ -145,6 +192,9 @@ export class RunStream {
     };
     this.source.addEventListener('snapshot', (event) =>
       this.consume(event as MessageEvent, validators.snapshot, this.handlers.snapshot),
+    );
+    this.source.addEventListener('ensemble_update', (event) =>
+      this.consume(event as MessageEvent, validators.ensemble, this.handlers.ensemble),
     );
     this.source.addEventListener('run-complete', (event) => {
       this.consume(event as MessageEvent, validators.complete, this.handlers.complete);

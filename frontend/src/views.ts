@@ -13,6 +13,11 @@ export const defaults: RunConfig = {
     mixing: 0.04,
     initial_infected: 40,
   },
+  dsl: null,
+  population: null,
+  tick: null,
+  outputs: null,
+  evidence_table_version: 'FAKE-evidence-v1',
 };
 
 export const escapeHtml = (value: string): string =>
@@ -21,6 +26,13 @@ export const escapeHtml = (value: string): string =>
     (character) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
   );
+
+export const scenarioLabel = (scenario: string): string =>
+  scenario
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
+    .join(' ');
 
 export function shell(): string {
   return `
@@ -37,6 +49,8 @@ export function shell(): string {
       </button>
       <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
         <button role="tab" aria-selected="true" aria-controls="simulation-view" data-action="simulation-tab">Simulation</button>
+        <button role="tab" aria-selected="false" aria-controls="stories-view" data-action="stories-tab">Stories</button>
+        <button role="tab" aria-selected="false" aria-controls="dsl-view" data-action="dsl-tab">DSL</button>
         <button role="tab" aria-selected="false" aria-controls="data-view" data-action="data-tab">Data</button>
       </div>
       <div class="sidebar-section-title">
@@ -49,7 +63,7 @@ export function shell(): string {
         </ul>
       </nav>
       <div class="sidebar-footer">
-        <span class="small-label">THE DAY-ONE SCAFFOLD</span>
+        <span class="small-label">THE DSL SIMULATION FRAMEWORK</span>
         <p>One engine.<br />Every number has a receipt.</p>
         <div class="fake-tag" id="workspace-data-notice">FAKE DATA ONLY</div>
         <p class="muted" id="workspace-storage-notice">Runs live in server memory.<br />Restarting the API clears them.</p>
@@ -71,9 +85,9 @@ export function shell(): string {
         <section class="hero">
           <div>
             <p class="eyebrow">
-              <span class="tiny-globe">⊕</span> PANDEMIC <span class="slash">/</span> EXPLORATION 001
+              <span class="tiny-globe">⊕</span> DSL SYSTEM <span class="slash">/</span> RECORDED RUN
             </p>
-            <h1>Trace the spread.</h1>
+            <h1>Trace the state.</h1>
             <p class="hero-copy">A world of connections. A record of every change.</p>
           </div>
           <div class="hero-status">
@@ -83,21 +97,21 @@ export function shell(): string {
         </section>
         <div class="model-notice">
           <span class="fake-tag">FAKE</span
-          ><span>Invented populations · placeholder SEIR · unfitted parameters</span
-          ><span class="notice-end">A demonstration, never a forecast.</span>
+          ><span>Bundled smoke inputs · explicit uncertainty · deterministic engine</span
+          ><span class="notice-end">A conditional simulation, never a prophecy.</span>
         </div>
         <section class="metrics" aria-label="Run metrics">
           <div>
-            <span class="metric-label"><i class="legend-dot orange"></i>Infected on selected day</span
+            <span class="metric-label"><i class="legend-dot orange"></i><span id="metric-primary-label">Primary state</span> on selected day</span
             ><strong id="metric-infected">—</strong
             ><span id="metric-day" class="metric-caption">Waiting for a recorded day</span>
           </div>
           <div>
-            <span class="metric-label">Peak infections</span><strong id="metric-peak">—</strong
+            <span class="metric-label">Peak primary state</span><strong id="metric-peak">—</strong
             ><span id="metric-peak-day" class="metric-caption">Computed at run completion</span>
           </div>
           <div>
-            <span class="metric-label">Recovered on selected day</span
+            <span class="metric-label"><span id="metric-secondary-label">Terminal state</span> on selected day</span
             ><strong id="metric-recovered">—</strong
             ><span class="metric-caption">Recorded compartment count</span>
           </div>
@@ -111,7 +125,10 @@ export function shell(): string {
           <span id="stream-message"></span
           ><button class="text-button" data-action="reconnect">Reconnect</button>
         </div>
-        <section class="world-section" aria-label="Globe and country results">
+        <div id="agent-lod-notice" class="notice agent-lod-notice" role="status" hidden>
+          <span id="agent-lod-status"></span><button class="text-button" data-action="world-view">Return to clusters</button>
+        </div>
+        <section class="world-section" aria-label="Globe and place results">
           <div class="globe-panel">
             <div class="panel-heading globe-heading">
               <span><span class="status-dot"></span> GLOBAL VIEW</span
@@ -134,24 +151,24 @@ export function shell(): string {
           </div>
           <aside class="country-panel">
             <div class="panel-heading">
-              <span>COUNTRY PULSE</span><span id="country-count" class="muted">00</span>
+              <span>PLACE PULSE</span><span id="country-count" class="muted">00</span>
             </div>
-            <p class="country-panel-caption">Infected · selected recorded day</p>
+            <p class="country-panel-caption">Primary state · selected recorded day</p>
             <div id="country-list" class="country-list">
-              <p class="muted empty-country">Launch an experiment to see the country breakdown.</p>
+              <p class="muted empty-country">Launch an experiment to see the place breakdown.</p>
             </div>
             <div class="marker-legend">
               <span class="marker-example"></span>
-              <p>Marker size and warmth<br />reflect recorded infections.</p>
+              <p>Marker size and warmth<br />reflect the recorded primary state.</p>
             </div>
           </aside>
         </section>
-        <section class="timeline-panel" aria-label="Timeline and infection chart">
+        <section class="timeline-panel" aria-label="Timeline and recorded metric chart">
           <div class="chart-heading">
             <div>
-              <span class="small-label">INFECTIONS OVER TIME</span
+              <span class="small-label">RECORDED STATE OVER TIME</span
               ><span class="chart-subtitle"
-                ><i class="legend-dot orange"></i>All selected countries</span
+                ><i class="legend-dot orange"></i>All selected places</span
               >
             </div>
             <div class="chart-actions">
@@ -165,11 +182,12 @@ export function shell(): string {
               </details>
             </div>
           </div>
+          <p id="ensemble-status" class="mono muted">Ensemble update pending</p>
           <canvas
             id="infection-chart"
             class="infection-chart"
             role="img"
-            aria-label="Recorded infection counts over time. Use the timeline or snapshot table to inspect exact values."
+            aria-label="Recorded primary state values over time. Use the timeline or snapshot table to inspect exact values."
           ></canvas>
           <div class="playback">
             <button
@@ -206,16 +224,7 @@ export function shell(): string {
             <p id="provenance" class="mono muted">No snapshot selected.</p>
             <div class="table-scroll">
               <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Country</th>
-                    <th scope="col">Susceptible</th>
-                    <th scope="col">Exposed</th>
-                    <th scope="col">Infected</th>
-                    <th scope="col">Recovered</th>
-                    <th scope="col">Population</th>
-                  </tr>
-                </thead>
+                <thead id="snapshot-head"><tr><th scope="col">Place</th><th scope="col">Waiting for state schema</th></tr></thead>
                 <tbody id="snapshot-table"></tbody>
               </table>
             </div>
@@ -224,9 +233,11 @@ export function shell(): string {
         </details>
         <footer class="lab-footer">
           <span>PETRATERRIUM <span class="muted">/ A SMALL WORLD, MADE CHECKABLE</span></span
-          ><span class="muted">FAKE DATA · SINGLE RUN · NO CALIBRATION</span>
+          ><span class="muted">CONDITIONAL OUTPUT · VERSIONED RECEIPTS</span>
         </footer>
       </div>
+      <div id="stories-view" class="stories-view" hidden></div>
+      <div id="dsl-view" class="dsl-view" hidden></div>
       <div id="data-view" class="atlas-view" hidden></div>
     </main>
     <dialog id="new-run-dialog" class="run-dialog" aria-labelledby="new-run-title">
@@ -357,6 +368,11 @@ export function shell(): string {
         </button>
       </div>
     </dialog>
+    <dialog id="agent-dialog" class="agent-dialog" aria-labelledby="agent-title">
+      <div class="dialog-top"><span class="small-label">SYNTHETIC AGENT / LOG RECEIPT</span><button class="icon-button" data-action="close-agent" aria-label="Close agent detail">×</button></div>
+      <h2 id="agent-title">Synthetic agent</h2><p id="agent-scope" class="dialog-subtitle"></p><div id="agent-content"></div>
+      <div class="dialog-footer"><button class="button secondary" data-action="close-agent">Return to globe</button></div>
+    </dialog>
   `;
 }
 
@@ -375,7 +391,7 @@ export function savedRunList(runs: RunSummary[], activeId?: string): string {
   return runs
     .map(
       (run) =>
-        `<li class="saved-run ${run.run_id === activeId ? 'selected' : ''}"><button class="run-open" data-action="open" data-id="${run.run_id}" ${run.run_id === activeId ? 'aria-current="true"' : ''}><span class="run-item-icon">◉</span><span><strong>Pandemic <span class="run-seed">#${run.config.seed}</span></strong><span class="run-item-caption">${run.config.countries.length} places · ${run.config.end_day - run.config.start_day} days</span><span class="run-item-status"><i class="status-dot status-${run.status}"></i>${run.status} <span class="mono">${run.run_id.slice(0, 6)}</span></span></span></button><button class="run-delete" data-action="delete" data-id="${run.run_id}" aria-label="Delete run with seed ${run.config.seed}">×</button></li>`,
+        `<li class="saved-run ${run.run_id === activeId ? 'selected' : ''}"><button class="run-open" data-action="open" data-id="${run.run_id}" ${run.run_id === activeId ? 'aria-current="true"' : ''}><span class="run-item-icon">◉</span><span><strong>${escapeHtml(scenarioLabel(run.config.scenario))} <span class="run-seed">#${run.config.seed}</span></strong><span class="run-item-caption">${run.config.countries.length} places · ${run.config.end_day - run.config.start_day} days</span><span class="run-item-status"><i class="status-dot status-${run.status}"></i>${run.status} <span class="mono">${run.run_id.slice(0, 6)}</span></span></span></button><button class="run-delete" data-action="delete" data-id="${run.run_id}" aria-label="Delete run with seed ${run.config.seed}">×</button></li>`,
     )
     .join('');
 }

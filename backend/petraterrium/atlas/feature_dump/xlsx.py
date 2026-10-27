@@ -33,9 +33,7 @@ def sheet_paths(archive: ZipFile) -> dict[str, str]:
     for sheet in workbook.iter():
         if local_name(sheet.tag) != "sheet":
             continue
-        relationship_id = next(
-            value for key, value in sheet.attrib.items() if key.endswith("}id")
-        )
+        relationship_id = next(value for key, value in sheet.attrib.items() if key.endswith("}id"))
         target = targets[relationship_id].lstrip("/")
         if not target.startswith("xl/"):
             target = "xl/" + target
@@ -69,9 +67,7 @@ def number(value: str):
 def cell_value(cell, strings: list[str]):
     kind = cell.attrib.get("t")
     if kind == "inlineStr":
-        return "".join(
-            node.text or "" for node in cell.iter() if local_name(node.tag) == "t"
-        )
+        return "".join(node.text or "" for node in cell.iter() if local_name(node.tag) == "t")
     raw = next(
         (node.text or "" for node in cell if local_name(node.tag) == "v"),
         "",

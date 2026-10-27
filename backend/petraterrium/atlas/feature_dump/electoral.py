@@ -19,8 +19,7 @@ BLUE_DB_RECORD_URL = "https://zenodo.org/records/21434112"
 BLUE_DB_RELEASE = "v2025.1"
 BLUE_DB_PUBLISHED_DATE = "2026-07-18"
 GISCO_LAU_URL = (
-    "https://gisco-services.ec.europa.eu/distribution/v2/lau/gpkg/"
-    "LAU_RG_01M_2024_4326.gpkg"
+    "https://gisco-services.ec.europa.eu/distribution/v2/lau/gpkg/LAU_RG_01M_2024_4326.gpkg"
 )
 GISCO_LAU_YEAR = 2024
 
@@ -313,9 +312,7 @@ def load_lau_geometries(path, country_codes):
                 "country_code": country_code,
                 "geometry": from_wkb(geopackage_wkb(blob)),
             }
-            for blob, gisco_id, country_code in connection.execute(
-                query, sorted(country_codes)
-            )
+            for blob, gisco_id, country_code in connection.execute(query, sorted(country_codes))
         ]
 
 
@@ -324,12 +321,8 @@ def match_city_points_to_laus(cities, laus):
     for lau in laus:
         laus_by_country[lau["country_code"]].append(lau)
     cities_by_country = defaultdict(list)
-    for city in cities.select(
-        ["geonameid", "country_code", "latitude", "longitude"]
-    ).to_pylist():
-        gisco_country = GEONAMES_TO_GISCO_COUNTRY.get(
-            city["country_code"], city["country_code"]
-        )
+    for city in cities.select(["geonameid", "country_code", "latitude", "longitude"]).to_pylist():
+        gisco_country = GEONAMES_TO_GISCO_COUNTRY.get(city["country_code"], city["country_code"])
         cities_by_country[gisco_country].append(city)
     matches = []
     for country_code, country_cities in cities_by_country.items():
@@ -400,9 +393,7 @@ def result_row(metadata, source_row, aggregate):
         "party_votes_json": json.dumps(
             aggregate["party_votes"], ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ),
-        "ballot_reconciliation_difference": aggregate[
-            "ballot_reconciliation_difference"
-        ],
+        "ballot_reconciliation_difference": aggregate["ballot_reconciliation_difference"],
         "source_validation_issue_count": aggregate["source_validation_issue_count"],
         "source": "BLUE_DB Electoral Bulletins of the European Union",
         "source_url": BLUE_DB_RECORD_URL,
@@ -430,9 +421,7 @@ def export_blue_results(archive, output, index_rows, ideologies):
             geography_rows = 0
             country_ideologies = ideologies.get(metadata["country_code"], {})
             for source_row in reader:
-                aggregate = aggregate_election_row(
-                    source_row, party_columns, country_ideologies
-                )
+                aggregate = aggregate_election_row(source_row, party_columns, country_ideologies)
                 writer.add(result_row(metadata, source_row, aggregate))
                 geography_rows += 1
                 geography_id = source_row["gisco_id"]
@@ -526,16 +515,12 @@ def export_blue(archive_path: Path, boundary_path: Path, cities, output: Path):
     laus = load_lau_geometries(boundary_path, countries)
     matches = match_city_points_to_laus(cities, laus)
     write_rows(output / "blue_city_matches.parquet", matches.to_pylist(), CITY_MATCH_SCHEMA)
-    city_matches, city_result_counts, city_latest_dates = (
-        export_city_electoral_availability(
-            output, matches, results["result_counts"], results["latest_dates"]
-        )
+    city_matches, city_result_counts, city_latest_dates = export_city_electoral_availability(
+        output, matches, results["result_counts"], results["latest_dates"]
     )
     source_catalog_rows = export_electoral_source_catalog(output)
     result = {
-        key: value
-        for key, value in results.items()
-        if key not in ("result_counts", "latest_dates")
+        key: value for key, value in results.items() if key not in ("result_counts", "latest_dates")
     }
     result.update(
         {

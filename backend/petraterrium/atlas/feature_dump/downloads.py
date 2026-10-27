@@ -33,9 +33,7 @@ def download(url: str, destination: Path, refresh=False) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_suffix(destination.suffix + ".part")
     headers = {"User-Agent": "Petraterrium data atlas/1.0"}
-    with httpx.stream(
-        "GET", url, headers=headers, follow_redirects=True, timeout=300
-    ) as response:
+    with httpx.stream("GET", url, headers=headers, follow_redirects=True, timeout=300) as response:
         response.raise_for_status()
         with temporary.open("wb") as target:
             for chunk in response.iter_bytes():

@@ -37,10 +37,11 @@ def test_api_end_to_end_recorded_stream_and_metrics(client):
     response = client.get(f"/runs/{identity}/stream")
     assert response.headers["content-type"].startswith("text/event-stream")
     events = parse_events(response.text)
-    assert [sequence for sequence, _, _ in events] == list(range(1, 33))
-    assert [kind for _, kind, _ in events[:-1]] == ["snapshot"] * 31
-    assert [snapshot for _, _, snapshot in events[:-1]] == stored["snapshots"]
-    assert [snapshot["day"] for _, _, snapshot in events[:-1]] == list(range(31))
+    assert [sequence for sequence, _, _ in events] == list(range(1, 34))
+    assert [kind for _, kind, _ in events[:-2]] == ["snapshot"] * 31
+    assert [snapshot for _, _, snapshot in events[:-2]] == stored["snapshots"]
+    assert [snapshot["day"] for _, _, snapshot in events[:-2]] == list(range(31))
+    assert events[-2][1] == "ensemble_update"
     assert events[-1][1] == "run-complete"
     assert events[-1][2]["metrics"] == stored["metrics"]
     infections = [sum(place["infected"] for place in day["places"]) for day in stored["snapshots"]]
@@ -72,7 +73,7 @@ def test_resume_by_sequence_and_last_event_header(client):
     assert resumed == original[12:]
     header = client.get(f"/runs/{identity}/stream?after=1", headers={"Last-Event-ID": "25"})
     assert parse_events(header.text) == original[25:]
-    assert parse_events(client.get(f"/runs/{identity}/stream?after=32").text) == []
+    assert parse_events(client.get(f"/runs/{identity}/stream?after=33").text) == []
 
 
 @pytest.mark.parametrize("cursor", ["-1", "9999", "bad"])
@@ -144,7 +145,7 @@ def test_catalog_declares_fake_provenance(client):
     assert len(catalog["countries"]) == 4
     assert all(country["fake"] is True for country in catalog["countries"])
     assert catalog["data_version"].startswith("FAKE-")
-    assert catalog["engine_version"].startswith("placeholder-")
+    assert catalog["engine_version"].startswith("dsl-vector-engine-")
 
 
 def test_active_recorder_replays_and_follows_one_computation():
@@ -162,9 +163,10 @@ def test_active_recorder_replays_and_follows_one_computation():
         consumer = asyncio.create_task(consume())
         await service.execute(record)
         await asyncio.wait_for(consumer, timeout=2)
-        assert len(received) == 32
-        assert [event.data for event in received[:-1]] == record.snapshots
-        assert [event.sequence for event in received] == list(range(1, 33))
+        assert len(received) == 33
+        assert [event.data for event in received[:-2]] == record.snapshots
+        assert received[-2].kind == "ensemble_update"
+        assert [event.sequence for event in received] == list(range(1, 34))
 
     asyncio.run(exercise())
 

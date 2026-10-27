@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { Country, DailySnapshot } from './contracts.generated';
+import type { AgentPoint, Country, DailySnapshot, PlaceSnapshot } from './contracts.generated';
 
 type Marker = {
   country: Country;
@@ -8,6 +8,11 @@ type Marker = {
   disc: THREE.Mesh;
   ring: THREE.Mesh;
   label: HTMLDivElement;
+};
+
+type GlobeHandlers = {
+  place: (place: string, day: number) => void;
+  agent: (agentId: string) => void;
 };
 
 const continentOutlines = [
@@ -172,10 +177,18 @@ export class Globe {
   private disposed = false;
   private projection = new THREE.Vector3();
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private raycaster = new THREE.Raycaster();
+  private pointer = new THREE.Vector2();
+  private pointerStart?: { x: number; y: number };
+  private agentCloud?: THREE.Points;
+  private spotlightCloud?: THREE.Points;
+  private agents: AgentPoint[] = [];
+  private snapshot?: DailySnapshot;
 
   constructor(
     private host: HTMLElement,
     countries: Country[],
+    private handlers?: GlobeHandlers,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -217,6 +230,8 @@ export class Globe {
     );
     this.scene.add(halo);
     for (const country of countries) this.addMarker(country);
+    this.renderer.domElement.addEventListener('pointerdown', this.startPicking);
+    this.renderer.domElement.addEventListener('pointerup', this.finishPicking);
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(host);
     this.intersectionObserver = new IntersectionObserver(([entry]) => {
@@ -322,12 +337,23 @@ export class Globe {
   }
 
   update(snapshot: DailySnapshot | undefined): void {
+    this.snapshot = snapshot;
+    for (const place of snapshot?.places ?? []) {
+      if (
+        !this.markers.some((marker) => marker.country.country === place.country) &&
+        place.latitude !== null &&
+        place.longitude !== null
+      ) {
+        this.addMarker(this.countryFromPlace(place));
+      }
+    }
     for (const marker of this.markers) {
       const place = snapshot?.places.find((value) => value.country === marker.country.country);
       marker.object.visible = !!place;
       marker.label.hidden = !place;
       if (!place) continue;
-      const magnitude = Math.sqrt(place.infected / marker.country.population);
+      const metric = this.placeMetric(place);
+      const magnitude = Math.sqrt(metric / marker.country.population);
       marker.disc.scale.setScalar(1 + magnitude * 9);
       marker.ring.scale.setScalar(1 + magnitude * 14);
       const color = new THREE.Color().lerpColors(
@@ -337,9 +363,109 @@ export class Globe {
       );
       (marker.disc.material as THREE.MeshBasicMaterial).color.copy(color);
       (marker.ring.material as THREE.MeshBasicMaterial).color.copy(color);
-      marker.label.textContent = `${marker.country.name} · ${place.infected.toLocaleString()}`;
+      marker.label.textContent = `${marker.country.name} · ${metric.toLocaleString()}`;
     }
   }
+
+  private countryFromPlace(place: PlaceSnapshot): Country {
+    const firstState = Object.values(place.states)[0];
+    const population = firstState
+      ? Object.values(firstState).reduce((sum, value) => sum + value, 0)
+      : place.susceptible + place.exposed + place.infected + place.recovered;
+    return {
+      country: place.country,
+      name: place.country,
+      population,
+      latitude: place.latitude ?? 0,
+      longitude: place.longitude ?? 0,
+      fake: true,
+    };
+  }
+
+  private placeMetric(place: PlaceSnapshot): number {
+    if ('infected' in place.metrics) return place.metrics.infected;
+    const firstState = Object.values(place.states)[0];
+    return firstState ? Object.values(firstState)[1] ?? Object.values(firstState)[0] ?? 0 : 0;
+  }
+
+  showAgents(agents: AgentPoint[], place: string): void {
+    this.clearAgents();
+    this.agents = agents;
+    const positions: number[] = [];
+    const colors: number[] = [];
+    for (const agent of agents) {
+      positions.push(...position(agent.latitude, agent.longitude, 1.038).toArray());
+      const color = new THREE.Color(agent.color);
+      colors.push(color.r, color.g, color.b);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    this.agentCloud = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({ size: 0.018, vertexColors: true, transparent: true, opacity: 0.9 }),
+    );
+    this.scene.add(this.agentCloud);
+    const spotlight = agents.filter((agent) => agent.log_tier === 'spotlight');
+    const spotlightGeometry = new THREE.BufferGeometry().setFromPoints(
+      spotlight.map((agent) => position(agent.latitude, agent.longitude, 1.044)),
+    );
+    this.spotlightCloud = new THREE.Points(
+      spotlightGeometry,
+      new THREE.PointsMaterial({ size: 0.035, color: 0xffffff, transparent: true, opacity: 0.8 }),
+    );
+    this.scene.add(this.spotlightCloud);
+    const marker = this.markers.find((item) => item.country.country === place);
+    if (marker) {
+      this.camera.position.copy(marker.object.position.clone().normalize().multiplyScalar(2.55));
+      this.controls.update();
+    }
+  }
+
+  clearAgents(): void {
+    for (const cloud of [this.agentCloud, this.spotlightCloud]) {
+      if (!cloud) continue;
+      this.scene.remove(cloud);
+      cloud.geometry.dispose();
+      (cloud.material as THREE.Material).dispose();
+    }
+    this.agentCloud = undefined;
+    this.spotlightCloud = undefined;
+    this.agents = [];
+  }
+
+  private startPicking = (event: PointerEvent): void => {
+    this.pointerStart = { x: event.clientX, y: event.clientY };
+  };
+
+  private finishPicking = (event: PointerEvent): void => {
+    if (
+      !this.pointerStart ||
+      Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 5
+    )
+      return;
+    const bounds = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.set(
+      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    if (this.agentCloud) {
+      this.raycaster.params.Points = { threshold: 0.035 };
+      const agentHit = this.raycaster.intersectObject(this.agentCloud)[0];
+      if (agentHit?.index !== undefined && this.agents[agentHit.index]) {
+        this.handlers?.agent(this.agents[agentHit.index].agent_id);
+        return;
+      }
+    }
+    const markerHit = this.raycaster.intersectObjects(
+      this.markers.map((marker) => marker.disc),
+    )[0];
+    if (!markerHit) return;
+    const marker = this.markers.find((item) => item.disc === markerHit.object);
+    if (marker && this.snapshot)
+      this.handlers?.place(marker.country.country, this.snapshot.day);
+  };
 
   private resize = (): void => {
     const width = this.host.clientWidth;
@@ -383,6 +509,8 @@ export class Globe {
     this.intersectionObserver.disconnect();
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.controls.dispose();
+    this.renderer.domElement.removeEventListener('pointerdown', this.startPicking);
+    this.renderer.domElement.removeEventListener('pointerup', this.finishPicking);
     this.scene.traverse((object) => {
       if (
         object instanceof THREE.Mesh ||

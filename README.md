@@ -1,27 +1,31 @@
 # Petraterrium
 
-A small, checkable world: a FastAPI + NumPy engine records a seeded pandemic run, streams the recorded days over SSE, and displays them on a Three.js globe.
+Petraterrium is a DSL plus a generic deterministic engine, a versioned data atlas, and a globe-and-stories interface. A scenario is a validated config. The engine has no scenario-name branches, and the frontend displays state recorded by the backend rather than running its own simulation.
 
-The **Data** tab organizes the complete GeoNames cities500 backbone, field coverage, source versions, and run-scoped imports. See the [data atlas guide](DATA.md) for loading the full city list, importing CSV/Parquet/JSON, source loaders, behaviour fitting, licensing, and coverage definitions.
+The framework keeps three things separate:
 
-The atlas also has a reproducible extended city-feature dump. It combines the full GeoNames backbone with the European Commission Urban Centre Database, redistributable World Bank Development Indicators, the UN household-size database, and BLUE_DB local election results without relabeling country or municipal data as city observations. Build it and explicitly publish its canonical country marginals and municipality-derived electoral alignment into the shared atlas with:
+1. **How people act:** systems, states, transitions, actions, role gates, bounded network rules, media, events, leader actions, and couplings live in DSL.
+2. **How strong each effect is:** every parameter carries a source, version, evidence status, and uncertainty. Joint trait-and-outcome data is required before a feature becomes a predictor.
+3. **Who the population is:** distributions, defaults, behavior bundles, and IPF weights carry their own provenance. A marginal proves prevalence; it does not prove an outcome coefficient.
 
-```sh
-cd backend
-uv run python scripts/build_city_feature_dump.py --install-shared
-```
+The bundled [smoke DSL](shared/dsl-schema/smoke-spread.json) uses explicit **FAKE** data to prove the contracts. It is a small signal-spread model across two invented places, not a forecast or a finished product scenario. Known evidence and depth gaps are listed in [MISSING.md](MISSING.md).
 
-The generated Parquet dataset and source downloads stay under ignored `backend/data/`. Its manifest records source URLs, release dates, hashes, row counts, licences, and match semantics. Electoral alignment is always marked imputed, uses valid ballots as its denominator, and remains distinct from directly surveyed resident ideology.
+## What works
 
-The last published artifact is available from the [City feature dump 2026-10-26 release](https://github.com/Jake-Yeo/Petraterrium/releases/tag/data-atlas-2026-10-26). Local rebuilds are not published automatically.
+- Strict JSON/YAML DSL loading with a generated [shared schema](shared/dsl-schema/petraterrium-dsl.schema.json), semantic validation, plain-language rendering, and parameter sliders.
+- Vectorized, double-buffered NumPy transitions with explicit tick/time scaling and daily snapshot aggregation.
+- Stable run contracts, `202` job launch, ordered resumable SSE, cache identity across config, seed, source, evidence, and population versions, stored errors, exact metrics, and `ensemble_update` messages.
+- Deterministic population generation, conditional defaults, behavior inheritance, IPF, typed relationships, homophilic sampled friends, role-gated actions, conflict receipts, bounded chains, sparse influence, media response, leaders, anchor replay, events, stories, and no-hindsight backtest units.
+- Three.js globe clusters and dynamic place markers, viewport-limited WebGL agent points, picking, synthetic-agent receipts, a story newsroom, and a manual DSL Builder.
+- The Data tab with the complete GeoNames cities500 backbone when loaded, server-side search/paging, direct/inherited/imputed/missing coverage, versioned run-scoped imports, validation, explicit promotion, source loaders, and behavior fitting.
 
-**The simulation uses FAKE data.** The four simulated countries have real names and approximate marker positions, invented populations, and an unfitted placeholder SEIR model. This is a demonstration, not a forecast or historical validation. The Data tab's real city backbone is separate from those fake simulation inputs.
+The flat backend package is retained as a stable facade around cohesive modules. The map from the framework design to actual files is in [AGENTS.md](AGENTS.md).
 
 ## Run locally
 
-Requirements: Python 3.13, [uv](https://docs.astral.sh/uv/), and Node.js 22.12+ with npm. The simulator requires no API keys. The Data tab uses a local SQLite database; optional LLM mapping needs an OpenAI API key.
+Requirements are Python 3.13, [uv](https://docs.astral.sh/uv/), and Node.js 22.12 or newer. Simulation and exact schema mapping need no API key. Optional LLM-assisted import mapping uses `OPENAI_API_KEY` through the central provider boundary.
 
-In the first terminal:
+Start the backend:
 
 ```sh
 cd backend
@@ -30,7 +34,7 @@ uv run python scripts/load_cities.py
 uv run uvicorn petraterrium.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-In the second terminal:
+Start the frontend in another terminal:
 
 ```sh
 cd frontend
@@ -38,48 +42,85 @@ npm ci
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. Vite proxies `/api` to the backend. API documentation is at <http://127.0.0.1:8000/docs>. VS Code also has a **Petraterrium: dev** task after dependencies are installed.
+Open <http://127.0.0.1:5173>. Vite proxies `/api` to FastAPI. API documentation is at <http://127.0.0.1:8000/docs>.
 
-Choose **New experiment**, select countries, set the inclusive day range and seed, and launch. Scrub or play the recorded timeline, inspect the country counts and snapshot receipt, export JSON/CSV, reopen saved runs, or delete them with confirmation. Runs are saved **only in this server process's memory**; a restart clears the list.
+The **Simulation** tab still accepts the original request shape and resolves it through a compatibility DSL. The **DSL** tab loads the smoke config, validates edits live, exposes evidence status, and launches the full DSL request. The **Stories** tab opens exact snapshot-backed headlines and synthetic agents. The **Data** tab manages atlas coverage and imports.
+
+## Run the smoke DSL through the API
+
+```sh
+cd backend
+uv run python - <<'PY'
+import json
+from pathlib import Path
+import httpx
+
+dsl = json.loads(Path('../shared/dsl-schema/smoke-spread.json').read_text())
+response = httpx.post(
+    'http://127.0.0.1:8000/runs',
+    json={'scenario': dsl['id'], 'seed': 42, 'dsl': dsl},
+)
+print(response.status_code, response.json()['run_id'])
+PY
+```
+
+`POST /runs` returns the queued record with `202`; execution continues in the in-process background worker. Use the returned ID with `GET /runs/{id}` and `GET /runs/{id}/stream`. SSE sequence IDs cover every snapshot, the ensemble update, and the terminal event. Resume after an acknowledged sequence with `Last-Event-ID` or `?after=`.
+
+## Add a new system
+
+1. Copy the smoke JSON and change its `id` and `version`.
+2. Declare state dimensions and initial distributions with evidence.
+3. Declare parameters with units, provenance, evidence status, and uncertainty.
+4. Add transitions, rules, bounded network traversal, actions, roles, events, media rules, leader actions, and explicit couplings as needed.
+5. Set the population reference, tick config, and output spec before launch.
+6. Submit the config to `POST /dsl/validate`; review missing references, distribution sums, role gates, chain termination, and implied aggregate checks.
+7. Run it without changing Python engine code.
+8. Add dated observed outcomes and backtest. Correct the rule, coefficient, or population input when validation fails; do not tune an unexplained number until a curve looks right.
+
+The manual Builder is the first editing surface. An LLM designer can later propose the same JSON, but human confirmation and the same validator remain mandatory.
+
+## API
+
+| Route | Behavior |
+| --- | --- |
+| `GET /dsl/schema` | Canonical DSL JSON schema |
+| `GET /dsl/smoke` | Thin FAKE smoke config |
+| `POST /dsl/validate` | Semantic errors, warnings, and implied aggregates |
+| `POST /dsl/render` | Plain-language summary and evidence-labelled sliders |
+| `POST /runs` | `202`; queued new run or cached record |
+| `GET /runs`, `GET /runs/{id}` | Status, output spec, snapshots, metrics, stories, versions, and missing fallbacks |
+| `GET /runs/{id}/stream` | Ordered resumable `snapshot`, `ensemble_update`, and terminal SSE events |
+| `GET /runs/{id}/agents` | Selected-place synthetic point payload, capped and filterable |
+| `GET /agents/{id}` | Traits, state, log tier, relationships, timeline, and log scope |
+| `GET /places/{id}` | Recorded place metrics, event IDs, and story arc |
+| `GET /stories/{id}` | Exact story, place receipt, synthetic agents, and arc |
+| `GET /data/coverage` | Field coverage from the live organizer |
+| `POST /data/import` | Upload preview and human-confirmed mapping entry point |
+| `/atlas/*` | Full organizer, import confirmation, commit, promotion, and source-loader API |
+
+## Data atlas and feature dump
+
+See [DATA.md](DATA.md) for cities500 loading, CSV/Parquet/JSON imports, direct versus inherited coverage, behavior fits, licensing, and source-specific limitations.
+
+The reproducible extended feature dump combines GeoNames with the European Commission Urban Centre Database, redistributable World Bank indicators, UN household-size tables, and BLUE_DB local election results. Municipality-derived electoral alignment remains imputed and distinct from surveyed ideology.
+
+```sh
+cd backend
+uv run python scripts/build_city_feature_dump.py --install-shared
+```
+
+Generated data stays under ignored `backend/data/`. The manifest records URLs, dates, hashes, licenses, row counts, and match semantics. The last published artifact is the [City feature dump 2026-10-26 release](https://github.com/Jake-Yeo/Petraterrium/releases/tag/data-atlas-2026-10-26). Builds are never pushed or published automatically.
 
 ## Contracts and reproducibility
 
-[Backend contracts](backend/petraterrium/contracts.py) are the source of truth. The [TypeScript types](frontend/src/contracts.generated.ts) and [runtime JSON Schema](frontend/src/contracts.schema.json) are generated from those Pydantic models. The browser validates HTTP and SSE data using the schema. After editing contracts:
+[Backend contracts](backend/petraterrium/contracts.py) and [DSL models](backend/petraterrium/dsl/models.py) generate the frontend runtime schema, frontend types, shared DSL schema, and [mirrored shared types](shared/types/contracts.generated.ts):
 
 ```sh
 cd backend
 uv run python scripts/export_contracts.py
 ```
 
-The cache key is SHA-256 of canonical JSON containing the normalized config, engine version, and data version. Country order is normalized. The engine version includes a digest of every backend package source file and the NumPy version; the fake-data version includes a digest of the population catalog. A source, dependency version, config, or data change therefore changes the run identity. Reproducibility across environments uses the committed lockfile and NumPy version.
-
-Each snapshot contains the deterministic run ID, day, country compartments, seed, engine version, and data version. The initial state is recorded on `start_day`; one transition is recorded per following day through `end_day`. Initial infections begin in Italy when selected, otherwise the first selected country in code order.
-
-The placeholder step samples simultaneous bounded binomial transitions S → E → I → R. It preserves integer population per country and uses `numpy.random.default_rng(seed)`. Rates are explicitly unfitted. Mixing uses the selected countries' population-weighted infected prevalence. No timestamps, network, I/O, or clock input enter the engine step loop.
-
-The recorder owns snapshots and sequence-numbered events. HTTP results, final metrics, and SSE all read that same recorder; the browser never simulates or interpolates compartment counts. The line chart connects recorded days, and the scrubber selects exact snapshots. Peak metrics use the earliest day with the maximum recorded infected total, including the initial day.
-
-## API
-
-| Route | Behavior |
-| --- | --- |
-| `GET /health` | Health and FAKE-data marker |
-| `GET /catalog` | Four fake populations, approximate coordinates, versions, and notice |
-| `POST /runs` | `202`; new queued run or existing run with cached snapshots and metrics |
-| `GET /runs` | Saved runs in the current server process, newest first |
-| `GET /runs/{id}` | Config, status, recorded snapshots, metrics, or stored failure |
-| `GET /runs/{id}/stream` | Recorded SSE `snapshot` events followed by `run-complete` or `run-failed` |
-| `DELETE /runs/{id}` | `204`; delete stored results and stop an active worker |
-
-```sh
-curl -s http://127.0.0.1:8000/runs \
-  -H 'Content-Type: application/json' \
-  -d '{"scenario":"pandemic","countries":["ITA","FRA","DEU","ESP"],"start_day":0,"end_day":160,"seed":42,"parameters":{"transmission":0.38,"progression":0.2,"recovery":0.09,"mixing":0.04,"initial_infected":40}}'
-```
-
-Use the returned `run_id` to inspect or stream a run. SSE IDs start at 1 and include the terminal event. Resume **after** an acknowledged event using `Last-Event-ID: 12` or `?after=12`; the header takes precedence. Invalid cursors receive `422`; missing runs receive `404`. Streams send keepalive comments while waiting and terminate on completion or a stored failure. An engine failure moves `queued → running → failed` and stores an error; successful runs finish as `done`.
-
-After a connection error, the browser opens a new EventSource with `?after=` set to its last received sequence ID. Hiding the page or opening a management dialog closes its stream and suspends the renderer; resuming replays any missed recorded events. Scrolling the globe offscreen also suspends its renderer. Switching runs and leaving the page dispose the previous stream. **Reconnect** also reloads the stored run if an interruption needs manual recovery. A backend restart loses the in-memory record, so such runs cannot resume.
+A run ID hashes normalized config, engine code/dependency version, data version, evidence-table version, and population version. The same complete input and seed yields byte-identical snapshots. An evidence or population version change invalidates the cache. The recorder supplies HTTP, SSE, metrics, stories, and agent projections from one result chain.
 
 ## Verify
 
@@ -90,24 +131,13 @@ uv run ruff check .
 uv run python scripts/export_contracts.py --check
 cd ../frontend
 npm run build
+npm run test:e2e
 cd ..
 git diff --check
 ```
 
-Browser checks start their own development servers when needed:
+The tests cover DSL failures, deterministic state transitions, golden output, cache invalidation, stream resume, failures and deletion, population homophily, actions/conflicts/chains/roles, mapping persistence, safe composition, media/network effects, leader replay, exact stories, no hindsight, data imports and coverage, and the browser workflows.
 
-```sh
-cd frontend
-npx playwright install chromium
-npm run test:e2e
-```
+## Intentionally not built
 
-Tests cover known-answer steps, conservation and monotonicity across seeds, byte-identical files against a frozen golden fixture, cache/version invalidation, API status and result identity, sequence resumption, terminal failures, deletion, contract parity, the desktop/mobile workflow, and interrupted SSE reconnection. Browser screenshots and failure traces are local test output and are ignored by Git.
-
-## Scope
-
-- Implemented: one pandemic scenario, four FAKE countries, an in-process scheduler and recorder, deterministic caching, SSE, the globe/timeline/chart workflow, and the [Data atlas](DATA.md) with durable versioned imports.
-- Stub: [weekly leader interface](backend/petraterrium/leaders.py) returns no-ops.
-- TODO: connecting real atlas data to the simulation, top-metro simulation and density-adjusted city projections, historical Italy validation, calibration, additional scenarios, LLM leaders, ensembles, comparison, custom vectors, Modal workers, durable run-result persistence, authentication, and deployment. These are not implemented here.
-
-Run one API worker for this scaffold. Separate worker processes would have independent stores. Computation is intentionally small and in process; production scheduling, cache eviction, and durable storage are future work.
+This framework task does not ship full pandemic, controversy, election, advertising, sports, environment, or zombie products. It does not claim to predict an outcome from one sample. Provider-backed leaders, full vector coupling of every thin module, durable workers, production spatial indexing, complete causal agent histories, and the saved backtest UI remain follow-up work recorded in [MISSING.md](MISSING.md).

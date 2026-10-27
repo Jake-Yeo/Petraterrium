@@ -1,15 +1,19 @@
 import './styles.css';
 import { api, RunStream } from './api';
 import { DataTab } from './atlas/main';
-import { InfectionChart, infectedTotal } from './chart';
+import { InfectionChart, metricTotal, primaryMetricName } from './chart';
 import type {
+  AgentDetail,
   Catalog,
   DailySnapshot,
+  DSLConfig,
   RunConfig,
   RunDetail,
   RunSummary,
 } from './contracts.generated';
+import { DSLBuilder } from './dsl-builder/main';
 import { Globe } from './globe';
+import { StoriesView } from './stories/main';
 import { countryOptions, defaults, escapeHtml, savedRunList, shell } from './views';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string): T => {
@@ -24,7 +28,9 @@ const text = (id: string, value: string): void => {
 
 class Lab {
   private dataTab: DataTab;
-  private tab: 'simulation' | 'data' = 'simulation';
+  private dslBuilder: DSLBuilder;
+  private stories: StoriesView;
+  private tab: 'simulation' | 'stories' | 'dsl' | 'data' = 'simulation';
   private catalog?: Catalog;
   private runs: RunSummary[] = [];
   private active?: RunDetail;
@@ -40,6 +46,14 @@ class Lab {
   constructor() {
     element('app').innerHTML = shell();
     this.dataTab = new DataTab(element('data-view'));
+    this.dslBuilder = new DSLBuilder(element('dsl-view'), (dsl, seed) =>
+      this.runDSL(dsl, seed),
+    );
+    this.stories = new StoriesView(
+      element('stories-view'),
+      (place, day) => void this.openPlace(place, day),
+      (agentId) => void this.showAgent(agentId),
+    );
     this.chart = new InfectionChart(element<HTMLCanvasElement>('infection-chart'), (index) =>
       this.selectDay(index),
     );
@@ -51,7 +65,7 @@ class Lab {
     element('playback-speed').addEventListener('change', () => {
       if (this.playing) this.setPlaying(true);
     });
-    for (const id of ['new-run-dialog', 'delete-dialog']) {
+    for (const id of ['new-run-dialog', 'delete-dialog', 'agent-dialog']) {
       element<HTMLDialogElement>(id).addEventListener('close', () => this.resumeView());
     }
     window.addEventListener('pagehide', () => this.dispose(), { once: true });
@@ -71,7 +85,10 @@ class Lab {
       });
       if (!this.globe) {
         try {
-          this.globe = new Globe(element('globe'), catalog.countries);
+          this.globe = new Globe(element('globe'), catalog.countries, {
+            place: (place, day) => void this.openPlace(place, day),
+            agent: (agentId) => void this.showAgent(agentId),
+          });
         } catch {
           element('globe').innerHTML =
             '<div class="globe-fallback">Globe unavailable in this browser.<br>Every recorded value is available in the table below.</div>';
@@ -181,6 +198,77 @@ class Lab {
     }
   };
 
+  private async runDSL(dsl: DSLConfig, seed: number): Promise<void> {
+    const durationDays = Math.max(
+      1,
+      Math.ceil(((dsl.tick.tick_hours ?? 24) * (dsl.tick.total_ticks ?? 30)) / 24),
+    );
+    const config: RunConfig = {
+      scenario: dsl.id,
+      countries: [...dsl.population.places],
+      start_day: 0,
+      end_day: durationDays,
+      seed,
+      parameters: defaults.parameters,
+      dsl,
+      population: dsl.population,
+      tick: dsl.tick,
+      outputs: dsl.outputs,
+      evidence_table_version: 'FAKE-evidence-v1',
+    };
+    const run = await api.create(config);
+    this.useRun(run, true);
+    if (run.cached) {
+      text('stream-message', 'Identical DSL, population, evidence version, and seed found.');
+      element('stream-notice').hidden = false;
+    }
+    await this.refreshList();
+  }
+
+  private async openPlace(place: string, day: number): Promise<void> {
+    if (!this.active) return;
+    this.changeTab('simulation');
+    const index = this.active.snapshots.findIndex((snapshot) => snapshot.day === day);
+    if (index >= 0) {
+      this.index = index;
+      this.renderSnapshot();
+    }
+    try {
+      const agents = await api.agents(this.active.run_id, place, day);
+      this.globe?.showAgents(agents.agents, place);
+      text(
+        'agent-lod-status',
+        `${agents.returned.toLocaleString()} of ${agents.total.toLocaleString()} representative synthetic agents · click any dot`,
+      );
+      element('agent-lod-notice').hidden = false;
+    } catch (error) {
+      this.showError(error);
+    }
+  }
+
+  private async showAgent(agentId: string): Promise<void> {
+    if (!this.active) return;
+    try {
+      const agent = await api.agent(agentId, this.active.run_id);
+      this.renderAgent(agent);
+      this.suspendView();
+      element<HTMLDialogElement>('agent-dialog').showModal();
+    } catch (error) {
+      this.showError(error);
+    }
+  }
+
+  private renderAgent(agent: AgentDetail): void {
+    text('agent-title', `Synthetic agent ${agent.agent_id.slice(0, 10)}`);
+    text('agent-scope', agent.log_scope);
+    element('agent-content').innerHTML = `
+      <div class="agent-summary"><span>${escapeHtml(agent.place)}</span><span>${escapeHtml(agent.role)}</span><span>${escapeHtml(agent.log_tier)}</span></div>
+      <section><h3>Current states</h3><dl>${Object.entries(agent.states).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>
+      <section><h3>Traits</h3><dl>${Object.entries(agent.traits).map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}</dl></section>
+      <section><h3>Timeline and logged causes</h3><ol>${agent.timeline.map((entry) => `<li><span>Day ${entry.day} · tick ${entry.tick}</span><strong>${escapeHtml(entry.action)}</strong><small>${Object.entries(entry.causes).map(([cause, magnitude]) => `${escapeHtml(cause)} ${magnitude >= 0 ? '+' : ''}${magnitude}`).join(' · ') || 'No causal magnitude was logged for this entry.'}</small></li>`).join('')}</ol></section>
+      <section><h3>Relationships</h3><ul>${agent.relationships.map((relationship) => `<li>${escapeHtml(relationship.kind)} · ${escapeHtml(relationship.target_id.slice(0, 10))} · weight ${relationship.weight}</li>`).join('') || '<li>No sampled relationship in this representative row.</li>'}</ul></section>`;
+  }
+
   private async openRun(id: string): Promise<void> {
     const generation = ++this.generation;
     this.stream?.dispose();
@@ -202,14 +290,24 @@ class Lab {
     this.stream?.dispose();
     this.stream = undefined;
     this.active = run;
+    this.globe?.clearAgents();
+    element('agent-lod-notice').hidden = true;
     this.index = autoplay ? 0 : Math.max(0, run.snapshots.length - 1);
     element('empty-state').hidden = true;
     element('stream-notice').hidden = true;
     text('run-id', `RUN ${run.run_id.slice(0, 10).toUpperCase()}`);
+    const ensemble = run.ensemble_updates.at(-1);
+    text(
+      'ensemble-status',
+      ensemble
+        ? `${ensemble.completed}/${ensemble.total} ensemble samples recorded`
+        : 'Ensemble update pending',
+    );
     this.renderStatus();
     this.renderSnapshot();
     this.refreshListView();
     this.attachStream();
+    void this.stories.setRun(run).catch((error) => this.showError(error));
     this.setPlaying(autoplay);
   }
 
@@ -228,6 +326,11 @@ class Lab {
         this.renderStatus();
         this.renderSnapshot();
       },
+      ensemble: (update, sequence) => {
+        run.ensemble_updates.push(update);
+        run.last_sequence = sequence;
+        text('ensemble-status', `${update.completed}/${update.total} ensemble samples recorded`);
+      },
       complete: (result, sequence) => {
         if (result.run_id !== run.run_id) throw new Error('Completion does not match this run');
         run.status = 'done';
@@ -238,6 +341,13 @@ class Lab {
         element('stream-notice').hidden = true;
         this.renderStatus();
         this.renderSnapshot();
+        void api
+          .get(run.run_id)
+          .then((latest) => {
+            this.active = latest;
+            return this.stories.setRun(latest);
+          })
+          .catch((error) => this.showError(error));
         void this.refreshList().catch((error) => this.showError(error));
       },
       failed: (result, sequence) => {
@@ -306,23 +416,26 @@ class Lab {
       text('metric-peak-day', 'Computed at run completion');
       return;
     }
-    text('metric-infected', number(infectedTotal(snapshot)));
-    text('metric-day', `Day ${snapshot.day} · ${snapshot.places.length} countries`);
-    text(
-      'metric-recovered',
-      number(snapshot.places.reduce((sum, place) => sum + place.recovered, 0)),
-    );
-    const population = snapshot.places.reduce(
-      (sum, place) => sum + place.susceptible + place.exposed + place.infected + place.recovered,
-      0,
-    );
+    const metric = primaryMetricName(snapshot);
+    const stateValues = Object.values(snapshot.places[0]?.states ?? {})[0] ?? {};
+    const secondary = Object.keys(stateValues).at(-1) ?? metric;
+    const population = snapshot.places.reduce((sum, place) => {
+      const first = Object.values(place.states)[0];
+      return sum + (first ? Object.values(first).reduce((total, value) => total + value, 0) : 0);
+    }, 0);
+    text('metric-infected', number(metricTotal(snapshot, metric)));
+    text('metric-primary-label', metric.replaceAll('_', ' '));
+    text('metric-day', `Day ${snapshot.day} · ${snapshot.places.length} places`);
+    text('metric-recovered', number(metricTotal(snapshot, secondary)));
+    text('metric-secondary-label', secondary.replaceAll('_', ' '));
     text('metric-population', number(population));
-    text('metric-countries', `${snapshot.places.length} fake country compartments`);
-    text('metric-peak', this.active?.metrics ? number(this.active.metrics.peak_infected) : '—');
+    text('metric-countries', `${snapshot.places.length} recorded place compartments`);
+    const peak = this.active?.metrics?.metric_peaks[metric];
+    text('metric-peak', peak ? number(peak.value) : '—');
     text(
       'metric-peak-day',
-      this.active?.metrics
-        ? `Peak recorded on day ${this.active.metrics.peak_day}`
+      peak
+        ? `${metric.replaceAll('_', ' ')} peaked on day ${peak.day}`
         : 'Computed at run completion',
     );
     text('globe-day', `DAY ${String(snapshot.day).padStart(3, '0')}`);
@@ -333,11 +446,18 @@ class Lab {
       'provenance',
       `DAY ${snapshot.day} · SEED ${snapshot.seed} · ENGINE ${snapshot.engine_version} · DATA ${snapshot.data_version}`,
     );
+    const columns = Object.entries(snapshot.places[0]?.states ?? {}).flatMap(
+      ([state, values]) => Object.keys(values).map((value) => ({ state, value })),
+    );
+    element('snapshot-head').innerHTML = `<tr><th scope="col">Place</th>${columns.map(({ state, value }) => `<th scope="col">${escapeHtml(state)} · ${escapeHtml(value)}</th>`).join('')}<th scope="col">Population</th></tr>`;
     element('snapshot-table').innerHTML = snapshot.places
-      .map(
-        (place) =>
-          `<tr><th scope="row">${this.countryName(place.country)}</th><td>${number(place.susceptible)}</td><td>${number(place.exposed)}</td><td class="infected-cell">${number(place.infected)}</td><td>${number(place.recovered)}</td><td>${number(place.susceptible + place.exposed + place.infected + place.recovered)}</td></tr>`,
-      )
+      .map((place) => {
+        const total = Object.values(Object.values(place.states)[0] ?? {}).reduce(
+          (sum, value) => sum + value,
+          0,
+        );
+        return `<tr><th scope="row">${this.countryName(place.country)}</th>${columns.map(({ state, value }) => `<td class="${value === metric ? 'infected-cell' : ''}">${number(place.states[state]?.[value] ?? 0)}</td>`).join('')}<td>${number(total)}</td></tr>`;
+      })
       .join('');
     text(
       'config-receipt',
@@ -352,11 +472,14 @@ class Lab {
   }
 
   private renderCountries(snapshot: DailySnapshot): void {
+    const metric = primaryMetricName(snapshot);
     element('country-list').innerHTML = snapshot.places
       .map((place) => {
-        const population = place.susceptible + place.exposed + place.infected + place.recovered;
-        const percentage = (place.infected / population) * 100;
-        return `<div class="country-row"><div class="country-row-top"><span><span class="country-code">${place.country}</span>${this.countryName(place.country)}</span><strong>${number(place.infected)}</strong></div><div class="country-bar"><span style="width:${percentage}%"></span></div><div class="country-row-bottom"><span>${percentage.toFixed(2)}% infected</span><span>${number(population)} people</span></div></div>`;
+        const first = Object.values(place.states)[0] ?? {};
+        const population = Object.values(first).reduce((sum, value) => sum + value, 0);
+        const value = place.metrics[metric] ?? 0;
+        const percentage = population ? (value / population) * 100 : 0;
+        return `<button class="country-row" data-place="${escapeHtml(place.country)}" data-day="${snapshot.day}"><div class="country-row-top"><span><span class="country-code">${escapeHtml(place.country)}</span>${this.countryName(place.country)}</span><strong>${number(value)}</strong></div><div class="country-bar"><span style="width:${percentage}%"></span></div><div class="country-row-bottom"><span>${percentage.toFixed(2)}% ${escapeHtml(metric)}</span><span>${number(population)} people</span></div></button>`;
       })
       .join('');
   }
@@ -397,7 +520,7 @@ class Lab {
     this.suspendView();
     text(
       'delete-description',
-      `Pandemic #${run.config.seed} · ${run.config.countries.length} countries · run ${id.slice(0, 8)}`,
+      `${run.config.scenario} #${run.config.seed} · ${run.config.countries.length} places · run ${id.slice(0, 8)}`,
     );
     element('delete-error').hidden = true;
     element<HTMLDialogElement>('delete-dialog').showModal();
@@ -427,6 +550,9 @@ class Lab {
     this.stream = undefined;
     this.setPlaying(false);
     this.active = undefined;
+    this.globe?.clearAgents();
+    element('agent-lod-notice').hidden = true;
+    void this.stories.setRun(undefined);
     this.index = 0;
     element('empty-state').hidden = false;
     element('stream-notice').hidden = true;
@@ -441,8 +567,9 @@ class Lab {
     text('country-count', '00');
     text('provenance', 'No snapshot selected.');
     text('config-receipt', '');
+    text('ensemble-status', 'Ensemble update pending');
     element('country-list').innerHTML =
-      '<p class="muted empty-country">Launch an experiment to see the country breakdown.</p>';
+      '<p class="muted empty-country">Launch an experiment to see the place breakdown.</p>';
     element('snapshot-table').innerHTML = '';
     this.renderStatus();
     this.renderSnapshot();
@@ -487,14 +614,26 @@ class Lab {
   }
 
   private onClick = (event: MouseEvent): void => {
+    const place = (event.target as HTMLElement).closest<HTMLElement>('[data-place]');
+    if (place?.dataset.place) {
+      void this.openPlace(place.dataset.place, Number(place.dataset.day));
+      return;
+    }
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!target || (target instanceof HTMLButtonElement && target.disabled)) return;
     const action = target.dataset.action;
     if (action === 'data-tab') this.changeTab('data');
+    else if (action === 'dsl-tab') this.changeTab('dsl');
+    else if (action === 'stories-tab') this.changeTab('stories');
     else if (action === 'simulation-tab') this.changeTab('simulation');
     else if (action === 'new') this.showNew();
     else if (action === 'cancel-new') element<HTMLDialogElement>('new-run-dialog').close();
     else if (action === 'cancel-delete') element<HTMLDialogElement>('delete-dialog').close();
+    else if (action === 'close-agent') element<HTMLDialogElement>('agent-dialog').close();
+    else if (action === 'world-view') {
+      this.globe?.clearAgents();
+      element('agent-lod-notice').hidden = true;
+    }
     else if (action === 'play') this.setPlaying(!this.playing);
     else if (action === 'open' && target.dataset.id) void this.openRun(target.dataset.id);
     else if (action === 'delete' && target.dataset.id) this.showDelete(target.dataset.id);
@@ -511,6 +650,8 @@ class Lab {
 
   private dispose(): void {
     this.dataTab.deactivate();
+    this.dslBuilder.deactivate();
+    this.stories.deactivate();
     clearInterval(this.timer);
     this.stream?.dispose();
     this.globe?.dispose();
@@ -518,15 +659,26 @@ class Lab {
     document.removeEventListener('click', this.onClick);
   }
 
-  private changeTab(tab: 'simulation' | 'data'): void {
+  private changeTab(tab: 'simulation' | 'stories' | 'dsl' | 'data'): void {
     this.tab = tab;
-    text('workspace-breadcrumb', tab === 'data' ? 'Data atlas' : 'Population lab');
-    text('workspace-data-notice', tab === 'data' ? 'REAL CITY BACKBONE' : 'FAKE DATA ONLY');
+    const labels = {
+      simulation: 'Population lab',
+      stories: 'Recorded stories',
+      dsl: 'DSL Builder',
+      data: 'Data atlas',
+    };
+    text('workspace-breadcrumb', labels[tab]);
+    text(
+      'workspace-data-notice',
+      tab === 'data' ? 'REAL CITY BACKBONE' : tab === 'dsl' ? 'EVIDENCE-GATED DSL' : 'FAKE SMOKE INPUTS',
+    );
     text(
       'workspace-storage-notice',
       tab === 'data'
         ? 'Atlas versions are saved on the API server. Run records reset on API restart.'
-        : 'Runs live in server memory. Restarting the API clears them.',
+        : tab === 'dsl'
+          ? 'Every coefficient and distribution keeps provenance and uncertainty.'
+          : 'Runs live in server memory. Restarting the API clears them.',
     );
     document
       .querySelectorAll<HTMLElement>('[role="tab"][data-action]')
@@ -534,11 +686,22 @@ class Lab {
         button.setAttribute('aria-selected', String(button.dataset.action === `${tab}-tab`)),
       );
     element('simulation-view').hidden = tab !== 'simulation';
-    if (tab === 'data') {
+    element('stories-view').hidden = tab !== 'stories';
+    element('dsl-view').hidden = tab !== 'dsl';
+    element('data-view').hidden = tab !== 'data';
+    if (tab !== 'simulation') {
       this.suspendView();
-      void this.dataTab.activate(this.active?.run_id);
+      this.dataTab.deactivate();
+      this.dslBuilder.deactivate();
+      this.stories.deactivate();
+      if (tab === 'data') void this.dataTab.activate(this.active?.run_id);
+      if (tab === 'dsl') void this.dslBuilder.activate();
+      if (tab === 'stories')
+        void this.stories.activate(this.active).catch((error) => this.showError(error));
     } else {
       this.dataTab.deactivate();
+      this.dslBuilder.deactivate();
+      this.stories.deactivate();
       this.resumeView();
     }
   }

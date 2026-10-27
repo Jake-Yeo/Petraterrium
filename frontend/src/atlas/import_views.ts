@@ -4,7 +4,7 @@ import type {
   SourceCatalog,
   ValidationReport,
 } from '../contracts.generated';
-import { escapeHtml as e } from '../views';
+import { escapeHtml as e, scenarioLabel } from '../views';
 import { labels } from './views';
 const n = (value: number): string => value.toLocaleString('en');
 
@@ -19,7 +19,7 @@ export function importForm(
       (run) =>
         `
     <option value="${run.run_id}" ${run.run_id === activeId ? 'selected' : ''}>
-      Pandemic #${run.config.seed} · ${run.run_id.slice(0, 8)}
+      ${e(scenarioLabel(run.config.scenario))} #${run.config.seed} · ${run.run_id.slice(0, 8)}
     </option>
   `,
     )

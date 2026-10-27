@@ -30,9 +30,7 @@ def electoral_identity(version: str, election_id: str) -> str:
 
 def ballot_priority(row):
     vote_type = (row.get("vote_type") or "").casefold()
-    preferred = int(
-        any(label in vote_type for label in ("party", "list", "zweit", "proportional"))
-    )
+    preferred = int(any(label in vote_type for label in ("party", "list", "zweit", "proportional")))
     unspecified = int(not vote_type)
     return row["election_date"], preferred * 2 + unspecified, row["election_id"]
 
@@ -128,9 +126,7 @@ def install_shared_electoral(
     source_sha256: str,
     boundary_sha256: str,
 ):
-    version = (
-        f"sha256:{source_sha256};release:{BLUE_DB_RELEASE};transform:{TRANSFORM_VERSION}"
-    )
+    version = f"sha256:{source_sha256};release:{BLUE_DB_RELEASE};transform:{TRANSFORM_VERSION}"
     grouped = defaultdict(list)
     for row in latest_electoral_rows(results_path):
         grouped[row["election_id"]].append(row)

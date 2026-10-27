@@ -67,6 +67,13 @@ CREATE INDEX IF NOT EXISTS density_city ON densities(geonameid,id DESC);
 CREATE TABLE IF NOT EXISTS llm_cache(
  cache_key TEXT PRIMARY KEY, proposal_json TEXT, audit_json TEXT
 );
+CREATE TABLE IF NOT EXISTS label_mappings(
+ dataset TEXT NOT NULL, field TEXT NOT NULL, version TEXT NOT NULL,
+ mappings_json TEXT NOT NULL, provenance_json TEXT NOT NULL, active INTEGER NOT NULL,
+ PRIMARY KEY(dataset,field,version)
+);
+CREATE INDEX IF NOT EXISTS label_mappings_active
+ON label_mappings(dataset,field,active);
 """
 
 

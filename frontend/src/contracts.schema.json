@@ -1,5 +1,408 @@
 {
   "$defs": {
+    "ActionDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "probability": {
+          "$ref": "#/$defs/ProbabilitySpec"
+        },
+        "duration_minutes": {
+          "maximum": 1440,
+          "minimum": 0,
+          "title": "Duration Minutes",
+          "type": "number"
+        },
+        "priority": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "meaningful": {
+          "default": true,
+          "title": "Meaningful",
+          "type": "boolean"
+        },
+        "interruptible": {
+          "default": true,
+          "title": "Interruptible",
+          "type": "boolean"
+        },
+        "protected": {
+          "default": false,
+          "title": "Protected",
+          "type": "boolean"
+        },
+        "reschedulable": {
+          "default": true,
+          "title": "Reschedulable",
+          "type": "boolean"
+        },
+        "compatible_with": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Compatible With",
+          "type": "array"
+        },
+        "priority_modifiers": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Priority Modifiers",
+          "type": "object"
+        },
+        "requires_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires Role"
+        },
+        "target_requires_role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Requires Role"
+        },
+        "loser_outcome": {
+          "enum": [
+            "paused",
+            "deferred",
+            "cancelled",
+            "relationship_cost",
+            "continues"
+          ],
+          "title": "Loser Outcome",
+          "type": "string"
+        },
+        "effects": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Effects",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "probability",
+        "duration_minutes",
+        "priority",
+        "loser_outcome"
+      ],
+      "title": "ActionDefinition",
+      "type": "object"
+    },
+    "AgentDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "synthetic": {
+          "const": true,
+          "default": true,
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "log_tier": {
+          "enum": [
+            "spotlight",
+            "sampled",
+            "mass"
+          ],
+          "title": "Log Tier",
+          "type": "string"
+        },
+        "log_scope": {
+          "title": "Log Scope",
+          "type": "string"
+        },
+        "traits": {
+          "additionalProperties": true,
+          "title": "Traits",
+          "type": "object"
+        },
+        "states": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "States",
+          "type": "object"
+        },
+        "behaviour": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Behaviour",
+          "type": "object"
+        },
+        "relationships": {
+          "items": {
+            "$ref": "#/$defs/AgentRelationship"
+          },
+          "title": "Relationships",
+          "type": "array"
+        },
+        "timeline": {
+          "items": {
+            "$ref": "#/$defs/AgentTimelineEntry"
+          },
+          "title": "Timeline",
+          "type": "array"
+        },
+        "media": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Media",
+          "type": "array"
+        }
+      },
+      "required": [
+        "agent_id",
+        "run_id",
+        "place",
+        "role",
+        "synthetic",
+        "log_tier",
+        "log_scope",
+        "traits",
+        "states",
+        "behaviour",
+        "relationships",
+        "timeline",
+        "media"
+      ],
+      "title": "AgentDetail",
+      "type": "object"
+    },
+    "AgentPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "latitude": {
+          "title": "Latitude",
+          "type": "number"
+        },
+        "longitude": {
+          "title": "Longitude",
+          "type": "number"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "color": {
+          "title": "Color",
+          "type": "string"
+        },
+        "log_tier": {
+          "enum": [
+            "spotlight",
+            "sampled",
+            "mass"
+          ],
+          "title": "Log Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_id",
+        "place",
+        "latitude",
+        "longitude",
+        "state",
+        "color",
+        "log_tier"
+      ],
+      "title": "AgentPoint",
+      "type": "object"
+    },
+    "AgentPointList": {
+      "additionalProperties": false,
+      "properties": {
+        "agents": {
+          "items": {
+            "$ref": "#/$defs/AgentPoint"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "returned": {
+          "minimum": 0,
+          "title": "Returned",
+          "type": "integer"
+        },
+        "representative": {
+          "default": true,
+          "title": "Representative",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "agents",
+        "total",
+        "returned",
+        "representative"
+      ],
+      "title": "AgentPointList",
+      "type": "object"
+    },
+    "AgentRelationship": {
+      "additionalProperties": false,
+      "properties": {
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "weight": {
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "target_id",
+        "kind",
+        "weight"
+      ],
+      "title": "AgentRelationship",
+      "type": "object"
+    },
+    "AgentTimelineEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "tick": {
+          "minimum": 0,
+          "title": "Tick",
+          "type": "integer"
+        },
+        "day": {
+          "minimum": 0,
+          "title": "Day",
+          "type": "integer"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "chain_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chain Id"
+        },
+        "causes": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Causes",
+          "type": "object"
+        },
+        "state_after": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State After",
+          "type": "object"
+        }
+      },
+      "required": [
+        "tick",
+        "day",
+        "action",
+        "chain_id",
+        "causes",
+        "state_after"
+      ],
+      "title": "AgentTimelineEntry",
+      "type": "object"
+    },
+    "AggregateBenchmark": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "population": {
+          "exclusiveMinimum": 0,
+          "title": "Population",
+          "type": "integer"
+        },
+        "observed_annual_count": {
+          "exclusiveMinimum": 0,
+          "title": "Observed Annual Count",
+          "type": "number"
+        },
+        "tolerance_factor": {
+          "default": 10,
+          "minimum": 1,
+          "title": "Tolerance Factor",
+          "type": "number"
+        }
+      },
+      "required": [
+        "action_id",
+        "population",
+        "observed_annual_count"
+      ],
+      "title": "AggregateBenchmark",
+      "type": "object"
+    },
     "AtlasCity": {
       "additionalProperties": false,
       "properties": {
@@ -426,6 +829,53 @@
       "title": "AtlasSummary",
       "type": "object"
     },
+    "AttributeDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "categorical",
+            "continuous",
+            "boolean"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Values",
+          "type": "array"
+        },
+        "distribution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Distribution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "provenance"
+      ],
+      "title": "AttributeDefinition",
+      "type": "object"
+    },
     "Backbone": {
       "additionalProperties": false,
       "properties": {
@@ -527,6 +977,119 @@
       "title": "Backbone",
       "type": "object"
     },
+    "BacktestComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "simulated": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Simulated",
+          "type": "array"
+        },
+        "observed": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Observed",
+          "type": "array"
+        },
+        "mean_absolute_error": {
+          "minimum": 0,
+          "title": "Mean Absolute Error",
+          "type": "number"
+        },
+        "outcome": {
+          "enum": [
+            "hit",
+            "miss"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "cutoff_date": {
+          "title": "Cutoff Date",
+          "type": "string"
+        },
+        "provenance": {
+          "title": "Provenance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "simulated",
+        "observed",
+        "mean_absolute_error",
+        "outcome",
+        "cutoff_date",
+        "provenance"
+      ],
+      "title": "BacktestComparison",
+      "type": "object"
+    },
+    "BehaviourBundle": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "layer": {
+          "minimum": 0,
+          "title": "Layer",
+          "type": "integer"
+        },
+        "inherits": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Inherits",
+          "type": "array"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "issue_values": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "title": "Issue Values",
+          "type": "object"
+        },
+        "blends": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "title": "Blends",
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "id",
+        "layer",
+        "provenance"
+      ],
+      "title": "BehaviourBundle",
+      "type": "object"
+    },
     "BehaviourModel": {
       "additionalProperties": false,
       "properties": {
@@ -626,7 +1189,7 @@
           "type": "string"
         },
         "contract_version": {
-          "default": "1",
+          "default": "2",
           "title": "Contract Version",
           "type": "string"
         },
@@ -643,6 +1206,82 @@
         "notice"
       ],
       "title": "Catalog",
+      "type": "object"
+    },
+    "ChainBranch": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Probability",
+          "type": "number"
+        },
+        "delay_ticks": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Delay Ticks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action",
+        "probability"
+      ],
+      "title": "ChainBranch",
+      "type": "object"
+    },
+    "ChainDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "trigger": {
+          "title": "Trigger",
+          "type": "string"
+        },
+        "branches": {
+          "items": {
+            "$ref": "#/$defs/ChainBranch"
+          },
+          "minItems": 1,
+          "title": "Branches",
+          "type": "array"
+        },
+        "max_length": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Length"
+        },
+        "continue_probability": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Continue Probability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "trigger",
+        "branches"
+      ],
+      "title": "ChainDefinition",
       "type": "object"
     },
     "CityDetail": {
@@ -748,12 +1387,6 @@
       "additionalProperties": false,
       "properties": {
         "country": {
-          "enum": [
-            "ITA",
-            "FRA",
-            "DEU",
-            "ESP"
-          ],
           "title": "Country",
           "type": "string"
         },
@@ -792,6 +1425,45 @@
       "title": "Country",
       "type": "object"
     },
+    "CouplingDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source_system": {
+          "title": "Source System",
+          "type": "string"
+        },
+        "target_system": {
+          "title": "Target System",
+          "type": "string"
+        },
+        "source_metric": {
+          "title": "Source Metric",
+          "type": "string"
+        },
+        "target_parameter": {
+          "title": "Target Parameter",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "source_system",
+        "target_system",
+        "source_metric",
+        "target_parameter",
+        "scale"
+      ],
+      "title": "CouplingDefinition",
+      "type": "object"
+    },
     "CoverageCounts": {
       "additionalProperties": false,
       "properties": {
@@ -816,6 +1488,233 @@
       "title": "CoverageCounts",
       "type": "object"
     },
+    "DSLConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "states": {
+          "items": {
+            "$ref": "#/$defs/StateDefinition"
+          },
+          "minItems": 1,
+          "title": "States",
+          "type": "array"
+        },
+        "attributes": {
+          "items": {
+            "$ref": "#/$defs/AttributeDefinition"
+          },
+          "title": "Attributes",
+          "type": "array"
+        },
+        "place_states": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Place States",
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/ParameterDefinition"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "systems": {
+          "items": {
+            "$ref": "#/$defs/SystemDefinition"
+          },
+          "minItems": 1,
+          "title": "Systems",
+          "type": "array"
+        },
+        "scenarios": {
+          "items": {
+            "$ref": "#/$defs/ScenarioDefinition"
+          },
+          "title": "Scenarios",
+          "type": "array"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/RuleDefinition"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/ActionDefinition"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "chains": {
+          "items": {
+            "$ref": "#/$defs/ChainDefinition"
+          },
+          "title": "Chains",
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/RoleDefinition"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "default_states": {
+          "items": {
+            "$ref": "#/$defs/DefaultDefinition"
+          },
+          "title": "Default States",
+          "type": "array"
+        },
+        "behaviour_bundles": {
+          "items": {
+            "$ref": "#/$defs/BehaviourBundle"
+          },
+          "title": "Behaviour Bundles",
+          "type": "array"
+        },
+        "networks": {
+          "items": {
+            "$ref": "#/$defs/NetworkDefinition"
+          },
+          "title": "Networks",
+          "type": "array"
+        },
+        "media_rules": {
+          "items": {
+            "$ref": "#/$defs/MediaRule"
+          },
+          "title": "Media Rules",
+          "type": "array"
+        },
+        "leader_actions": {
+          "items": {
+            "$ref": "#/$defs/LeaderActionDefinition"
+          },
+          "title": "Leader Actions",
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/EventDefinition"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "couplings": {
+          "items": {
+            "$ref": "#/$defs/CouplingDefinition"
+          },
+          "title": "Couplings",
+          "type": "array"
+        },
+        "tick": {
+          "$ref": "#/$defs/TickConfig"
+        },
+        "outputs": {
+          "$ref": "#/$defs/OutputSpec"
+        },
+        "population": {
+          "$ref": "#/$defs/PopulationReference"
+        },
+        "benchmarks": {
+          "items": {
+            "$ref": "#/$defs/AggregateBenchmark"
+          },
+          "title": "Benchmarks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "states",
+        "systems",
+        "tick",
+        "outputs",
+        "population"
+      ],
+      "title": "DSLConfig",
+      "type": "object"
+    },
+    "DSLRender": {
+      "additionalProperties": false,
+      "properties": {
+        "plain_language": {
+          "title": "Plain Language",
+          "type": "string"
+        },
+        "sliders": {
+          "items": {
+            "$ref": "#/$defs/SliderSpec"
+          },
+          "title": "Sliders",
+          "type": "array"
+        }
+      },
+      "required": [
+        "plain_language",
+        "sliders"
+      ],
+      "title": "DSLRender",
+      "type": "object"
+    },
+    "DSLValidationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "valid": {
+          "title": "Valid",
+          "type": "boolean"
+        },
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/petraterrium__dsl__models__ValidationIssue"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/petraterrium__dsl__models__ValidationIssue"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "implied_aggregates": {
+          "items": {
+            "$ref": "#/$defs/ImpliedAggregate"
+          },
+          "title": "Implied Aggregates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "valid",
+        "errors",
+        "warnings",
+        "implied_aggregates"
+      ],
+      "title": "DSLValidationResult",
+      "type": "object"
+    },
     "DailySnapshot": {
       "additionalProperties": false,
       "properties": {
@@ -833,7 +1732,7 @@
           "items": {
             "$ref": "#/$defs/PlaceSnapshot"
           },
-          "maxItems": 4,
+          "maxItems": 300,
           "minItems": 1,
           "title": "Places",
           "type": "array"
@@ -852,6 +1751,23 @@
           "minLength": 1,
           "title": "Data Version",
           "type": "string"
+        },
+        "config_hash": {
+          "default": "",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "tick": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Tick",
+          "type": "integer"
+        },
+        "elapsed_hours": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Elapsed Hours",
+          "type": "number"
         }
       },
       "required": [
@@ -860,7 +1776,10 @@
         "places",
         "seed",
         "engine_version",
-        "data_version"
+        "data_version",
+        "config_hash",
+        "tick",
+        "elapsed_hours"
       ],
       "title": "DailySnapshot",
       "type": "object"
@@ -920,6 +1839,235 @@
         "suggested_source"
       ],
       "title": "DataGap",
+      "type": "object"
+    },
+    "DefaultDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "distribution": {
+          "$ref": "#/$defs/Distribution"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "when": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "When",
+          "type": "object"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "age_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age Min"
+        },
+        "age_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age Max"
+        }
+      },
+      "required": [
+        "id",
+        "distribution"
+      ],
+      "title": "DefaultDefinition",
+      "type": "object"
+    },
+    "Distribution": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "minProperties": 1,
+          "title": "Values",
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "values",
+        "provenance"
+      ],
+      "title": "Distribution",
+      "type": "object"
+    },
+    "EnsembleUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "completed": {
+          "minimum": 1,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "total": {
+          "minimum": 1,
+          "title": "Total",
+          "type": "integer"
+        },
+        "seeds": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Seeds",
+          "type": "array"
+        },
+        "quantiles": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "title": "Quantiles",
+          "type": "object"
+        },
+        "evidence_table_version": {
+          "title": "Evidence Table Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "completed",
+        "total",
+        "seeds",
+        "quantiles",
+        "evidence_table_version"
+      ],
+      "title": "EnsembleUpdate",
+      "type": "object"
+    },
+    "EventDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "direction": {
+          "enum": [
+            "above",
+            "below",
+            "increase",
+            "decrease"
+          ],
+          "title": "Direction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "metric",
+        "threshold",
+        "direction"
+      ],
+      "title": "EventDefinition",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "missing",
+            "unknown",
+            "label_only",
+            "literature_estimate"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "uncertainty": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Uncertainty",
+          "type": "number"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        }
+      },
+      "required": [
+        "source",
+        "version",
+        "status",
+        "uncertainty"
+      ],
+      "title": "Evidence",
       "type": "object"
     },
     "FieldCoverage": {
@@ -986,6 +2134,62 @@
         "imputed_population_percent"
       ],
       "title": "FieldCoverage",
+      "type": "object"
+    },
+    "GraphTraversal": {
+      "additionalProperties": false,
+      "properties": {
+        "primitive": {
+          "const": "neighbors",
+          "default": "neighbors",
+          "title": "Primitive",
+          "type": "string"
+        },
+        "network": {
+          "title": "Network",
+          "type": "string"
+        },
+        "depth": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "network",
+        "depth"
+      ],
+      "title": "GraphTraversal",
+      "type": "object"
+    },
+    "ImpliedAggregate": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "implied_annual_count": {
+          "title": "Implied Annual Count",
+          "type": "number"
+        },
+        "observed_annual_count": {
+          "title": "Observed Annual Count",
+          "type": "number"
+        },
+        "ratio": {
+          "title": "Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "action_id",
+        "implied_annual_count",
+        "observed_annual_count",
+        "ratio"
+      ],
+      "title": "ImpliedAggregate",
       "type": "object"
     },
     "ImportCommit": {
@@ -1301,6 +2505,32 @@
       "title": "ImportVersion",
       "type": "object"
     },
+    "LeaderActionDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "parameter_effects": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Parameter Effects",
+          "type": "object"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "id",
+        "parameter_effects",
+        "evidence"
+      ],
+      "title": "LeaderActionDefinition",
+      "type": "object"
+    },
     "MappingAudit": {
       "additionalProperties": false,
       "properties": {
@@ -1463,6 +2693,69 @@
       "title": "MarginalField",
       "type": "object"
     },
+    "MediaRule": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "interest_weight": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Interest Weight",
+          "type": "number"
+        },
+        "social_weight": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Social Weight",
+          "type": "number"
+        },
+        "recency_weight": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Recency Weight",
+          "type": "number"
+        },
+        "trust_weight": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Trust Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "interest_weight",
+        "social_weight",
+        "recency_weight",
+        "trust_weight"
+      ],
+      "title": "MediaRule",
+      "type": "object"
+    },
+    "MetricPeak": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "minimum": 0,
+          "title": "Day",
+          "type": "integer"
+        },
+        "value": {
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "day",
+        "value"
+      ],
+      "title": "MetricPeak",
+      "type": "object"
+    },
     "Metrics": {
       "additionalProperties": false,
       "properties": {
@@ -1482,15 +2775,199 @@
           "minimum": 1,
           "title": "Days Recorded",
           "type": "integer"
+        },
+        "state_totals": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "State Totals",
+          "type": "object"
+        },
+        "metric_peaks": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MetricPeak"
+          },
+          "title": "Metric Peaks",
+          "type": "object"
+        },
+        "stories_generated": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Stories Generated",
+          "type": "integer"
         }
       },
       "required": [
         "totals",
         "peak_day",
         "peak_infected",
-        "days_recorded"
+        "days_recorded",
+        "state_totals",
+        "metric_peaks",
+        "stories_generated"
       ],
       "title": "Metrics",
+      "type": "object"
+    },
+    "MissingFallback": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "inherited",
+            "imputed",
+            "missing",
+            "unknown",
+            "label_only",
+            "literature_estimate"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "fallback": {
+          "title": "Fallback",
+          "type": "string"
+        },
+        "impact": {
+          "title": "Impact",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "status",
+        "fallback",
+        "impact"
+      ],
+      "title": "MissingFallback",
+      "type": "object"
+    },
+    "NetworkDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "max_depth": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "friend_weight": {
+          "default": 0.6,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Friend Weight",
+          "type": "number"
+        },
+        "stranger_weight": {
+          "default": 0.15,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Stranger Weight",
+          "type": "number"
+        },
+        "enemy_weight": {
+          "default": -0.4,
+          "maximum": 0,
+          "minimum": -1,
+          "title": "Enemy Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "max_depth"
+      ],
+      "title": "NetworkDefinition",
+      "type": "object"
+    },
+    "OutputSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "snapshots": {
+          "default": true,
+          "title": "Snapshots",
+          "type": "boolean"
+        },
+        "metrics": {
+          "default": true,
+          "title": "Metrics",
+          "type": "boolean"
+        },
+        "stories": {
+          "default": true,
+          "title": "Stories",
+          "type": "boolean"
+        },
+        "agent_logs": {
+          "default": "tiered",
+          "enum": [
+            "none",
+            "tiered",
+            "all"
+          ],
+          "title": "Agent Logs",
+          "type": "string"
+        },
+        "backtest_comparisons": {
+          "default": false,
+          "title": "Backtest Comparisons",
+          "type": "boolean"
+        },
+        "ensemble_updates": {
+          "default": true,
+          "title": "Ensemble Updates",
+          "type": "boolean"
+        }
+      },
+      "title": "OutputSpec",
+      "type": "object"
+    },
+    "ParameterDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "id",
+        "unit",
+        "provenance"
+      ],
+      "title": "ParameterDefinition",
       "type": "object"
     },
     "Parameters": {
@@ -1542,48 +3019,302 @@
       "title": "Parameters",
       "type": "object"
     },
+    "PlaceDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "place_id": {
+          "title": "Place Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "events": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "arc": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Arc",
+          "type": "array"
+        }
+      },
+      "required": [
+        "place_id",
+        "run_id",
+        "status",
+        "metrics",
+        "events",
+        "arc"
+      ],
+      "title": "PlaceDetail",
+      "type": "object"
+    },
     "PlaceSnapshot": {
       "additionalProperties": false,
       "properties": {
         "country": {
-          "enum": [
-            "ITA",
-            "FRA",
-            "DEU",
-            "ESP"
-          ],
           "title": "Country",
           "type": "string"
         },
+        "latitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latitude"
+        },
+        "longitude": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Longitude"
+        },
         "susceptible": {
+          "default": 0,
           "minimum": 0,
           "title": "Susceptible",
           "type": "integer"
         },
         "exposed": {
+          "default": 0,
           "minimum": 0,
           "title": "Exposed",
           "type": "integer"
         },
         "infected": {
+          "default": 0,
           "minimum": 0,
           "title": "Infected",
           "type": "integer"
         },
         "recovered": {
+          "default": 0,
           "minimum": 0,
           "title": "Recovered",
           "type": "integer"
+        },
+        "states": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "title": "States",
+          "type": "object"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
         }
       },
       "required": [
         "country",
+        "latitude",
+        "longitude",
         "susceptible",
         "exposed",
         "infected",
-        "recovered"
+        "recovered",
+        "states",
+        "metrics"
       ],
       "title": "PlaceSnapshot",
+      "type": "object"
+    },
+    "PopulationReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "size": {
+          "maximum": 10000000,
+          "minimum": 1,
+          "title": "Size",
+          "type": "integer"
+        },
+        "places": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Places",
+          "type": "array"
+        },
+        "place_populations": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Place Populations",
+          "type": "object"
+        },
+        "place_coordinates": {
+          "additionalProperties": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Place Coordinates",
+          "type": "object"
+        },
+        "initial_state_overrides": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "title": "Initial State Overrides",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "size",
+        "places"
+      ],
+      "title": "PopulationReference",
+      "type": "object"
+    },
+    "ProbabilitySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "minimum": 0,
+          "title": "Base",
+          "type": "number"
+        },
+        "mode": {
+          "default": "probability",
+          "enum": [
+            "probability",
+            "hazard"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "week",
+            "year"
+          ],
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "parameter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter"
+        },
+        "source_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source State"
+        },
+        "mixing_parameter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mixing Parameter"
+        },
+        "opportunity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opportunity"
+        },
+        "modifiers": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Modifiers",
+          "type": "object"
+        }
+      },
+      "required": [
+        "base",
+        "time_unit"
+      ],
+      "title": "ProbabilitySpec",
       "type": "object"
     },
     "Promotion": {
@@ -1649,6 +3380,134 @@
       "title": "Provenance",
       "type": "object"
     },
+    "RoleDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Actions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "RoleDefinition",
+      "type": "object"
+    },
+    "RuleCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "title": "Attribute",
+          "type": "string"
+        },
+        "operator": {
+          "enum": [
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "attribute",
+        "operator",
+        "value"
+      ],
+      "title": "RuleCondition",
+      "type": "object"
+    },
+    "RuleDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/RuleCondition"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "traversal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphTraversal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "effects": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Effects",
+          "type": "object"
+        },
+        "max_applications": {
+          "default": 1,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Max Applications",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "RuleDefinition",
+      "type": "object"
+    },
     "RunComplete": {
       "additionalProperties": false,
       "properties": {
@@ -1678,23 +3537,16 @@
       "additionalProperties": false,
       "properties": {
         "scenario": {
-          "const": "pandemic",
           "default": "pandemic",
+          "minLength": 1,
           "title": "Scenario",
           "type": "string"
         },
         "countries": {
           "items": {
-            "enum": [
-              "ITA",
-              "FRA",
-              "DEU",
-              "ESP"
-            ],
             "type": "string"
           },
-          "maxItems": 4,
-          "minItems": 1,
+          "maxItems": 300,
           "title": "Countries",
           "type": "array"
         },
@@ -1721,6 +3573,56 @@
         },
         "parameters": {
           "$ref": "#/$defs/Parameters"
+        },
+        "dsl": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DSLConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "population": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PopulationReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tick": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TickConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "outputs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_table_version": {
+          "default": "FAKE-evidence-v1",
+          "minLength": 1,
+          "title": "Evidence Table Version",
+          "type": "string"
         }
       },
       "required": [
@@ -1729,7 +3631,12 @@
         "start_day",
         "end_day",
         "seed",
-        "parameters"
+        "parameters",
+        "dsl",
+        "population",
+        "tick",
+        "outputs",
+        "evidence_table_version"
       ],
       "title": "RunConfig",
       "type": "object"
@@ -1767,6 +3674,24 @@
           "title": "Last Sequence",
           "type": "integer"
         },
+        "outputs": {
+          "$ref": "#/$defs/OutputSpec"
+        },
+        "evidence_table_version": {
+          "title": "Evidence Table Version",
+          "type": "string"
+        },
+        "population_version": {
+          "title": "Population Version",
+          "type": "string"
+        },
+        "missing_fallbacks": {
+          "items": {
+            "$ref": "#/$defs/MissingFallback"
+          },
+          "title": "Missing Fallbacks",
+          "type": "array"
+        },
         "metrics": {
           "anyOf": [
             {
@@ -1796,6 +3721,27 @@
           "title": "Snapshots",
           "type": "array"
         },
+        "ensemble_updates": {
+          "items": {
+            "$ref": "#/$defs/EnsembleUpdate"
+          },
+          "title": "Ensemble Updates",
+          "type": "array"
+        },
+        "stories": {
+          "items": {
+            "$ref": "#/$defs/StoryRecord"
+          },
+          "title": "Stories",
+          "type": "array"
+        },
+        "backtests": {
+          "items": {
+            "$ref": "#/$defs/BacktestComparison"
+          },
+          "title": "Backtests",
+          "type": "array"
+        },
         "cached": {
           "title": "Cached",
           "type": "boolean"
@@ -1808,9 +3754,16 @@
         "status",
         "created_at",
         "last_sequence",
+        "outputs",
+        "evidence_table_version",
+        "population_version",
+        "missing_fallbacks",
         "metrics",
         "error",
         "snapshots",
+        "ensemble_updates",
+        "stories",
+        "backtests",
         "cached"
       ],
       "title": "RunCreated",
@@ -1849,6 +3802,24 @@
           "title": "Last Sequence",
           "type": "integer"
         },
+        "outputs": {
+          "$ref": "#/$defs/OutputSpec"
+        },
+        "evidence_table_version": {
+          "title": "Evidence Table Version",
+          "type": "string"
+        },
+        "population_version": {
+          "title": "Population Version",
+          "type": "string"
+        },
+        "missing_fallbacks": {
+          "items": {
+            "$ref": "#/$defs/MissingFallback"
+          },
+          "title": "Missing Fallbacks",
+          "type": "array"
+        },
         "metrics": {
           "anyOf": [
             {
@@ -1877,6 +3848,27 @@
           },
           "title": "Snapshots",
           "type": "array"
+        },
+        "ensemble_updates": {
+          "items": {
+            "$ref": "#/$defs/EnsembleUpdate"
+          },
+          "title": "Ensemble Updates",
+          "type": "array"
+        },
+        "stories": {
+          "items": {
+            "$ref": "#/$defs/StoryRecord"
+          },
+          "title": "Stories",
+          "type": "array"
+        },
+        "backtests": {
+          "items": {
+            "$ref": "#/$defs/BacktestComparison"
+          },
+          "title": "Backtests",
+          "type": "array"
         }
       },
       "required": [
@@ -1886,9 +3878,16 @@
         "status",
         "created_at",
         "last_sequence",
+        "outputs",
+        "evidence_table_version",
+        "population_version",
+        "missing_fallbacks",
         "metrics",
         "error",
-        "snapshots"
+        "snapshots",
+        "ensemble_updates",
+        "stories",
+        "backtests"
       ],
       "title": "RunDetail",
       "type": "object"
@@ -1987,6 +3986,24 @@
           "title": "Last Sequence",
           "type": "integer"
         },
+        "outputs": {
+          "$ref": "#/$defs/OutputSpec"
+        },
+        "evidence_table_version": {
+          "title": "Evidence Table Version",
+          "type": "string"
+        },
+        "population_version": {
+          "title": "Population Version",
+          "type": "string"
+        },
+        "missing_fallbacks": {
+          "items": {
+            "$ref": "#/$defs/MissingFallback"
+          },
+          "title": "Missing Fallbacks",
+          "type": "array"
+        },
         "metrics": {
           "anyOf": [
             {
@@ -2017,10 +4034,89 @@
         "status",
         "created_at",
         "last_sequence",
+        "outputs",
+        "evidence_table_version",
+        "population_version",
+        "missing_fallbacks",
         "metrics",
         "error"
       ],
       "title": "RunSummary",
+      "type": "object"
+    },
+    "ScenarioDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "systems": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Systems",
+          "type": "array"
+        },
+        "actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "systems"
+      ],
+      "title": "ScenarioDefinition",
+      "type": "object"
+    },
+    "SliderSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "parameter": {
+          "title": "Parameter",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "evidence_status": {
+          "enum": [
+            "present",
+            "inherited",
+            "imputed",
+            "missing",
+            "unknown",
+            "label_only",
+            "literature_estimate"
+          ],
+          "title": "Evidence Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "parameter",
+        "value",
+        "unit",
+        "evidence_status"
+      ],
+      "title": "SliderSpec",
       "type": "object"
     },
     "SourceCatalog": {
@@ -2069,6 +4165,218 @@
       "title": "SourceFetch",
       "type": "object"
     },
+    "StateDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Values",
+          "type": "array"
+        },
+        "initial": {
+          "$ref": "#/$defs/Distribution"
+        }
+      },
+      "required": [
+        "id",
+        "values",
+        "initial"
+      ],
+      "title": "StateDefinition",
+      "type": "object"
+    },
+    "StoryDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "story": {
+          "$ref": "#/$defs/StoryRecord"
+        },
+        "place_metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Place Metrics",
+          "type": "object"
+        },
+        "agents": {
+          "items": {
+            "$ref": "#/$defs/AgentPoint"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "arc": {
+          "items": {
+            "$ref": "#/$defs/StoryRecord"
+          },
+          "title": "Arc",
+          "type": "array"
+        }
+      },
+      "required": [
+        "story",
+        "place_metrics",
+        "agents",
+        "arc"
+      ],
+      "title": "StoryDetail",
+      "type": "object"
+    },
+    "StoryList": {
+      "additionalProperties": false,
+      "properties": {
+        "stories": {
+          "items": {
+            "$ref": "#/$defs/StoryRecord"
+          },
+          "title": "Stories",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stories"
+      ],
+      "title": "StoryList",
+      "type": "object"
+    },
+    "StoryRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "story_id": {
+          "title": "Story Id",
+          "type": "string"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "day": {
+          "minimum": 0,
+          "title": "Day",
+          "type": "integer"
+        },
+        "headline": {
+          "title": "Headline",
+          "type": "string"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "template": {
+          "title": "Template",
+          "type": "boolean"
+        },
+        "arc_id": {
+          "title": "Arc Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "story_id",
+        "event_id",
+        "place",
+        "day",
+        "headline",
+        "body",
+        "metrics",
+        "template",
+        "arc_id"
+      ],
+      "title": "StoryRecord",
+      "type": "object"
+    },
+    "SystemDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "#/$defs/TransitionDefinition"
+          },
+          "minItems": 1,
+          "title": "Transitions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "transitions"
+      ],
+      "title": "SystemDefinition",
+      "type": "object"
+    },
+    "TickConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "tick_hours": {
+          "default": 24,
+          "exclusiveMinimum": 0,
+          "maximum": 168,
+          "title": "Tick Hours",
+          "type": "number"
+        },
+        "total_ticks": {
+          "default": 30,
+          "maximum": 175200,
+          "minimum": 1,
+          "title": "Total Ticks",
+          "type": "integer"
+        },
+        "snapshot_every_hours": {
+          "default": 24,
+          "maximum": 8760,
+          "minimum": 1,
+          "title": "Snapshot Every Hours",
+          "type": "integer"
+        },
+        "story_every_days": {
+          "default": 7,
+          "maximum": 365,
+          "minimum": 1,
+          "title": "Story Every Days",
+          "type": "integer"
+        },
+        "update_order": {
+          "default": "double_buffered",
+          "enum": [
+            "double_buffered",
+            "seeded_random"
+          ],
+          "title": "Update Order",
+          "type": "string"
+        }
+      },
+      "title": "TickConfig",
+      "type": "object"
+    },
     "Totals": {
       "additionalProperties": false,
       "properties": {
@@ -2078,21 +4386,25 @@
           "type": "integer"
         },
         "susceptible": {
+          "default": 0,
           "minimum": 0,
           "title": "Susceptible",
           "type": "integer"
         },
         "exposed": {
+          "default": 0,
           "minimum": 0,
           "title": "Exposed",
           "type": "integer"
         },
         "infected": {
+          "default": 0,
           "minimum": 0,
           "title": "Infected",
           "type": "integer"
         },
         "recovered": {
+          "default": 0,
           "minimum": 0,
           "title": "Recovered",
           "type": "integer"
@@ -2108,28 +4420,32 @@
       "title": "Totals",
       "type": "object"
     },
-    "ValidationIssue": {
+    "TransitionDefinition": {
       "additionalProperties": false,
       "properties": {
-        "row": {
-          "title": "Row",
-          "type": "integer"
-        },
-        "field": {
-          "title": "Field",
+        "id": {
+          "title": "Id",
           "type": "string"
         },
-        "message": {
-          "title": "Message",
+        "from_state": {
+          "title": "From State",
           "type": "string"
+        },
+        "to_state": {
+          "title": "To State",
+          "type": "string"
+        },
+        "probability": {
+          "$ref": "#/$defs/ProbabilitySpec"
         }
       },
       "required": [
-        "row",
-        "field",
-        "message"
+        "id",
+        "from_state",
+        "to_state",
+        "probability"
       ],
-      "title": "ValidationIssue",
+      "title": "TransitionDefinition",
       "type": "object"
     },
     "ValidationReport": {
@@ -2153,7 +4469,7 @@
         },
         "issues": {
           "items": {
-            "$ref": "#/$defs/ValidationIssue"
+            "$ref": "#/$defs/petraterrium__atlas__contracts__ValidationIssue"
           },
           "title": "Issues",
           "type": "array"
@@ -2181,6 +4497,49 @@
       ],
       "title": "ValidationReport",
       "type": "object"
+    },
+    "petraterrium__atlas__contracts__ValidationIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "row": {
+          "title": "Row",
+          "type": "integer"
+        },
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "row",
+        "field",
+        "message"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
+    },
+    "petraterrium__dsl__models__ValidationIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "message"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
     }
   },
   "anyOf": [
@@ -2188,7 +4547,22 @@
       "$ref": "#/$defs/Catalog"
     },
     {
+      "$ref": "#/$defs/AgentDetail"
+    },
+    {
+      "$ref": "#/$defs/AgentPointList"
+    },
+    {
       "$ref": "#/$defs/DailySnapshot"
+    },
+    {
+      "$ref": "#/$defs/DSLRender"
+    },
+    {
+      "$ref": "#/$defs/EnsembleUpdate"
+    },
+    {
+      "$ref": "#/$defs/PlaceDetail"
     },
     {
       "$ref": "#/$defs/RunComplete"
@@ -2206,6 +4580,18 @@
       "$ref": "#/$defs/RunList"
     },
     {
+      "$ref": "#/$defs/StoryDetail"
+    },
+    {
+      "$ref": "#/$defs/StoryList"
+    },
+    {
+      "$ref": "#/$defs/DSLConfig"
+    },
+    {
+      "$ref": "#/$defs/DSLValidationResult"
+    },
+    {
       "$ref": "#/$defs/AtlasOverview"
     },
     {
@@ -2213,6 +4599,9 @@
     },
     {
       "$ref": "#/$defs/CityDetail"
+    },
+    {
+      "$ref": "#/$defs/FieldCoverage"
     },
     {
       "$ref": "#/$defs/ImportCommit"

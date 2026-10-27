@@ -30,9 +30,7 @@ def canonical_rows(wdi, households, digests):
                 "source": "World Bank World Development Indicators",
                 "source_url": WDI_URL,
                 "published_date": wdi["release_date"],
-                "version": (
-                    "sha256:" + digests["WDI_CSV.zip"] + ";transform:" + TRANSFORM_VERSION
-                ),
+                "version": ("sha256:" + digests["WDI_CSV.zip"] + ";transform:" + TRANSFORM_VERSION),
                 "filename": "WDI_CSV.zip",
             }
         )
@@ -115,9 +113,7 @@ def write_availability(output, cities, wdi, households, ucdb, electoral):
                 "electoral_imputed_feature_count": electoral_feature,
                 "electoral_election_count": election_count,
                 "electoral_latest_date": electoral_dates.get(row["geonameid"]),
-                "electoral_alignment_status": (
-                    "imputed" if electoral_feature else "missing"
-                ),
+                "electoral_alignment_status": ("imputed" if electoral_feature else "missing"),
                 "country_inherited_feature_count": inherited,
                 "total_available_feature_count": spatial + inherited + electoral_feature,
             }
@@ -164,9 +160,7 @@ def build_feature_dump(
     cities, geonames = export_geonames(paths["cities500.zip"], partial)
     wdi = export_wdi(paths["WDI_CSV.zip"], partial)
     households = export_households(paths["UN_DESA_household_2026.xlsx"], partial)
-    ucdb = export_ucdb(
-        paths["GHS_UCDB_GLOBE_R2024A_V1_2.zip"], geopackage, cities, partial
-    )
+    ucdb = export_ucdb(paths["GHS_UCDB_GLOBE_R2024A_V1_2.zip"], geopackage, cities, partial)
     electoral = export_blue(
         paths["BLUE_DB.zip"],
         paths["LAU_RG_01M_2024_4326.gpkg"],
@@ -175,9 +169,7 @@ def build_feature_dump(
     )
     canonical = canonical_rows(wdi, households, digests)
     write_canonical(partial, canonical)
-    availability_rows = write_availability(
-        partial, cities, wdi, households, ucdb, electoral
-    )
+    availability_rows = write_availability(partial, cities, wdi, households, ucdb, electoral)
     manifest = {
         "format_version": 1,
         "transform_version": TRANSFORM_VERSION,
@@ -214,8 +206,7 @@ def build_feature_dump(
             "blue_db": {
                 key: value
                 for key, value in electoral.items()
-                if key
-                not in ("city_matches", "city_result_counts", "city_latest_dates")
+                if key not in ("city_matches", "city_result_counts", "city_latest_dates")
             }
             | {
                 "source_url": BLUE_DB_RECORD_URL,

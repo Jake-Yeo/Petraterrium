@@ -32,9 +32,7 @@ EDUCATION_CODES = [
     "SE.SEC.CUAT.PO.ZS",
     "SE.TER.CUAT.BA.ZS",
 ]
-CANONICAL_CODES = {
-    code for code, _ in AGE_SEX_CODES + INCOME_CODES
-} | set(EDUCATION_CODES)
+CANONICAL_CODES = {code for code, _ in AGE_SEX_CODES + INCOME_CODES} | set(EDUCATION_CODES)
 
 
 def csv_rows(archive: ZipFile, name: str):

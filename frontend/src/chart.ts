@@ -4,6 +4,16 @@ export function infectedTotal(snapshot: DailySnapshot): number {
   return snapshot.places.reduce((total, place) => total + place.infected, 0);
 }
 
+export function primaryMetricName(snapshot: DailySnapshot): string {
+  if (snapshot.places.some((place) => 'infected' in place.metrics)) return 'infected';
+  const values = Object.values(snapshot.places[0]?.states ?? {})[0];
+  return Object.keys(values ?? {})[1] ?? Object.keys(values ?? {})[0] ?? 'population';
+}
+
+export function metricTotal(snapshot: DailySnapshot, metric = primaryMetricName(snapshot)): number {
+  return snapshot.places.reduce((total, place) => total + (place.metrics[metric] ?? 0), 0);
+}
+
 export class InfectionChart {
   private snapshots: DailySnapshot[] = [];
   private index = 0;
@@ -48,7 +58,8 @@ export class InfectionChart {
       top = 10,
       right = width - 16,
       bottom = height - 24;
-    const values = this.snapshots.map(infectedTotal);
+    const metric = this.snapshots[0] ? primaryMetricName(this.snapshots[0]) : '';
+    const values = this.snapshots.map((snapshot) => metricTotal(snapshot, metric));
     const maximum = Math.max(10, ...values) * 1.12;
     const x = (index: number) => left + (index / Math.max(1, values.length - 1)) * (right - left);
     const y = (value: number) => bottom - (value / maximum) * (bottom - top);
@@ -73,7 +84,7 @@ export class InfectionChart {
       context.textAlign = 'center';
       context.fillStyle = '#75838d';
       context.fillText(
-        'Recorded infections will appear here',
+        'Recorded state metrics will appear here',
         (left + right) / 2,
         (top + bottom) / 2,
       );

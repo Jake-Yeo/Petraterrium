@@ -5,6 +5,7 @@ import os
 
 from openai import OpenAI
 
+from ..llm_gateway import structured_call
 from .contracts import ColumnMapping, MappingAudit, MappingProposal
 
 PROMPT_VERSION = "atlas-schema-map-v1"
@@ -90,15 +91,17 @@ def propose_mapping(store, scope: str, headers: list[str], sample: list[dict], u
     )
     if use_llm and os.getenv("OPENAI_API_KEY"):
         try:
-            response = OpenAI(timeout=25, max_retries=1).responses.parse(
-                model=MODEL,
-                input=[{"role": "system", "content": PROMPT}, {"role": "user", "content": payload}],
-                text_format=MappingProposal,
-                store=False,
+            proposal, usage = structured_call(
+                OpenAI,
+                "openai",
+                MODEL,
+                PROMPT_VERSION,
+                PROMPT,
+                payload,
+                MappingProposal,
+                (0.4, 1.6) if MODEL == "gpt-4.1-mini" else None,
             )
-            if response.output_parsed is None:
-                raise ValueError("The mapper did not return a structured proposal")
-            proposed = response.output_parsed.mappings
+            proposed = proposal.mappings
             by_header = {m.column: m for m in proposed}
             mappings = [
                 by_header.get(
@@ -109,21 +112,13 @@ def propose_mapping(store, scope: str, headers: list[str], sample: list[dict], u
                 )
                 for header in headers
             ]
-            usage = response.usage
-            input_tokens = usage.input_tokens if usage else 0
-            output_tokens = usage.output_tokens if usage else 0
-            cost = (
-                (input_tokens * 0.4 + output_tokens * 1.6) / 1_000_000
-                if MODEL == "gpt-4.1-mini"
-                else None
-            )
             audit = MappingAudit(
-                provider="openai",
-                model=MODEL,
-                prompt_version=PROMPT_VERSION,
-                estimated_cost_usd=cost,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
+                provider=usage.provider,
+                model=usage.model,
+                prompt_version=usage.prompt_version,
+                estimated_cost_usd=usage.estimated_cost_usd,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
                 message=(
                     "LLM proposal only. Confirm each mapping before validation; no data has"
                     " been written to the atlas."
@@ -133,7 +128,7 @@ def propose_mapping(store, scope: str, headers: list[str], sample: list[dict], u
                 "Schema mapping model=%s prompt=%s estimated_cost_usd=%s",
                 MODEL,
                 PROMPT_VERSION,
-                cost,
+                usage.estimated_cost_usd,
             )
         except Exception as exc:
             logger.warning("Schema mapping unavailable: %s", type(exc).__name__)

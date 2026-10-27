@@ -1,3 +1,89 @@
+export type ActionDefinition = {
+  id: string;
+  probability: ProbabilitySpec;
+  duration_minutes: number;
+  priority: number;
+  meaningful?: boolean;
+  interruptible?: boolean;
+  protected?: boolean;
+  reschedulable?: boolean;
+  compatible_with?: Array<string>;
+  priority_modifiers?: {
+  [key: string]: number;
+};
+  requires_role?: string | null;
+  target_requires_role?: string | null;
+  loser_outcome: "paused" | "deferred" | "cancelled" | "relationship_cost" | "continues";
+  effects?: {
+  [key: string]: number;
+};
+};
+
+export type AgentDetail = {
+  agent_id: string;
+  run_id: string;
+  place: string;
+  role: string;
+  synthetic: true;
+  log_tier: "spotlight" | "sampled" | "mass";
+  log_scope: string;
+  traits: {
+
+};
+  states: {
+  [key: string]: string;
+};
+  behaviour: {
+  [key: string]: number;
+};
+  relationships: Array<AgentRelationship>;
+  timeline: Array<AgentTimelineEntry>;
+  media: Array<string>;
+};
+
+export type AgentPoint = {
+  agent_id: string;
+  place: string;
+  latitude: number;
+  longitude: number;
+  state: string;
+  color: string;
+  log_tier: "spotlight" | "sampled" | "mass";
+};
+
+export type AgentPointList = {
+  agents: Array<AgentPoint>;
+  total: number;
+  returned: number;
+  representative: boolean;
+};
+
+export type AgentRelationship = {
+  target_id: string;
+  kind: string;
+  weight: number;
+};
+
+export type AgentTimelineEntry = {
+  tick: number;
+  day: number;
+  action: string;
+  chain_id: string | null;
+  causes: {
+  [key: string]: number;
+};
+  state_after: {
+  [key: string]: string;
+};
+};
+
+export type AggregateBenchmark = {
+  action_id: string;
+  population: number;
+  observed_annual_count: number;
+  tolerance_factor?: number;
+};
+
 export type AtlasCity = {
   geonameid: number;
   name: string;
@@ -79,6 +165,14 @@ export type AtlasSummary = {
   as_of: string;
 };
 
+export type AttributeDefinition = {
+  id: string;
+  kind: "categorical" | "continuous" | "boolean";
+  values?: Array<string>;
+  distribution?: Distribution | null;
+  provenance: Evidence;
+};
+
 export type Backbone = {
   loaded: boolean;
   source: string;
@@ -93,6 +187,36 @@ export type Backbone = {
   duplicate_rows: number;
   tier_policy: string;
   selection_policy: string;
+};
+
+export type BacktestComparison = {
+  metric: string;
+  simulated: Array<number>;
+  observed: Array<number>;
+  mean_absolute_error: number;
+  outcome: "hit" | "miss";
+  cutoff_date: string;
+  provenance: string;
+};
+
+export type BehaviourBundle = {
+  id: string;
+  layer: number;
+  inherits?: Array<string>;
+  values?: {
+  [key: string]: number;
+};
+  issue_values?: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  blends?: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  provenance: Evidence;
 };
 
 export type BehaviourModel = {
@@ -116,6 +240,20 @@ export type Catalog = {
   notice: string;
 };
 
+export type ChainBranch = {
+  action: string;
+  probability: number;
+  delay_ticks?: number;
+};
+
+export type ChainDefinition = {
+  id: string;
+  trigger: string;
+  branches: Array<ChainBranch>;
+  max_length?: number | null;
+  continue_probability?: number;
+};
+
 export type CityDetail = {
   city: AtlasCity;
   missing_fields: Array<"age_sex" | "income" | "education" | "ideology" | "household_size">;
@@ -133,7 +271,7 @@ export type ColumnMapping = {
 };
 
 export type Country = {
-  country: "ITA" | "FRA" | "DEU" | "ESP";
+  country: string;
   name: string;
   population: number;
   latitude: number;
@@ -141,10 +279,58 @@ export type Country = {
   fake: true;
 };
 
+export type CouplingDefinition = {
+  id: string;
+  source_system: string;
+  target_system: string;
+  source_metric: string;
+  target_parameter: string;
+  scale: number;
+};
+
 export type CoverageCounts = {
   full: number;
   partial: number;
   none: number;
+};
+
+export type DSLConfig = {
+  schema_version?: "1";
+  id: string;
+  version: string;
+  states: Array<StateDefinition>;
+  attributes?: Array<AttributeDefinition>;
+  place_states?: Array<string>;
+  parameters?: Array<ParameterDefinition>;
+  systems: Array<SystemDefinition>;
+  scenarios?: Array<ScenarioDefinition>;
+  rules?: Array<RuleDefinition>;
+  actions?: Array<ActionDefinition>;
+  chains?: Array<ChainDefinition>;
+  roles?: Array<RoleDefinition>;
+  default_states?: Array<DefaultDefinition>;
+  behaviour_bundles?: Array<BehaviourBundle>;
+  networks?: Array<NetworkDefinition>;
+  media_rules?: Array<MediaRule>;
+  leader_actions?: Array<LeaderActionDefinition>;
+  events?: Array<EventDefinition>;
+  couplings?: Array<CouplingDefinition>;
+  tick: TickConfig;
+  outputs: OutputSpec;
+  population: PopulationReference;
+  benchmarks?: Array<AggregateBenchmark>;
+};
+
+export type DSLRender = {
+  plain_language: string;
+  sliders: Array<SliderSpec>;
+};
+
+export type DSLValidationResult = {
+  valid: boolean;
+  errors: Array<petraterrium__dsl__models__ValidationIssue>;
+  warnings: Array<petraterrium__dsl__models__ValidationIssue>;
+  implied_aggregates: Array<ImpliedAggregate>;
 };
 
 export type DailySnapshot = {
@@ -154,6 +340,9 @@ export type DailySnapshot = {
   seed: number;
   engine_version: string;
   data_version: string;
+  config_hash: string;
+  tick: number;
+  elapsed_hours: number;
 };
 
 export type DataGap = {
@@ -164,6 +353,53 @@ export type DataGap = {
   field: "age_sex" | "income" | "education" | "ideology" | "household_size";
   status: "present" | "inherited" | "imputed" | "missing";
   suggested_source: string;
+};
+
+export type DefaultDefinition = {
+  id: string;
+  distribution: Distribution;
+  depends_on?: Array<string>;
+  when?: {
+  [key: string]: string;
+};
+  place?: string | null;
+  age_min?: number | null;
+  age_max?: number | null;
+};
+
+export type Distribution = {
+  values: {
+  [key: string]: number;
+};
+  provenance: Evidence;
+};
+
+export type EnsembleUpdate = {
+  run_id: string;
+  completed: number;
+  total: number;
+  seeds: Array<number>;
+  quantiles: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  evidence_table_version: string;
+};
+
+export type EventDefinition = {
+  id: string;
+  metric: string;
+  threshold: number;
+  direction: "above" | "below" | "increase" | "decrease";
+};
+
+export type Evidence = {
+  source: string;
+  version: string;
+  status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
+  uncertainty: number;
+  source_date?: string | null;
 };
 
 export type FieldCoverage = {
@@ -177,6 +413,19 @@ export type FieldCoverage = {
   direct_population_percent: number;
   direct_plus_inherited_population_percent: number;
   imputed_population_percent: number;
+};
+
+export type GraphTraversal = {
+  primitive?: "neighbors";
+  network: string;
+  depth: number;
+};
+
+export type ImpliedAggregate = {
+  action_id: string;
+  implied_annual_count: number;
+  observed_annual_count: number;
+  ratio: number;
 };
 
 export type ImportCommit = {
@@ -234,6 +483,14 @@ export type ImportVersion = {
   models: Array<BehaviourModel>;
 };
 
+export type LeaderActionDefinition = {
+  id: string;
+  parameter_effects: {
+  [key: string]: number;
+};
+  evidence: Evidence;
+};
+
 export type MappingAudit = {
   provider: string;
   model: string;
@@ -261,11 +518,64 @@ export type MarginalField = {
   source_url: string;
 };
 
+export type MediaRule = {
+  id: string;
+  interest_weight: number;
+  social_weight: number;
+  recency_weight: number;
+  trust_weight: number;
+};
+
+export type MetricPeak = {
+  day: number;
+  value: number;
+};
+
 export type Metrics = {
   totals: Totals;
   peak_day: number;
   peak_infected: number;
   days_recorded: number;
+  state_totals: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  metric_peaks: {
+  [key: string]: MetricPeak;
+};
+  stories_generated: number;
+};
+
+export type MissingFallback = {
+  field: string;
+  status: "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
+  fallback: string;
+  impact: string;
+};
+
+export type NetworkDefinition = {
+  id: string;
+  max_depth: number;
+  friend_weight?: number;
+  stranger_weight?: number;
+  enemy_weight?: number;
+};
+
+export type OutputSpec = {
+  snapshots?: boolean;
+  metrics?: boolean;
+  stories?: boolean;
+  agent_logs?: "none" | "tiered" | "all";
+  backtest_comparisons?: boolean;
+  ensemble_updates?: boolean;
+};
+
+export type ParameterDefinition = {
+  id: string;
+  value?: number | null;
+  unit: string;
+  provenance: Evidence;
 };
 
 export type Parameters = {
@@ -276,12 +586,66 @@ export type Parameters = {
   initial_infected: number;
 };
 
+export type PlaceDetail = {
+  place_id: string;
+  run_id: string;
+  status: string;
+  metrics: {
+  [key: string]: number;
+};
+  events: Array<string>;
+  arc: Array<string>;
+};
+
 export type PlaceSnapshot = {
-  country: "ITA" | "FRA" | "DEU" | "ESP";
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
   susceptible: number;
   exposed: number;
   infected: number;
   recovered: number;
+  states: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+  metrics: {
+  [key: string]: number;
+};
+};
+
+export type PopulationReference = {
+  id: string;
+  version: string;
+  size: number;
+  places: Array<string>;
+  place_populations?: {
+  [key: string]: number;
+};
+  place_coordinates?: {
+  [key: string]: [number, number];
+};
+  initial_state_overrides?: {
+  [key: string]: {
+  [key: string]: {
+  [key: string]: number;
+};
+};
+};
+};
+
+export type ProbabilitySpec = {
+  base: number;
+  mode?: "probability" | "hazard";
+  time_unit: "event" | "hour" | "day" | "week" | "year";
+  parameter?: string | null;
+  source_state?: string | null;
+  mixing_parameter?: string | null;
+  opportunity?: string | null;
+  modifiers?: {
+  [key: string]: number;
+};
 };
 
 export type Promotion = {
@@ -299,6 +663,28 @@ export type Provenance = {
   uploader: string;
 };
 
+export type RoleDefinition = {
+  id: string;
+  actions?: Array<string>;
+};
+
+export type RuleCondition = {
+  attribute: string;
+  operator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in";
+  value: string | number | boolean | Array<string>;
+};
+
+export type RuleDefinition = {
+  id: string;
+  conditions?: Array<RuleCondition>;
+  traversal?: GraphTraversal | null;
+  action?: string | null;
+  effects?: {
+  [key: string]: number;
+};
+  max_applications?: number;
+};
+
 export type RunComplete = {
   run_id: string;
   status: "done";
@@ -306,12 +692,17 @@ export type RunComplete = {
 };
 
 export type RunConfig = {
-  scenario: "pandemic";
-  countries: Array<"ITA" | "FRA" | "DEU" | "ESP">;
+  scenario: string;
+  countries: Array<string>;
   start_day: number;
   end_day: number;
   seed: number;
   parameters: Parameters;
+  dsl: DSLConfig | null;
+  population: PopulationReference | null;
+  tick: TickConfig | null;
+  outputs: OutputSpec | null;
+  evidence_table_version: string;
 };
 
 export type RunCreated = {
@@ -321,9 +712,16 @@ export type RunCreated = {
   status: "queued" | "running" | "done" | "failed";
   created_at: string;
   last_sequence: number;
+  outputs: OutputSpec;
+  evidence_table_version: string;
+  population_version: string;
+  missing_fallbacks: Array<MissingFallback>;
   metrics: Metrics | null;
   error: RunError | null;
   snapshots: Array<DailySnapshot>;
+  ensemble_updates: Array<EnsembleUpdate>;
+  stories: Array<StoryRecord>;
+  backtests: Array<BacktestComparison>;
   cached: boolean;
 };
 
@@ -334,9 +732,16 @@ export type RunDetail = {
   status: "queued" | "running" | "done" | "failed";
   created_at: string;
   last_sequence: number;
+  outputs: OutputSpec;
+  evidence_table_version: string;
+  population_version: string;
+  missing_fallbacks: Array<MissingFallback>;
   metrics: Metrics | null;
   error: RunError | null;
   snapshots: Array<DailySnapshot>;
+  ensemble_updates: Array<EnsembleUpdate>;
+  stories: Array<StoryRecord>;
+  backtests: Array<BacktestComparison>;
 };
 
 export type RunError = {
@@ -361,8 +766,26 @@ export type RunSummary = {
   status: "queued" | "running" | "done" | "failed";
   created_at: string;
   last_sequence: number;
+  outputs: OutputSpec;
+  evidence_table_version: string;
+  population_version: string;
+  missing_fallbacks: Array<MissingFallback>;
   metrics: Metrics | null;
   error: RunError | null;
+};
+
+export type ScenarioDefinition = {
+  id: string;
+  systems: Array<string>;
+  actions?: Array<string>;
+  events?: Array<string>;
+};
+
+export type SliderSpec = {
+  parameter: string;
+  value: number;
+  unit: string;
+  evidence_status: "present" | "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate";
 };
 
 export type SourceCatalog = {
@@ -376,6 +799,53 @@ export type SourceFetch = {
   access_confirmed: boolean;
 };
 
+export type StateDefinition = {
+  id: string;
+  values: Array<string>;
+  initial: Distribution;
+};
+
+export type StoryDetail = {
+  story: StoryRecord;
+  place_metrics: {
+  [key: string]: number;
+};
+  agents: Array<AgentPoint>;
+  arc: Array<StoryRecord>;
+};
+
+export type StoryList = {
+  stories: Array<StoryRecord>;
+};
+
+export type StoryRecord = {
+  story_id: string;
+  event_id: string;
+  place: string;
+  day: number;
+  headline: string;
+  body: string;
+  metrics: {
+  [key: string]: number;
+};
+  template: boolean;
+  arc_id: string;
+};
+
+export type SystemDefinition = {
+  id: string;
+  state: string;
+  transitions: Array<TransitionDefinition>;
+};
+
+export type TickConfig = {
+  tick_hours?: number;
+  total_ticks?: number;
+  snapshot_every_hours?: number;
+  story_every_days?: number;
+  update_order?: "double_buffered" | "seeded_random";
+};
+
 export type Totals = {
   population: number;
   susceptible: number;
@@ -384,10 +854,11 @@ export type Totals = {
   recovered: number;
 };
 
-export type ValidationIssue = {
-  row: number;
-  field: string;
-  message: string;
+export type TransitionDefinition = {
+  id: string;
+  from_state: string;
+  to_state: string;
+  probability: ProbabilitySpec;
 };
 
 export type ValidationReport = {
@@ -395,9 +866,20 @@ export type ValidationReport = {
   valid: boolean;
   total_rows: number;
   observations: number;
-  issues: Array<ValidationIssue>;
+  issues: Array<petraterrium__atlas__contracts__ValidationIssue>;
   missingness: {
   [key: string]: number;
 };
   mapping_hash: string;
+};
+
+export type petraterrium__atlas__contracts__ValidationIssue = {
+  row: number;
+  field: string;
+  message: string;
+};
+
+export type petraterrium__dsl__models__ValidationIssue = {
+  path: string;
+  message: string;
 };

@@ -1,0 +1,495 @@
+{
+  "schema_version": "1",
+  "id": "smoke-spread",
+  "version": "1",
+  "states": [
+    {
+      "id": "signal",
+      "values": [
+        "unaware",
+        "aware",
+        "resolved"
+      ],
+      "initial": {
+        "values": {
+          "unaware": 1.0,
+          "aware": 0.0,
+          "resolved": 0.0
+        },
+        "provenance": {
+          "source": "FAKE smoke population",
+          "version": "FAKE-smoke-v1",
+          "status": "literature_estimate",
+          "uncertainty": 0.8,
+          "source_date": null
+        }
+      }
+    }
+  ],
+  "place_states": [
+    "attention"
+  ],
+  "parameters": [
+    {
+      "id": "spread_rate",
+      "value": 0.28,
+      "unit": "hazard_per_day",
+      "provenance": {
+        "source": "FAKE smoke coefficients",
+        "version": "FAKE-smoke-v1",
+        "status": "literature_estimate",
+        "uncertainty": 0.8,
+        "source_date": null
+      }
+    },
+    {
+      "id": "resolution_rate",
+      "value": 0.08,
+      "unit": "hazard_per_day",
+      "provenance": {
+        "source": "FAKE smoke coefficients",
+        "version": "FAKE-smoke-v1",
+        "status": "literature_estimate",
+        "uncertainty": 0.8,
+        "source_date": null
+      }
+    },
+    {
+      "id": "place_mixing",
+      "value": 0.12,
+      "unit": "share",
+      "provenance": {
+        "source": "FAKE smoke coefficients",
+        "version": "FAKE-smoke-v1",
+        "status": "literature_estimate",
+        "uncertainty": 0.8,
+        "source_date": null
+      }
+    }
+  ],
+  "systems": [
+    {
+      "id": "signal-system",
+      "state": "signal",
+      "transitions": [
+        {
+          "id": "notice",
+          "from_state": "unaware",
+          "to_state": "aware",
+          "probability": {
+            "base": 0.28,
+            "mode": "hazard",
+            "time_unit": "day",
+            "parameter": "spread_rate",
+            "source_state": "aware",
+            "mixing_parameter": "place_mixing",
+            "opportunity": null,
+            "modifiers": {}
+          }
+        },
+        {
+          "id": "resolve",
+          "from_state": "aware",
+          "to_state": "resolved",
+          "probability": {
+            "base": 0.08,
+            "mode": "hazard",
+            "time_unit": "day",
+            "parameter": "resolution_rate",
+            "source_state": null,
+            "mixing_parameter": null,
+            "opportunity": null,
+            "modifiers": {}
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "routine",
+      "probability": {
+        "base": 1.0,
+        "mode": "probability",
+        "time_unit": "hour",
+        "parameter": null,
+        "source_state": null,
+        "mixing_parameter": null,
+        "opportunity": null,
+        "modifiers": {}
+      },
+      "duration_minutes": 60.0,
+      "priority": 0,
+      "meaningful": false,
+      "interruptible": true,
+      "protected": false,
+      "reschedulable": true,
+      "compatible_with": [],
+      "priority_modifiers": {},
+      "requires_role": null,
+      "target_requires_role": null,
+      "loser_outcome": "continues",
+      "effects": {}
+    },
+    {
+      "id": "talk",
+      "probability": {
+        "base": 0.15,
+        "mode": "probability",
+        "time_unit": "day",
+        "parameter": null,
+        "source_state": null,
+        "mixing_parameter": null,
+        "opportunity": "social_contact",
+        "modifiers": {}
+      },
+      "duration_minutes": 20.0,
+      "priority": 3,
+      "meaningful": true,
+      "interruptible": true,
+      "protected": false,
+      "reschedulable": true,
+      "compatible_with": [
+        "commute"
+      ],
+      "priority_modifiers": {
+        "friend": 2,
+        "boss": 5
+      },
+      "requires_role": null,
+      "target_requires_role": null,
+      "loser_outcome": "deferred",
+      "effects": {}
+    },
+    {
+      "id": "scroll",
+      "probability": {
+        "base": 0.45,
+        "mode": "probability",
+        "time_unit": "day",
+        "parameter": null,
+        "source_state": null,
+        "mixing_parameter": null,
+        "opportunity": null,
+        "modifiers": {}
+      },
+      "duration_minutes": 10.0,
+      "priority": 1,
+      "meaningful": true,
+      "interruptible": true,
+      "protected": false,
+      "reschedulable": true,
+      "compatible_with": [],
+      "priority_modifiers": {},
+      "requires_role": null,
+      "target_requires_role": null,
+      "loser_outcome": "cancelled",
+      "effects": {}
+    },
+    {
+      "id": "repost",
+      "probability": {
+        "base": 0.2,
+        "mode": "probability",
+        "time_unit": "event",
+        "parameter": null,
+        "source_state": null,
+        "mixing_parameter": null,
+        "opportunity": null,
+        "modifiers": {}
+      },
+      "duration_minutes": 2.0,
+      "priority": 1,
+      "meaningful": true,
+      "interruptible": true,
+      "protected": false,
+      "reschedulable": true,
+      "compatible_with": [],
+      "priority_modifiers": {},
+      "requires_role": null,
+      "target_requires_role": null,
+      "loser_outcome": "cancelled",
+      "effects": {}
+    },
+    {
+      "id": "ignore",
+      "probability": {
+        "base": 0.8,
+        "mode": "probability",
+        "time_unit": "event",
+        "parameter": null,
+        "source_state": null,
+        "mixing_parameter": null,
+        "opportunity": null,
+        "modifiers": {}
+      },
+      "duration_minutes": 0.0,
+      "priority": 0,
+      "meaningful": false,
+      "interruptible": true,
+      "protected": false,
+      "reschedulable": true,
+      "compatible_with": [],
+      "priority_modifiers": {},
+      "requires_role": null,
+      "target_requires_role": null,
+      "loser_outcome": "continues",
+      "effects": {}
+    }
+  ],
+  "chains": [
+    {
+      "id": "sharing",
+      "trigger": "scroll",
+      "branches": [
+        {
+          "action": "repost",
+          "probability": 0.2,
+          "delay_ticks": 0
+        },
+        {
+          "action": "ignore",
+          "probability": 0.8,
+          "delay_ticks": 0
+        }
+      ],
+      "max_length": 2,
+      "continue_probability": 1.0
+    }
+  ],
+  "roles": [
+    {
+      "id": "citizen",
+      "actions": [
+        "talk",
+        "scroll",
+        "repost"
+      ]
+    }
+  ],
+  "default_states": [
+    {
+      "id": "age",
+      "distribution": {
+        "values": {
+          "20": 0.25,
+          "35": 0.25,
+          "50": 0.25,
+          "65": 0.25
+        },
+        "provenance": {
+          "source": "FAKE smoke population",
+          "version": "FAKE-smoke-v1",
+          "status": "literature_estimate",
+          "uncertainty": 0.8,
+          "source_date": null
+        }
+      },
+      "depends_on": [],
+      "when": {},
+      "place": null,
+      "age_min": null,
+      "age_max": null
+    },
+    {
+      "id": "has_friend",
+      "distribution": {
+        "values": {
+          "yes": 0.99,
+          "no": 0.01
+        },
+        "provenance": {
+          "source": "FAKE smoke population",
+          "version": "FAKE-smoke-v1",
+          "status": "literature_estimate",
+          "uncertainty": 0.8,
+          "source_date": null
+        }
+      },
+      "depends_on": [],
+      "when": {},
+      "place": null,
+      "age_min": null,
+      "age_max": null
+    }
+  ],
+  "behaviour_bundles": [
+    {
+      "id": "human",
+      "layer": 0,
+      "inherits": [],
+      "values": {
+        "trust": 0.5,
+        "fatigue": 0.1
+      },
+      "issue_values": {},
+      "blends": {},
+      "provenance": {
+        "source": "FAKE smoke population",
+        "version": "FAKE-smoke-v1",
+        "status": "literature_estimate",
+        "uncertainty": 0.8,
+        "source_date": null
+      }
+    }
+  ],
+  "networks": [
+    {
+      "id": "social",
+      "max_depth": 5,
+      "friend_weight": 0.6,
+      "stranger_weight": 0.15,
+      "enemy_weight": -0.4
+    }
+  ],
+  "media_rules": [
+    {
+      "id": "default-feed",
+      "interest_weight": 0.35,
+      "social_weight": 0.3,
+      "recency_weight": 0.2,
+      "trust_weight": 0.15
+    }
+  ],
+  "leader_actions": [
+    {
+      "id": "public-address",
+      "parameter_effects": {
+        "spread_rate": -0.02
+      },
+      "evidence": {
+        "source": "FAKE smoke coefficients",
+        "version": "FAKE-smoke-v1",
+        "status": "literature_estimate",
+        "uncertainty": 0.8,
+        "source_date": null
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "awareness-rise",
+      "metric": "aware",
+      "threshold": 20.0,
+      "direction": "above"
+    }
+  ],
+  "couplings": [
+    {
+      "id": "media-to-signal",
+      "source_system": "media",
+      "target_system": "signal-system",
+      "source_metric": "reach",
+      "target_parameter": "spread_rate",
+      "scale": 0.01
+    }
+  ],
+  "tick": {
+    "tick_hours": 1.0,
+    "total_ticks": 168,
+    "snapshot_every_hours": 24,
+    "story_every_days": 7,
+    "update_order": "double_buffered"
+  },
+  "outputs": {
+    "snapshots": true,
+    "metrics": true,
+    "stories": true,
+    "agent_logs": "tiered",
+    "backtest_comparisons": false,
+    "ensemble_updates": true
+  },
+  "population": {
+    "id": "FAKE-smoke-town",
+    "version": "FAKE-population-v1",
+    "size": 1200,
+    "places": [
+      "Northport",
+      "Southport"
+    ],
+    "place_populations": {
+      "Northport": 600,
+      "Southport": 600
+    },
+    "initial_state_overrides": {
+      "Northport": {
+        "signal": {
+          "unaware": 594,
+          "aware": 6,
+          "resolved": 0
+        }
+      },
+      "Southport": {
+        "signal": {
+          "unaware": 600,
+          "aware": 0,
+          "resolved": 0
+        }
+      }
+    },
+    "place_coordinates": {
+      "Northport": [
+        45.52,
+        -122.68
+      ],
+      "Southport": [
+        34.05,
+        -118.24
+      ]
+    }
+  },
+  "benchmarks": [],
+  "attributes": [
+    {
+      "id": "ideology",
+      "kind": "categorical",
+      "values": [],
+      "distribution": null,
+      "provenance": {
+        "source": "No smoke joint data",
+        "version": "FAKE-smoke-v1",
+        "status": "label_only",
+        "uncertainty": 1,
+        "source_date": null
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "smoke-spread",
+      "systems": [
+        "signal-system"
+      ],
+      "actions": [
+        "talk",
+        "scroll",
+        "repost"
+      ],
+      "events": [
+        "awareness-rise"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "friend-awareness",
+      "conditions": [
+        {
+          "attribute": "signal",
+          "operator": "eq",
+          "value": "aware"
+        }
+      ],
+      "traversal": {
+        "primitive": "neighbors",
+        "network": "social",
+        "depth": 5
+      },
+      "action": "talk",
+      "effects": {
+        "spread_rate": 0.01
+      },
+      "max_applications": 1
+    }
+  ]
+}

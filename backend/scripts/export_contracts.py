@@ -9,6 +9,7 @@ from petraterrium.atlas.contracts import (
     AtlasOverview,
     AtlasScopes,
     CityDetail,
+    FieldCoverage,
     ImportCommit,
     ImportHistory,
     ImportMetadata,
@@ -21,16 +22,26 @@ from petraterrium.atlas.contracts import (
     ValidationReport,
 )
 from petraterrium.contracts import (
+    AgentDetail,
+    AgentPointList,
     Catalog,
     DailySnapshot,
+    DSLRender,
+    EnsembleUpdate,
+    PlaceDetail,
     RunComplete,
     RunCreated,
     RunDetail,
     RunFailed,
     RunList,
+    StoryDetail,
+    StoryList,
 )
+from petraterrium.dsl import DSLConfig, DSLValidationResult
 
 TARGET = Path(__file__).resolve().parents[2] / "frontend" / "src"
+DSL_TARGET = Path(__file__).resolve().parents[2] / "shared" / "dsl-schema"
+SHARED_TYPES_TARGET = Path(__file__).resolve().parents[2] / "shared" / "types"
 
 
 def typescript_type(schema: dict[str, Any]) -> str:
@@ -44,6 +55,8 @@ def typescript_type(schema: dict[str, Any]) -> str:
         return " | ".join(typescript_type(item) for item in schema["anyOf"])
     kind = schema.get("type")
     if kind == "array":
+        if "prefixItems" in schema:
+            return "[" + ", ".join(typescript_type(item) for item in schema["prefixItems"]) + "]"
         return f"Array<{typescript_type(schema['items'])}>"
     if kind == "object":
         required = schema.get("required", [])
@@ -68,15 +81,25 @@ def typescript_type(schema: dict[str, Any]) -> str:
 def artifacts() -> dict[Path, str]:
     adapter = TypeAdapter(
         Catalog
+        | AgentDetail
+        | AgentPointList
         | DailySnapshot
+        | DSLRender
+        | EnsembleUpdate
+        | PlaceDetail
         | RunComplete
         | RunFailed
         | RunDetail
         | RunCreated
         | RunList
+        | StoryDetail
+        | StoryList
+        | DSLConfig
+        | DSLValidationResult
         | AtlasOverview
         | AtlasScopes
         | CityDetail
+        | FieldCoverage
         | ImportCommit
         | ImportHistory
         | ImportMetadata
@@ -98,6 +121,11 @@ def artifacts() -> dict[Path, str]:
     return {
         TARGET / "contracts.schema.json": json.dumps(schema, indent=2) + "\n",
         TARGET / "contracts.generated.ts": types + "\n",
+        SHARED_TYPES_TARGET / "contracts.generated.ts": types + "\n",
+        DSL_TARGET / "petraterrium-dsl.schema.json": json.dumps(
+            DSLConfig.model_json_schema(mode="serialization"), indent=2
+        )
+        + "\n",
     }
 
 
@@ -112,6 +140,7 @@ def main() -> None:
                     f"Outdated contracts: {path}. Run python scripts/export_contracts.py"
                 )
         else:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
 
 
