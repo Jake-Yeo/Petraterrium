@@ -108,7 +108,14 @@ SOURCES = [
         url="https://www.worldvaluessurvey.org/WVSContents.jsp",
         access="registration",
         license="Release-specific attribution and access terms",
-        fields=["ideology", "income", "education", "behaviour"],
+        fields=[
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
+            "income",
+            "education",
+            "behaviour",
+        ],
         adapter="Survey schema mapper",
         instructions=(
             "Load an authorized wave export with descriptive headers/codebook labels"
@@ -123,7 +130,14 @@ SOURCES = [
         url="https://www.europeansocialsurvey.org/data-portal",
         access="registration",
         license="CC BY-NC-SA 4.0; confirm release terms",
-        fields=["ideology", "income", "education", "behaviour"],
+        fields=[
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
+            "income",
+            "education",
+            "behaviour",
+        ],
         adapter="Survey schema mapper",
         instructions=(
             "Load a licensed wave export and survey weights. Confirm field meanings"
@@ -138,7 +152,7 @@ SOURCES = [
         url="https://www.pewresearch.org/tools-and-datasets/",
         access="registration",
         license="Account and dataset agreement; no implied redistribution right",
-        fields=["ideology", "behaviour"],
+        fields=["ideology_economic", "ideology_state", "ideology_cultural", "behaviour"],
         adapter="Survey schema mapper",
         instructions=(
             "Download through your Pew account, export CSV/Parquet/JSON with"
@@ -153,7 +167,7 @@ SOURCES = [
         url="https://www.gallup.com/analytics/318923/world-poll-public-datasets.aspx",
         access="licensed",
         license="Subscription or partner public-release terms; no blanket redistribution",
-        fields=["ideology", "behaviour"],
+        fields=["ideology_economic", "ideology_state", "ideology_cultural", "behaviour"],
         adapter="Licensed survey schema mapper",
         instructions=(
             "Use your authorized subscriber export or a named public partner"
@@ -168,7 +182,14 @@ SOURCES = [
         url="https://electionstudies.org/data-center/",
         access="public",
         license="Public-use research/statistical terms with attribution; restricted files excluded",
-        fields=["ideology", "education", "income", "behaviour"],
+        fields=[
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
+            "education",
+            "income",
+            "behaviour",
+        ],
         adapter="Survey schema mapper",
         instructions=(
             "Use a public-use study export, the release codebook and weights."

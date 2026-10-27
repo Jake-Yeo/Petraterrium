@@ -50,13 +50,13 @@ test('static graph and evidence layers open without a completed run', async ({ p
   await page.getByRole('tab', { name: 'DSL', exact: true }).click();
   await expect(page.locator('#dsl-features')).toContainText('openness');
   await expect(page.locator('#dsl-features')).toContainText('mbti');
+  await expect(page.locator('#dsl-features')).not.toContainText('blood_type');
   await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
-  await expect(page.locator('#atlas-universal-features')).toContainText(
-    'Portable schemas, place-specific distributions',
-  );
-  await expect(page.locator('#atlas-universal-features')).toContainText('REGION OVERRIDE');
-  await expect(page.locator('#atlas-hierarchy')).toContainText('Northern America');
+  await expect(page.locator('#atlas-feature-catalog')).toContainText('Features and evidence');
+  await expect(page.locator('#atlas-feature-catalog')).toContainText('Age band');
+  await expect(page.locator('#atlas-hierarchy-browser')).toContainText('What needs importing');
+  await expect(page.locator('#atlas-hierarchy-browser')).toContainText('Europe');
   await expect(page.locator('#atlas-choice-evidence')).toContainText('hint only');
   await expect(page.locator('#atlas-choice-evidence')).toContainText('No coefficient');
   expect(errors).toEqual([]);

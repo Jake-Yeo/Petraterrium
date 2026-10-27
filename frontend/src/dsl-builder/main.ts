@@ -1,6 +1,6 @@
 import { api } from '../api';
 import type { DSLConfig, DSLValidationResult } from '../contracts.generated';
-import { loadFeatureDrafts, traitColumn } from '../atlas/features';
+import { featureCatalogApi, type CatalogFeature } from '../atlas/feature-catalog';
 import { escapeHtml } from '../views';
 
 export class DSLBuilder {
@@ -8,6 +8,7 @@ export class DSLBuilder {
   private validation?: DSLValidationResult;
   private loaded = false;
   private timer?: ReturnType<typeof setTimeout>;
+  private catalogFeatures: CatalogFeature[] = [];
 
   constructor(
     private host: HTMLElement,
@@ -22,13 +23,16 @@ export class DSLBuilder {
       this.host.innerHTML = this.shell();
       this.loaded = true;
       try {
-        this.dsl = await api.smokeDSL();
+        const [dsl, catalog] = await Promise.all([api.smokeDSL(), featureCatalogApi.list()]);
+        this.dsl = dsl;
+        this.catalogFeatures = catalog.features;
         this.textarea().value = JSON.stringify(this.dsl, null, 2);
         await this.validate();
       } catch (error) {
         this.showError(error);
       }
     } else {
+      this.catalogFeatures = (await featureCatalogApi.list()).features;
       this.renderFeatures();
     }
   }
@@ -134,7 +138,10 @@ export class DSLBuilder {
     const states = this.dsl?.default_states ?? [];
     const attributes = this.dsl?.attributes ?? [];
     const registry = this.dsl?.feature_registry;
-    const drafts = loadFeatureDrafts();
+    const registryIds = new Set((registry?.definitions ?? []).map((feature) => feature.id));
+    const catalogFeatures = this.catalogFeatures.filter(
+      (feature) => feature.custom && !registryIds.has(feature.id),
+    );
     target.innerHTML = [
       ...(registry?.definitions ?? []).map((feature) => {
         const distributions = (registry?.distributions ?? []).filter(
@@ -153,9 +160,9 @@ export class DSLBuilder {
         (attribute) =>
           `<article class="${attribute.distribution ? '' : 'label-only'}"><strong>${escapeHtml(attribute.id)}</strong><span>${attribute.distribution ? 'Distribution attached' : 'LABEL-ONLY'}</span><small>${escapeHtml(attribute.provenance.status)} · ${escapeHtml(attribute.provenance.source)}</small></article>`,
       ),
-      ...drafts.map(
-        (draft) =>
-          `<article class="label-only"><strong>${escapeHtml(draft.label)}</strong><span>LABEL-ONLY</span><small>${escapeHtml(traitColumn(draft))} · data plan exists; no validated distribution is attached to this DSL.</small></article>`,
+      ...catalogFeatures.map(
+        (feature) =>
+          `<article class="${feature.predictor_blocked ? 'label-only' : ''}"><strong>${escapeHtml(feature.name)}</strong><span>${feature.predictor_blocked ? 'LABEL-ONLY' : 'Evidence attached'}</span><small>trait.${escapeHtml(feature.id)} · ${feature.distributions.length} place distributions · ${feature.usages.length} uses</small></article>`,
       ),
     ].join('');
   }

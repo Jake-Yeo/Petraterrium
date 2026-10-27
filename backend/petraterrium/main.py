@@ -21,6 +21,9 @@ from fastapi.responses import StreamingResponse
 
 from .atlas.contracts import ImportMetadata, ImportPreview
 from .atlas.database import FIELDS, AtlasStore
+from .atlas.feature_catalog import create_feature_catalog_router
+from .atlas.feature_queries import create_feature_query_router
+from .atlas.features import canonical_feature_registry
 from .atlas.formats import MAX_BYTES
 from .atlas.imports import stage_import
 from .atlas.organizer import overview
@@ -67,10 +70,14 @@ def create_app(store: RunStore | None = None, atlas_path=None) -> FastAPI:
     atlas_store = AtlasStore(atlas_path)
     application.state.atlas = atlas_store
     application.include_router(create_atlas_router(atlas_store, run_store))
+    application.include_router(
+        create_feature_catalog_router(atlas_store, canonical_feature_registry)
+    )
+    application.include_router(create_feature_query_router(atlas_store))
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-        allow_methods=["GET", "POST", "DELETE"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
 

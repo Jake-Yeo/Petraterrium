@@ -22,7 +22,7 @@ The assigned metro policy is the top three places per country with at least one 
 
 ## Coverage semantics
 
-The canonical marginal fields are `age_sex`, `income`, `education`, `ideology`, and `household_size`.
+The canonical marginal fields are `age_sex`, `income`, `education`, `ideology_economic`, `ideology_state`, `ideology_cultural`, and `household_size`. Old `ideology` observations remain visible as legacy-only data and never enter active coverage, automatic axis splitting, DSL conditions, or coefficient fitting.
 
 | Status | Meaning |
 | --- | --- |
@@ -35,7 +35,24 @@ Resolution prefers city observations over regional archetypes over country arche
 
 The summary reports full/partial/none twice: for direct data, and for direct plus inherited data. Imputations never increase either total. Coverage for each field is reported unweighted and weighted by city population. The main city coverage percentage is direct; the adjacent percentage includes inheritance. `resolved_coverage_percent` additionally includes imputations and is kept separate.
 
-The gather list shows the 20 largest gaps in city-specific observations, including inherited/imputed fields that still need local observations. The city table remains complete and paged; country, tier, status, search, and missing-field filters operate on the server. Each overview returns city rows, all-city totals, and ranked gaps from one SQLite read transaction and one revision. A committed import changes the underlying records, so the next overview updates all three together.
+The Data tab opens on regions, drills into countries and paged cities, and preserves breadcrumbs and Back navigation. Its import queue ranks unresolved region, country, and city field-place cells by population-weighted impact, with broader levels first when impact ties. Each row keeps measured and effective coverage separate and exposes present, inherited, imputed, and missing counts plus the first three missing fields. Search applies only to the level currently open.
+
+The feature catalog accepts pending feature schemas before data exists. Descriptions remain editable, every row opens by mouse or keyboard, and detail views show distributions, provenance, uncertainty, and predictor eligibility. Place queries resolve city, country, region, then an explicitly approved global fallback. Joined filters use measured joint data when present. Marginal-only products are labelled `independence estimate — not measured`, use a wide uncertainty interval, cannot fit coefficients, and persist the exact missing joint-data requirement.
+
+The legacy city table remains available as a collapsed audit view with server-side country, tier, status, search, and missing-field filters. Each overview returns city rows, all-city totals, and ranked gaps from one SQLite read transaction and one revision. A committed import changes the underlying records, so the next overview updates all three together.
+
+## Registry feature dump
+
+Build and install the current public registry sources with pinned official source hashes:
+
+```sh
+cd backend
+uv run python scripts/build_registry_dump.py --install-shared
+```
+
+The 2026-10-26 build installs UN World Population Prospects 2024 Revision estimates for 2023: 237 countries or areas, eight canonical regions, 9,954 country age/sex rows, 336 region age/sex rows, 245 population weights, and 12,706 named demographic indicator values. The represented population is 8,091,734,931. The installer creates 237 country `age_sex` marginals and 490 queryable `age_band` and `sex` feature distributions. It records source, observation date, publication date, version, licence, mappings, and the no-projection rule.
+
+The same registry inventory records the existing WDI, UN household, GeoNames, GHS-UCDB, and BLUE imports. IPUMS International, WVS, ESS, and Pew remain unavailable because an authorized versioned extract is not present. WorldPop remains available remotely pending a city-boundary and zonal-aggregation choice. These sources stay in the visible source inventory and import queue with their exact required action; no replacement values are invented.
 
 ## Extended city-feature dump
 
@@ -89,7 +106,7 @@ The dump is written to `backend/data/city_feature_dump/`:
 
 Resolve WDI and UN household values with `cities.country_code = *_country_latest.country_code`; those values remain inherited. Resolve UCDB values with `cities.geonameid = ucdb_city_matches.geonameid`, then join `ucdb_city_matches.ucdb_id = ucdb/*.ID_UC_G0`; those values remain spatially imputed because an urban-centre polygon is not the same thing as a city-specific survey. Resolve electoral data with `cities.geonameid = blue_city_matches.geonameid`, then `blue_city_matches.gisco_id = blue_electoral_results.gisco_id`.
 
-The current canonical build contains 216 age/sex, 162 income, 148 education, and 189 household-size country observations. This yields inherited city coverage of 99.83%, 97.88%, 90.63%, and 98.53%, respectively. Direct coverage remains zero because none of these country or urban-centre sources is a city-specific observed marginal.
+The current shared atlas contains 237 WPP age/sex, 162 income, 148 education, and 189 household-size country observations. This yields inherited city coverage of 99.986%, 97.885%, 90.632%, and 98.535%, respectively. Each of the three ideology axes has zero coverage until compatible survey items are imported. Direct coverage remains zero because none of these country sources is a city-specific observed marginal.
 
 BLUE_DB maps 78,969 GeoNames cities into 2024 local administrative units; 68,667 have a result in the archive. Party-family alignment is available for those cities as an imputed percentage of valid ballots. Direct and inherited ideology coverage remain zero, and 157,264 cities have no electoral alignment. The archive classifies 99.24% of its 2,861,474,118 valid votes; unclassified parties remain an explicit `unknown` category. The loader flags 106 rows with negative upstream registered/invalid counts and preserves those source values instead of silently repairing them.
 

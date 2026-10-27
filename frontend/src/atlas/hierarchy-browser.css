@@ -1,0 +1,487 @@
+.hierarchy-browser {
+  display: grid;
+  gap: 18px;
+}
+
+.hierarchy-queue-panel,
+.hierarchy-table-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1219;
+}
+
+.hierarchy-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 18px;
+}
+
+.hierarchy-section-heading h2,
+.hierarchy-section-heading p {
+  margin: 0;
+}
+
+.hierarchy-section-heading h2 {
+  margin-bottom: 5px;
+  font-size: 22px;
+}
+
+.hierarchy-section-heading > div > p:last-child {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hierarchy-import-flow {
+  padding: 0 24px 20px;
+}
+
+.hierarchy-import-flow ol {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hierarchy-import-flow li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #1b2b35;
+  border-radius: 5px;
+  color: #70838e;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hierarchy-import-flow li i {
+  display: grid;
+  flex: 0 0 19px;
+  height: 19px;
+  place-items: center;
+  border-radius: 50%;
+  background: #121e26;
+  color: #8ea3ad;
+  font-style: normal;
+  font-size: 9px;
+}
+
+.hierarchy-import-flow li.active {
+  border-color: #357188;
+  background: #0e2029;
+  color: #d3e8ef;
+}
+
+.hierarchy-import-flow li.active i,
+.hierarchy-import-flow li.done i {
+  background: var(--accent);
+  color: #071017;
+}
+
+.hierarchy-import-flow li.done {
+  color: #8fb5a6;
+}
+
+.hierarchy-import-flow p {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid #77552b;
+  border-radius: 4px;
+  background: #21190f;
+  color: #dfc08d;
+  font-size: 12px;
+}
+
+.hierarchy-validation-rule {
+  display: block;
+  margin-top: 9px;
+  color: #718791;
+  font-size: 10px;
+}
+
+.hierarchy-queue {
+  border-top: 1px solid var(--line);
+}
+
+.hierarchy-queue-row {
+  display: grid;
+  grid-template-columns: 38px minmax(180px, 1.25fr) minmax(210px, 1.5fr) minmax(145px, 0.7fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid #15222b;
+}
+
+.hierarchy-queue-row:last-child {
+  border-bottom: 0;
+}
+
+.hierarchy-queue-rank {
+  color: #526872;
+  font: 11px var(--mono);
+}
+
+.hierarchy-queue-place,
+.hierarchy-queue-gaps,
+.hierarchy-impact {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hierarchy-queue-place > span,
+.hierarchy-queue-gaps > span,
+.hierarchy-impact > span {
+  color: #6f8590;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.hierarchy-queue-place strong {
+  overflow: hidden;
+  color: #dce9ed;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hierarchy-queue-place small,
+.hierarchy-impact small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.hierarchy-impact strong {
+  color: #e5b976;
+  font: 17px var(--mono);
+}
+
+.hierarchy-queue-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hierarchy-queue-empty,
+.hierarchy-empty {
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.hierarchy-queue-empty {
+  display: grid;
+  gap: 4px;
+}
+
+.hierarchy-browser-heading {
+  align-items: end;
+}
+
+.hierarchy-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  margin-top: 8px;
+}
+
+.hierarchy-breadcrumbs button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #74bdd2;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.hierarchy-breadcrumbs button:hover {
+  color: #a7e5f5;
+}
+
+.hierarchy-breadcrumbs span,
+.hierarchy-breadcrumbs i {
+  color: #8397a1;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.hierarchy-search {
+  display: grid;
+  gap: 6px;
+  min-width: 250px;
+  color: #8498a2;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.hierarchy-search input {
+  width: 100%;
+}
+
+.hierarchy-toolbar,
+.hierarchy-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.hierarchy-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hierarchy-legend i {
+  width: 7px;
+  height: 7px;
+  margin-left: 7px;
+  border-radius: 2px;
+}
+
+.hierarchy-legend .present,
+.hierarchy-count.present {
+  background: #14352f;
+  color: #8ed4bc;
+}
+
+.hierarchy-legend .inherited,
+.hierarchy-count.inherited {
+  background: #142e3b;
+  color: #88c8e2;
+}
+
+.hierarchy-legend .imputed,
+.hierarchy-count.imputed {
+  background: #352c18;
+  color: #dfbd79;
+}
+
+.hierarchy-legend .missing,
+.hierarchy-count.missing {
+  background: #341c20;
+  color: #df919b;
+}
+
+.hierarchy-table-scroll {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+
+.hierarchy-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+}
+
+.hierarchy-table th,
+.hierarchy-table td {
+  padding: 13px 12px;
+  border-bottom: 1px solid #14212a;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.hierarchy-table thead th {
+  color: #718791;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hierarchy-table tbody th {
+  padding-left: 24px;
+}
+
+.hierarchy-table tbody td {
+  color: #bdcbd1;
+  font: 11px var(--mono);
+}
+
+.hierarchy-table tbody td > span,
+.hierarchy-table tbody td > strong {
+  display: block;
+}
+
+.hierarchy-table tbody td > span {
+  margin-top: 3px;
+  color: #6f828c;
+  font: 9px var(--sans);
+}
+
+.hierarchy-place {
+  display: grid;
+  gap: 4px;
+  max-width: 230px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #dce9ed;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hierarchy-place:hover strong,
+.hierarchy-place:focus-visible strong {
+  color: #7ad2e8;
+}
+
+.hierarchy-place span {
+  color: #728690;
+  font: 9px var(--mono);
+  text-transform: uppercase;
+}
+
+.hierarchy-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(70px, 1fr));
+  gap: 3px;
+}
+
+.hierarchy-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font: 8px var(--sans);
+  text-transform: uppercase;
+}
+
+.hierarchy-count strong {
+  font: 10px var(--mono);
+}
+
+.hierarchy-status {
+  display: inline-flex;
+  width: max-content;
+  padding: 4px 7px;
+  border: 1px solid #35434a;
+  border-radius: 999px;
+  color: #9aacb5;
+  font: 9px var(--sans);
+  text-transform: uppercase;
+}
+
+.hierarchy-status.no_data {
+  border-color: #5b3036;
+  color: #df919b;
+}
+
+.hierarchy-status.partial {
+  border-color: #66522c;
+  color: #dfbd79;
+}
+
+.hierarchy-status.imputed_only {
+  border-color: #4c4931;
+  color: #c8bf84;
+}
+
+.hierarchy-status.complete {
+  border-color: #2d5449;
+  color: #8ed4bc;
+}
+
+.hierarchy-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hierarchy-gaps span,
+.hierarchy-gaps strong {
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: #21191c;
+  color: #d49ba2;
+  font: 9px var(--sans);
+}
+
+.hierarchy-gaps strong {
+  background: #18242b;
+  color: #8fa2ab;
+}
+
+.hierarchy-gaps .hierarchy-no-gaps {
+  background: #142b25;
+  color: #8ec7b3;
+}
+
+.hierarchy-import-button {
+  padding: 6px 9px;
+}
+
+.hierarchy-pagination {
+  border-top: 0;
+}
+
+.hierarchy-pagination > div {
+  display: flex;
+  gap: 7px;
+}
+
+@media (max-width: 800px) {
+  .hierarchy-section-heading,
+  .hierarchy-browser-heading {
+    display: grid;
+    padding: 18px;
+  }
+
+  .hierarchy-search {
+    min-width: 0;
+  }
+
+  .hierarchy-import-flow {
+    overflow-x: auto;
+    padding: 0 18px 18px;
+  }
+
+  .hierarchy-import-flow ol {
+    min-width: 650px;
+  }
+
+  .hierarchy-queue-row {
+    grid-template-columns: 28px 1fr auto;
+    gap: 10px;
+    padding: 14px 18px;
+  }
+
+  .hierarchy-queue-gaps,
+  .hierarchy-impact {
+    grid-column: 2 / -1;
+  }
+
+  .hierarchy-queue-actions {
+    grid-column: 2 / -1;
+  }
+
+  .hierarchy-toolbar {
+    align-items: flex-start;
+    padding: 10px 18px;
+  }
+
+  .hierarchy-legend {
+    display: none;
+  }
+
+  .hierarchy-pagination {
+    padding: 12px 18px;
+  }
+}

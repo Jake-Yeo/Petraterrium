@@ -39,12 +39,15 @@ def messages(payload):
     return " ".join(issue.message for issue in validate_dsl(payload).errors).lower()
 
 
-def test_canonical_registry_contains_portable_features_and_ancestry_guards():
+def test_canonical_registry_contains_relevant_population_and_behaviour_features():
     registry = canonical_feature_registry()
     definitions = {feature.id: feature for feature in registry.definitions}
     assert {
         "age",
+        "age_band",
         "sex",
+        "income",
+        "household_size",
         "education_isced",
         "occupation_isco",
         "openness",
@@ -58,11 +61,18 @@ def test_canonical_registry_contains_portable_features_and_ancestry_guards():
         "generalized_trust",
         "religiosity",
         "mbti",
+        "ideology_economic",
+        "ideology_state",
+        "ideology_cultural",
     } <= definitions.keys()
+    assert {
+        "eye_colour",
+        "blood_type",
+        "lactose_intolerance",
+        "sickle_cell_trait",
+    }.isdisjoint(definitions)
     assert definitions["mbti"].predictive is False
     assert definitions["mbti"].provenance.status == "label_only"
-    assert definitions["eye_colour"].ancestry_linked is True
-    assert definitions["blood_type"].ancestry_linked is True
 
 
 def test_registry_rejects_missing_canonical_schema_and_invalid_distribution():

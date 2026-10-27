@@ -6,7 +6,7 @@ from datetime import date
 import pycountry
 
 from .contracts import ImportMetadata, MappingConfirmation, ValidationIssue, ValidationReport
-from .database import FIELDS
+from .database import IMPORT_FIELDS
 
 IDENTIFIERS = {
     "geonameid",
@@ -65,7 +65,14 @@ def validate_value(field: str, value, unit: str):
                 "A mean income requires explicit currency/time units, such as USD/year"
             )
         return number, unit
-    if field in ("age_sex", "education", "ideology"):
+    if field in (
+        "age_sex",
+        "education",
+        "ideology",
+        "ideology_economic",
+        "ideology_state",
+        "ideology_cultural",
+    ):
         raise ValueError(
             "Expected a percentage distribution, not a single coefficient or category code"
         )
@@ -119,7 +126,7 @@ def validate_rows(
 ):
     issues = []
     prepared = []
-    missingness = {field: 0 for field in FIELDS}
+    missingness = {field: 0 for field in IMPORT_FIELDS}
     mappings = confirmation.mappings
     headers = set().union(*(row.keys() for row in rows))
     columns = [m.column for m in mappings]
@@ -135,7 +142,7 @@ def validate_rows(
         }
     elif metadata.kind == "population":
         missingness = {"density_per_km2": 0}
-    for field in FIELDS:
+    for field in IMPORT_FIELDS:
         if field in targets and any(target.startswith(field + ".") for target in targets):
             issues.append(
                 ValidationIssue(
@@ -168,7 +175,7 @@ def validate_rows(
         )
     for target in targets:
         root = target.split(".", 1)[0]
-        if root not in {*FIELDS, *IDENTIFIERS, "trait", "density_per_km2"} or (
+        if root not in {*IMPORT_FIELDS, *IDENTIFIERS, "trait", "density_per_km2"} or (
             root == "trait" and "." not in target
         ):
             issues.append(
@@ -195,7 +202,7 @@ def validate_rows(
             if not mapping.target or value in (None, ""):
                 continue
             target = mapping.target
-            if "." in target and target.split(".", 1)[0] in FIELDS:
+            if "." in target and target.split(".", 1)[0] in IMPORT_FIELDS:
                 root, label = target.split(".", 1)
                 values.setdefault(root, {})[label] = value
             else:
@@ -255,7 +262,7 @@ def validate_rows(
             except (ValueError, TypeError) as exc:
                 issues.append(ValidationIssue(row=index, field="density_per_km2", message=str(exc)))
             continue
-        for field in FIELDS:
+        for field in IMPORT_FIELDS:
             value = values.get(field)
             if value in (None, ""):
                 missingness[field] += 1

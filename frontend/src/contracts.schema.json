@@ -1749,7 +1749,9 @@
               "age_sex",
               "income",
               "education",
-              "ideology",
+              "ideology_economic",
+              "ideology_state",
+              "ideology_cultural",
               "household_size"
             ],
             "type": "string"
@@ -1763,7 +1765,9 @@
               "age_sex",
               "income",
               "education",
-              "ideology",
+              "ideology_economic",
+              "ideology_state",
+              "ideology_cultural",
               "household_size"
             ],
             "type": "string"
@@ -1776,6 +1780,14 @@
             "$ref": "#/$defs/Provenance"
           },
           "title": "History",
+          "type": "array"
+        },
+        "legacy_fields": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LegacyMarginalField"
+          },
+          "title": "Legacy Fields",
           "type": "array"
         },
         "revision": {
@@ -1792,6 +1804,7 @@
         "missing_fields",
         "direct_observation_gaps",
         "history",
+        "legacy_fields",
         "revision",
         "simulation_note"
       ],
@@ -2279,7 +2292,9 @@
             "age_sex",
             "income",
             "education",
-            "ideology",
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
             "household_size"
           ],
           "title": "Field",
@@ -3105,6 +3120,24 @@
           "title": "Id",
           "type": "string"
         },
+        "name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
         "kind": {
           "enum": [
             "categorical",
@@ -3444,7 +3477,9 @@
             "age_sex",
             "income",
             "education",
-            "ideology",
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
             "household_size"
           ],
           "title": "Field",
@@ -4078,6 +4113,60 @@
       "title": "LeaderActionDefinition",
       "type": "object"
     },
+    "LegacyMarginalField": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "const": "ideology",
+          "default": "ideology",
+          "title": "Field",
+          "type": "string"
+        },
+        "status": {
+          "const": "legacy_only",
+          "default": "legacy_only",
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "predictive": {
+          "const": false,
+          "default": false,
+          "title": "Predictive",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "field",
+        "status",
+        "value",
+        "unit",
+        "provenance",
+        "predictive"
+      ],
+      "title": "LegacyMarginalField",
+      "type": "object"
+    },
     "MappingAudit": {
       "additionalProperties": false,
       "properties": {
@@ -4162,7 +4251,9 @@
             "age_sex",
             "income",
             "education",
-            "ideology",
+            "ideology_economic",
+            "ideology_state",
+            "ideology_cultural",
             "household_size"
           ],
           "title": "Field",
@@ -4980,6 +5071,106 @@
       "title": "Provenance",
       "type": "object"
     },
+    "RegistrySource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "scope_order": {
+          "title": "Scope Order",
+          "type": "integer"
+        },
+        "level": {
+          "enum": [
+            "region",
+            "country",
+            "city"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "access_status": {
+          "enum": [
+            "imported",
+            "unavailable",
+            "available_remote"
+          ],
+          "title": "Access Status",
+          "type": "string"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "source_date": {
+          "title": "Source Date",
+          "type": "string"
+        },
+        "license": {
+          "title": "License",
+          "type": "string"
+        },
+        "mapping": {
+          "additionalProperties": true,
+          "title": "Mapping",
+          "type": "object"
+        },
+        "coverage": {
+          "additionalProperties": true,
+          "title": "Coverage",
+          "type": "object"
+        },
+        "restriction_reason": {
+          "title": "Restriction Reason",
+          "type": "string"
+        },
+        "fallback": {
+          "title": "Fallback",
+          "type": "string"
+        },
+        "required_action": {
+          "title": "Required Action",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Files",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_id",
+        "source",
+        "scope_order",
+        "level",
+        "access_status",
+        "source_url",
+        "version",
+        "source_date",
+        "license",
+        "mapping",
+        "coverage",
+        "restriction_reason",
+        "fallback",
+        "required_action",
+        "files"
+      ],
+      "title": "RegistrySource",
+      "type": "object"
+    },
     "RoleDefinition": {
       "additionalProperties": false,
       "properties": {
@@ -5733,11 +5924,19 @@
         "llm_available": {
           "title": "Llm Available",
           "type": "boolean"
+        },
+        "registry_sources": {
+          "items": {
+            "$ref": "#/$defs/RegistrySource"
+          },
+          "title": "Registry Sources",
+          "type": "array"
         }
       },
       "required": [
         "sources",
-        "llm_available"
+        "llm_available",
+        "registry_sources"
       ],
       "title": "SourceCatalog",
       "type": "object"

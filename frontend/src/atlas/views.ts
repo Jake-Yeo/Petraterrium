@@ -7,13 +7,14 @@ import type {
   SourceCatalog,
 } from '../contracts.generated';
 import { escapeHtml as e } from '../views';
-import { plannerSection } from './features';
 
 export const labels: Record<string, string> = {
   age_sex: 'Age & sex',
   income: 'Income',
   education: 'Education',
-  ideology: 'Ideology / alignment',
+  ideology_economic: 'Economic ideology',
+  ideology_state: 'State ideology',
+  ideology_cultural: 'Cultural ideology',
   household_size: 'Household size',
 };
 const n = (number: number): string => number.toLocaleString('en');
@@ -51,35 +52,15 @@ export function dataShell(): string {
       <button class="text-button" data-atlas-action="refresh">Refresh ↻</button>
     </div>
     <div id="atlas-summary" class="atlas-summary"><p class="muted">Loading the atlas…</p></div>
-    ${plannerSection()}
-    <section class="atlas-section atlas-evidence-section" id="atlas-universal-features"><p class="muted">Loading feature registry…</p></section>
-    <section class="atlas-section atlas-evidence-section" id="atlas-hierarchy"><p class="muted">Loading hierarchy…</p></section>
-    <section class="atlas-section atlas-evidence-section" id="atlas-choice-evidence"><p class="muted">Loading choice evidence…</p></section>
-    <section class="atlas-section" id="atlas-gap-list">
-      <div class="atlas-section-heading">
-        <div>
-          <p class="eyebrow">CITY OBSERVATIONS</p>
-          <h2>Highest-impact city gaps</h2>
-          <p>Individual city-field gaps sorted by city population.</p>
-        </div>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>City</th>
-              <th>Country</th>
-              <th>Field to gather</th>
-              <th>Current status</th>
-              <th>Population weight</th>
-              <th>Source that could fill it</th>
-            </tr>
-          </thead>
-          <tbody id="atlas-gaps"></tbody>
-        </table>
-      </div>
-    </section>
-    <section class="atlas-section" id="atlas-city-browser">
+    <div id="atlas-hierarchy-browser"></div>
+    <section class="atlas-section atlas-evidence-section" id="atlas-feature-catalog"><p class="muted">Loading feature registry…</p></section>
+    <details class="atlas-section atlas-collapsible" id="atlas-choice-panel">
+      <summary><div><span class="eyebrow">BEHAVIOUR EVIDENCE</span><strong>Choice evidence</strong></div><span>Measured, fitted, label-only, and missing behavioural links</span></summary>
+      <section id="atlas-choice-evidence"><p class="muted">Loading choice evidence…</p></section>
+    </details>
+    <details class="atlas-section atlas-collapsible" id="atlas-city-audit">
+      <summary><div><span class="eyebrow">CITY AUDIT</span><strong>Direct city table</strong></div><span>Advanced filters and row-level provenance</span></summary>
+      <section id="atlas-city-browser">
       <div class="atlas-section-heading">
         <div>
           <p class="eyebrow">225K CITY BACKBONE</p>
@@ -150,7 +131,8 @@ export function dataShell(): string {
           ><button class="button secondary" data-atlas-action="next">Next →</button>
         </div>
       </div>
-    </section>
+      </section>
+    </details>
     <details class="atlas-section atlas-collapsible" id="atlas-coverage-panel">
       <summary>
         <div><span class="eyebrow">AUDIT TABLE</span><strong>Coverage calculations</strong></div>
@@ -288,7 +270,7 @@ export function cityRows(cities: AtlasCity[]): string {
       <td class="mono">${city.latitude.toFixed(4)}<br />${city.longitude.toFixed(4)}</td>
       <td>
         <span class="atlas-tier" title="${e(city.tier_reason)}">${city.simulation_tier}</span
-        ><small>Assigned tier · engine pending</small>
+        ><small>${e(city.tier_reason)}</small>
       </td>
       ${city.fields.map((field) => `<td><span class="field-status ${field.status}" title="${e(field.provenance ? `${field.provenance.source} · ${field.provenance.source_date} · ${field.provenance.version}` : field.suggested_source)}">${field.status}</span>${field.provenance ? `<small>${e(field.provenance.source)}<br>${field.provenance.source_date} · ${e(field.provenance.version)}</small>` : ''}</td>`).join('')}
       <td>${city.behaviour.length ? city.behaviour.map((model) => `<span class="field-status ${model.fitted ? 'present' : 'missing'}">${model.fitted ? 'Fitted' : 'Label-only'}</span><small>${e(model.behaviour)} · ${e(model.provenance.source)} · ${model.provenance.source_date}</small>`).join('') : '<span class="field-status missing">No fitted model</span>'}</td>
@@ -331,6 +313,7 @@ export function detailView(detail: CityDetail): string {
     <p class="atlas-detail-note">${detail.missing_fields.length ? detail.missing_fields.map((field) => labels[field]).join(', ') : 'No unresolved fields.'}</p>
     <h3>Still needs a city observation</h3>
     <p class="atlas-detail-note">${detail.direct_observation_gaps.length ? detail.direct_observation_gaps.map((field) => `${labels[field]}: ${c.fields.find((f) => f.field === field)!.suggested_source}`).join('<br>') : 'Every field has city-specific observed data.'}</p>
+    ${detail.legacy_fields.length ? `<h3>Legacy-only observations</h3><div class="atlas-detail-note">${detail.legacy_fields.map((field) => `<strong>Single-axis ideology</strong> · legacy only · never predictive or split into the three active axes<br><span class="mono">${e(JSON.stringify(field.value))}</span><br>${e(field.provenance.source)} · ${e(field.provenance.version)} · ${field.provenance.source_date}`).join('<br><br>')}</div>` : ''}
     <h3>Country behaviour</h3>
     <p class="atlas-detail-note">${c.behaviour.length ? c.behaviour.map((model) => `${e(model.behaviour)}: ${model.fitted ? 'fitted classical logit' : 'label-only; no fitted coefficient'} · ${e(model.provenance.source)} · ${e(model.provenance.version)}${model.heldout_loss !== null ? `<br>Held-out log loss ${model.heldout_loss.toFixed(5)} vs baseline ${model.baseline_loss?.toFixed(5)} · ${model.training_rows} train / ${model.heldout_rows} held out · traits ${model.traits.map(e).join(', ')}` : ''}`).join('<br>') : 'No fitted model for this country. Import a survey with an explicit trait-to-action link.'}</p>
     <h3>Source history</h3>
@@ -392,7 +375,26 @@ export function historyView(history: ImportHistory, scope: string): string {
 }
 
 export function sourceCards(catalog: SourceCatalog): string {
-  return catalog.sources
+  const registry = catalog.registry_sources.length
+    ? `<div class="atlas-source-inventory">
+        <h3>Registry dump status</h3>
+        <div class="atlas-source-grid">${catalog.registry_sources
+          .map(
+            (source) => `<article class="atlas-source">
+              <div><h3><a href="${e(source.source_url)}" target="_blank" rel="noreferrer">${e(source.source)} ↗</a></h3>
+              <span class="field-status ${source.access_status === 'imported' ? 'present' : source.access_status === 'unavailable' ? 'missing' : 'inherited'}">${e(source.access_status.replace('_', ' '))}</span></div>
+              <p>${e(source.level)} · ${e(source.version)}${source.source_date ? ` · ${e(source.source_date)}` : ''}</p>
+              <p>${e(source.license)}</p>
+              <small>Coverage · ${e(JSON.stringify(source.coverage))}</small>
+              ${source.restriction_reason ? `<p>${e(source.restriction_reason)}</p>` : ''}
+              ${source.required_action ? `<strong>Needed: ${e(source.required_action)}</strong>` : ''}
+              ${source.fallback ? `<small>Current fallback · ${e(source.fallback)}</small>` : ''}
+            </article>`,
+          )
+          .join('')}</div>
+      </div>`
+    : '';
+  const loaders = catalog.sources
     .map(
       (source) =>
         `
@@ -417,4 +419,5 @@ export function sourceCards(catalog: SourceCatalog): string {
   `,
     )
     .join('');
+  return `${registry}<div class="atlas-source-inventory"><h3>Import loaders</h3><div class="atlas-source-grid">${loaders}</div></div>`;
 }

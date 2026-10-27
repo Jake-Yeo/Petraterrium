@@ -7,6 +7,31 @@ from ..dsl import (
     FeatureRange,
     FeatureRegistry,
 )
+from .ideology_axes import canonical_ideology_axes
+
+WPP_AGE_BANDS = [
+    "0-4",
+    "5-9",
+    "10-14",
+    "15-19",
+    "20-24",
+    "25-29",
+    "30-34",
+    "35-39",
+    "40-44",
+    "45-49",
+    "50-54",
+    "55-59",
+    "60-64",
+    "65-69",
+    "70-74",
+    "75-79",
+    "80-84",
+    "85-89",
+    "90-94",
+    "95-99",
+    "100+",
+]
 
 
 class FeatureResolution(BaseModel):
@@ -29,18 +54,37 @@ def schema_evidence(source: str, status: str = "present") -> Evidence:
     )
 
 
-def continuous(feature_id: str, source: str, minimum=0, maximum=1, unit="score"):
+def continuous(
+    feature_id: str,
+    source: str,
+    minimum=0,
+    maximum=1,
+    unit="score",
+    name: str | None = None,
+    description: str = "",
+):
     return FeatureDefinition(
         id=feature_id,
+        name=name,
+        description=description,
         kind="continuous",
         value_range=FeatureRange(minimum=minimum, maximum=maximum, unit=unit),
         provenance=schema_evidence(source),
     )
 
 
-def categorical(feature_id: str, values: list[str], source: str, **options):
+def categorical(
+    feature_id: str,
+    values: list[str],
+    source: str,
+    name: str | None = None,
+    description: str = "",
+    **options,
+):
     return FeatureDefinition(
         id=feature_id,
+        name=name,
+        description=description,
         kind="categorical",
         canonical_values=values,
         provenance=schema_evidence(source),
@@ -52,15 +96,49 @@ def canonical_feature_registry() -> FeatureRegistry:
     definitions = [
         continuous("age", "ISO 8601 age in completed years", 0, 120, "years"),
         categorical(
+            "age_band",
+            WPP_AGE_BANDS,
+            "UN World Population Prospects five-year age groups",
+            name="Age band",
+            description="Five-year age band, with an open-ended 100 years and older group.",
+        ),
+        categorical(
             "sex",
             ["female", "male", "intersex", "unknown"],
             "Canonical demographic sex categories",
+            name="Sex",
+            description=(
+                "Population sex distribution using the categories available in each source; "
+                "unreported categories remain absent rather than inferred."
+            ),
+        ),
+        continuous(
+            "income",
+            "Harmonized annual individual income distribution",
+            -100_000_000,
+            1_000_000_000,
+            "currency/year",
+            name="Annual income",
+            description=(
+                "Annual individual income in the currency and price basis recorded by each "
+                "distribution. Cross-place comparisons require an explicit harmonized currency."
+            ),
+        ),
+        continuous(
+            "household_size",
+            "Census or weighted household survey",
+            1,
+            30,
+            "people",
+            name="Household size",
+            description="Number of people in an agent's household.",
         ),
         categorical(
             "education_isced",
             ["0", "1", "2", "3", "4", "5", "6", "7", "8", "unknown"],
             "UNESCO ISCED 2011 levels",
         ),
+        *[axis.definition for axis in canonical_ideology_axes()],
         categorical(
             "occupation_isco",
             ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "unknown"],
@@ -93,6 +171,12 @@ def canonical_feature_registry() -> FeatureRegistry:
         continuous("religiosity", "Portable religiosity scale"),
         FeatureDefinition(
             id="mbti",
+            name="MBTI",
+            description=(
+                "Self-reported Myers-Briggs type label. It may be analyzed against social "
+                "actions such as going out with friends only when representative joint "
+                "MBTI-and-action evidence is attached."
+            ),
             kind="categorical",
             canonical_values=[
                 f"{first}{second}{third}{fourth}"
@@ -104,33 +188,9 @@ def canonical_feature_registry() -> FeatureRegistry:
             provenance=schema_evidence("MBTI labels without joint outcome evidence", "label_only"),
             predictive=False,
         ),
-        categorical(
-            "eye_colour",
-            ["brown", "blue", "green", "hazel", "amber", "grey", "other", "unknown"],
-            "Population-specific biological categories",
-            ancestry_linked=True,
-        ),
-        categorical(
-            "blood_type",
-            ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"],
-            "Population-specific biological categories",
-            ancestry_linked=True,
-        ),
-        categorical(
-            "lactose_intolerance",
-            ["present", "absent", "unknown"],
-            "Population-specific biological categories",
-            ancestry_linked=True,
-        ),
-        categorical(
-            "sickle_cell_trait",
-            ["present", "absent", "unknown"],
-            "Population-specific biological categories",
-            ancestry_linked=True,
-        ),
     ]
     return FeatureRegistry(
-        version="canonical-features-v1",
+        version="canonical-features-v4",
         definitions=definitions,
         distributions=[],
         joint_data=[],

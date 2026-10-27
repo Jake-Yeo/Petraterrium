@@ -830,6 +830,24 @@
           "title": "Id",
           "type": "string"
         },
+        "name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
         "kind": {
           "enum": [
             "categorical",

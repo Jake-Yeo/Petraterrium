@@ -1,0 +1,229 @@
+.joined-filter-panel {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  background: #101924;
+}
+
+.joined-filter-heading,
+.joined-inheritance-heading,
+.joined-query-heading,
+.joined-answer > div:first-child,
+.joined-ci,
+.joined-continuous > div,
+.joined-value-list article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.joined-filter-heading h3,
+.joined-query-heading h4,
+.joined-filter-heading p,
+.joined-query-heading p,
+.joined-missing p,
+.joined-warning {
+  margin: 0;
+}
+
+.joined-filter-heading label,
+.joined-inheritance-heading label,
+.joined-filter-row label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.joined-filter-heading label,
+.joined-inheritance-heading label {
+  min-width: min(22rem, 100%);
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.joined-inheritance,
+.joined-result {
+  min-height: 4.5rem;
+}
+
+.joined-value-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.6rem;
+}
+
+.joined-value-list article,
+.joined-continuous,
+.joined-answer,
+.joined-missing {
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  background: #0d151f;
+}
+
+.joined-value-list strong,
+.joined-answer strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.joined-value-list small,
+.joined-continuous small {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.joined-filter-rows {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.joined-filter-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(12rem, 1.35fr) 2.5rem;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.joined-filter-row label > span,
+.joined-value label > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.joined-and {
+  align-self: center;
+  color: var(--muted);
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.joined-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.joined-answer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.joined-answer strong {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.joined-method {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.joined-method.measured_joint {
+  border-color: color-mix(in srgb, var(--green) 50%, var(--line));
+  color: var(--green);
+}
+
+.joined-method.independence_estimate,
+.joined-method.mixed {
+  border-color: color-mix(in srgb, var(--orange) 50%, var(--line));
+  color: var(--orange);
+}
+
+.joined-ci {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.joined-sources {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.75rem 0 0;
+}
+
+.joined-sources div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.5fr) minmax(14rem, 1fr);
+  gap: 1rem;
+}
+
+.joined-sources dt,
+.joined-sources dd {
+  margin: 0;
+}
+
+.joined-sources dd,
+.joined-empty,
+.joined-warning,
+.joined-missing {
+  color: var(--muted);
+}
+
+.joined-city-search {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.joined-city-search label {
+  max-width: 28rem;
+}
+
+.joined-city-search [data-joined-city-results] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.joined-city-search [data-joined-city-results] button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.45rem 0.6rem;
+}
+
+.joined-warning,
+.joined-missing {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-left: 3px solid var(--orange);
+}
+
+@media (max-width: 800px) {
+  .joined-filter-heading,
+  .joined-inheritance-heading,
+  .joined-query-heading,
+  .joined-answer > div:first-child,
+  .joined-ci,
+  .joined-continuous > div,
+  .joined-value-list article > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .joined-filter-row {
+    grid-template-columns: 1fr;
+    padding: 0.85rem;
+    border: 1px solid var(--line);
+  }
+
+  .joined-and {
+    align-self: start;
+  }
+
+  .joined-sources div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}

@@ -468,13 +468,39 @@
   "benchmarks": [],
   "attributes": [
     {
-      "id": "ideology",
-      "kind": "categorical",
+      "id": "ideology_economic",
+      "kind": "continuous",
       "values": [],
       "distribution": null,
       "provenance": {
-        "source": "No smoke joint data",
-        "version": "FAKE-smoke-v1",
+        "source": "No smoke survey distribution",
+        "version": "FAKE-smoke-v2",
+        "status": "label_only",
+        "uncertainty": 1,
+        "source_date": null
+      }
+    },
+    {
+      "id": "ideology_state",
+      "kind": "continuous",
+      "values": [],
+      "distribution": null,
+      "provenance": {
+        "source": "No smoke survey distribution",
+        "version": "FAKE-smoke-v2",
+        "status": "label_only",
+        "uncertainty": 1,
+        "source_date": null
+      }
+    },
+    {
+      "id": "ideology_cultural",
+      "kind": "continuous",
+      "values": [],
+      "distribution": null,
+      "provenance": {
+        "source": "No smoke survey distribution",
+        "version": "FAKE-smoke-v2",
         "status": "label_only",
         "uncertainty": 1,
         "source_date": null
@@ -520,7 +546,7 @@
     }
   ],
   "feature_registry": {
-    "version": "canonical-features-v1",
+    "version": "canonical-features-v4",
     "definitions": [
       {
         "id": "age",
@@ -842,93 +868,6 @@
         },
         "predictive": false,
         "ancestry_linked": false
-      },
-      {
-        "id": "eye_colour",
-        "kind": "categorical",
-        "canonical_values": [
-          "brown",
-          "blue",
-          "green",
-          "hazel",
-          "amber",
-          "grey",
-          "other",
-          "unknown"
-        ],
-        "value_range": null,
-        "provenance": {
-          "source": "Population-specific biological categories",
-          "version": "canonical-features-v1",
-          "status": "present",
-          "uncertainty": 0.0,
-          "source_date": null
-        },
-        "predictive": true,
-        "ancestry_linked": true
-      },
-      {
-        "id": "blood_type",
-        "kind": "categorical",
-        "canonical_values": [
-          "A+",
-          "A-",
-          "B+",
-          "B-",
-          "AB+",
-          "AB-",
-          "O+",
-          "O-",
-          "unknown"
-        ],
-        "value_range": null,
-        "provenance": {
-          "source": "Population-specific biological categories",
-          "version": "canonical-features-v1",
-          "status": "present",
-          "uncertainty": 0.0,
-          "source_date": null
-        },
-        "predictive": true,
-        "ancestry_linked": true
-      },
-      {
-        "id": "lactose_intolerance",
-        "kind": "categorical",
-        "canonical_values": [
-          "present",
-          "absent",
-          "unknown"
-        ],
-        "value_range": null,
-        "provenance": {
-          "source": "Population-specific biological categories",
-          "version": "canonical-features-v1",
-          "status": "present",
-          "uncertainty": 0.0,
-          "source_date": null
-        },
-        "predictive": true,
-        "ancestry_linked": true
-      },
-      {
-        "id": "sickle_cell_trait",
-        "kind": "categorical",
-        "canonical_values": [
-          "present",
-          "absent",
-          "unknown"
-        ],
-        "value_range": null,
-        "provenance": {
-          "source": "Population-specific biological categories",
-          "version": "canonical-features-v1",
-          "status": "present",
-          "uncertainty": 0.0,
-          "source_date": null
-        },
-        "predictive": true,
-        "ancestry_linked": true
       }
     ],
     "distributions": [

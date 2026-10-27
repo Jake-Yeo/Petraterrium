@@ -1,12 +1,20 @@
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
 from ..contracts import Contract
 from ..dsl import ChoiceEvidence, FeatureRegistry
 
-MarginalName = Literal["age_sex", "income", "education", "ideology", "household_size"]
+MarginalName = Literal[
+    "age_sex",
+    "income",
+    "education",
+    "ideology_economic",
+    "ideology_state",
+    "ideology_cultural",
+    "household_size",
+]
 FieldStatus = Literal["present", "inherited", "imputed", "missing"]
 MarginalValue = dict[str, float] | float
 
@@ -29,6 +37,15 @@ class MarginalField(Contract):
     provenance: Provenance | None = None
     suggested_source: str
     source_url: str
+
+
+class LegacyMarginalField(Contract):
+    field: Literal["ideology"] = "ideology"
+    status: Literal["legacy_only"] = "legacy_only"
+    value: MarginalValue
+    unit: str
+    provenance: Provenance
+    predictive: Literal[False] = False
 
 
 class BehaviourModel(Contract):
@@ -76,6 +93,7 @@ class CityDetail(Contract):
     missing_fields: list[MarginalName]
     direct_observation_gaps: list[MarginalName]
     history: list[Provenance]
+    legacy_fields: list[LegacyMarginalField] = []
     revision: int
     simulation_note: str
 
@@ -290,9 +308,28 @@ class AtlasSource(Contract):
     download_hosts: list[str]
 
 
+class RegistrySource(Contract):
+    source_id: str
+    source: str
+    scope_order: int
+    level: Literal["region", "country", "city"]
+    access_status: Literal["imported", "unavailable", "available_remote"]
+    source_url: str
+    version: str
+    source_date: str
+    license: str
+    mapping: dict[str, Any]
+    coverage: dict[str, Any]
+    restriction_reason: str
+    fallback: str
+    required_action: str
+    files: list[dict[str, Any]]
+
+
 class SourceCatalog(Contract):
     sources: list[AtlasSource]
     llm_available: bool
+    registry_sources: list[RegistrySource] = Field(default_factory=list)
 
 
 class SourceFetch(Contract):

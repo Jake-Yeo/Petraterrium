@@ -25,6 +25,7 @@ from .contracts import (
     ImportVersion,
     MappingConfirmation,
     Promotion,
+    RegistrySource,
     SourceCatalog,
     SourceFetch,
     UniversalFeatureOverview,
@@ -34,6 +35,7 @@ from .database import FIELDS, AtlasStore
 from .evidence_views import choice_evidence_catalog, universal_feature_overview
 from .formats import MAX_BYTES
 from .hierarchy import hierarchy_overview
+from .hierarchy_queue import HierarchyBrowserPage, hierarchy_browser_page
 from .imports import (
     commit_import,
     import_history,
@@ -109,7 +111,19 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
 
     @router.get("/sources", response_model=SourceCatalog)
     def get_sources():
-        return SourceCatalog(sources=SOURCES, llm_available=bool(os.getenv("OPENAI_API_KEY")))
+        with store.connection() as connection:
+            registry_sources = [
+                RegistrySource.model_validate_json(row["record_json"])
+                for row in connection.execute(
+                    """SELECT record_json FROM registry_source_inventory
+                    ORDER BY scope_order,level,source_id"""
+                )
+            ]
+        return SourceCatalog(
+            sources=SOURCES,
+            llm_available=bool(os.getenv("OPENAI_API_KEY")),
+            registry_sources=registry_sources,
+        )
 
     @router.get("/features", response_model=UniversalFeatureOverview)
     def features():
@@ -121,6 +135,31 @@ def create_atlas_router(store: AtlasStore, run_store) -> APIRouter:
             store,
             scope,
             as_of.isoformat() if as_of else None,
+        )
+
+    @router.get("/hierarchy-browser", response_model=HierarchyBrowserPage)
+    def hierarchy_browser(
+        scope: str = "shared",
+        as_of: date | None = None,
+        level: str = "region",
+        parent_id: str | None = None,
+        search: str = Query("", max_length=120),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(50, ge=1, le=100),
+        queue_limit: int = Query(20, ge=1, le=100),
+    ):
+        return checked(
+            hierarchy_browser_page,
+            store,
+            scope,
+            as_of.isoformat() if as_of else None,
+            level,
+            parent_id,
+            search,
+            page,
+            page_size,
+            queue_limit,
+            FIELDS,
         )
 
     @router.get("/choice-evidence", response_model=ChoiceEvidenceCatalog)

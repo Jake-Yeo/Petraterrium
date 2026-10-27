@@ -5,12 +5,33 @@ from contextlib import contextmanager
 from pathlib import Path
 
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "atlas.sqlite3"
-FIELDS = ("age_sex", "income", "education", "ideology", "household_size")
+FIELDS = (
+    "age_sex",
+    "income",
+    "education",
+    "ideology_economic",
+    "ideology_state",
+    "ideology_cultural",
+    "household_size",
+)
+LEGACY_FIELDS = ("ideology",)
+IMPORT_FIELDS = (*FIELDS, *LEGACY_FIELDS)
 SUGGESTIONS = {
     "age_sex": ("Census/IPUMS; UN WPP for a country archetype", "https://population.un.org/wpp/"),
     "income": ("Census/PUMS or licensed IPUMS microdata", "https://international.ipums.org/"),
     "education": ("Census/IPUMS or DHS education tables", "https://international.ipums.org/"),
-    "ideology": ("WVS, ESS, Pew, Gallup or ANES survey", "https://www.worldvaluessurvey.org/"),
+    "ideology_economic": (
+        "Weighted economic-policy items from WVS, ESS, Pew or an election study",
+        "https://www.worldvaluessurvey.org/",
+    ),
+    "ideology_state": (
+        "Weighted authority and self-rule items from WVS, ESS, Pew or an election study",
+        "https://www.worldvaluessurvey.org/",
+    ),
+    "ideology_cultural": (
+        "Weighted cultural-values items from WVS, ESS, Pew or an election study",
+        "https://www.worldvaluessurvey.org/",
+    ),
     "household_size": ("Census household microdata or DHS", "https://dhsprogram.com/data/"),
 }
 
@@ -79,6 +100,36 @@ CREATE TABLE IF NOT EXISTS region_mappings(
  active INTEGER NOT NULL, PRIMARY KEY(dataset,version)
 );
 CREATE INDEX IF NOT EXISTS region_mappings_active ON region_mappings(dataset,active);
+CREATE TABLE IF NOT EXISTS registry_population_weights(
+ level TEXT NOT NULL, place TEXT NOT NULL, population INTEGER NOT NULL,
+ source TEXT NOT NULL, source_date TEXT NOT NULL, version TEXT NOT NULL,
+ license TEXT NOT NULL, PRIMARY KEY(level,place,version)
+);
+CREATE INDEX IF NOT EXISTS registry_population_weights_place
+ON registry_population_weights(level,place);
+CREATE TABLE IF NOT EXISTS registry_source_inventory(
+ source_id TEXT PRIMARY KEY, scope_order INTEGER NOT NULL, level TEXT NOT NULL,
+ access_status TEXT NOT NULL, record_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS registry_place_indicators(
+ source_id TEXT NOT NULL, level TEXT NOT NULL, place TEXT NOT NULL,
+ indicator TEXT NOT NULL, indicator_name TEXT NOT NULL, topic TEXT NOT NULL,
+ unit TEXT NOT NULL, value REAL NOT NULL, source_date TEXT NOT NULL,
+ version TEXT NOT NULL, PRIMARY KEY(source_id,level,place,indicator,source_date,version)
+);
+CREATE INDEX IF NOT EXISTS registry_place_indicators_place
+ON registry_place_indicators(level,place,indicator);
+CREATE TABLE IF NOT EXISTS feature_joint_data(
+ record_id TEXT PRIMARY KEY, level TEXT NOT NULL, place TEXT NOT NULL,
+ conditions_key TEXT NOT NULL, record_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS feature_joint_data_lookup
+ON feature_joint_data(level,place,conditions_key);
+CREATE TABLE IF NOT EXISTS missing_joint_requests(
+ request_id TEXT PRIMARY KEY, selector_json TEXT NOT NULL, filters_json TEXT NOT NULL,
+ requirement TEXT NOT NULL, first_requested_at TEXT NOT NULL, last_requested_at TEXT NOT NULL,
+ request_count INTEGER NOT NULL
+);
 """
 
 

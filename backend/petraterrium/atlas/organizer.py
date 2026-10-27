@@ -12,19 +12,25 @@ from .contracts import (
     CoverageCounts,
     DataGap,
     FieldCoverage,
+    LegacyMarginalField,
     MarginalField,
     Provenance,
 )
-from .database import FIELDS, SUGGESTIONS, AtlasStore
+from .database import FIELDS, LEGACY_FIELDS, SUGGESTIONS, AtlasStore
 
 
 def provenance(row) -> Provenance:
     return Provenance(**{key: row[key] for key in Provenance.model_fields})
 
 
-def resolve(conn, scope: str, as_of: str) -> None:
+def resolve(
+    conn,
+    scope: str,
+    as_of: str,
+    fields: tuple[str, ...] = FIELDS,
+) -> None:
     conn.execute(
-        """CREATE TEMP TABLE resolved AS
+        """CREATE TEMP TABLE resolved_all AS
         WITH observations_scoped AS MATERIALIZED (
             SELECT o.id,o.geo_level,o.geo_key,o.field,v.scope
             FROM observations o JOIN imports v USING(import_id)
@@ -64,13 +70,26 @@ def resolve(conn, scope: str, as_of: str) -> None:
         FROM ranked WHERE position=1""",
         {"scope": scope, "as_of": as_of},
     )
+    active_fields = ",".join("?" for _ in fields)
+    legacy_fields = ",".join("?" for _ in LEGACY_FIELDS)
+    conn.execute(
+        "CREATE TEMP TABLE resolved AS SELECT * FROM resolved_all "
+        f"WHERE field IN ({active_fields})",
+        fields,
+    )
+    conn.execute(
+        "CREATE TEMP TABLE legacy_resolved AS SELECT * FROM resolved_all "
+        f"WHERE field IN ({legacy_fields})",
+        LEGACY_FIELDS,
+    )
     conn.execute("CREATE UNIQUE INDEX resolved_city_field ON resolved(geonameid,field)")
-    conn.execute("""CREATE TEMP VIEW coverage AS SELECT c.*,
+    field_count = len(fields)
+    conn.execute(f"""CREATE TEMP VIEW coverage AS SELECT c.*,
         COALESCE(r.direct,0) direct,COALESCE(r.inherited,0) inherited,
         COALESCE(r.imputed,0) imputed,COALESCE(r.available,0) available,
-        CASE WHEN COALESCE(r.direct,0)=5 THEN 'full'
+        CASE WHEN COALESCE(r.direct,0)={field_count} THEN 'full'
              WHEN COALESCE(r.direct,0)>0 THEN 'partial' ELSE 'none' END coverage_state,
-        CASE WHEN COALESCE(r.available,0)<5 THEN 'missing'
+        CASE WHEN COALESCE(r.available,0)<{field_count} THEN 'missing'
              WHEN r.imputed>0 THEN 'imputed'
              WHEN r.inherited>0 THEN 'inherited' ELSE 'present' END status
         FROM cities c LEFT JOIN (SELECT geonameid,COUNT(*) available,
@@ -181,9 +200,11 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
                 tier_reason="Top metro tier; execution awaits a real-data engine"
                 if row["simulation_tier"] == "simulated"
                 else "Country population-share tier; density adjustment requires a population grid",
-                coverage_percent=row["direct"] * 20,
-                inherited_coverage_percent=(row["direct"] + row["inherited"]) * 20,
-                resolved_coverage_percent=row["available"] * 20,
+                coverage_percent=row["direct"] * 100 / len(FIELDS),
+                inherited_coverage_percent=(row["direct"] + row["inherited"])
+                * 100
+                / len(FIELDS),
+                resolved_coverage_percent=row["available"] * 100 / len(FIELDS),
                 status=row["status"],
                 coverage_state=row["coverage_state"],
                 fields=fields,
@@ -196,11 +217,14 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
 
 
 def summary(conn, scope: str, as_of: str) -> AtlasSummary:
-    row = conn.execute("""SELECT COUNT(*) total,COALESCE(SUM(population),0) population,
+    field_count = len(FIELDS)
+    row = conn.execute(f"""SELECT COUNT(*) total,COALESCE(SUM(population),0) population,
         COALESCE(SUM(population<=0),0) unknown_population,
-        COALESCE(SUM(direct=5),0) full_count,COALESCE(SUM(direct>0 AND direct<5),0) partial,
-        COALESCE(SUM(direct=0),0) none,COALESCE(SUM(direct+inherited=5),0) effective_full,
-        COALESCE(SUM(direct+inherited>0 AND direct+inherited<5),0) effective_partial,
+        COALESCE(SUM(direct={field_count}),0) full_count,
+        COALESCE(SUM(direct>0 AND direct<{field_count}),0) partial,
+        COALESCE(SUM(direct=0),0) none,
+        COALESCE(SUM(direct+inherited={field_count}),0) effective_full,
+        COALESCE(SUM(direct+inherited>0 AND direct+inherited<{field_count}),0) effective_partial,
         COALESCE(SUM(direct+inherited=0),0) effective_none,
         COALESCE(SUM(simulation_tier='simulated'),0) simulated FROM coverage""").fetchone()
     field_rows = {
@@ -363,6 +387,12 @@ def city_detail(
         if row is None:
             raise KeyError("City not found")
         city = city_results(conn, [row], scope, as_of)[0]
+        legacy_rows = conn.execute(
+            """SELECT r.*,o.value_json,o.unit,v.* FROM legacy_resolved r
+            JOIN observations o ON o.id=r.observation_id
+            JOIN imports v USING(import_id) WHERE r.geonameid=?""",
+            (identity,),
+        ).fetchall()
         history = conn.execute(
             """SELECT DISTINCT v.* FROM observations o JOIN imports v USING(import_id)
             WHERE v.status='committed' AND v.scope IN ('shared',?)
@@ -386,6 +416,14 @@ def city_detail(
             missing_fields=[f.field for f in city.fields if f.status == "missing"],
             direct_observation_gaps=[f.field for f in city.fields if f.status != "present"],
             history=[provenance(v) for v in history],
+            legacy_fields=[
+                LegacyMarginalField(
+                    value=json.loads(item["value_json"]),
+                    unit=item["unit"],
+                    provenance=provenance(item),
+                )
+                for item in legacy_rows
+            ],
             revision=store.revision(conn),
             simulation_note=(
                 "Tier assignments organize the future country/top-metro engine. The"

@@ -293,7 +293,7 @@ def test_shared_bulk_install_is_versioned_and_idempotent(tmp_path):
         assert connection.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 1
 
 
-def test_shared_electoral_install_resolves_as_imputed_ideology(tmp_path):
+def test_shared_electoral_install_remains_legacy_only(tmp_path):
     store = AtlasStore(tmp_path / "atlas.sqlite3")
     with store.connection() as connection:
         connection.execute("INSERT INTO countries VALUES('DE','Germany')")
@@ -356,10 +356,11 @@ def test_shared_electoral_install_resolves_as_imputed_ideology(tmp_path):
         "blue-sha",
         "boundary-sha",
     ) == {"observations": 0, "city_matches": 0}
-    ideology = next(
-        field for field in city_detail(store, 1).city.fields if field.field == "ideology"
-    )
-    assert ideology.status == "imputed"
+    detail = city_detail(store, 1)
+    assert all(field.field != "ideology" for field in detail.city.fields)
+    ideology = detail.legacy_fields[0]
+    assert ideology.status == "legacy_only"
+    assert ideology.predictive is False
     assert ideology.unit == "percent_of_valid_votes"
     assert ideology.value == {
         "radical_left": 5.0,

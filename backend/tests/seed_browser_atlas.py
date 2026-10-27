@@ -4,6 +4,9 @@ from zipfile import ZipFile
 
 from petraterrium.atlas.backbone import load_cities500
 from petraterrium.atlas.database import AtlasStore
+from petraterrium.atlas.feature_catalog import FeatureCatalogStore
+from petraterrium.atlas.features import canonical_feature_registry
+from petraterrium.dsl import Evidence, FeatureDistribution
 
 path = Path(sys.argv[1])
 if path.parent.name != ".playwright":
@@ -58,3 +61,29 @@ with store.connection() as conn:
         "backbone",
         backbone.model_copy(update={"source": "FAKE browser-test cities500 fixture"}).model_dump(),
     )
+catalog = FeatureCatalogStore(store)
+registry = canonical_feature_registry()
+for country_code in ("IT", "FR", "DE"):
+    for feature_id, values in (
+        ("age_band", {"0-4": 0.2, "5-9": 0.8}),
+        ("sex", {"female": 0.51, "male": 0.49}),
+    ):
+        catalog.attach_distribution(
+            registry,
+            feature_id,
+            FeatureDistribution(
+                feature_id=feature_id,
+                level="country",
+                place=country_code,
+                population="FAKE browser-test population",
+                coverage_percent=100,
+                values=values,
+                provenance=Evidence(
+                    source="FAKE browser-test distribution",
+                    version="FAKE-browser-v1",
+                    status="present",
+                    uncertainty=0.5,
+                    source_date="2020-01-01",
+                ),
+            ),
+        )

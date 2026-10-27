@@ -68,12 +68,20 @@ class FeatureRange(DSLModel):
 
 class FeatureDefinition(DSLModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9_-]*$")
+    name: str | None = Field(default=None, min_length=1)
+    description: str = ""
     kind: Literal["categorical", "continuous", "binary"]
     canonical_values: list[str] = Field(default_factory=list)
     value_range: FeatureRange | None = None
     provenance: Evidence
     predictive: bool = True
     ancestry_linked: bool = False
+
+    @model_validator(mode="after")
+    def legacy_ideology_is_not_predictive(self):
+        if self.id == "ideology" and self.predictive:
+            raise ValueError("The single ideology feature is legacy-only and cannot be predictive")
+        return self
 
 
 class FeatureDistribution(DSLModel):
@@ -179,6 +187,12 @@ class RuleCondition(DSLModel):
     attribute: str
     operator: Literal["eq", "ne", "gt", "gte", "lt", "lte", "in"]
     value: str | float | bool | list[str]
+
+    @model_validator(mode="after")
+    def legacy_ideology_is_not_a_condition(self):
+        if self.attribute == "ideology":
+            raise ValueError("Use a specific ideology axis; single ideology is legacy-only")
+        return self
 
 
 class GraphTraversal(DSLModel):

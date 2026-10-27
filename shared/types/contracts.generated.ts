@@ -331,9 +331,10 @@ export type ChoiceEvidenceCatalog = {
 
 export type CityDetail = {
   city: AtlasCity;
-  missing_fields: Array<"age_sex" | "income" | "education" | "ideology" | "household_size">;
-  direct_observation_gaps: Array<"age_sex" | "income" | "education" | "ideology" | "household_size">;
+  missing_fields: Array<"age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
+  direct_observation_gaps: Array<"age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
   history: Array<Provenance>;
+  legacy_fields: Array<LegacyMarginalField>;
   revision: number;
   simulation_note: string;
 };
@@ -427,7 +428,7 @@ export type DataGap = {
   city: string;
   country_code: string;
   population: number;
-  field: "age_sex" | "income" | "education" | "ideology" | "household_size";
+  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   status: "present" | "inherited" | "imputed" | "missing";
   suggested_source: string;
 };
@@ -575,6 +576,8 @@ export type Evidence = {
 
 export type FeatureDefinition = {
   id: string;
+  name?: string | null;
+  description?: string;
   kind: "categorical" | "continuous" | "binary";
   canonical_values?: Array<string>;
   value_range?: FeatureRange | null;
@@ -630,7 +633,7 @@ export type FeatureResolutionRecord = {
 };
 
 export type FieldCoverage = {
-  field: "age_sex" | "income" | "education" | "ideology" | "household_size";
+  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   present: number;
   inherited: number;
   imputed: number;
@@ -752,6 +755,17 @@ export type LeaderActionDefinition = {
   evidence: Evidence;
 };
 
+export type LegacyMarginalField = {
+  field: "ideology";
+  status: "legacy_only";
+  value: {
+  [key: string]: number;
+} | number;
+  unit: string;
+  provenance: Provenance;
+  predictive: false;
+};
+
 export type MappingAudit = {
   provider: string;
   model: string;
@@ -768,7 +782,7 @@ export type MappingConfirmation = {
 };
 
 export type MarginalField = {
-  field: "age_sex" | "income" | "education" | "ideology" | "household_size";
+  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   status: "present" | "inherited" | "imputed" | "missing";
   value: {
   [key: string]: number;
@@ -934,6 +948,30 @@ export type Provenance = {
   uploader: string;
 };
 
+export type RegistrySource = {
+  source_id: string;
+  source: string;
+  scope_order: number;
+  level: "region" | "country" | "city";
+  access_status: "imported" | "unavailable" | "available_remote";
+  source_url: string;
+  version: string;
+  source_date: string;
+  license: string;
+  mapping: {
+
+};
+  coverage: {
+
+};
+  restriction_reason: string;
+  fallback: string;
+  required_action: string;
+  files: Array<{
+
+}>;
+};
+
 export type RoleDefinition = {
   id: string;
   actions?: Array<string>;
@@ -1062,6 +1100,7 @@ export type SliderSpec = {
 export type SourceCatalog = {
   sources: Array<AtlasSource>;
   llm_available: boolean;
+  registry_sources: Array<RegistrySource>;
 };
 
 export type SourceFetch = {

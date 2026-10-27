@@ -16,11 +16,13 @@ invent distributions, or map traits to outcomes without an explicit trait-to-act
 Return exactly one mapping for each input header, using null when uncertain or irrelevant.
 Mark ambiguous=true when the meaning, units, or geography is unclear.
 Targets: geonameid, city, country_code, admin1, admin2, age_sex, income, education,
-ideology, household_size, unit, behaviour, outcome, survey_weight, observation_date.
+ideology_economic, ideology_state, ideology_cultural, ideology, household_size, unit,
+behaviour, outcome, survey_weight, observation_date.
 Distribution components can use field.category, for example age_sex.female_0_14.
-Respondent traits can use trait.column_name. Income, education, and ideology marginals
-are distributions (JSON objects or dotted components); income and household_size can
-also be a numeric mean with explicit units. Never guess categorical codebooks."""
+Respondent traits can use trait.column_name. The three ideology axes require separate
+survey-item mappings. The old ideology target is legacy-only and cannot be split or used
+as a predictor. Marginals are distributions (JSON objects or dotted components); income
+and household_size can also be a numeric mean with explicit units. Never guess codebooks."""
 
 ALIASES = {
     "geonameid": "geonameid",
@@ -37,6 +39,9 @@ ALIASES = {
     "income": "income",
     "education": "education",
     "ideology": "ideology",
+    "ideology_economic": "ideology_economic",
+    "ideology_state": "ideology_state",
+    "ideology_cultural": "ideology_cultural",
     "household_size": "household_size",
     "unit": "unit",
     "behaviour": "behaviour",
@@ -54,7 +59,17 @@ def exact_proposal(headers: list[str]) -> list[ColumnMapping]:
         normalized = header.strip().lower().replace(" ", "_")
         target = ALIASES.get(normalized)
         if normalized.startswith(
-            ("age_sex.", "income.", "education.", "ideology.", "household_size.", "trait.")
+            (
+                "age_sex.",
+                "income.",
+                "education.",
+                "ideology.",
+                "ideology_economic.",
+                "ideology_state.",
+                "ideology_cultural.",
+                "household_size.",
+                "trait.",
+            )
         ):
             target = normalized
         mappings.append(

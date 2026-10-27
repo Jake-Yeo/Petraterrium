@@ -416,6 +416,24 @@
   margin-top: 15px;
   border-radius: 5px;
 }
+.atlas-source-inventory + .atlas-source-inventory {
+  margin-top: 28px;
+}
+.atlas-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 12px;
+}
+.atlas-source-grid .atlas-source {
+  margin-top: 0;
+}
+.atlas-source strong {
+  display: block;
+  color: #d9b98a;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
 .atlas-source > div {
   display: flex;
   align-items: center;

@@ -13,6 +13,13 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await page.goto('/');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.locator('#atlas-summary')).toContainText('5');
+  await expect(page.getByRole('heading', { name: 'What needs importing' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Place hierarchy' })).toContainText('Regions');
+  await page.getByRole('button', { name: 'Open countries in Europe' }).click();
+  await expect(page.getByRole('navigation', { name: 'Place hierarchy' })).toContainText('Europe');
+  await expect(page.getByRole('button', { name: 'Open cities in Germany' })).toBeVisible();
+  await page.getByRole('button', { name: '← Back' }).click();
+  await page.locator('#atlas-city-audit summary').click();
   await expect(page.locator('#atlas-cities tr')).toHaveCount(5);
   await page.getByRole('searchbox', { name: 'Search cities' }).fill('Alpha');
   await expect(page.locator('#atlas-cities tr')).toHaveCount(2);
@@ -24,7 +31,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await expect(page.getByRole('dialog')).toContainText('Still missing');
   await expect(page.getByRole('dialog')).toContainText('Age & sex');
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: 'Import data' }).click();
+  await page.getByRole('button', { name: 'Import data', exact: true }).click();
   await page.locator('[name="run_id"]').selectOption(run);
   await page.getByLabel('Source label').fill('FAKE browser-test observations');
   await page.getByLabel('Data date', { exact: true }).fill('2020-01-01');
@@ -59,7 +66,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await expect(page.locator('#atlas-validation')).toContainText('Validation passed');
   await page.getByRole('button', { name: 'Commit to this run' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await expect(page.locator('#atlas-cities')).toContainText('40.00%');
+  await expect(page.locator('#atlas-cities')).toContainText('28.57%');
   const scoped = await (
     await request.get(`http://127.0.0.1:8011/atlas/overview?scope=${run}`)
   ).json();
@@ -78,7 +85,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await page.getByRole('button', { name: 'Promote version', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.getByLabel('Data scope', { exact: true }).selectOption('shared');
-  await expect(page.locator('#atlas-cities')).toContainText('40.00%');
+  await expect(page.locator('#atlas-cities')).toContainText('28.57%');
   await page.screenshot({ path: 'test-results/data-atlas-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Source loaders', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('IPUMS International');
@@ -94,7 +101,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   expect(errors).toEqual([]);
 });
 
-test('Data tab explains coverage and creates an evidence-backed agent feature plan', async ({
+test('Data tab creates, edits, opens, and queries persistent agent features', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -102,47 +109,69 @@ test('Data tab explains coverage and creates an evidence-backed agent feature pl
   await page.goto('/');
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Data coverage' })).toBeVisible();
-  await expect(page.locator('#atlas-features')).toBeVisible();
-  await expect(page.locator('#atlas-feature-grid')).toContainText('Age & sex');
-  await expect(page.locator('#atlas-feature-grid')).toContainText('Inherited');
-  await expect(page.locator('#atlas-priorities')).toContainText('Data needed');
-  await expect(page.locator('#atlas-priorities')).toContainText('country_code or geonameid');
-  await page
-    .locator('.atlas-feature-card')
-    .filter({ hasText: 'Ideology' })
-    .getByRole('button', { name: 'View unresolved cities' })
-    .click();
-  await expect(page.getByLabel('Missing field', { exact: true })).toHaveValue('ideology');
-  await page.getByRole('button', { name: 'Add agent feature', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Add agent feature' })).not.toContainText('go_out');
-  await page.locator('#atlas-feature-form [name="name"]').fill('bad name');
-  await page.locator('#atlas-feature-form [name="label"]').fill('Endurance');
-  await page
-    .locator('#atlas-feature-form [name="definition"]')
-    .fill('Sustained physical effort on a validated 0–100 assessment.');
-  await page.locator('#atlas-feature-form [name="unit"]').fill('score');
-  await page.locator('#atlas-feature-form [name="minimum"]').fill('0');
-  await page.locator('#atlas-feature-form [name="maximum"]').fill('100');
-  await page.locator('#atlas-feature-form [name="outcomes"]').fill('evacuate, finish_race');
-  await page.getByRole('button', { name: 'Create data plan', exact: true }).click();
-  await expect(page.locator('#atlas-feature-error')).toContainText('snake_case');
-  await page.locator('#atlas-feature-form [name="name"]').fill('endurance');
-  await page.getByRole('button', { name: 'Create data plan', exact: true }).click();
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('trait.endurance');
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('Label-only');
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('Distribution missing');
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('Joint data missing');
-  await expect(page.locator('#atlas-feature-drafts')).toContainText(
-    'trait and outcome in the same rows',
+  const catalog = page.locator('#atlas-feature-catalog');
+  await expect(catalog).toContainText('Economic ideology');
+  await expect(catalog).toContainText('State ideology');
+  await expect(catalog).toContainText('Cultural ideology');
+  await expect(catalog).not.toContainText('Blood Type');
+  await expect(catalog).not.toContainText('Eye Colour');
+  await expect(catalog).toContainText('MBTI');
+  await expect(catalog.getByRole('button', { name: 'Open Ideology feature details' })).toHaveCount(
+    0,
   );
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('Distribution CSV');
+  await catalog.getByRole('button', { name: 'Add feature', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add agent feature' })).not.toContainText('go_out');
+  const create = page.getByRole('dialog', { name: 'Add agent feature' });
+  await create.getByLabel('Feature ID').fill('endurance_e2e');
+  await create.getByLabel('Name').fill('Endurance');
+  await create
+    .getByLabel('Description')
+    .fill('Sustained physical effort on a validated 0–100 assessment.');
+  await create.getByLabel('Provenance placeholder').fill('Representative endurance survey');
+  await create.getByLabel('Minimum').fill('0');
+  await create.getByLabel('Maximum').fill('100');
+  await create.getByLabel('Unit').fill('score');
+  await create.getByLabel('Status').selectOption('awaiting_data');
+  await create.getByRole('button', { name: 'Create feature', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Endurance' })).toBeVisible();
+  await expect(catalog).toContainText('Awaiting data');
+  await expect(catalog).toContainText('Label-only');
+  await catalog.getByRole('button', { name: 'Edit', exact: true }).click();
+  await catalog
+    .locator('[data-feature-description-form] textarea')
+    .fill('Sustained effort measured by a validated assessment.');
+  await catalog.getByRole('button', { name: 'Save description' }).click();
+  await expect(catalog).toContainText('Sustained effort measured by a validated assessment.');
+  await catalog.getByRole('button', { name: '← Back to features' }).click();
+  const economic = catalog.getByRole('button', {
+    name: 'Open Economic ideology feature details',
+  });
+  await economic.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Economic ideology' })).toBeVisible();
+  await catalog.getByRole('button', { name: '← Back to features' }).click();
+  const state = catalog.getByRole('button', { name: 'Open State ideology feature details' });
+  await state.focus();
+  await page.keyboard.press('Space');
+  await expect(catalog).toContainText('anti-authoritarian');
+  await expect(catalog).toContainText('not identical');
+  await catalog.getByRole('button', { name: '← Back to features' }).click();
+  await catalog.getByRole('button', { name: 'Open Age band feature details' }).click();
+  await expect(page.getByRole('heading', { name: 'Place distribution and joined filters' })).toBeVisible();
+  await expect(catalog.locator('[data-inheritance-result]')).toContainText('agents');
+  const filterRows = catalog.locator('[data-joined-row]');
+  await filterRows.nth(0).locator('[data-filter-feature]').selectOption('age_band');
+  await filterRows.nth(1).locator('[data-filter-feature]').selectOption('sex');
+  await expect(catalog.locator('[data-joined-result]')).toContainText(
+    'independence estimate — not measured',
+  );
+  await expect(catalog.locator('[data-joined-result]')).toContainText('Joint data needed');
   await page.getByRole('tab', { name: 'DSL', exact: true }).click();
   await expect(page.locator('#dsl-features')).toContainText('Endurance');
   await expect(page.locator('#dsl-features')).toContainText('LABEL-ONLY');
   await page.reload();
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
-  await expect(page.locator('#atlas-feature-drafts')).toContainText('trait.endurance');
-  await page.locator('#atlas-feature-drafts').getByRole('button', { name: 'Delete draft' }).click();
-  await expect(page.locator('#atlas-feature-drafts')).not.toContainText('trait.endurance');
+  await page.getByRole('searchbox', { name: 'Search features' }).fill('endurance');
+  await expect(catalog).toContainText('Sustained effort measured by a validated assessment.');
   expect(errors).toEqual([]);
 });
