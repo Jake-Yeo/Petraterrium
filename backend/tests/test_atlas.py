@@ -280,7 +280,9 @@ def test_scopes_versions_promotion_and_as_of_are_isolated(atlas):
         return next(f for f in detail.city.fields if f.field == "household_size")
 
     assert field(current).value == 3
+    assert field(current).provenance.version == "v2"
     assert field(historical).value == 2
+    assert field(historical).provenance.version == "v1"
     assert len(current.history) == 3
     assert len(import_history(atlas, "run-a").versions) == 3
     assert field(city_detail(atlas, 1, "run-b")).value == 2

@@ -44,6 +44,13 @@ CREATE TABLE IF NOT EXISTS observations(
 );
 CREATE INDEX IF NOT EXISTS observations_geo ON observations(geo_level,geo_key,field,id DESC);
 CREATE INDEX IF NOT EXISTS observations_import ON observations(import_id);
+CREATE TABLE IF NOT EXISTS city_lau_matches(
+ geonameid INTEGER PRIMARY KEY REFERENCES cities(geonameid), gisco_id TEXT NOT NULL,
+ status TEXT NOT NULL, match_method TEXT NOT NULL, source TEXT NOT NULL,
+ source_url TEXT NOT NULL, version TEXT NOT NULL, boundary_year INTEGER NOT NULL,
+ boundary_sha256 TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS city_lau_matches_gisco ON city_lau_matches(gisco_id,geonameid);
 CREATE TABLE IF NOT EXISTS models(
  id INTEGER PRIMARY KEY, import_id TEXT NOT NULL REFERENCES imports(import_id),
  country_code TEXT NOT NULL, behaviour TEXT NOT NULL, fitted INTEGER NOT NULL,

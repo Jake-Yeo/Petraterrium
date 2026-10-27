@@ -26,26 +26,42 @@ def resolve(conn, scope: str, as_of: str) -> None:
     conn.execute(
         """CREATE TEMP TABLE resolved AS
         WITH observations_scoped AS MATERIALIZED (
-            SELECT o.*,v.source,v.source_date,v.published_date,v.version,v.scope,v.uploader
+            SELECT o.id,o.geo_level,o.geo_key,o.field,v.scope
             FROM observations o JOIN imports v USING(import_id)
             WHERE v.status='committed' AND v.scope IN ('shared',:scope)
             AND v.source_date<=:as_of AND v.published_date<=:as_of
+        ), observations_current AS MATERIALIZED (
+            SELECT id,geo_level,geo_key,field,scope FROM (
+                SELECT *,ROW_NUMBER() OVER(PARTITION BY geo_level,geo_key,field
+                ORDER BY (scope=:scope) DESC,id DESC) geo_position
+                FROM observations_scoped
+            ) WHERE geo_position=1
         ), candidates AS (
-            SELECT c.geonameid,o.*,3 specificity,'present' field_status
-            FROM observations_scoped o JOIN cities c ON c.geonameid=CAST(o.geo_key AS INTEGER)
+            SELECT c.geonameid,o.id observation_id,o.field,o.scope,
+            3 specificity,'present' field_status
+            FROM observations_current o JOIN cities c ON c.geonameid=CAST(o.geo_key AS INTEGER)
             WHERE o.geo_level='city'
             UNION ALL
-            SELECT c.geonameid,o.*,2 specificity,'imputed' field_status
-            FROM observations_scoped o JOIN cities c
+            SELECT c.geonameid,o.id observation_id,o.field,o.scope,
+            2 specificity,'imputed' field_status
+            FROM observations_current o JOIN cities c
             ON c.country_code||':'||c.admin1=o.geo_key WHERE o.geo_level='region'
             UNION ALL
-            SELECT c.geonameid,o.*,1 specificity,'inherited' field_status
-            FROM observations_scoped o JOIN cities c ON c.country_code=o.geo_key
+            SELECT c.geonameid,o.id observation_id,o.field,o.scope,
+            2 specificity,'imputed' field_status
+            FROM observations_current o JOIN city_lau_matches m ON m.gisco_id=o.geo_key
+            JOIN cities c ON c.geonameid=m.geonameid WHERE o.geo_level='lau'
+            UNION ALL
+            SELECT c.geonameid,o.id observation_id,o.field,o.scope,
+            1 specificity,'inherited' field_status
+            FROM observations_current o JOIN cities c ON c.country_code=o.geo_key
             WHERE o.geo_level='country'
         ), ranked AS (
             SELECT *,ROW_NUMBER() OVER(PARTITION BY geonameid,field
-            ORDER BY specificity DESC,(scope=:scope) DESC,id DESC) position FROM candidates
-        ) SELECT * FROM ranked WHERE position=1""",
+            ORDER BY specificity DESC,(scope=:scope) DESC,observation_id DESC) position
+            FROM candidates
+        ) SELECT geonameid,observation_id,field,field_status
+        FROM ranked WHERE position=1""",
         {"scope": scope, "as_of": as_of},
     )
     conn.execute("CREATE UNIQUE INDEX resolved_city_field ON resolved(geonameid,field)")
@@ -107,7 +123,11 @@ def city_results(conn, rows, scope: str, as_of: str) -> list[AtlasCity]:
     resolved = {
         (row["geonameid"], row["field"]): row
         for row in conn.execute(
-            f"SELECT * FROM resolved WHERE geonameid IN ({placeholders})", identities
+            f"""SELECT r.*,o.value_json,o.unit,v.* FROM resolved r
+            JOIN observations o ON o.id=r.observation_id
+            JOIN imports v USING(import_id)
+            WHERE r.geonameid IN ({placeholders})""",
+            identities,
         )
     }
     countries = {row["code"]: row["name"] for row in conn.execute("SELECT * FROM countries")}
@@ -348,7 +368,9 @@ def city_detail(
             WHERE v.status='committed' AND v.scope IN ('shared',?)
             AND v.source_date<=? AND v.published_date<=?
             AND ((o.geo_level='city' AND o.geo_key=?) OR (o.geo_level='country' AND o.geo_key=?)
-            OR (o.geo_level='region' AND o.geo_key=?)) ORDER BY v.created_at DESC""",
+            OR (o.geo_level='region' AND o.geo_key=?) OR (o.geo_level='lau' AND EXISTS(
+            SELECT 1 FROM city_lau_matches m WHERE m.geonameid=? AND m.gisco_id=o.geo_key)))
+            ORDER BY v.created_at DESC""",
             (
                 scope,
                 as_of,
@@ -356,6 +378,7 @@ def city_detail(
                 str(identity),
                 city.country_code,
                 city.country_code + ":" + city.admin1,
+                identity,
             ),
         )
         return CityDetail(

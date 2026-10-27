@@ -4,6 +4,7 @@ from pathlib import Path
 import httpx
 
 from ..backbone import GEONAMES_URL
+from .electoral import BLUE_DB_URL, GISCO_LAU_URL
 from .households import HOUSEHOLD_URL
 from .ucdb import UCDB_URL
 from .wdi import WDI_URL
@@ -13,6 +14,8 @@ SOURCE_FILES = {
     "GHS_UCDB_GLOBE_R2024A_V1_2.zip": UCDB_URL,
     "WDI_CSV.zip": WDI_URL,
     "UN_DESA_household_2026.xlsx": HOUSEHOLD_URL,
+    "BLUE_DB.zip": BLUE_DB_URL,
+    "LAU_RG_01M_2024_4326.gpkg": GISCO_LAU_URL,
 }
 
 

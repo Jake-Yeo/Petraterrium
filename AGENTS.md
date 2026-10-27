@@ -8,6 +8,7 @@
 - Add or update a focused regression test before fixing a reported defect. Test the committed state change (engine output), not only the rendered preview.
 - Do not add comments to code. The code itself should be readable: descriptive names, small focused functions, and clear structure, so no comments are needed to describe what the code does. If code would need a comment to be understood, rename or refactor it instead. The only exception is TODO / FAKE markers marking unfinished work, which do not explain code.
 - Run the backend tests, the frontend build, and `git diff --check` after implementation changes.
+- Never push commits or code changes to a remote repository on the user's behalf. Leave repository changes local for the user to review and push.
 - Finish every task with a concise summary of what changed, how it was verified, and any material limitation or follow-up. Never leave the user to reconstruct the result from progress messages.
 
 ## Amazon-style engineering leadership

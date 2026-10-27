@@ -48,7 +48,7 @@ cd backend
 uv run python scripts/build_city_feature_dump.py --install-shared
 ```
 
-The explicit `--install-shared` option publishes only derived canonical country marginals to the shared atlas. Omit it to build the files without changing atlas coverage. `--refresh` downloads current source releases again. `--data-directory`, `--output`, and `--database` select alternate locations.
+The explicit `--install-shared` option publishes derived canonical country marginals and the latest BLUE_DB electoral alignment to the shared atlas. Electoral alignment resolves through a city-to-LAU spatial crosswalk and is always `imputed`; it never counts as direct or inherited ideology. Omit the option to build the files without changing atlas coverage. `--refresh` downloads current source releases again. `--data-directory`, `--output`, and `--database` select alternate locations.
 
 The 2026-10-26 build produced 225,931 city rows and these feature collections:
 
@@ -58,6 +58,7 @@ The 2026-10-26 build produced 225,931 city rows and these feature collections:
 | GHS-UCDB R2024A v1.2 | Urban-centre polygon | Imputed | 2,805 attributes in 15 themes for 11,422 urban centres; 24,673 GeoNames city points fall inside 9,411 centres |
 | World Development Indicators | Country | Inherited | 1,492 redistributable series, 7,457,950 historical values, and 249,804 latest values for 216 economies |
 | UN Household Size and Composition 2026 | Country | Inherited | 39 features, 33,114 historical values from 1,129 source records, and 5,853 latest per-feature values for 200 countries or areas |
+| BLUE_DB v2025.1 | Local administrative unit | Imputed | 356 national or European Parliament elections, 1,369,765 local result rows, and 3,899 party/candidate records across 31 European countries |
 
 The dump is written to `backend/data/city_feature_dump/`:
 
@@ -66,6 +67,14 @@ The dump is written to `backend/data/city_feature_dump/`:
 | `manifest.json` | Source URLs, releases, SHA-256 hashes, counts, output checksums, transform version, and data semantics |
 | `cities.parquet` | Complete filtered GeoNames backbone and simulation tier |
 | `city_feature_availability.parquet` | Per-city spatial, inherited, and total available feature counts |
+| `blue_electoral_results.parquet` | LAU-election turnout, valid ballots, party vote JSON, party-family counts and shares, and validation flags |
+| `blue_elections.parquet` | Election dates, chambers, rounds, ballot types, source files, and party columns |
+| `blue_parties.parquet` | National party/candidate identity, Party Facts links, ideology class, and source metadata |
+| `blue_eu_parties.parquet`, `blue_ep_groups.parquet` | European party federation and Parliament group metadata |
+| `blue_geographies.parquet` | BLUE_DB LAU, NUTS, historical-name, and special electoral-unit catalog |
+| `blue_city_matches.parquet` | GeoNames-to-2024-GISCO-LAU point-in-polygon matches, always flagged `imputed` |
+| `blue_city_electoral_availability.parquet` | Election count and latest election date for every spatially matched city |
+| `electoral_source_catalog.parquet` | Loaded and planned official election/survey sources for Europe, Asia and the Americas |
 | `ucdb_urban_centres.parquet` | UCDB identity, names, country, population, centroid, area, and WKB boundary |
 | `ucdb_city_matches.parquet` | GeoNames-to-UCDB point-in-polygon matches, always flagged `imputed` |
 | `ucdb/*.parquet` | One wide table per UCDB theme, joined by `ID_UC_G0` |
@@ -78,11 +87,38 @@ The dump is written to `backend/data/city_feature_dump/`:
 | `un_household_feature_catalog.parquet` | Household feature definitions, units, source, and licence |
 | `canonical_country_marginals.parquet` | Validated age/sex, income-quintile, education, and household-size values used by the organizer |
 
-Resolve WDI and UN household values with `cities.country_code = *_country_latest.country_code`; those values remain inherited. Resolve UCDB values with `cities.geonameid = ucdb_city_matches.geonameid`, then join `ucdb_city_matches.ucdb_id = ucdb/*.ID_UC_G0`; those values remain spatially imputed because an urban-centre polygon is not the same thing as a city-specific survey.
+Resolve WDI and UN household values with `cities.country_code = *_country_latest.country_code`; those values remain inherited. Resolve UCDB values with `cities.geonameid = ucdb_city_matches.geonameid`, then join `ucdb_city_matches.ucdb_id = ucdb/*.ID_UC_G0`; those values remain spatially imputed because an urban-centre polygon is not the same thing as a city-specific survey. Resolve electoral data with `cities.geonameid = blue_city_matches.geonameid`, then `blue_city_matches.gisco_id = blue_electoral_results.gisco_id`.
 
-The current canonical build contains 216 age/sex, 162 income, 148 education, and 189 household-size country observations. This yields inherited city coverage of 99.83%, 97.88%, 90.63%, and 98.53%, respectively. Direct coverage remains zero because none of these country or urban-centre sources is a city-specific observed marginal. Ideology remains missing for all 225,931 cities because the globally useful sources require licensed or registered survey extracts and cannot be republished as an open dump.
+The current canonical build contains 216 age/sex, 162 income, 148 education, and 189 household-size country observations. This yields inherited city coverage of 99.83%, 97.88%, 90.63%, and 98.53%, respectively. Direct coverage remains zero because none of these country or urban-centre sources is a city-specific observed marginal.
 
-Six WDI series under SIPRI-specific terms are excluded from the redistributable output. UCDB contains 233 real data columns whose native IDs do not match its accompanying index workbook; the dump retains their values and native IDs with dataset-level UCDB provenance instead of inventing labels. Three `Unnamed` spreadsheet merge artifacts are excluded. Missing and nodata values remain null.
+BLUE_DB maps 78,969 GeoNames cities into 2024 local administrative units; 68,667 have a result in the archive. Party-family alignment is available for those cities as an imputed percentage of valid ballots. Direct and inherited ideology coverage remain zero, and 157,264 cities have no electoral alignment. The archive classifies 99.24% of its 2,861,474,118 valid votes; unclassified parties remain an explicit `unknown` category. The loader flags 106 rows with negative upstream registered/invalid counts and preserves those source values instead of silently repairing them.
+
+This electoral measure answers “how did valid ballots in the containing municipality split across BLUE_DB party families?” It does not answer “what percentage of all city residents personally identify as left or right?” Turnout, invalid/blank ballots, unknown party classifications, election date, ballot type, source file, release, and version remain separate so the distinction can be audited.
+
+Six WDI series under SIPRI-specific terms are excluded from the redistributable output. UCDB contains 233 real data columns whose native IDs do not match its accompanying index workbook; the dump retains their values and native IDs with dataset-level UCDB provenance instead of inventing labels. Three `Unnamed` spreadsheet merge artifacts are excluded. Missing and nodata values remain null. Eurostat GISCO boundaries are used only to derive the city-to-LAU crosswalk and are not republished in the dump.
+
+## Electoral alignment outside Europe
+
+Government and election-agency sites do provide detailed results, but the scalable source is usually the national or state election authority rather than a city website. City sites often publish PDFs, dashboards, or local contests with unstable schemas. National portals provide consistent identifiers and bulk files, although city aggregation still needs boundary crosswalks and party-family classification.
+
+| Region | Canonical source | Available grain | Loader state |
+| --- | --- | --- | --- |
+| India | [Election Commission of India statistical reports](https://www.eci.gov.in/statistical-reports) | Constituency; polling-station turnout for supported releases | Planned; boundaries and party-family history required |
+| China | [Chinese General Social Survey](https://cgss.ruc.edu.cn/) | Authorized survey sample geography | Planned authorized extract; no comparable competitive municipal party-vote proxy |
+| Canada | [Elections Canada official voting results](https://www.elections.ca/content.aspx?section=res&dir=rep/off) | Poll-by-poll CSV | Planned; poll boundaries must be aggregated to cities |
+| Mexico | [INE election results](https://ine.mx/voto-y-elecciones/resultados-electorales/) | Casilla, section, district, municipality and state | Planned; municipality data is the preferred city crosswalk |
+| Brazil | [TSE election results and open data](https://www.tse.jus.br/eleicoes/resultados-eleicoes) | Municipality, zone and section | Planned |
+| Argentina | [DINE results system](https://www.argentina.gob.ar/dine/resultados-electorales) | Published electoral geographies; CSV and API | Planned |
+| Chile | [SERVEL historical results](https://www.servel.cl/) | Table, district and commune depending on election | Planned |
+| Colombia | [Registraduría historical results](https://registraduria.gov.co/-Historico-de-resultados-electorales-.html) | Municipality through polling table for supported elections | Planned |
+| Peru | [ONPE](https://www.onpe.gob.pe/) | Department, province, district and polling act | Planned; bulk stability varies by election |
+| Taiwan | [Central Election Commission open data](https://data.cec.gov.tw/) | Polling place through city/county | Planned |
+| South Korea | [National Election Commission](https://info.nec.go.kr/) | Administrative and electoral districts | Planned |
+| Indonesia | [KPU open data](https://opendata.kpu.go.id/) | Province through regency/city and lower units by file | Planned |
+| Philippines | [COMELEC](https://www.comelec.gov.ph/) | Province through city/municipality, barangay and precinct by release | Planned; machine-readable results vary |
+| Japan | [Ministry of Internal Affairs election data](https://www.soumu.go.jp/senkyo/senkyo_s/data/index.html) | National and prefectural; municipal files are decentralized | Planned and fragmented |
+
+The generated `electoral_source_catalog.parquet` records these sources, their measurement, grain, access, reuse caveat, and loader state. Planned means the source has been identified and verified, not that its records are already present in the dump.
 
 ## Import workflow
 

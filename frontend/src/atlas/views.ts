@@ -11,7 +11,7 @@ export const labels: Record<string, string> = {
   age_sex: 'Age & sex',
   income: 'Income',
   education: 'Education',
-  ideology: 'Ideology',
+  ideology: 'Ideology / alignment',
   household_size: 'Household size',
 };
 const n = (number: number): string => number.toLocaleString('en');
@@ -49,7 +49,8 @@ export function dataShell(): string {
           <h2>Marginal coverage</h2>
           <p>
             Direct = city observations. Inherited = country archetypes. Imputed regional data is shown
-            separately.
+            separately. Electoral alignment is a valid-ballot measure for the containing municipality,
+            not a survey of all city residents.
           </p>
         </div>
       </div>

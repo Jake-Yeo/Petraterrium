@@ -2,15 +2,24 @@ import io
 from zipfile import ZipFile
 
 import pyarrow as pa
+import pyarrow.parquet as pq
+import pytest
 from shapely import to_wkb
 from shapely.geometry import Polygon
 
 from petraterrium.atlas.database import AtlasStore
+from petraterrium.atlas.feature_dump.electoral import (
+    aggregate_election_row,
+    match_city_points_to_laus,
+)
 from petraterrium.atlas.feature_dump.households import (
     latest_household_rows,
     latest_household_values,
 )
-from petraterrium.atlas.feature_dump.install import install_shared_marginals
+from petraterrium.atlas.feature_dump.install import (
+    install_shared_electoral,
+    install_shared_marginals,
+)
 from petraterrium.atlas.feature_dump.ucdb import (
     attribute_pattern,
     catalog_rows,
@@ -20,6 +29,78 @@ from petraterrium.atlas.feature_dump.ucdb import (
 )
 from petraterrium.atlas.feature_dump.wdi import derive_wdi_marginals, redistributable_series
 from petraterrium.atlas.feature_dump.xlsx import read_sheet
+from petraterrium.atlas.organizer import city_detail
+
+
+def test_electoral_alignment_preserves_denominators_and_unknown_votes():
+    result = aggregate_election_row(
+        {
+            "registered": "100",
+            "turnout": "80",
+            "invalid": "2",
+            "blank": "1",
+            "LEFT": "45",
+            "RIGHT": "25",
+            "UNMAPPED": "7",
+        },
+        ["LEFT", "RIGHT", "UNMAPPED"],
+        {
+            "LEFT": "left_or_center_left",
+            "RIGHT": "center_or_center_right",
+        },
+    )
+    assert result["valid_votes"] == 77
+    assert result["classified_votes"] == 70
+    assert result["unknown_votes"] == 7
+    assert result["turnout_percent"] == 80.0
+    assert result["classified_vote_percent"] == pytest.approx(90.9090909)
+    assert sum(result["alignment_percent"].values()) == pytest.approx(100.0)
+    assert result["alignment_percent"] == {
+        "radical_left": 0.0,
+        "left_or_center_left": pytest.approx(58.4415584),
+        "center_or_center_right": pytest.approx(32.4675325),
+        "radical_right": 0.0,
+        "other": 0.0,
+        "unknown": pytest.approx(9.0909091),
+    }
+
+
+def test_electoral_city_matches_are_spatial_imputations_with_country_aliases():
+    cities = pa.table(
+        {
+            "geonameid": [1, 2, 3],
+            "country_code": ["GR", "GR", "DE"],
+            "latitude": [0.0, 5.0, 0.0],
+            "longitude": [0.0, 5.0, 0.0],
+        }
+    )
+    laus = [
+        {
+            "gisco_id": "EL_001",
+            "country_code": "EL",
+            "geometry": Polygon([(-1, -1), (1, -1), (1, 1), (-1, 1)]),
+        },
+        {
+            "gisco_id": "DE_001",
+            "country_code": "DE",
+            "geometry": Polygon([(-1, -1), (1, -1), (1, 1), (-1, 1)]),
+        },
+    ]
+    matches = match_city_points_to_laus(cities, laus)
+    assert matches.to_pylist() == [
+        {
+            "geonameid": 1,
+            "gisco_id": "EL_001",
+            "status": "imputed",
+            "match_method": "inside_lau_2024",
+        },
+        {
+            "geonameid": 3,
+            "gisco_id": "DE_001",
+            "status": "imputed",
+            "match_method": "inside_lau_2024",
+        },
+    ]
 
 
 def test_wdi_redistribution_and_canonical_marginals_require_consistent_years():
@@ -209,3 +290,82 @@ def test_shared_bulk_install_is_versioned_and_idempotent(tmp_path):
     with store.connection() as connection:
         assert connection.execute("SELECT COUNT(*) FROM imports").fetchone()[0] == 1
         assert connection.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 1
+
+
+def test_shared_electoral_install_resolves_as_imputed_ideology(tmp_path):
+    store = AtlasStore(tmp_path / "atlas.sqlite3")
+    with store.connection() as connection:
+        connection.execute("INSERT INTO countries VALUES('DE','Germany')")
+        connection.execute(
+            "INSERT INTO cities VALUES(1,'Alpha','Alpha','DE','','',50,10,1000,"
+            "'Europe/Berlin','PPL','disaggregated')"
+        )
+    results_path = tmp_path / "results.parquet"
+    matches_path = tmp_path / "matches.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                {
+                    "gisco_id": "DE_001",
+                    "election_id": "elections/DE/2025_02_Zweitstimme.csv",
+                    "country_code": "DE",
+                    "parliament_name": "Bundestag",
+                    "election_date": "2025-02-23",
+                    "round": None,
+                    "vote_type": "Zweitstimme",
+                    "source_file": "elections/DE/2025_02_Zweitstimme.csv",
+                    "valid_votes": 100,
+                    "classified_vote_percent": 95.0,
+                    "radical_left_percent": 5.0,
+                    "left_or_center_left_percent": 35.0,
+                    "center_or_center_right_percent": 40.0,
+                    "radical_right_percent": 15.0,
+                    "other_percent": 0.0,
+                    "unknown_alignment_percent": 5.0,
+                }
+            ]
+        ),
+        results_path,
+    )
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                {
+                    "geonameid": 1,
+                    "gisco_id": "DE_001",
+                    "status": "imputed",
+                    "match_method": "inside_lau_2024",
+                }
+            ]
+        ),
+        matches_path,
+    )
+    installed = install_shared_electoral(
+        store,
+        results_path,
+        matches_path,
+        "blue-sha",
+        "boundary-sha",
+    )
+    assert installed == {"observations": 1, "city_matches": 1}
+    assert install_shared_electoral(
+        store,
+        results_path,
+        matches_path,
+        "blue-sha",
+        "boundary-sha",
+    ) == {"observations": 0, "city_matches": 0}
+    ideology = next(
+        field for field in city_detail(store, 1).city.fields if field.field == "ideology"
+    )
+    assert ideology.status == "imputed"
+    assert ideology.unit == "percent_of_valid_votes"
+    assert ideology.value == {
+        "radical_left": 5.0,
+        "left_or_center_left": 35.0,
+        "center_or_center_right": 40.0,
+        "radical_right": 15.0,
+        "other": 0.0,
+        "unknown": 5.0,
+    }
+    assert ideology.provenance.source_date == "2025-02-23"
