@@ -145,7 +145,7 @@ def test_catalog_declares_fake_provenance(client):
     assert len(catalog["countries"]) == 4
     assert all(country["fake"] is True for country in catalog["countries"])
     assert catalog["data_version"].startswith("FAKE-")
-    assert catalog["engine_version"].startswith("dsl-vector-engine-")
+    assert catalog["engine_version"].startswith("rust-vector-engine-")
 
 
 def test_active_recorder_replays_and_follows_one_computation():

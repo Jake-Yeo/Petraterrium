@@ -272,16 +272,14 @@ function valueLabel(feature: CatalogFeature, label: string): string {
   return words(label);
 }
 
-function distributionValues(
-  feature: CatalogFeature,
-  distribution: FeatureDistribution,
-): string {
+function distributionValues(feature: CatalogFeature, distribution: FeatureDistribution): string {
   const values = Object.entries(distribution.values);
   if (values.length) {
     const ordered = values.sort(([left], [right]) => {
       const leftNumber = Number(left.replace('+', ''));
       const rightNumber = Number(right.replace('+', ''));
-      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) return leftNumber - rightNumber;
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber))
+        return leftNumber - rightNumber;
       return left.localeCompare(right);
     });
     return `<div class="feature-value-table-scroll"><table class="feature-value-table"><thead><tr><th>Value</th><th>Share</th><th>Estimated agents</th></tr></thead><tbody>${ordered
@@ -300,10 +298,7 @@ function distributionValues(
   return '<p class="feature-distribution-moments">No distribution values</p>';
 }
 
-function distributionMarkup(
-  feature: CatalogFeature,
-  distribution: FeatureDistribution,
-): string {
+function distributionMarkup(feature: CatalogFeature, distribution: FeatureDistribution): string {
   const sourceDate = distribution.provenance.source_date ?? 'Undated';
   return `
     <article class="feature-catalog-distribution">
@@ -380,6 +375,7 @@ export class FeatureCatalogController {
   private distributionPage = 1;
   private state: FeatureCatalogState;
   private disposeDetailAddon?: () => void;
+  private detailAccordionObserver?: MutationObserver;
   private createIdManuallyEdited = false;
 
   constructor(
@@ -403,6 +399,7 @@ export class FeatureCatalogController {
 
   destroy(): void {
     this.disposeDetailAddon?.();
+    this.detailAccordionObserver?.disconnect();
     this.host.removeEventListener('click', this.onClick);
     this.host.removeEventListener('input', this.onInput);
     this.host.removeEventListener('change', this.onChange);
@@ -425,12 +422,86 @@ export class FeatureCatalogController {
   private render(): void {
     if (!this.view) return;
     this.disposeDetailAddon?.();
+    this.detailAccordionObserver?.disconnect();
     this.disposeDetailAddon = undefined;
+    this.detailAccordionObserver = undefined;
     this.content().innerHTML = this.detail ? this.detailMarkup(this.detail) : this.listMarkup();
     if (this.detail && this.options.renderDetailAddon) {
       const target = this.content().querySelector<HTMLElement>('[data-feature-detail-addon]')!;
       this.disposeDetailAddon =
         this.options.renderDetailAddon(target, this.detail, this.view) ?? undefined;
+      this.configureDetailAccordions(target);
+    }
+  }
+
+  private configureDetailAccordions(addon: HTMLElement): void {
+    const research = addon.querySelector<HTMLElement>('[data-feature-research-evidence]');
+    const inheritance = addon.querySelector<HTMLElement>('[data-feature-query]');
+    if (!research || !inheritance) return;
+
+    addon.classList.add('feature-detail-accordion');
+    research.id = 'feature-research-accordion-panel';
+    inheritance.id = 'feature-inheritance-accordion-panel';
+    research.classList.add('feature-detail-accordion-panel');
+    inheritance.classList.add('feature-detail-accordion-panel');
+    research.setAttribute('role', 'region');
+    inheritance.setAttribute('role', 'region');
+    research.setAttribute('aria-labelledby', 'feature-research-accordion-trigger');
+    inheritance.setAttribute('aria-labelledby', 'feature-inheritance-accordion-trigger');
+    research.hidden = true;
+    inheritance.hidden = true;
+
+    const researchItem = document.createElement('section');
+    researchItem.className = 'feature-detail-accordion-item';
+    researchItem.innerHTML = `
+      <button class="feature-detail-accordion-trigger" id="feature-research-accordion-trigger" type="button" data-feature-action="toggle-accordion" data-feature-accordion-target="${research.id}" aria-expanded="false" aria-controls="${research.id}" aria-label="Imported research evidence">
+        <span><h4>Imported research evidence</h4><small data-feature-research-summary>Loading imported evidence…</small></span><span class="feature-detail-accordion-icon" aria-hidden="true">⌄</span>
+      </button>`;
+    researchItem.append(research);
+
+    const inheritanceItem = document.createElement('section');
+    inheritanceItem.className = 'feature-detail-accordion-item';
+    inheritanceItem.innerHTML = `
+      <button class="feature-detail-accordion-trigger" id="feature-inheritance-accordion-trigger" type="button" data-feature-action="toggle-accordion" data-feature-accordion-target="${inheritance.id}" aria-expanded="false" aria-controls="${inheritance.id}" aria-label="Agent inheritance: Place distribution and joined filters">
+        <span><small>AGENT INHERITANCE</small><h4>Place distribution and joined filters</h4></span><span class="feature-detail-accordion-icon" aria-hidden="true">⌄</span>
+      </button>`;
+    inheritanceItem.append(inheritance);
+    addon.replaceChildren(researchItem, inheritanceItem);
+
+    const updateResearchSummary = (): void => {
+      const sourceSummary = research.querySelector<HTMLElement>(
+        '.feature-research-evidence > div:first-child > span',
+      );
+      const summary = researchItem.querySelector<HTMLElement>('[data-feature-research-summary]');
+      if (sourceSummary?.textContent && summary) summary.textContent = sourceSummary.textContent;
+    };
+    this.detailAccordionObserver = new MutationObserver(updateResearchSummary);
+    this.detailAccordionObserver.observe(research, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    updateResearchSummary();
+  }
+
+  private toggleDetailAccordion(panelId: string): void {
+    const accordion = this.content().querySelector<HTMLElement>('[data-feature-detail-addon]');
+    if (!accordion) return;
+    const requestedTrigger = Array.from(
+      accordion.querySelectorAll<HTMLButtonElement>('[data-feature-accordion-target]'),
+    ).find((trigger) => trigger.dataset.featureAccordionTarget === panelId);
+    const requestedPanel = accordion.querySelector<HTMLElement>(`#${panelId}`);
+    if (!requestedTrigger || !requestedPanel) return;
+    const expand = requestedTrigger.getAttribute('aria-expanded') !== 'true';
+    accordion
+      .querySelectorAll<HTMLButtonElement>('[data-feature-accordion-target]')
+      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    accordion.querySelectorAll<HTMLElement>('.feature-detail-accordion-panel').forEach((panel) => {
+      panel.hidden = true;
+    });
+    if (expand) {
+      requestedTrigger.setAttribute('aria-expanded', 'true');
+      requestedPanel.hidden = false;
     }
   }
 
@@ -538,7 +609,9 @@ export class FeatureCatalogController {
 
   private renderDistributionBrowser(): void {
     if (!this.detail) return;
-    const browser = this.content().querySelector<HTMLElement>('[data-feature-distribution-browser]');
+    const browser = this.content().querySelector<HTMLElement>(
+      '[data-feature-distribution-browser]',
+    );
     if (!browser) return;
     browser.innerHTML = this.distributionBrowserMarkup(this.detail);
   }
@@ -625,6 +698,8 @@ export class FeatureCatalogController {
     } else if (action === 'distribution-next') {
       this.distributionPage++;
       this.renderDistributionBrowser();
+    } else if (action === 'toggle-accordion' && target.dataset.featureAccordionTarget) {
+      this.toggleDetailAccordion(target.dataset.featureAccordionTarget);
     } else if (action === 'create') this.openCreate();
     else if (action === 'import') this.options.onImport?.(this.detail);
     else if (action === 'cancel-create')

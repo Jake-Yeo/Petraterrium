@@ -503,6 +503,24 @@ export type ChainDefinition = {
   continue_probability?: number;
 };
 
+export type ChainNodeDraft = {
+  id: string;
+  label: string;
+  terminal?: boolean;
+  origin: "user_explicit" | "model_proposal" | "structural" | "manual_edit";
+  source_excerpt?: string | null;
+};
+
+export type ChainTransitionDraft = {
+  id: string;
+  from_node: string;
+  to_node: string;
+  probability?: number | null;
+  condition?: string | null;
+  origin: "user_explicit" | "model_proposal" | "structural" | "manual_edit";
+  source_excerpt?: string | null;
+};
+
 export type ChoiceCondition = {
   traits?: {
   [key: string]: string;
@@ -562,6 +580,23 @@ export type ColumnMapping = {
   reason: string;
 };
 
+export type ConditionClause = {
+  input_id: string;
+  operator: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in";
+  value: string | number | number | boolean | Array<string | number | number | boolean>;
+};
+
+export type ConfirmedChainGraph = {
+  schema_version?: "1";
+  id: string;
+  name: string;
+  source_text: string;
+  entry_node: string;
+  nodes: Array<ChainNodeDraft>;
+  transitions: Array<ChainTransitionDraft>;
+  revision: number;
+};
+
 export type Country = {
   country: string;
   name: string;
@@ -601,6 +636,9 @@ export type DSLConfig = {
   rules?: Array<RuleDefinition>;
   actions?: Array<ActionDefinition>;
   chains?: Array<ChainDefinition>;
+  markov_chain_drafts?: Array<ConfirmedChainGraph>;
+  markov_programs?: Array<MarkovProgram>;
+  transition_evidence?: Array<TransitionEvidence>;
   roles?: Array<RoleDefinition>;
   default_states?: Array<DefaultDefinition>;
   behaviour_bundles?: Array<BehaviourBundle>;
@@ -959,6 +997,12 @@ export type ImportVersion = {
   models: Array<BehaviourModel>;
 };
 
+export type InputBinding = {
+  target_input: string;
+  source_kind: "input" | "output" | "external";
+  source_id: string;
+};
+
 export type JointDataProof = {
   feature_id: string;
   outcomes: Array<string>;
@@ -1015,6 +1059,28 @@ export type MarginalField = {
   source_url: string;
 };
 
+export type MarkovModule = {
+  id: string;
+  version: string;
+  name: string;
+  entry_state: string;
+  exit_states: Array<string>;
+  inputs?: Array<ModuleInput>;
+  outputs?: Array<ModuleOutput>;
+  states: Array<ModuleState>;
+  transitions?: Array<ModuleTransition>;
+};
+
+export type MarkovProgram = {
+  id: string;
+  version: string;
+  entry_module: string;
+  modules: Array<MarkovModule>;
+  links?: Array<ModuleLink>;
+  terminal_exits: Array<ProgramExit>;
+  external_inputs?: Array<ModuleInput>;
+};
+
 export type MediaRule = {
   id: string;
   interest_weight: number;
@@ -1049,6 +1115,41 @@ export type MissingFallback = {
   status: "inherited" | "imputed" | "missing" | "unknown" | "label_only" | "literature_estimate" | "hint_only";
   fallback: string;
   impact: string;
+};
+
+export type ModuleInput = {
+  id: string;
+  kind: "agent_trait" | "place" | "time" | "context" | "persisted_state" | "place_state" | "media_state";
+  value_type: "categorical" | "continuous" | "boolean" | "identifier";
+  feature_id?: string | null;
+  required?: boolean;
+};
+
+export type ModuleLink = {
+  from_module: string;
+  exit_state: string;
+  to_module: string;
+  bindings?: Array<InputBinding>;
+};
+
+export type ModuleOutput = {
+  id: string;
+  kind: "location" | "health" | "friends" | "persisted_state" | "place_state" | "media_state" | "event";
+  value_type: "categorical" | "continuous" | "boolean" | "identifier";
+};
+
+export type ModuleState = {
+  id: string;
+  label?: string | null;
+  effects?: Array<string>;
+};
+
+export type ModuleTransition = {
+  id: string;
+  from_state: string;
+  to_state: string;
+  condition?: TransitionCondition | null;
+  probability: ProbabilityQuery;
 };
 
 export type NetworkDefinition = {
@@ -1142,6 +1243,15 @@ export type PopulationReference = {
 };
 };
 
+export type ProbabilityQuery = {
+  outcome_id: string;
+  conditioning_id: string;
+  place_input: string;
+  time_input: string;
+  predictor_inputs?: Array<string>;
+  allowed_evidence?: Array<"measured_choice" | "measured_joint" | "fitted_choice">;
+};
+
 export type ProbabilitySpec = {
   base: number;
   mode?: "probability" | "hazard";
@@ -1153,6 +1263,11 @@ export type ProbabilitySpec = {
   modifiers?: {
   [key: string]: number;
 };
+};
+
+export type ProgramExit = {
+  module_id: string;
+  state_id: string;
 };
 
 export type Promotion = {
@@ -1386,11 +1501,38 @@ export type Totals = {
   recovered: number;
 };
 
+export type TransitionCondition = {
+  mode: "always" | "all" | "any";
+  clauses?: Array<ConditionClause>;
+};
+
 export type TransitionDefinition = {
   id: string;
   from_state: string;
   to_state: string;
   probability: ProbabilitySpec;
+};
+
+export type TransitionEvidence = {
+  id: string;
+  kind: "measured_joint" | "fitted_choice";
+  outcome_id: string;
+  conditioning_id: string;
+  place: string;
+  time_unit: "event" | "hour" | "day" | "friday" | "week" | "year";
+  predictor_values?: {
+  [key: string]: string | number | number | boolean;
+};
+  condition_values?: {
+  [key: string]: string | number | number | boolean;
+};
+  probability: number;
+  ci_low: number;
+  ci_high: number;
+  sample_size: number;
+  held_out_sample_size?: number | null;
+  population: string;
+  provenance: Evidence;
 };
 
 export type UniversalFeatureOverview = {

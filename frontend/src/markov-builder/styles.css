@@ -1,0 +1,550 @@
+.markov-builder {
+  --markov-surface: var(--atlas-surface, #0e1721);
+  --markov-raised: var(--atlas-surface-raised, #111d27);
+  --markov-control: var(--atlas-surface-control, #09121a);
+  --markov-text: var(--atlas-text, #d9e2e3);
+  --markov-muted: var(--atlas-text-muted, #8b9ea6);
+  --markov-accent: var(--atlas-accent, #b5e7b1);
+  --markov-line: var(--line, #ffffff12);
+  color: var(--markov-text);
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 34px 40px 72px;
+}
+
+:root[data-theme='light'] .markov-builder,
+:root[data-color-scheme='light'] .markov-builder,
+:root.theme-light .markov-builder {
+  --markov-surface: #f7f9f8;
+  --markov-raised: #ffffff;
+  --markov-control: #eef2f1;
+  --markov-text: #1b292d;
+  --markov-muted: #60747b;
+  --markov-accent: #276a45;
+  --markov-line: #17282f1c;
+}
+
+.markov-builder-header,
+.markov-prompt-actions,
+.markov-editor-heading,
+.markov-section-heading,
+.markov-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.markov-builder-header {
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.markov-builder-header h1 {
+  margin: 5px 0 8px;
+  font-size: 36px;
+  letter-spacing: -1.3px;
+}
+
+.markov-builder-header > div > p:last-child,
+.markov-confirm p,
+.markov-empty p {
+  color: var(--markov-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.markov-prompt-card,
+.markov-editor,
+.markov-empty,
+.markov-audit,
+.markov-message,
+.markov-error {
+  border: 1px solid var(--markov-line);
+  border-radius: 6px;
+  background: var(--markov-surface);
+}
+
+.markov-prompt-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.markov-prompt-card > label,
+.markov-metadata label {
+  color: var(--markov-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.markov-prompt-card textarea,
+.markov-metadata input,
+.markov-metadata select,
+.markov-table-section input,
+.markov-table-section select {
+  width: 100%;
+  border: 1px solid var(--markov-line);
+  border-radius: 4px;
+  background-color: var(--markov-control);
+  color: var(--markov-text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.markov-prompt-card textarea {
+  min-height: 98px;
+  padding: 12px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.markov-prompt-card textarea::placeholder,
+.markov-table-section input::placeholder {
+  color: color-mix(in srgb, var(--markov-muted) 72%, transparent);
+}
+
+.markov-check,
+.markov-terminal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--markov-muted);
+  font-size: 10px;
+}
+
+.markov-check input,
+.markov-terminal input {
+  width: auto;
+  accent-color: var(--markov-accent);
+}
+
+.markov-audit,
+.markov-message,
+.markov-error {
+  margin-top: 10px;
+  padding: 12px 14px;
+  font-size: 10px;
+}
+
+.markov-audit {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+}
+
+.markov-audit strong {
+  flex: 0 0 auto;
+  color: var(--markov-accent);
+}
+
+.markov-audit span,
+.markov-message {
+  color: var(--markov-muted);
+}
+
+.markov-error {
+  border-color: color-mix(in srgb, #d97768 44%, var(--markov-line));
+  color: #e39183;
+}
+
+.markov-empty {
+  display: grid;
+  min-height: 260px;
+  margin-top: 14px;
+  padding: 48px;
+  place-content: center;
+  text-align: center;
+}
+
+.markov-empty strong {
+  margin-bottom: 7px;
+  font-size: 18px;
+}
+
+.markov-empty small {
+  margin-top: 17px;
+  color: var(--markov-muted);
+  font-family: 'Space Grotesk', ui-monospace, monospace;
+  font-size: 9px;
+}
+
+.markov-editor {
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.markov-editor-heading,
+.markov-metadata,
+.markov-table-section,
+.markov-confirm {
+  padding: 18px;
+}
+
+.markov-editor-heading {
+  border-bottom: 1px solid var(--markov-line);
+}
+
+.markov-editor-heading h2,
+.markov-section-heading h3 {
+  margin: 4px 0 0;
+}
+
+.markov-status {
+  border: 1px solid var(--markov-line);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--markov-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.markov-status.ready {
+  border-color: color-mix(in srgb, var(--markov-accent) 40%, var(--markov-line));
+  color: var(--markov-accent);
+}
+
+.markov-status.blocked {
+  border-color: color-mix(in srgb, #d99a64 42%, var(--markov-line));
+  color: #d9a26e;
+}
+
+.markov-metadata {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.7fr) minmax(220px, 1.3fr) minmax(180px, 0.8fr);
+  gap: 12px;
+  border-bottom: 1px solid var(--markov-line);
+  background: var(--markov-raised);
+}
+
+.markov-metadata label {
+  display: grid;
+  gap: 6px;
+}
+
+.markov-metadata input,
+.markov-metadata select,
+.markov-table-section input,
+.markov-table-section select {
+  min-height: 36px;
+  padding: 8px 9px;
+}
+
+.markov-builder select,
+.markov-builder option,
+.markov-builder optgroup {
+  color-scheme: inherit;
+  background-color: var(--markov-control);
+  color: var(--markov-text);
+}
+
+.markov-builder select:hover,
+.markov-builder input:hover,
+.markov-builder textarea:hover {
+  border-color: color-mix(in srgb, var(--markov-accent) 38%, var(--markov-line));
+}
+
+.markov-builder select:focus,
+.markov-builder input:focus,
+.markov-builder textarea:focus {
+  border-color: var(--markov-accent);
+  outline: 2px solid color-mix(in srgb, var(--markov-accent) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.markov-builder select:disabled,
+.markov-builder input:disabled,
+.markov-builder textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.markov-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  border-bottom: 1px solid var(--markov-line);
+}
+
+.markov-preview,
+.markov-diagnostics {
+  min-width: 0;
+  padding: 18px;
+}
+
+.markov-section-heading > span {
+  color: var(--markov-muted);
+  font-size: 9px;
+}
+
+.markov-graph-scroll,
+.markov-table-scroll,
+.markov-diagnostics {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+.markov-graph-scroll {
+  max-height: 520px;
+  margin-top: 13px;
+  overflow: auto;
+  border: 1px solid var(--markov-line);
+  border-radius: 5px;
+  background-color: var(--markov-control);
+  background-image: radial-gradient(var(--markov-line) 0.75px, transparent 0.75px);
+  background-size: 18px 18px;
+}
+
+.markov-graph-scroll svg {
+  display: block;
+  min-width: 760px;
+  width: 100%;
+}
+
+.markov-edges path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--markov-muted) 72%, transparent);
+  stroke-width: 1.4;
+}
+
+.markov-edges marker path,
+.markov-edges + defs path,
+.markov-graph-scroll marker path {
+  fill: var(--markov-muted);
+}
+
+.markov-edge.unresolved path {
+  stroke: #d79d67;
+  stroke-dasharray: 5 4;
+}
+
+.markov-edge text {
+  fill: var(--markov-muted);
+  font-family: 'Space Grotesk', ui-monospace, monospace;
+  font-size: 8px;
+}
+
+.markov-node rect {
+  fill: var(--markov-surface);
+  stroke: color-mix(in srgb, var(--markov-muted) 60%, transparent);
+  stroke-width: 1.2;
+}
+
+.markov-node.entry rect {
+  stroke: var(--markov-accent);
+  stroke-width: 2;
+}
+
+.markov-node.terminal rect {
+  fill: color-mix(in srgb, var(--markov-accent) 8%, var(--markov-surface));
+  stroke: color-mix(in srgb, var(--markov-accent) 56%, var(--markov-line));
+}
+
+.markov-node.invalid rect {
+  stroke: #d79d67;
+}
+
+.markov-node text {
+  fill: var(--markov-text);
+  font-family: 'Space Grotesk', ui-monospace, monospace;
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.markov-node .markov-node-total {
+  fill: var(--markov-muted);
+  font-size: 7.5px;
+}
+
+.markov-graph-empty {
+  display: grid;
+  min-height: 310px;
+  place-items: center;
+  color: var(--markov-muted);
+  font-size: 10px;
+}
+
+.markov-diagnostics {
+  max-height: 590px;
+  overflow: auto;
+  border-left: 1px solid var(--markov-line);
+  background: var(--markov-raised);
+}
+
+.markov-diagnostics h4 {
+  margin: 18px 0 7px;
+  color: var(--markov-muted);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.markov-totals,
+.markov-issues {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markov-totals li,
+.markov-issues li {
+  border-left: 2px solid var(--markov-line);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--markov-control) 70%, transparent);
+}
+
+.markov-totals li.ok,
+.markov-issues li.ok {
+  border-color: var(--markov-accent);
+}
+
+.markov-totals li.error,
+.markov-issues li.error {
+  border-color: #d77769;
+}
+
+.markov-issues li.warning {
+  border-color: #d8a168;
+}
+
+.markov-totals strong,
+.markov-totals span,
+.markov-issues span,
+.markov-issues p {
+  display: block;
+}
+
+.markov-totals strong,
+.markov-issues span {
+  font-size: 9px;
+}
+
+.markov-totals span,
+.markov-issues p {
+  margin: 3px 0 0;
+  color: var(--markov-muted);
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.markov-table-section {
+  border-bottom: 1px solid var(--markov-line);
+}
+
+.markov-table-scroll {
+  margin-top: 12px;
+  overflow: auto;
+  border: 1px solid var(--markov-line);
+  border-radius: 5px;
+}
+
+.markov-table-section table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+}
+
+.markov-table-section th,
+.markov-table-section td {
+  padding: 9px;
+  border-bottom: 1px solid var(--markov-line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.markov-table-section th {
+  color: var(--markov-muted);
+  background: var(--markov-raised);
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.markov-table-section td {
+  font-size: 10px;
+}
+
+.markov-edge-table {
+  min-width: 1100px !important;
+}
+
+.markov-origin {
+  display: inline-flex;
+  white-space: nowrap;
+  border: 1px solid var(--markov-line);
+  border-radius: 999px;
+  padding: 5px 7px;
+  color: var(--markov-muted);
+  font-size: 8px;
+}
+
+.markov-origin.model_proposal {
+  border-color: color-mix(in srgb, #8f83d7 45%, var(--markov-line));
+  color: #afa3e5;
+}
+
+.markov-origin.user_explicit,
+.markov-origin.manual_edit {
+  border-color: color-mix(in srgb, var(--markov-accent) 35%, var(--markov-line));
+  color: var(--markov-accent);
+}
+
+.markov-remove {
+  border: 0;
+  background: transparent;
+  color: #d98779;
+  font-size: 9px;
+}
+
+.markov-remove:hover {
+  color: #f0a193;
+}
+
+.markov-confirm {
+  align-items: flex-start;
+  background: var(--markov-raised);
+}
+
+.markov-confirm strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.markov-confirm p {
+  max-width: 720px;
+}
+
+@media (max-width: 980px) {
+  .markov-builder {
+    padding: 24px 20px 60px;
+  }
+
+  .markov-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .markov-diagnostics {
+    max-height: 380px;
+    border-top: 1px solid var(--markov-line);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .markov-builder-header,
+  .markov-prompt-actions,
+  .markov-editor-heading,
+  .markov-confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .markov-metadata {
+    grid-template-columns: 1fr;
+  }
+}

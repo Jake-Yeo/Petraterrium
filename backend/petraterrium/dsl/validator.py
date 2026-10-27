@@ -73,6 +73,8 @@ def validate_dsl(value) -> DSLValidationResult:
         ("rules", config.rules),
         ("actions", config.actions),
         ("chains", config.chains),
+        ("markov_chain_drafts", config.markov_chain_drafts),
+        ("markov_programs", config.markov_programs),
         ("roles", config.roles),
         ("defaults", config.default_states),
         ("bundles", config.behaviour_bundles),
@@ -82,6 +84,17 @@ def validate_dsl(value) -> DSLValidationResult:
     for (collection_name, identity), items in seen_ids.items():
         if len(items) > 1:
             errors.append(issue(collection_name, f"Duplicate {collection_name} id {identity}"))
+    from ..markov.validation import validate_program
+
+    for program_index, program in enumerate(config.markov_programs):
+        result = validate_program(program)
+        errors.extend(
+            issue(
+                f"markov_programs.{program_index}.{program_issue.path}",
+                program_issue.message,
+            )
+            for program_issue in result.issues
+        )
     for attribute_index, attribute in enumerate(config.attributes):
         if attribute.provenance.status != "label_only" and attribute.distribution is None:
             errors.append(

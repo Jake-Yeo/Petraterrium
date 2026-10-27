@@ -36,20 +36,27 @@ def test_all_zero_rates_produce_identical_state():
 
 @pytest.mark.parametrize("seed", range(10))
 def test_population_conservation_nonnegative_compartments_and_monotonicity(seed):
-    config = RunConfig(countries=["ITA", "FRA", "DEU", "ESP"], seed=seed)
-    rng = np.random.default_rng(seed)
-    state = initial_state(config)
-    populations = state.sum(axis=1)
-    for _ in range(250):
-        original = state.copy()
-        state.flags.writeable = False
-        next_state = step(state, config.parameters, rng)
-        np.testing.assert_array_equal(state, original)
-        np.testing.assert_array_equal(next_state.sum(axis=1), populations)
-        assert (next_state >= 0).all()
-        assert (next_state[:, 0] <= state[:, 0]).all()
-        assert (next_state[:, 3] >= state[:, 3]).all()
-        state = next_state
+    config = RunConfig(
+        countries=["ITA", "FRA", "DEU", "ESP"], start_day=0, end_day=250, seed=seed
+    )
+    identity = config_hash(config)
+    snapshots = list(simulate(config, identity, "rust-property-test"))
+    populations = [sum(place.states["health"].values()) for place in snapshots[0].places]
+    for current, following in zip(snapshots, snapshots[1:], strict=False):
+        assert [sum(place.states["health"].values()) for place in following.places] == populations
+        assert all(
+            value >= 0
+            for place in following.places
+            for value in place.states["health"].values()
+        )
+        assert all(
+            following_place.susceptible <= current_place.susceptible
+            for current_place, following_place in zip(current.places, following.places, strict=True)
+        )
+        assert all(
+            following_place.recovered >= current_place.recovered
+            for current_place, following_place in zip(current.places, following.places, strict=True)
+        )
 
 
 def test_golden_determinism_writes_identical_snapshot_files(tmp_path):

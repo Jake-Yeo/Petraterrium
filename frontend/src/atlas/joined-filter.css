@@ -1,9 +1,18 @@
 .joined-filter-panel {
   display: grid;
   gap: 1.25rem;
-  padding: 1.25rem;
-  border: 1px solid var(--line);
-  background: #101924;
+  color: var(--atlas-text);
+}
+
+:root[data-theme='light'] .joined-filter-panel,
+:root[data-color-scheme='light'] .joined-filter-panel,
+:root.theme-light .joined-filter-panel {
+  --atlas-surface: #f7f9f8;
+  --atlas-surface-raised: #ffffff;
+  --atlas-surface-control: #eef2f1;
+  --atlas-text: #1b292d;
+  --atlas-text-muted: #60747b;
+  --atlas-accent: #276a45;
 }
 
 .joined-filter-heading,
@@ -19,9 +28,7 @@
   gap: 1rem;
 }
 
-.joined-filter-heading h3,
 .joined-query-heading h4,
-.joined-filter-heading p,
 .joined-query-heading p,
 .joined-missing p,
 .joined-warning {
@@ -44,6 +51,72 @@
   text-transform: uppercase;
 }
 
+.joined-filter-heading {
+  justify-content: flex-end;
+}
+
+.joined-filter-panel select,
+.joined-filter-panel input {
+  background-color: var(--atlas-surface-control);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--atlas-text);
+  color-scheme: inherit;
+  font: inherit;
+  min-height: 38px;
+  padding: 9px 34px 9px 10px;
+  width: 100%;
+}
+
+.joined-filter-panel select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='m3 5 4 4 4-4' fill='none' stroke='%238b9ea6' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.joined-filter-panel select[multiple] {
+  background-image: none;
+  padding-right: 10px;
+}
+
+.joined-filter-panel select:hover,
+.joined-filter-panel input:hover {
+  border-color: color-mix(in srgb, var(--atlas-accent) 38%, var(--line));
+}
+
+.joined-filter-panel select:focus,
+.joined-filter-panel input:focus {
+  border-color: var(--atlas-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--atlas-accent) 22%, transparent);
+  outline: 0;
+}
+
+.joined-filter-panel select:disabled,
+.joined-filter-panel input:disabled {
+  background-color: var(--atlas-surface-raised);
+  color: var(--atlas-text-muted);
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.joined-filter-panel select option,
+.joined-filter-panel select optgroup {
+  background: var(--atlas-surface-control);
+  color: var(--atlas-text);
+}
+
+.joined-filter-panel select option:checked {
+  background: color-mix(in srgb, var(--atlas-accent) 22%, var(--atlas-surface-control));
+  color: var(--atlas-text);
+}
+
+.joined-filter-panel select option:hover {
+  background: color-mix(in srgb, var(--atlas-accent) 12%, var(--atlas-surface-control));
+  color: var(--atlas-text);
+}
+
 .joined-inheritance,
 .joined-result {
   min-height: 4.5rem;
@@ -61,7 +134,7 @@
 .joined-missing {
   padding: 0.85rem;
   border: 1px solid var(--line);
-  background: #0d151f;
+  background: var(--atlas-surface);
 }
 
 .joined-value-list strong,
@@ -187,8 +260,8 @@
 
 .joined-city-search [data-joined-city-results] button {
   border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--text);
+  background: var(--atlas-surface-control);
+  color: var(--atlas-text);
   cursor: pointer;
   padding: 0.45rem 0.6rem;
 }

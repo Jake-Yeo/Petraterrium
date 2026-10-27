@@ -2,8 +2,6 @@ import hashlib
 import json
 from pathlib import Path
 
-import numpy as np
-
 from .contracts import RunConfig
 from .data import DATA_VERSION
 from .engine import ENGINE_MODEL
@@ -18,7 +16,12 @@ def source_digest() -> str:
     shared_schema = root.parents[1] / "shared" / "dsl-schema" / "petraterrium-dsl.schema.json"
     if shared_schema.exists():
         digest.update(shared_schema.read_bytes())
-    digest.update(np.__version__.encode())
+    rust_root = root.parents[1] / "engine-rust"
+    for source in sorted((rust_root / "src").rglob("*.rs")):
+        digest.update(str(source.relative_to(rust_root)).encode())
+        digest.update(source.read_bytes())
+    for manifest in (rust_root / "Cargo.toml", rust_root / "Cargo.lock"):
+        digest.update(manifest.read_bytes())
     return digest.hexdigest()[:16]
 
 

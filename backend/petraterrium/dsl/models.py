@@ -1,6 +1,10 @@
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+if TYPE_CHECKING:
+    from ..markov.models import MarkovProgram, TransitionEvidence
+    from ..markov_builder.models import ConfirmedChainGraph
 
 
 class DSLModel(BaseModel):
@@ -421,6 +425,9 @@ class DSLConfig(DSLModel):
     rules: list[RuleDefinition] = Field(default_factory=list)
     actions: list[ActionDefinition] = Field(default_factory=list)
     chains: list[ChainDefinition] = Field(default_factory=list)
+    markov_chain_drafts: list["ConfirmedChainGraph"] = Field(default_factory=list)
+    markov_programs: list["MarkovProgram"] = Field(default_factory=list)
+    transition_evidence: list["TransitionEvidence"] = Field(default_factory=list)
     roles: list[RoleDefinition] = Field(default_factory=list)
     default_states: list[DefaultDefinition] = Field(default_factory=list)
     behaviour_bundles: list[BehaviourBundle] = Field(default_factory=list)

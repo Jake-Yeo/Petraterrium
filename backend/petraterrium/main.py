@@ -49,6 +49,7 @@ from .contracts import (
 from .data import COUNTRIES, DATA_VERSION
 from .decision_graph import run_decision_graph, static_decision_graph
 from .dsl import DSLConfig, load_dsl, render_plain_language, render_sliders, validate_dsl
+from .markov_builder import create_markov_builder_router
 from .output_views import (
     agent_detail,
     agent_points,
@@ -76,6 +77,7 @@ def create_app(store: RunStore | None = None, atlas_path=None, research_provider
         create_feature_catalog_router(atlas_store, canonical_feature_registry)
     )
     application.include_router(create_feature_query_router(atlas_store))
+    application.include_router(create_markov_builder_router())
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

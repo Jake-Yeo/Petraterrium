@@ -190,9 +190,8 @@ export class JoinedFilterPanel {
       : selectorIdentity(this.selectors[0]);
     const selectedFeature = initialFeatureId ?? this.features[0].id;
     return `
-      <section class="joined-filter-panel" aria-labelledby="joined-filter-title">
+      <section class="joined-filter-panel" aria-label="Place distribution and joined filters">
         <div class="joined-filter-heading">
-          <div><p class="eyebrow">AGENT INHERITANCE</p><h3 id="joined-filter-title">Place distribution and joined filters</h3></div>
           <label>Place<select data-joined-place>${this.selectors
             .map(
               (selector) =>

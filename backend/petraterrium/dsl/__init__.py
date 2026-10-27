@@ -1,4 +1,5 @@
 import json
+from importlib import import_module
 from pathlib import Path
 
 import yaml
@@ -45,6 +46,20 @@ from .models import (
     TransitionDefinition,
 )
 from .validator import validate_dsl
+
+markov_models = import_module("petraterrium.markov.models")
+builder_models = import_module("petraterrium.markov_builder.models")
+MarkovProgram = markov_models.MarkovProgram
+TransitionEvidence = markov_models.TransitionEvidence
+ConfirmedChainGraph = builder_models.ConfirmedChainGraph
+
+DSLConfig.model_rebuild(
+    _types_namespace={
+        "ConfirmedChainGraph": ConfirmedChainGraph,
+        "MarkovProgram": MarkovProgram,
+        "TransitionEvidence": TransitionEvidence,
+    }
+)
 
 
 def load_dsl(value: DSLConfig | dict | str | Path) -> DSLConfig:
@@ -146,6 +161,7 @@ __all__ = [
     "GraphTraversal",
     "JointDataProof",
     "LeaderActionDefinition",
+    "MarkovProgram",
     "MediaRule",
     "NetworkDefinition",
     "OutputSpec",
@@ -162,6 +178,7 @@ __all__ = [
     "SystemDefinition",
     "TickConfig",
     "TransitionDefinition",
+    "TransitionEvidence",
     "flatten_behaviour_bundles",
     "load_dsl",
     "render_plain_language",

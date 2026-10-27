@@ -21,6 +21,7 @@ from .dsl import (
     TickConfig,
     TransitionDefinition,
 )
+from .rust_core import RustCoreClient
 
 State = NDArray[np.int64]
 
@@ -44,21 +45,95 @@ def initial_state(config: RunConfig) -> State:
 
 
 def step(state: State, params: Parameters, rng: np.random.Generator) -> State:
-    populations = state.sum(axis=1)
-    prevalence = state[:, 2] / populations
-    shared_prevalence = state[:, 2].sum() / populations.sum()
-    force = params.transmission * (
-        (1 - params.mixing) * prevalence + params.mixing * shared_prevalence
-    )
-    exposed = rng.binomial(state[:, 0], -np.expm1(-force))
-    infected = rng.binomial(state[:, 1], -np.expm1(-params.progression))
-    recovered = rng.binomial(state[:, 2], -np.expm1(-params.recovery))
-    next_state = state.copy()
-    next_state[:, 0] -= exposed
-    next_state[:, 1] += exposed - infected
-    next_state[:, 2] += infected - recovered
-    next_state[:, 3] += recovered
-    return next_state
+    places = [f"place-{index}" for index in range(len(state))]
+    values = ["susceptible", "exposed", "infected", "recovered"]
+    populations = [int(row.sum()) for row in state]
+    overrides = {
+        place: {"health": {name: int(state[index, column]) for column, name in enumerate(values)}}
+        for index, place in enumerate(places)
+    }
+    evidence = {
+        "source": "Compatibility step input",
+        "version": "runtime",
+        "status": "present",
+        "uncertainty": 0,
+    }
+    dsl = {
+        "states": [
+            {
+                "id": "health",
+                "values": values,
+                "initial": {
+                    "values": {
+                        "susceptible": 1,
+                        "exposed": 0,
+                        "infected": 0,
+                        "recovered": 0,
+                    },
+                    "provenance": evidence,
+                },
+            }
+        ],
+        "parameters": [
+            {"id": "transmission", "value": params.transmission},
+            {"id": "progression", "value": params.progression},
+            {"id": "recovery", "value": params.recovery},
+            {"id": "mixing", "value": params.mixing},
+        ],
+        "systems": [
+            {
+                "id": "health-spread",
+                "state": "health",
+                "transitions": [
+                    {
+                        "id": "exposure",
+                        "from_state": "susceptible",
+                        "to_state": "exposed",
+                        "probability": {
+                            "base": params.transmission,
+                            "mode": "hazard",
+                            "time_unit": "day",
+                            "parameter": "transmission",
+                            "source_state": "infected",
+                            "mixing_parameter": "mixing",
+                        },
+                    },
+                    {
+                        "id": "progression",
+                        "from_state": "exposed",
+                        "to_state": "infected",
+                        "probability": {
+                            "base": params.progression,
+                            "mode": "hazard",
+                            "time_unit": "day",
+                            "parameter": "progression",
+                        },
+                    },
+                    {
+                        "id": "recovery",
+                        "from_state": "infected",
+                        "to_state": "recovered",
+                        "probability": {
+                            "base": params.recovery,
+                            "mode": "hazard",
+                            "time_unit": "day",
+                            "parameter": "recovery",
+                        },
+                    },
+                ],
+            }
+        ],
+        "tick": {"tick_hours": 24, "total_ticks": 1, "snapshot_every_hours": 24},
+        "population": {
+            "size": int(sum(populations)),
+            "places": places,
+            "place_populations": dict(zip(places, populations, strict=True)),
+            "initial_state_overrides": overrides,
+        },
+    }
+    seed = int(rng.integers(0, np.iinfo(np.int64).max))
+    result = RustCoreClient().run_aggregate_dsl(dsl, seed=seed)
+    return np.asarray(result["snapshots"][-1]["states"]["health"], dtype=np.int64)
 
 
 def compatibility_dsl(config: RunConfig) -> DSLConfig:

@@ -1,7 +1,10 @@
 import { api } from '../api';
 import type { DSLConfig, DSLValidationResult } from '../contracts.generated';
 import { featureCatalogApi, type CatalogFeature } from '../atlas/feature-catalog';
+import { MarkovChainBuilder } from '../markov-builder/main';
+import type { ConfirmationResult } from '../markov-builder/types';
 import { escapeHtml } from '../views';
+import { integrateConfirmedChain } from './markov-integration';
 
 export class DSLBuilder {
   private dsl?: DSLConfig;
@@ -9,6 +12,7 @@ export class DSLBuilder {
   private loaded = false;
   private timer?: ReturnType<typeof setTimeout>;
   private catalogFeatures: CatalogFeature[] = [];
+  private markovBuilder?: MarkovChainBuilder;
 
   constructor(
     private host: HTMLElement,
@@ -21,6 +25,11 @@ export class DSLBuilder {
   async activate(): Promise<void> {
     if (!this.loaded) {
       this.host.innerHTML = this.shell();
+      this.markovBuilder = new MarkovChainBuilder(
+        this.host.querySelector<HTMLElement>('#markov-chain-builder')!,
+        { onConfirmed: (result) => this.saveConfirmedChain(result) },
+      );
+      this.markovBuilder.activate();
       this.loaded = true;
       try {
         const [dsl, catalog] = await Promise.all([api.smokeDSL(), featureCatalogApi.list()]);
@@ -52,6 +61,7 @@ export class DSLBuilder {
         <section class="builder-column"><span class="small-label">ACTIONS / OUTCOMES</span><h2>What can happen</h2><div id="dsl-actions"></div></section>
         <section class="builder-column"><span class="small-label">RELATIONSHIPS / COEFFICIENTS</span><h2>What predicts what</h2><div id="dsl-coefficients"></div></section>
       </div>
+      <section id="markov-chain-builder" class="builder-markov"></section>
       <section class="builder-console">
         <div class="builder-console-heading"><div><span class="small-label">DSL PREVIEW + VALIDATION</span><h2>Single source of truth</h2></div><span id="dsl-validation-badge" class="status-pill">Loading</span></div>
         <div class="builder-console-grid"><label class="dsl-editor-label">JSON<textarea id="dsl-editor" spellcheck="false" aria-label="DSL JSON"></textarea></label><div><div id="dsl-summary" class="dsl-summary"></div><div id="dsl-errors" class="dsl-errors"></div><div id="dsl-sliders" class="dsl-sliders"></div></div></div>
@@ -176,6 +186,15 @@ export class DSLBuilder {
     }
     const target = this.host.querySelector<HTMLElement>('#dsl-errors');
     if (target) target.innerHTML = `<p>${escapeHtml(message)}</p>`;
+  }
+
+  private async saveConfirmedChain(result: ConfirmationResult): Promise<void> {
+    const integrated = integrateConfirmedChain(this.parsed(), result.chain);
+    this.textarea().value = JSON.stringify(integrated, null, 2);
+    await this.validate();
+    if (!this.validation?.valid) {
+      throw new Error('The confirmed chain did not produce a valid DSL module.');
+    }
   }
 
   private async run(): Promise<void> {

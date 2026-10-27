@@ -2734,6 +2734,127 @@
       "title": "ChainDefinition",
       "type": "object"
     },
+    "ChainNodeDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "terminal": {
+          "default": false,
+          "title": "Terminal",
+          "type": "boolean"
+        },
+        "origin": {
+          "enum": [
+            "user_explicit",
+            "model_proposal",
+            "structural",
+            "manual_edit"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "source_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Excerpt"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "origin"
+      ],
+      "title": "ChainNodeDraft",
+      "type": "object"
+    },
+    "ChainTransitionDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from_node": {
+          "title": "From Node",
+          "type": "string"
+        },
+        "to_node": {
+          "title": "To Node",
+          "type": "string"
+        },
+        "probability": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Probability"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition"
+        },
+        "origin": {
+          "enum": [
+            "user_explicit",
+            "model_proposal",
+            "structural",
+            "manual_edit"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "source_excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Excerpt"
+        }
+      },
+      "required": [
+        "id",
+        "from_node",
+        "to_node",
+        "origin"
+      ],
+      "title": "ChainTransitionDraft",
+      "type": "object"
+    },
     "ChoiceCondition": {
       "additionalProperties": false,
       "properties": {
@@ -3103,6 +3224,128 @@
       "title": "ColumnMapping",
       "type": "object"
     },
+    "ConditionClause": {
+      "additionalProperties": false,
+      "properties": {
+        "input_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Input Id",
+          "type": "string"
+        },
+        "operator": {
+          "enum": [
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "input_id",
+        "operator",
+        "value"
+      ],
+      "title": "ConditionClause",
+      "type": "object"
+    },
+    "ConfirmedChainGraph": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source_text": {
+          "title": "Source Text",
+          "type": "string"
+        },
+        "entry_node": {
+          "title": "Entry Node",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/ChainNodeDraft"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "#/$defs/ChainTransitionDraft"
+          },
+          "title": "Transitions",
+          "type": "array"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "source_text",
+        "entry_node",
+        "nodes",
+        "transitions",
+        "revision"
+      ],
+      "title": "ConfirmedChainGraph",
+      "type": "object"
+    },
     "Country": {
       "additionalProperties": false,
       "properties": {
@@ -3306,6 +3549,27 @@
             "$ref": "#/$defs/ChainDefinition"
           },
           "title": "Chains",
+          "type": "array"
+        },
+        "markov_chain_drafts": {
+          "items": {
+            "$ref": "#/$defs/ConfirmedChainGraph"
+          },
+          "title": "Markov Chain Drafts",
+          "type": "array"
+        },
+        "markov_programs": {
+          "items": {
+            "$ref": "#/$defs/MarkovProgram"
+          },
+          "title": "Markov Programs",
+          "type": "array"
+        },
+        "transition_evidence": {
+          "items": {
+            "$ref": "#/$defs/TransitionEvidence"
+          },
+          "title": "Transition Evidence",
           "type": "array"
         },
         "roles": {
@@ -5333,6 +5597,37 @@
       "title": "ImportVersion",
       "type": "object"
     },
+    "InputBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "target_input": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Target Input",
+          "type": "string"
+        },
+        "source_kind": {
+          "enum": [
+            "input",
+            "output",
+            "external"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_input",
+        "source_kind",
+        "source_id"
+      ],
+      "title": "InputBinding",
+      "type": "object"
+    },
     "JointDataProof": {
       "additionalProperties": false,
       "properties": {
@@ -5625,6 +5920,137 @@
       "title": "MarginalField",
       "type": "object"
     },
+    "MarkovModule": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "entry_state": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Entry State",
+          "type": "string"
+        },
+        "exit_states": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Exit States",
+          "type": "array"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/ModuleInput"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/ModuleOutput"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "states": {
+          "items": {
+            "$ref": "#/$defs/ModuleState"
+          },
+          "minItems": 1,
+          "title": "States",
+          "type": "array"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "#/$defs/ModuleTransition"
+          },
+          "title": "Transitions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "name",
+        "entry_state",
+        "exit_states",
+        "states"
+      ],
+      "title": "MarkovModule",
+      "type": "object"
+    },
+    "MarkovProgram": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "entry_module": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Entry Module",
+          "type": "string"
+        },
+        "modules": {
+          "items": {
+            "$ref": "#/$defs/MarkovModule"
+          },
+          "minItems": 1,
+          "title": "Modules",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/ModuleLink"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "terminal_exits": {
+          "items": {
+            "$ref": "#/$defs/ProgramExit"
+          },
+          "minItems": 1,
+          "title": "Terminal Exits",
+          "type": "array"
+        },
+        "external_inputs": {
+          "items": {
+            "$ref": "#/$defs/ModuleInput"
+          },
+          "title": "External Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "entry_module",
+        "modules",
+        "terminal_exits"
+      ],
+      "title": "MarkovProgram",
+      "type": "object"
+    },
     "MediaRule": {
       "additionalProperties": false,
       "properties": {
@@ -5780,6 +6206,215 @@
         "impact"
       ],
       "title": "MissingFallback",
+      "type": "object"
+    },
+    "ModuleInput": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "agent_trait",
+            "place",
+            "time",
+            "context",
+            "persisted_state",
+            "place_state",
+            "media_state"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "categorical",
+            "continuous",
+            "boolean",
+            "identifier"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feature Id"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "value_type"
+      ],
+      "title": "ModuleInput",
+      "type": "object"
+    },
+    "ModuleLink": {
+      "additionalProperties": false,
+      "properties": {
+        "from_module": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "From Module",
+          "type": "string"
+        },
+        "exit_state": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Exit State",
+          "type": "string"
+        },
+        "to_module": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "To Module",
+          "type": "string"
+        },
+        "bindings": {
+          "items": {
+            "$ref": "#/$defs/InputBinding"
+          },
+          "title": "Bindings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "from_module",
+        "exit_state",
+        "to_module"
+      ],
+      "title": "ModuleLink",
+      "type": "object"
+    },
+    "ModuleOutput": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "location",
+            "health",
+            "friends",
+            "persisted_state",
+            "place_state",
+            "media_state",
+            "event"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "categorical",
+            "continuous",
+            "boolean",
+            "identifier"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "value_type"
+      ],
+      "title": "ModuleOutput",
+      "type": "object"
+    },
+    "ModuleState": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "effects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Effects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "ModuleState",
+      "type": "object"
+    },
+    "ModuleTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from_state": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "From State",
+          "type": "string"
+        },
+        "to_state": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "To State",
+          "type": "string"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransitionCondition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "probability": {
+          "$ref": "#/$defs/ProbabilityQuery"
+        }
+      },
+      "required": [
+        "id",
+        "from_state",
+        "to_state",
+        "probability"
+      ],
+      "title": "ModuleTransition",
       "type": "object"
     },
     "NetworkDefinition": {
@@ -6211,6 +6846,59 @@
       "title": "PopulationReference",
       "type": "object"
     },
+    "ProbabilityQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Outcome Id",
+          "type": "string"
+        },
+        "conditioning_id": {
+          "minLength": 1,
+          "title": "Conditioning Id",
+          "type": "string"
+        },
+        "place_input": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Place Input",
+          "type": "string"
+        },
+        "time_input": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Time Input",
+          "type": "string"
+        },
+        "predictor_inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Predictor Inputs",
+          "type": "array"
+        },
+        "allowed_evidence": {
+          "items": {
+            "enum": [
+              "measured_choice",
+              "measured_joint",
+              "fitted_choice"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outcome_id",
+        "conditioning_id",
+        "place_input",
+        "time_input"
+      ],
+      "title": "ProbabilityQuery",
+      "type": "object"
+    },
     "ProbabilitySpec": {
       "additionalProperties": false,
       "properties": {
@@ -6300,6 +6988,27 @@
         "time_unit"
       ],
       "title": "ProbabilitySpec",
+      "type": "object"
+    },
+    "ProgramExit": {
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Module Id",
+          "type": "string"
+        },
+        "state_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "State Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module_id",
+        "state_id"
+      ],
+      "title": "ProgramExit",
       "type": "object"
     },
     "Promotion": {
@@ -7515,6 +8224,32 @@
       "title": "Totals",
       "type": "object"
     },
+    "TransitionCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "always",
+            "all",
+            "any"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "clauses": {
+          "items": {
+            "$ref": "#/$defs/ConditionClause"
+          },
+          "title": "Clauses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "TransitionCondition",
+      "type": "object"
+    },
     "TransitionDefinition": {
       "additionalProperties": false,
       "properties": {
@@ -7541,6 +8276,151 @@
         "probability"
       ],
       "title": "TransitionDefinition",
+      "type": "object"
+    },
+    "TransitionEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "measured_joint",
+            "fitted_choice"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "outcome_id": {
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Outcome Id",
+          "type": "string"
+        },
+        "conditioning_id": {
+          "minLength": 1,
+          "title": "Conditioning Id",
+          "type": "string"
+        },
+        "place": {
+          "minLength": 1,
+          "title": "Place",
+          "type": "string"
+        },
+        "time_unit": {
+          "enum": [
+            "event",
+            "hour",
+            "day",
+            "friday",
+            "week",
+            "year"
+          ],
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "predictor_values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "title": "Predictor Values",
+          "type": "object"
+        },
+        "condition_values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "title": "Condition Values",
+          "type": "object"
+        },
+        "probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Probability",
+          "type": "number"
+        },
+        "ci_low": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci Low",
+          "type": "number"
+        },
+        "ci_high": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ci High",
+          "type": "number"
+        },
+        "sample_size": {
+          "exclusiveMinimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "held_out_sample_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Held Out Sample Size"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "outcome_id",
+        "conditioning_id",
+        "place",
+        "time_unit",
+        "probability",
+        "ci_low",
+        "ci_high",
+        "sample_size",
+        "population",
+        "provenance"
+      ],
+      "title": "TransitionEvidence",
       "type": "object"
     },
     "UniversalFeatureOverview": {

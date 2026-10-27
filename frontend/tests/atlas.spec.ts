@@ -170,9 +170,13 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await expect(featureImport).toContainText('Target feature');
   await expect(featureImport.getByLabel('Target feature')).toHaveValue('age');
   await featureImport.getByRole('button', { name: 'Cancel' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Place distribution and joined filters' }),
-  ).toBeVisible();
+  const inheritanceAccordion = catalog.getByRole('button', {
+    name: 'Agent inheritance: Place distribution and joined filters',
+  });
+  await expect(inheritanceAccordion).toHaveAttribute('aria-expanded', 'false');
+  await inheritanceAccordion.click();
+  await expect(inheritanceAccordion).toHaveAttribute('aria-expanded', 'true');
+  await expect(catalog.locator('#feature-inheritance-accordion-panel')).toBeVisible();
   await catalog.getByLabel('Find a place or source').fill('IT');
   await expect(catalog.getByRole('row', { name: /Age 1/ })).toContainText('800 agents');
   await expect(catalog.locator('[data-inheritance-result]')).toContainText('agents');

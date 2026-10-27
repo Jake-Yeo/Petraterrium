@@ -4,15 +4,72 @@
   font-family: 'DM Sans', system-ui, sans-serif;
   color: #e5e9eb;
   background: #0b1119;
+  color-scheme: dark;
   font-synthesis: none;
   font-weight: 400;
   --muted: #7d8c98;
   --line: #ffffff0e;
   --green: #b5e7b1;
   --orange: #e9a377;
+  --scrollbar-track: #080f16;
+  --scrollbar-thumb: #344953;
+  --scrollbar-thumb-hover: #527078;
+  --scrollbar-corner: #080f16;
+}
+:root[data-theme='light'],
+:root[data-color-scheme='light'],
+:root.theme-light {
+  color-scheme: light;
+  --scrollbar-track: #e8edee;
+  --scrollbar-thumb: #879ba2;
+  --scrollbar-thumb-hover: #607a82;
+  --scrollbar-corner: #e8edee;
+}
+:root[data-theme='dark'],
+:root[data-color-scheme='dark'],
+:root.theme-dark {
+  color-scheme: dark;
+  --scrollbar-track: #080f16;
+  --scrollbar-thumb: #344953;
+  --scrollbar-thumb-hover: #527078;
+  --scrollbar-corner: #080f16;
+}
+:root[data-theme='light'] :is(select, option, optgroup),
+:root[data-color-scheme='light'] :is(select, option, optgroup),
+:root.theme-light :is(select, option, optgroup) {
+  color-scheme: light !important;
+}
+:root[data-theme='dark'] :is(select, option, optgroup),
+:root[data-color-scheme='dark'] :is(select, option, optgroup),
+:root.theme-dark :is(select, option, optgroup) {
+  color-scheme: dark !important;
 }
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: var(--scrollbar-corner);
 }
 body {
   margin: 0;
@@ -1629,6 +1686,17 @@ input[type='number'] {
   padding: 26px;
   border: 1px solid #24313a;
   background: #0f171f;
+}
+
+.builder-markov {
+  max-width: 1500px;
+  margin: 0 auto 22px;
+  border: 1px solid #24313a;
+  background: #0f171f;
+}
+
+.builder-markov .markov-builder {
+  padding-bottom: 34px;
 }
 
 .builder-console-heading {
