@@ -219,9 +219,21 @@ pub struct CachedCompositionDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionArchetypeDefinition {
+    pub id: String,
+    pub level: String,
+    pub child_level: String,
+    pub parameters: BTreeMap<String, f64>,
+    pub outputs: Vec<ArchetypeOutputDefinition>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CompositionDefinition {
     pub id: String,
     pub level: String,
+    pub template: Option<String>,
+    pub represented_population: Option<u64>,
     pub entries: Vec<CompositionEntry>,
     pub places: Vec<String>,
     pub parameters: BTreeMap<String, f64>,
@@ -239,6 +251,7 @@ pub struct CompositionDefinition {
 pub struct WeightedCompositionEntry {
     pub composition: String,
     pub weight: u64,
+    pub represented_population: Option<u64>,
     pub line: usize,
 }
 
@@ -399,6 +412,7 @@ pub enum ReportMetric {
     },
     FamilySize,
     KidsPerFamily,
+    RepresentedCount,
     PlaceState {
         place: String,
         field: String,
@@ -450,6 +464,7 @@ pub struct Program {
     pub archetypes: Vec<ArchetypeDefinition>,
     pub weighted_populations: Vec<WeightedPopulationDefinition>,
     pub aggregate_functions: Vec<AggregateFunctionDefinition>,
+    pub composition_archetypes: Vec<CompositionArchetypeDefinition>,
     pub compositions: Vec<CompositionDefinition>,
     pub composition_populations: Vec<WeightedCompositionPopulation>,
 }
@@ -723,6 +738,10 @@ pub struct CompositionCacheMetadata {
     pub cached: bool,
     pub detailed: bool,
     pub invalidation_reason: Option<String>,
+    #[serde(default)]
+    pub feedback_iterations: u32,
+    #[serde(default)]
+    pub feedback_change_percent: f64,
     pub children: Vec<CompositionCacheMetadata>,
 }
 

@@ -23,6 +23,7 @@ class TextDslValidation(TextDslModel):
     tick_hours: float | None = None
     adult_population: int | None = None
     archetypes: tuple[str, ...] = ()
+    composition_archetypes: tuple[dict[str, str], ...] = ()
     weighted_populations: tuple[str, ...] = ()
     aggregate_functions: tuple[dict[str, Any], ...] = ()
     compositions: tuple[dict[str, Any], ...] = ()

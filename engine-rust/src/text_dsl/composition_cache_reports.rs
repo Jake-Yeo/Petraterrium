@@ -13,8 +13,8 @@ pub(super) fn cached_reports(
 ) -> Vec<DslReport> {
     vec![
         cached_output_report(composition, endpoint, days),
-        cached_flow_report(flows, days),
-        cached_interaction_report(flows, days),
+        cached_flow_report(composition, flows, days),
+        cached_interaction_report(composition, flows, days),
         cache_hierarchy_report(cache_tree, days),
         feedback_report(iterations, change_percent, days),
     ]
@@ -56,18 +56,28 @@ fn cached_output_report(
     }
 }
 
-fn cached_flow_report(flows: &[CachedFlowPoint], days: u32) -> DslReport {
-    let snapshots = flows
+fn cached_flow_report(
+    composition: &CompositionDefinition,
+    flows: &[CachedFlowPoint],
+    days: u32,
+) -> DslReport {
+    let visible_compositions = composition
+        .entries
         .iter()
-        .map(|flow| flow.day)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
+        .map(|entry| entry.child.as_str())
+        .chain([composition.id.as_str()])
+        .collect::<BTreeSet<_>>();
+    let visible_flows = flows
+        .iter()
+        .filter(|flow| visible_compositions.contains(flow.composition.as_str()))
+        .collect::<Vec<_>>();
+    let snapshots = (1..=days)
         .map(|day| DslReportSnapshot {
             tick: u64::from(day),
-            rows: flows
+            rows: visible_flows
                 .iter()
                 .filter(|flow| flow.day == day)
-                .map(flow_row)
+                .map(|flow| flow_row(flow))
                 .collect(),
         })
         .collect();
@@ -85,14 +95,7 @@ fn cached_flow_report(flows: &[CachedFlowPoint], days: u32) -> DslReport {
             report_column("count", "decimal"),
             report_column("rate", "percent"),
         ],
-        snapshots: if flows.is_empty() {
-            vec![DslReportSnapshot {
-                tick: u64::from(days),
-                rows: Vec::new(),
-            }]
-        } else {
-            snapshots
-        },
+        snapshots,
     }
 }
 
@@ -122,10 +125,23 @@ fn flow_row(flow: &CachedFlowPoint) -> DslReportRow {
     }
 }
 
-fn cached_interaction_report(flows: &[CachedFlowPoint], days: u32) -> DslReport {
+fn cached_interaction_report(
+    composition: &CompositionDefinition,
+    flows: &[CachedFlowPoint],
+    days: u32,
+) -> DslReport {
+    let latest_day = flows
+        .iter()
+        .filter(|flow| flow.composition == composition.id && flow.effect == "visit")
+        .map(|flow| flow.day)
+        .max();
     let rows = flows
         .iter()
-        .filter(|flow| flow.effect == "visit")
+        .filter(|flow| {
+            flow.composition == composition.id
+                && flow.effect == "visit"
+                && Some(flow.day) == latest_day
+        })
         .map(|flow| DslReportRow {
             group_id: format!("{} → {}", flow.source, flow.target),
             values: BTreeMap::from([
@@ -172,6 +188,8 @@ fn cache_hierarchy_report(tree: &CompositionCacheMetadata, days: u32) -> DslRepo
             report_column("valid_until", "integer"),
             report_column("seed", "integer"),
             report_column("invalidation", "number"),
+            report_column("feedback_iterations", "integer"),
+            report_column("feedback_change_percent", "percent"),
         ],
         snapshots: vec![DslReportSnapshot {
             tick: u64::from(days),
@@ -228,6 +246,14 @@ fn flatten_cache_tree(tree: &CompositionCacheMetadata, rows: &mut Vec<DslReportR
                         .clone()
                         .unwrap_or_else(|| "none".to_owned()),
                 ),
+            ),
+            (
+                "feedback_iterations".to_owned(),
+                DslReportValue::Number(f64::from(tree.feedback_iterations)),
+            ),
+            (
+                "feedback_change_percent".to_owned(),
+                DslReportValue::Number(tree.feedback_change_percent),
             ),
         ]),
     });

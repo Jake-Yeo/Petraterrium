@@ -207,15 +207,15 @@ fn leaf_allocations(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .map(|id| archetypes[id].sample_households)
-        .sum::<usize>()
-        .max(leaves.len());
+        .sum::<usize>();
+    let minimum = usize::from(leaves.len() <= total_samples);
     let mut allocations = leaves
         .iter()
         .map(|leaf| {
             let exact = total_samples as f64 * leaf.weight;
             (
                 leaf.namespace.clone(),
-                exact.floor().max(1.0) as usize,
+                (exact.floor() as usize).max(minimum),
                 exact.fract(),
             )
         })
@@ -231,13 +231,20 @@ fn leaf_allocations(
                 .then_with(|| right.0.cmp(&left.0))
         });
         let mut extra = assigned - total_samples;
-        for (_, count, _) in &mut allocations {
-            if extra == 0 {
-                break;
+        while extra > 0 {
+            let mut changed = false;
+            for (_, count, _) in &mut allocations {
+                if extra == 0 {
+                    break;
+                }
+                if *count > minimum {
+                    *count -= 1;
+                    extra -= 1;
+                    changed = true;
+                }
             }
-            if *count > 1 {
-                *count -= 1;
-                extra -= 1;
+            if !changed {
+                break;
             }
         }
     } else {
@@ -248,12 +255,14 @@ fn leaf_allocations(
                 .total_cmp(&left.2)
                 .then_with(|| left.0.cmp(&right.0))
         });
-        for (_, count, _) in &mut allocations {
-            if remaining == 0 {
-                break;
+        while remaining > 0 {
+            for (_, count, _) in &mut allocations {
+                if remaining == 0 {
+                    break;
+                }
+                *count += 1;
+                remaining -= 1;
             }
-            *count += 1;
-            remaining -= 1;
         }
     }
     allocations
@@ -465,14 +474,14 @@ fn apply_flows(
 ) -> DslResult<Vec<ExecutedFlow>> {
     let mut executed = Vec::new();
     for node in nodes {
+        let mut node_values = composition_values(program, node.definition);
         for flow in &node.definition.flows {
-            let mut values = composition_values(program, node.definition);
             let distance = adjacency_distance(node.definition, flow).max(1.0);
-            values.insert(
+            node_values.insert(
                 format!("distance_{}_{}", flow.source, flow.target),
                 DslValue::Number(distance),
             );
-            let rate = evaluate(&flow.rate, &values)?
+            let rate = evaluate(&flow.rate, &node_values)?
                 .as_f64()
                 .ok_or_else(|| {
                     DslError::new(
@@ -525,7 +534,7 @@ fn apply_flows(
                             .states
                             .insert("location".to_owned(), DslValue::Text(place));
                     }
-                } else {
+                } else if flow.effect == "transfer" {
                     if let Some(path) = agent_paths.get_mut(&agent.id)
                         && let Some(group) = path.get_mut(membership_index)
                     {
@@ -551,6 +560,7 @@ fn apply_flows(
                 agents: affected_agents,
                 rate: affected_agents as f64 / source_count as f64,
             });
+            node_values.insert(flow.id.clone(), DslValue::Number(rate));
         }
     }
     Ok(executed)
@@ -582,6 +592,14 @@ fn composition_values(
             .iter()
             .find(|child| child.id == entry.child)
         {
+            for (parameter, value) in &child.parameters {
+                values
+                    .entry(format!("{}_{}", child.id, parameter))
+                    .or_insert(DslValue::Number(*value));
+                values
+                    .entry(format!("{}.{}", child.id, parameter))
+                    .or_insert(DslValue::Number(*value));
+            }
             for output in &child.outputs {
                 values
                     .entry(format!("{}_{}", child.id, output.id))

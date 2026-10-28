@@ -316,6 +316,7 @@ pub(super) fn calculate_output_definitions(
         .map(|output| {
             let mut values = match &output.metric {
                 ReportMetric::Count => vec![result.state.agents.len() as f64],
+                ReportMetric::RepresentedCount => Vec::new(),
                 ReportMetric::Mean { field } => result
                     .state
                     .agents
@@ -418,6 +419,7 @@ pub(super) fn calculate_aggregate_metric(
 ) -> DslResult<MetricSummary> {
     let mut values = match metric {
         ReportMetric::Count => vec![result.state.agents.len() as f64],
+        ReportMetric::RepresentedCount => Vec::new(),
         ReportMetric::Mean { field } => result
             .state
             .agents

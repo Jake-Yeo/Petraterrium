@@ -19,6 +19,89 @@ pub(super) fn parse_composition(
     parse_composition_body(lines, start, name, None)
 }
 
+pub(super) fn parse_composition_archetype(
+    lines: &[Line],
+    start: usize,
+    name: &str,
+) -> DslResult<(CompositionArchetypeDefinition, usize)> {
+    identifier(name, lines[start].number)?;
+    let mut level = None;
+    let mut child_level = None;
+    let mut parameters = BTreeMap::new();
+    let mut outputs = Vec::new();
+    let mut index = start + 1;
+    while index < lines.len() && lines[index].indent > 0 {
+        let line = &lines[index];
+        require_indent(line, 2)?;
+        if let Some(value) = line.text.strip_prefix("level = ") {
+            identifier(value, line.number)?;
+            level = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("child_level = ") {
+            identifier(value, line.number)?;
+            child_level = Some(value.to_owned());
+            index += 1;
+        } else if line.text == "parameters:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                let Some((id, value)) = entry.text.split_once(" = ") else {
+                    return Err(DslError::new(
+                        "INVALID_COMPOSITION_ARCHETYPE_PARAMETER",
+                        entry.number,
+                        "Composition archetype parameters use name = number",
+                    ));
+                };
+                identifier(id, entry.number)?;
+                parameters.insert(
+                    id.to_owned(),
+                    value.parse::<f64>().map_err(|_| {
+                        DslError::new(
+                            "INVALID_COMPOSITION_ARCHETYPE_PARAMETER",
+                            entry.number,
+                            "Composition archetype parameter must be numeric",
+                        )
+                    })?,
+                );
+                index += 1;
+            }
+        } else if let Some(value) = line.text.strip_prefix("output ") {
+            outputs.push(parse_archetype_output(value, line.number)?);
+            index += 1;
+        } else {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_ARCHETYPE_STATEMENT",
+                line.number,
+                format!("Unknown composition archetype statement {}", line.text),
+            ));
+        }
+    }
+    Ok((
+        CompositionArchetypeDefinition {
+            id: name.to_owned(),
+            level: level.ok_or_else(|| {
+                DslError::new(
+                    "MISSING_COMPOSITION_ARCHETYPE_LEVEL",
+                    lines[start].number,
+                    "Composition archetype needs level",
+                )
+            })?,
+            child_level: child_level.ok_or_else(|| {
+                DslError::new(
+                    "MISSING_COMPOSITION_ARCHETYPE_CHILD_LEVEL",
+                    lines[start].number,
+                    "Composition archetype needs child_level",
+                )
+            })?,
+            parameters,
+            outputs,
+            line: lines[start].number,
+        },
+        index,
+    ))
+}
+
 fn parse_composition_body(
     lines: &[Line],
     start: usize,
@@ -27,6 +110,8 @@ fn parse_composition_body(
 ) -> DslResult<(CompositionDefinition, usize)> {
     identifier(name, lines[start].number)?;
     let mut level = compatibility_level.map(str::to_owned);
+    let mut template = None;
+    let mut represented_population = None;
     let mut entries = Vec::new();
     let mut places = Vec::new();
     let mut parameters = BTreeMap::new();
@@ -48,6 +133,19 @@ fn parse_composition_body(
                 ));
             }
             level = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("template = ") {
+            identifier(value, line.number)?;
+            template = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("represented_population = ") {
+            represented_population = Some(value.parse::<u64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_REPRESENTED_POPULATION",
+                    line.number,
+                    "Represented population must be a positive integer",
+                )
+            })?);
             index += 1;
         } else if line.text == "children:" || line.text == "entries:" || line.text == "households:"
         {
@@ -167,6 +265,8 @@ fn parse_composition_body(
                     "Composition needs level = identifier",
                 )
             })?,
+            template,
+            represented_population,
             entries,
             places,
             parameters,
@@ -418,7 +518,37 @@ fn parse_composition_population_body(
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        let Some((composition, weight)) = line.text.split_once(": weight = ") else {
+        let (composition, weight, represented_population) = if let Some((composition, weight)) =
+            line.text.split_once(": weight = ")
+        {
+            (
+                composition,
+                weight.parse::<u64>().map_err(|_| {
+                    DslError::new(
+                        if compatibility {
+                            "INVALID_NEIGHBOURHOOD_WEIGHT"
+                        } else {
+                            "INVALID_COMPOSITION_WEIGHT"
+                        },
+                        line.number,
+                        "Composition weight must be a positive integer",
+                    )
+                })?,
+                None,
+            )
+        } else if let Some((composition, represented)) = line.text.split_once(": represented = ") {
+            (
+                composition,
+                1,
+                Some(represented.parse::<u64>().map_err(|_| {
+                    DslError::new(
+                        "INVALID_REPRESENTED_POPULATION",
+                        line.number,
+                        "Represented population must be a positive integer",
+                    )
+                })?),
+            )
+        } else {
             return Err(DslError::new(
                 if compatibility {
                     "INVALID_NEIGHBOURHOOD_WEIGHT"
@@ -426,22 +556,13 @@ fn parse_composition_population_body(
                     "INVALID_COMPOSITION_WEIGHT"
                 },
                 line.number,
-                "Composition population entries use Composition: weight = count",
+                "Composition population entries use Composition: weight = count or represented = count",
             ));
         };
         entries.push(WeightedCompositionEntry {
             composition: composition.to_owned(),
-            weight: weight.parse::<u64>().map_err(|_| {
-                DslError::new(
-                    if compatibility {
-                        "INVALID_NEIGHBOURHOOD_WEIGHT"
-                    } else {
-                        "INVALID_COMPOSITION_WEIGHT"
-                    },
-                    line.number,
-                    "Composition weight must be a positive integer",
-                )
-            })?,
+            weight,
+            represented_population,
             line: line.number,
         });
         index += 1;

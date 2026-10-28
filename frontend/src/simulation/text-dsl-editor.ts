@@ -14,6 +14,7 @@ interface DslValidation {
   tick_hours?: number | null;
   adult_population?: number | null;
   archetypes: string[];
+  composition_archetypes: Array<{ id: string; level: string; child_level: string }>;
   weighted_populations: string[];
   aggregate_functions: AggregateFunctionDefinition[];
   compositions: Array<{ id: string; level: string; cached?: boolean }>;
@@ -205,7 +206,7 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Small-town simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs. Town coefficients retain their placeholder labels; archetype values are explicit estimates.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs, from agent archetypes through neighbourhood, municipality, division, country, and world compositions.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-toolbar">
@@ -218,7 +219,7 @@ export class TextDslEditor {
         <button type="button" class="button primary" data-dsl-action="run">Run saved DSL</button>
       </div>
       <div class="text-dsl-aggregate-toolbar">
-        <label>Aggregate function<select data-aggregate-function><option value="">Select archetype</option></select></label>
+        <label>Aggregate function<select data-aggregate-function><option value="">Select aggregate</option></select></label>
         <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
         <label>Evaluation day<input type="number" min="0" step="1" value="0" data-aggregate-day></label>
         <label>Events<input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
@@ -597,7 +598,7 @@ export class TextDslEditor {
   private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
     const select = this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!;
     const selected = select.value;
-    select.replaceChildren(new Option('Select archetype', ''));
+    select.replaceChildren(new Option('Select aggregate', ''));
     for (const definition of functions) {
       const option = new Option(definition.id, definition.id);
       option.dataset.definition = JSON.stringify(definition);

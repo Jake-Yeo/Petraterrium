@@ -136,6 +136,18 @@ fn aggregate_composition_population(
         .iter()
         .map(|(entry, result)| entry.weight as f64 * result.state.agents.len() as f64)
         .sum::<f64>();
+    let represented_population = population
+        .entries
+        .iter()
+        .map(|entry| {
+            entry.represented_population.or_else(|| {
+                definitions[entry.composition.as_str()]
+                    .represented_population
+                    .map(|value| value.saturating_mul(entry.weight))
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .map(|values| values.into_iter().sum::<u64>());
     let mut summary_values = BTreeMap::from([(
         "total_population".to_owned(),
         DslReportValue::Number(total_population),
@@ -147,6 +159,19 @@ fn aggregate_composition_population(
         metric: ReportMetric::Count,
         line: population.line,
     }];
+    if let Some(represented_population) = represented_population {
+        summary_values.insert(
+            "represented_population".to_owned(),
+            DslReportValue::Number(represented_population as f64),
+        );
+        summary_columns.push(ReportColumnDefinition {
+            id: "represented_population".to_owned(),
+            label: "Represented population".to_owned(),
+            format: "integer".to_owned(),
+            metric: ReportMetric::RepresentedCount,
+            line: population.line,
+        });
+    }
     for column in &output_columns {
         let mean = runs
             .iter()

@@ -6,11 +6,15 @@ const cachedCompositionDsl = readFileSync(
   resolve(process.cwd(), '../engine-rust/dsl/cached_composition_test.dsl'),
   'utf8',
 );
+const countryWorldDsl = readFileSync(
+  resolve(process.cwd(), '../engine-rust/dsl/country_world_test.dsl'),
+  'utf8',
+);
 
 test.beforeEach(async ({ page, request }) => {
   await request.post('/api/simulation/text-dsl/reset');
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Small-town simulation program' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Population simulation program' })).toBeVisible();
 });
 
 test('shows exact DSL code, edits it, runs it, and compares place aggregates', async ({ page }) => {
@@ -225,7 +229,7 @@ test('shows recursive cache metadata, branch invalidation, feedback, and evolvin
   await page.getByLabel('Aggregate function').selectOption('Province');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Cache hit/);
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/);
   await expect(page.getByRole('heading', { name: 'Composition cache hierarchy' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Composition feedback convergence' })).toBeVisible();
   await expect(page.getByRole('rowheader', { name: 'NorthOne', exact: true })).toBeVisible();
@@ -298,4 +302,69 @@ test('runs the shipped division detailed and from its recursive zero-tick cache'
   await expect(day90).toBeVisible();
   expect(await day90.textContent()).not.toBe(await day30.textContent());
   await expect(page.getByRole('heading', { name: 'Cached cross-composition interactions' })).toBeVisible();
+});
+
+test('runs synthetic countries and a world through the generic detailed and cached UI', async ({
+  page,
+}) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await editor.fill(countryWorldDsl);
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await expect(editor).toHaveValue(/archetype GenericFederation:/);
+  await expect(editor).toHaveValue(/composition TestWorld:/);
+
+  await page.getByLabel('Population').selectOption('composition:NationA');
+  await page.getByLabel('Days').fill('2');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'NationA country aggregates' })).toBeVisible();
+  await expect(page.getByText('country_exchange', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Population').selectOption('composition:TestWorld');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'TestWorld world aggregates' })).toBeVisible();
+  await expect(page.getByText('trade_a_b', { exact: true })).toBeVisible();
+  await expect(page.getByText('infection_a_b', { exact: true })).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(source.replace('NationA: weight = 60', 'NationA: weight = 80'));
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('composition:TestWorld');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('TestWorld');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/);
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
+  await expect(hierarchy.getByRole('rowheader', { name: 'TestWorld', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'NationA', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'NationB', exact: true })).toBeVisible();
+
+  await page.getByLabel('Branch inputs').fill('ProvinceB.division_policy=0.8');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Hierarchy updated');
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'NationA', exact: true }).locator('..'),
+  ).toContainText('cached');
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'NationB', exact: true }).locator('..'),
+  ).toContainText('updated');
+
+  await page.getByLabel('Branch inputs').fill('');
+  await page.getByLabel('Input schedule').fill('30.tax=0.8');
+  await page.getByLabel('Days').fill('90');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  const rows = page.locator('[data-report-id="aggregate_time_series"] tbody tr');
+  const day30 = rows.filter({ has: page.getByRole('rowheader', { name: '30', exact: true }) });
+  const day90 = rows.filter({ has: page.getByRole('rowheader', { name: '90', exact: true }) });
+  await expect(day30).toBeVisible();
+  await expect(day90).toBeVisible();
+  expect(await day90.textContent()).not.toBe(await day30.textContent());
 });

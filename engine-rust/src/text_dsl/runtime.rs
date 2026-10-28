@@ -1217,6 +1217,7 @@ fn report_value(
         .collect::<BTreeSet<_>>();
     match &column.metric {
         ReportMetric::Count => DslReportValue::Number(indices.len() as f64),
+        ReportMetric::RepresentedCount => DslReportValue::Number(0.0),
         ReportMetric::Mean { field } => {
             let values = numeric_values(state, indices, field);
             DslReportValue::Number(if values.is_empty() {

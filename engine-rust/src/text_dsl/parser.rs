@@ -1,9 +1,9 @@
 use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
 use super::composition_parser::{
-    parse_composition, parse_composition_population, parse_neighbourhood,
-    parse_neighbourhood_population,
+    parse_composition, parse_composition_archetype, parse_composition_population,
+    parse_neighbourhood, parse_neighbourhood_population,
 };
-use super::composition_validation::validate_compositions;
+use super::composition_validation::{apply_composition_archetypes, validate_compositions};
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,6 +36,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut archetypes = Vec::new();
     let mut weighted_populations = Vec::new();
     let mut aggregate_functions = Vec::new();
+    let mut composition_archetypes = Vec::new();
     let mut compositions = Vec::new();
     let mut composition_populations = Vec::new();
     let mut index = 1;
@@ -94,9 +95,18 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             population = Some(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "archetype") {
-            let (value, next) = parse_archetype(&lines, index, name)?;
-            archetypes.push(value);
-            index = next;
+            if lines
+                .get(index + 1)
+                .is_some_and(|next| next.indent == 2 && next.text.starts_with("level = "))
+            {
+                let (value, next) = parse_composition_archetype(&lines, index, name)?;
+                composition_archetypes.push(value);
+                index = next;
+            } else {
+                let (value, next) = parse_archetype(&lines, index, name)?;
+                archetypes.push(value);
+                index = next;
+            }
         } else if let Some(name) = block_name(&line.text, "population") {
             let (value, next) = parse_weighted_population(&lines, index, name)?;
             weighted_populations.push(value);
@@ -141,7 +151,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             ));
         }
     }
-    let program = Program {
+    let mut program = Program {
         id,
         version,
         tick_hours: tick_hours.ok_or_else(|| {
@@ -195,9 +205,11 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         archetypes,
         weighted_populations,
         aggregate_functions,
+        composition_archetypes,
         compositions,
         composition_populations,
     };
+    apply_composition_archetypes(&mut program)?;
     validate_program(&program)?;
     Ok(program)
 }
@@ -1150,6 +1162,7 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
     let window = || named.get("window").copied().unwrap_or("day").to_owned();
     match name {
         "count" if parts.is_empty() => Ok(ReportMetric::Count),
+        "represented_count" if parts.is_empty() => Ok(ReportMetric::RepresentedCount),
         "mean" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Mean {
             field: positional[0].to_owned(),
         }),

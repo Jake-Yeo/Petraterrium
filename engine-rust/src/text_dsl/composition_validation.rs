@@ -2,6 +2,43 @@ use super::expression::{evaluate, references};
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+pub(super) fn apply_composition_archetypes(program: &mut Program) -> DslResult<()> {
+    let archetypes = program
+        .composition_archetypes
+        .iter()
+        .map(|item| (item.id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    for composition in &mut program.compositions {
+        let Some(template_id) = &composition.template else {
+            continue;
+        };
+        let template = archetypes.get(template_id.as_str()).ok_or_else(|| {
+            DslError::new(
+                "UNKNOWN_COMPOSITION_ARCHETYPE",
+                composition.line,
+                format!("Unknown composition archetype {template_id}"),
+            )
+        })?;
+        if composition.level != template.level {
+            return Err(DslError::new(
+                "COMPOSITION_ARCHETYPE_LEVEL_MISMATCH",
+                composition.line,
+                format!(
+                    "Composition {} level {} does not match template level {}",
+                    composition.id, composition.level, template.level
+                ),
+            ));
+        }
+        let mut parameters = template.parameters.clone();
+        parameters.extend(composition.parameters.clone());
+        composition.parameters = parameters;
+        if composition.outputs.is_empty() {
+            composition.outputs = template.outputs.clone();
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
     let archetypes = program
         .archetypes
@@ -36,6 +73,23 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         .map(|item| item.aggregate.as_str())
         .collect::<BTreeSet<_>>();
     let mut ids = BTreeSet::new();
+    let mut archetype_ids = BTreeSet::new();
+    for archetype in &program.composition_archetypes {
+        if !archetype_ids.insert(archetype.id.as_str()) {
+            return Err(DslError::new(
+                "DUPLICATE_COMPOSITION_ARCHETYPE",
+                archetype.line,
+                format!("Duplicate composition archetype {}", archetype.id),
+            ));
+        }
+        if archetype.outputs.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_COMPOSITION_ARCHETYPE",
+                archetype.line,
+                "Composition archetype needs outputs",
+            ));
+        }
+    }
     for composition in &program.compositions {
         let legacy = composition.report_id == "neighbourhoods";
         if !ids.insert(composition.id.as_str()) {
@@ -65,6 +119,40 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
             .iter()
             .map(|entry| entry.child.as_str())
             .collect::<BTreeSet<_>>();
+        if composition.represented_population == Some(0) {
+            return Err(DslError::new(
+                "INVALID_REPRESENTED_POPULATION",
+                composition.line,
+                "Represented population must be positive",
+            ));
+        }
+        if let Some(template_id) = &composition.template {
+            let template = program
+                .composition_archetypes
+                .iter()
+                .find(|item| item.id == *template_id)
+                .ok_or_else(|| {
+                    DslError::new(
+                        "UNKNOWN_COMPOSITION_ARCHETYPE",
+                        composition.line,
+                        format!("Unknown composition archetype {template_id}"),
+                    )
+                })?;
+            for entry in &composition.entries {
+                if let Some(child) = compositions.get(entry.child.as_str())
+                    && child.level != template.child_level
+                {
+                    return Err(DslError::new(
+                        "COMPOSITION_ARCHETYPE_CHILD_LEVEL_MISMATCH",
+                        entry.line,
+                        format!(
+                            "Template {} expects {} children, got {}",
+                            template.id, template.child_level, child.level
+                        ),
+                    ));
+                }
+            }
+        }
         if child_ids.len() != composition.entries.len() {
             return Err(DslError::new(
                 if legacy {
@@ -121,6 +209,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         for output in &composition.outputs {
             match &output.metric {
                 ReportMetric::Count => {}
+                ReportMetric::RepresentedCount if composition.represented_population.is_some() => {}
                 ReportMetric::Mean { field } | ReportMetric::Sum { field }
                     if base_fields.contains(field) => {}
                 ReportMetric::KidsPerFamily => {}
@@ -149,6 +238,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
     }
     validate_composition_cycles(&compositions)?;
+    validate_syncs(program, &compositions)?;
     let mut population_ids = BTreeSet::new();
     for population in &program.composition_populations {
         if !population_ids.insert(population.id.as_str()) {
@@ -182,6 +272,13 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                     "INVALID_COMPOSITION_WEIGHT",
                     entry.line,
                     "Composition weight must be positive",
+                ));
+            }
+            if entry.represented_population == Some(0) {
+                return Err(DslError::new(
+                    "INVALID_REPRESENTED_POPULATION",
+                    entry.line,
+                    "Represented population must be positive",
                 ));
             }
         }
@@ -251,6 +348,10 @@ fn validate_flows(
             .iter()
             .find(|item| item.id == entry.child)
         {
+            for parameter in child.parameters.keys() {
+                allowed.insert(format!("{}_{}", entry.child, parameter));
+                allowed.insert(format!("{}.{}", entry.child, parameter));
+            }
             for output in &child.outputs {
                 allowed.insert(format!("{}_{}", entry.child, output.id));
                 allowed.insert(format!("{}.{}", entry.child, output.id));
@@ -303,13 +404,6 @@ fn validate_flows(
                 ));
             }
         }
-        if !matches!(flow.effect.as_str(), "visit" | "transfer") {
-            return Err(DslError::new(
-                "INVALID_COMPOSITION_FLOW_EFFECT",
-                flow.line,
-                "Flow effect must be visit or transfer",
-            ));
-        }
         if flow.effect == "visit" && flow.via.is_none() {
             return Err(DslError::new(
                 "MISSING_COMPOSITION_FLOW_PLACE",
@@ -339,6 +433,39 @@ fn validate_flows(
                 flow.line,
                 "Non-adjacent children require a shared flow place",
             ));
+        }
+        allowed.insert(flow.id.clone());
+    }
+    Ok(())
+}
+
+fn validate_syncs(
+    program: &Program,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> DslResult<()> {
+    for parent in &program.compositions {
+        let Some(parent_cache) = &parent.cached else {
+            continue;
+        };
+        for entry in &parent.entries {
+            let Some(child) = compositions.get(entry.child.as_str()) else {
+                continue;
+            };
+            let Some(child_cache) = &child.cached else {
+                continue;
+            };
+            if parent_cache.sync_days < child_cache.sync_days
+                || parent_cache.sync_days % child_cache.sync_days != 0
+            {
+                return Err(DslError::new(
+                    "INCOMPATIBLE_COMPOSITION_SYNC",
+                    parent_cache.line,
+                    format!(
+                        "Composition {} sync {} must be a multiple of child {} sync {}",
+                        parent.id, parent_cache.sync_days, child.id, child_cache.sync_days
+                    ),
+                ));
+            }
         }
     }
     Ok(())

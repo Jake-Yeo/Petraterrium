@@ -4,164 +4,188 @@
 
 - The only numeric tick entry point remains `run_program` in
   `engine-rust/src/text_dsl/runtime.rs`. The only composition entry point remains
-  `run_composition` in `engine-rust/src/text_dsl/compositions.rs`.
-- `CompositionDefinition` remains the single recursive type for every composition level. No
-  neighbourhood, municipality, division, cache, feedback, finance, or scenario runner was added.
-- Composition flows now store parsed expressions rather than fixed Rust numbers. Expressions can
-  read composition parameters, aggregate inputs, current parent outputs, child outputs, and sparse
-  adjacency distances.
-- A DSL `cached` block defines sync days, a maximum of one to five feedback iterations, convergence
-  tolerance, and output-to-input feedback couplings.
-- The generic cached-composition evaluator recursively resolves child aggregate artifacts, combines
-  means by weights, pools standard deviations, sums action counts, preserves the detailed sample
-  population, applies parent effects, and recalculates flows at every sync.
-- A parent cache never runs parent agents. A valid Ontario evaluation recursively reads Toronto and
-  Vancouver, which read the three neighbourhood functions, and completes with zero agent ticks.
-- Missing or invalid leaf artifacts relearn only those leaves. Parent artifacts are regenerated from
-  child outputs and record dependency versions; unchanged sibling branches remain cached.
-- Cache metadata is returned for every root, child, and grandchild: version, DSL hash, input hash,
-  validity dates, seed, original learning ticks, evaluation ticks, cached/detailed state, and the
-  invalidation reason.
-- The service persists every changed artifact version independently. It sends a compact hierarchy
-  catalog to Rust with learned reports removed from transport while retaining the full persisted
-  artifact on disk.
-- Top-down inputs propagate by matching DSL input IDs. Branch-specific overrides support changes
-  such as `NorthOne.unemployment=0.8`. Composition parameters take part in input resolution and
-  threshold invalidation.
-- Bottom-up child outputs feed parent aggregation. DSL feedback couplings feed parent outputs into
-  the next child evaluation at a sync point and iterate until tolerance or the configured cap.
-- Fast-forwarding uses piecewise 30-day learned functions with daily composition syncs. Weights,
-  flows, feedback inputs, and scheduled input changes carry into the next piece instead of repeating
-  the day-30 endpoint.
-- Cached flow reports contain a snapshot for every sync day. Visit and transfer rates recalculate
-  from the current inputs and aggregates, and transfers update the next sync's child weights.
-- Ontario now declares Toronto-to-Vancouver visit and transfer flows. Its detailed run records
-  non-zero inter-municipality interactions through the same generic place and flow machinery used
-  inside municipalities.
-- The aggregate UI now accepts branch overrides and scheduled changes, renders the recursive cache
-  table and convergence report, and distinguishes cache hits, hierarchy-only updates, and detailed
-  branch relearns.
-- Engine version is `0.8.0`. Nothing was pushed.
+  `run_composition` in `engine-rust/src/text_dsl/compositions.rs`. No country, world, trade,
+  migration, feedback, or other level-specific runner was added.
+- `CompositionDefinition` remains the recursive type for neighbourhood, municipality, division,
+  country, world, and synthetic levels. Levels remain DSL strings rather than Rust enums or match
+  branches.
+- The DSL now supports reusable composition archetypes with a level, child level, parameters, and
+  outputs. `CountryFederalDemocracy` is a reusable country contract; Canada, USA, and Mexico are
+  separate instances with their own division weights and parameters.
+- The shipped DSL defines British Columbia, California, Texas, Central Mexico, and Northern Mexico
+  through the same composition syntax as Ontario. It defines Canada, USA, Mexico, and a world through
+  that same syntax.
+- The world uses a sparse DSL adjacency graph with Canada–USA and USA–Mexico edges. It has no direct
+  Canada–Mexico edge.
+- Exchange, transfer, visit, infection, and diffusion are generic flow effect labels. Their rates are
+  parsed expressions that can read parameters, aggregate inputs, child parameters, child outputs,
+  sparse distances, and earlier flow rates.
+- Country and world reports expose population, represented population, pooled income/stress/vote
+  statistics, GDP proxy, trade, migration, and infection outputs. Flow reports retain one snapshot
+  per requested day and show the root plus its immediate children.
+- Detailed transfer moves whole households while retaining agent IDs, traits, household IDs, and
+  relationships. Cached transfer changes child weights at the next sync.
+- The DSL defines division syncs at one or five days, country syncs at 30 days, and world syncs at 90
+  days. Validation rejects parent/child clocks that do not divide cleanly with a named line error.
+- Cached evaluation reports convergence separately for every composition node. Cache metadata still
+  includes version, DSL/input hashes, validity, seed, original/evaluation ticks, detailed/cached
+  state, dependencies, and invalidation reason.
+- Request-local node memoization evaluates a reusable composition definition once per day and
+  resolved input context. A warm world evaluation remains recursive but does not repeatedly evaluate
+  the same municipality/neighbourhood definition under several divisions.
+- Extensive cached metrics now scale child sums and action counts to the child's allocated share of
+  the fixed parent cohort. This fixes the country/world double-counting found by the 300-agent
+  physical comparison.
+- Artifact versions advance at most once per function per request. A cold traversal that reuses a
+  child no longer makes the first warm traversal perform a hierarchy-only stabilization pass.
+- Branch-specific invalidation propagates from the changed division to its country and world while
+  leaving the unrelated country branch cached. Global pandemic events invalidate every participating
+  country through ordinary DSL cache rules.
+- `World`, `WorldHouseholds`, and `SevenBillionWorld` represent `6,999,999,999` people with a fixed
+  180-agent detailed cohort. Reports always separate simulated and represented counts.
+- The DSL editor lists country/world compositions and aggregate functions, displays the exact source,
+  and uses the same generic run/cache controls. The browser demo edits a world country weight, saves
+  it, runs it, and displays changed aggregates without Rust, JSON, or per-domain UI changes.
+- Engine version is `0.9.0`. Nothing was pushed.
 
 ## Implemented but narrower
 
-- The first evaluation after a new DSL hash must bootstrap missing leaf artifacts. For the shipped
-  hierarchy this costs `6,220,800` agent ticks and `25.741s`. It relearns the three neighbourhood
-  branches only; Toronto, Vancouver, and Ontario are composed without parent agent ticks.
-- With valid child artifacts, historical Toronto parent learning drops from `518,400` ticks to `0`.
-  The cold bootstrap is more expensive than the old isolated parent learn because all three reusable
-  neighbourhood response surfaces must exist first.
-- Cached cross-child interactions are derived from DSL visit flows. Detailed runs continue to report
-  actual recorded target interactions.
-- Top-down propagation automatically maps equal input IDs. Renaming an input between levels still
-  requires matching DSL IDs or an explicit feedback coupling.
-- The shipped municipalities use one local feedback pass per parent preview; Ontario performs the
-  convergent loop. The generic synthetic test exercises the full five-iteration capability at
-  multiple levels.
-- Aggregate response surfaces still use the existing low/high multilinear grid. Cached hierarchy
-  composition improves reuse and time evolution; it does not replace those surfaces with fitted
-  real-world models.
+- The first evaluation for a new DSL hash still learns the reusable leaf response surfaces. The final
+  world cold bootstrap costs `6,220,800` agent ticks and `24.3295s`; country/world parent levels add
+  no agent ticks. Warm hierarchy evaluation is the scaled execution path.
+- The detailed world run takes `1.1035s`. The required detailed country run remains below one second,
+  and the warm cached world run is `0.0641s` with zero agent ticks.
+- Cached flow tables show the selected root and immediate children. Deeper flow detail is available by
+  evaluating that child level, while the recursive cache table still shows every level.
+- If a detailed composition records no cross-child action, its root visit flow becomes an explicit
+  `boundary_flow` interaction receipt. Recorded agent-to-agent actions continue to take precedence.
+- Visit and transfer mutate detailed agent state. Exchange, infection, and diffusion produce
+  provenance-bearing flow receipts and cached outputs; they do not yet mutate arbitrary detailed
+  agent fields because the DSL has no generic flow-to-field-effect block.
+- Country/world values are concrete demo estimates. They are not calibrated real-world claims, and
+  the three shipped countries are a composition proof rather than a complete world country catalog.
+- The country archetype supplies a reusable parameter/output/child-level contract. Country instances
+  continue to declare their concrete divisions and weights, as required for instance identity.
+- Aggregate response surfaces still use the existing low/high multilinear learner. This prompt did
+  not introduce a new fit method.
 
 ## Deferred and not part of this demo
 
-- Country and world composition, country/world flows, and global represented-population weights.
-- Atlas, GeoNames, WDI, external imports, research pipelines, evidence guards, and fitted models.
-- Globe work, polygons, graphs, inheritance views, decision-tree views, visual drag-and-drop
+- Media, corporate, and finance cross-vertical composition and coupling.
+- Atlas, GeoNames, WDI, external imports, research pipelines, evidence guards, provenance imports,
+  and fitted real-world behavior models.
+- Globe or polygon work, graphs, inheritance views, decision-tree views, visual drag-and-drop
   editors, and per-level management panels.
-- Real-world calibration or prediction claims and interrupted-run pause/resume UI.
+- Real-world calibration/prediction claims and interrupted-run pause/resume UI.
 
 ## Focused verification
 
-- Cached composition parser, exact weighted reuse, missing-child-only relearn, parent learning tick
-  reduction, daily flow recalculation, parameter-driven outputs, branch invalidation propagation,
-  feedback convergence, evolving 90-day evaluation, generic division flows, determinism, and the
-  300-agent detailed comparison: `9 passed`.
-- Existing aggregate-function parser, interpolation, cache accuracy, threshold/time/event/DSL
-  invalidation, determinism, and 90-day legacy behavior: `5 passed`.
-- Generic composition parser, weighting, transfer, adjacency, cache, and 300-agent comparison:
-  `5 passed`.
-- Legacy neighbourhood parsing, targeting, exact weighting, represented counts, place indexing,
-  cache invalidation, and determinism: `7 passed`.
-- DSL-only finance run and cache: `1 passed`.
-- Targeted Python API routing, ordinary artifact persistence, and recursive hierarchy artifact
-  persistence: `3 passed`.
-- Focused synthetic browser hierarchy test: passed in `7.0s`.
-- Focused shipped Ontario detailed/cache/90-day browser test: passed in `4.6s` with warm artifacts.
+- Synthetic country/world parser, generic recursion, exact 60/40 country and world weighting,
+  archetype/instance differentiation, all five flow effects, sparse adjacency, transfer identity
+  preservation, branch invalidation, event broadcast, per-level convergence, 90-day evolution,
+  represented counts, determinism, and country/world 300-agent physical comparisons: `8 passed`.
+- Existing recursive cached composition regression file: `9 passed`.
+- Existing generic composition tests: `5 passed`; archetype tests: `5 passed`; neighbourhood tests:
+  `7 passed`.
+- Targeted Python text-DSL API routing and recursive artifact persistence: `2 passed`.
+- Focused browser country/world workflow, including a DSL weight edit, detailed runs, warm cache,
+  branch override, recursive cache table, and 90-day evolution: passed in `6.7s`.
 - Frontend production build, targeted Ruff checks, generated-contract check, Rust format/check, and
   `git diff --check`: passed.
-- The full backend suite and full frontend suite were not run, as required by this prompt.
+- `cargo clippy` was unavailable because the installed Rust toolchain lacks the clippy component;
+  `cargo check --release --locked` passed.
+- The full backend and frontend suites were not run, as explicitly required by Prompt 6.
+- A detached build of Prompt 5 commit `1e6233a` was compared directly with the current engine. Town,
+  weighted household, neighbourhood, municipality, and division state and report payloads are exact.
 - Source grep finds no `run_neighbourhood`, `run_municipality`, `run_division`, `run_country`,
-  `run_world`, `run_feedback`, or other named hierarchy/domain runner. Shipped place, composition,
-  action, and flow names do not occur in Rust engine source.
+  `run_world`, `run_feedback`, `run_trade`, or `run_migration`. The only shipped action-name grep hit
+  is inside the existing `runtime.rs` test module.
 
 ## Performance
 
-- Town, 30 days / 720 ticks / 130 agents: `0.323s`.
-- Town, 365 days / 8,760 ticks / 130 agents: `4.026s`.
-- Weighted household population, 30 days / 180 agents: `0.409s`.
-- Detailed neighbourhood, 30 days / 180 agents: `0.486s`.
-- Detailed municipality, 30 days / 180 agents: `0.573s`.
-- Detailed division, 30 days / 180 agents: `0.618s`.
-- DSL-only finance, 30 days / 12 agents: `0.044s`.
-- Cold Ontario hierarchy bootstrap: `25.741s`, `6,220,800` leaf agent ticks.
-- Warm Toronto cached evaluation: `0.021s`, `0` agent ticks.
-- Warm Ontario cached evaluation: `0.037s`, `0` agent ticks.
-- Warm Ontario 90-day evolving evaluation: `0.097s`, `0` agent ticks.
-- Synthetic parent learning: `1,200` detailed ticks before child-cache reuse, `0` after reuse.
-- Default DSL hash: `sha256:a353610fdbcf8846b2f7586efd88a5b747a3df3fb1dd6ac1c2f9b3aa72289e06`.
+- Town, 30 days / 720 ticks / 130 agents: `0.3424s`.
+- Town, 365 days / 8,760 ticks / 130 agents: `3.8222s`.
+- Weighted household population, 30 days / 180 agents: `0.4110s`.
+- Detailed neighbourhood, 30 days / 180 agents: `0.4984s`.
+- Detailed municipality, 30 days / 180 agents: `0.5796s`.
+- Detailed division, 30 days / 180 agents: `0.6309s`.
+- DSL-only finance, 30 days / 12 agents: `0.0488s`.
+- Detailed country, 30 days / 180 agents: `0.7608s`.
+- Detailed world, 30 days / 180 agents: `1.1035s`.
+- Cold world hierarchy bootstrap: `24.3295s`, `6,220,800` leaf agent ticks.
+- Warm Toronto cached evaluation: `0.0220s`, `0` agent ticks.
+- Warm Ontario cached evaluation: `0.0537s`, `0` agent ticks.
+- Warm Canada cached evaluation: `0.0550s`, `0` agent ticks.
+- Warm World cached evaluation: `0.0641s`, `0` agent ticks.
+- Warm World 90-day evolving evaluation: `0.2052s`, `0` agent ticks.
+- Default DSL hash: `sha256:9c9a03bf8077101753bb18979991039b83568c8afcaea5ea8429b931c7be708c`.
 
 ## Final demo run
 
-- Legacy golden record: `87edc98083d542d2a63ca69a0917a69c`.
-- Engine: `0.8.0`; seed: `1`; duration: `365` days / `8,760` ticks.
+- Engine: `0.9.0`; seed: `1`; duration: `365` days / `8,760` ticks.
 - Population: `100` adults plus `30` generated children.
-- Current state and every report exactly equal the persisted golden after excluding only protocol and
-  engine-version metadata.
+- Current state and every report exactly match Prompt 5 commit `1e6233a`.
 
 ## Final weighted archetype run
 
-- Legacy golden record: `6fef20f60e3a4ae2a3035c1253f1281e`.
-- Seed: `1`; duration: `30` days; simulated agents: `180`; runtime: `0.409s`.
-- Current state and every report exactly equal the persisted weighted golden.
+- Seed: `1`; duration: `30` days; simulated agents: `180`; runtime: `0.4110s`.
+- Current state and every report exactly match Prompt 5 commit `1e6233a`.
 
 ## Final neighbourhood run
 
-- Legacy golden record: `b1ac7e29863b4e8c8395e19bafd64c99`.
-- `UrbanLiberal`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.486s`.
-- Current state and every report exactly equal the persisted neighbourhood golden.
+- `UrbanLiberal`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.4984s`.
+- Current state and every report exactly match Prompt 5 commit `1e6233a`.
 
 ## Final municipality run
 
-- `Toronto`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.573s`.
-- Cross-neighbourhood interactions remain `3,084`, matching Prompt 4.
-- With its child neighbourhood artifacts valid, cached Toronto runs in `0.021s` and `0` ticks.
-- Historical direct parent learning was `518,400` ticks; recursive child-cache reuse is `0` parent
-  ticks.
+- `Toronto`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.5796s`.
+- Current state and every report exactly match Prompt 5 commit `1e6233a`.
 
 ## Final division run
 
-- `Ontario`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.618s`.
-- It records `2,097` inter-municipality interactions and `8` flow rows, including the two new
-  Ontario-level visit/transfer rows. Prompt 4 recorded zero inter-municipality interactions.
-
-## Final cached division run
-
-- `Ontario`; seed: `1`; duration: `30` days; runtime: `0.037s`; agent ticks: `0`.
-- Root, municipality, and neighbourhood artifacts all report `cached=true` with their complete
-  provenance metadata.
-- Feedback converges in `3` iterations with `0.0283%` final aggregate change.
-
-## Final cached 90-day run
-
-- `Ontario`; seed: `1`; duration: `90` days; runtime: `0.097s`; agent ticks: `0`.
-- Scheduled day-30 unemployment input: `0.075`.
-- Mean income at day 30: `2,835.9917`; mean income at day 90: `2,841.6931`.
-- Day 90 is higher by `5.7014`; it does not repeat the day-30 endpoint.
-- The result contains `90` daily flow snapshots and converges in `3` iterations with `0.1042%`
-  final change.
+- `Ontario`; seed: `1`; duration: `30` days; agents: `180`; runtime: `0.6309s`.
+- Current state and every report exactly match Prompt 5 commit `1e6233a`.
 
 ## Final DSL-only finance run
 
-- `MarketLab`; seed: `1`; duration: `30` days; agents: `12`; runtime: `0.044s`.
-- Final price: `51.54`; buys: `2,278`; sells: `1,902`; mean cash: `131.58`.
-- No finance-specific runner or Rust branch was added.
+- `MarketLab`; seed: `1`; duration: `30` days; agents: `12`; runtime: `0.0488s`.
+- Final price remains `51.54`; buys `2,278`; sells `1,902`; mean cash `131.58`.
+
+## Final country run
+
+- `Canada`; seed: `1`; duration: `30` days; simulated agents: `180`; represented population:
+  `40,000,000`; runtime: `0.7608s`.
+- It records `19` hierarchy flow rows and `117` cross-division agent interactions.
+
+## Final world run
+
+- `World`; seed: `1`; duration: `30` days; simulated agents: `180`; represented population:
+  `6,999,999,999`; runtime: `1.1035s`.
+- The boundary interaction receipt records `6` USA-to-Canada visiting agents.
+- Root flow rates are non-zero in the expected declared directions: Canada→USA trade `0.05667`,
+  USA→Mexico trade `0.04167`, Mexico→USA migration `0.03326`, USA→Canada travel `0.04400`,
+  infection `0.05440`, and policy diffusion `0.07000`.
+- No Canada→Mexico direct row exists, confirming sparse adjacency isolation.
+
+## Final cached country run
+
+- `Canada`; seed: `1`; duration: `30` days; runtime: `0.0550s`; agent ticks: `0`;
+  `cache_hit=true`.
+- The country reuses division, municipality, neighbourhood, and leaf artifacts from the world cold
+  bootstrap.
+
+## Final cached world run
+
+- `World`; seed: `1`; duration: `30` days; runtime: `0.0641s`; agent ticks: `0`;
+  `cache_hit=true`.
+- The cache tree reports every country, division, municipality, neighbourhood, and leaf as cached.
+- World feedback converges in `3` iterations with `0.0524%` change. Canada converges in `2` with
+  `0.2682%`; USA in `2` with `0.4268%`; Mexico in `2` with `0.4267%`.
+
+## Final cached 90-day world run
+
+- `World`; seed: `1`; duration: `90` days; runtime: `0.2052s`; agent ticks: `0`.
+- Scheduled day-30 economic shock: `0.10`.
+- Mean income changes from `2,853.4923` on day 30 to `2,818.6522` on day 90. Mean stress changes
+  from `0.393918` to `0.379023`; the endpoint is not a repeated day-30 value.
+- The result contains `90` daily flow snapshots.

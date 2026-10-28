@@ -46,9 +46,13 @@ pub(super) fn finalize_parent_artifacts(
         .filter_map(|entry| context.activities.get(&entry.child))
         .map(|activity| activity.agent_ticks)
         .sum::<u64>();
-    let version = existing.as_ref().map_or(1, |artifact| {
-        artifact.version + u32::from(own_reason.is_some())
-    });
+    let version = context
+        .request
+        .artifacts
+        .get(&composition.id)
+        .map_or(1, |artifact| {
+            artifact.version + u32::from(own_reason.is_some())
+        });
     let points = context
         .series
         .get(&composition.id)
@@ -200,15 +204,21 @@ pub(super) fn cache_tree(
             children.push(cache_tree(context, child)?);
         } else if let Some(artifact) = context.artifacts.get(&entry.child) {
             let activity = context.activities.get(&entry.child).unwrap();
-            children.push(metadata(artifact, activity, Vec::new()));
+            children.push(metadata(artifact, activity, (0, 0.0), Vec::new()));
         }
     }
-    Ok(metadata(artifact, activity, children))
+    let convergence = context
+        .convergence
+        .get(&composition.id)
+        .copied()
+        .unwrap_or((0, 0.0));
+    Ok(metadata(artifact, activity, convergence, children))
 }
 
 fn metadata(
     artifact: &LearnedAggregateArtifact,
     activity: &BranchActivity,
+    convergence: (u32, f64),
     children: Vec<CompositionCacheMetadata>,
 ) -> CompositionCacheMetadata {
     CompositionCacheMetadata {
@@ -224,6 +234,8 @@ fn metadata(
         cached: activity.cached,
         detailed: activity.detailed,
         invalidation_reason: activity.invalidation_reason.clone(),
+        feedback_iterations: convergence.0,
+        feedback_change_percent: convergence.1,
         children,
     }
 }

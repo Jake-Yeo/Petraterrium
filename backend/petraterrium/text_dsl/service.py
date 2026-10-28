@@ -85,6 +85,9 @@ class TextDslService:
             tick_hours=result.get("tick_hours"),
             adult_population=result.get("adult_population"),
             archetypes=tuple(str(value) for value in result.get("archetypes", [])),
+            composition_archetypes=tuple(
+                dict(value) for value in result.get("composition_archetypes", [])
+            ),
             weighted_populations=tuple(
                 str(value) for value in result.get("weighted_populations", [])
             ),

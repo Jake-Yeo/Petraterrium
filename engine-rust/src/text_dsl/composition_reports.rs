@@ -17,7 +17,11 @@ pub(super) fn decorate_composition_result(
     if !flows.is_empty() {
         result.reports.push(flow_report(flows, ticks));
     }
-    let outputs = calculate_output_definitions(&composition.outputs, result)?;
+    let outputs = calculate_composition_outputs(
+        composition,
+        result,
+        composition.represented_population.unwrap_or(0) as f64,
+    )?;
     result
         .reports
         .insert(0, composition_report(composition, &outputs, result, ticks));
@@ -26,6 +30,7 @@ pub(super) fn decorate_composition_result(
         result,
         agent_groups,
         action_aggregates,
+        flows,
         ticks,
     ));
     if !legacy {
@@ -153,7 +158,7 @@ fn child_composition_report(
             .map(|agent| agent.id.as_str())
             .collect::<BTreeSet<_>>();
         let filtered = filtered_result(result, &ids);
-        let mut outputs = calculate_output_definitions(&composition.outputs, &filtered)?;
+        let mut outputs = calculate_composition_outputs(composition, &filtered, 0.0)?;
         for output in &composition.outputs {
             if let ReportMetric::ActionCount { aggregate, window } = &output.metric {
                 let first_tick = match window.as_str() {
@@ -209,6 +214,32 @@ fn child_composition_report(
     })
 }
 
+fn calculate_composition_outputs(
+    composition: &CompositionDefinition,
+    result: &DslRunResult,
+    represented_population: f64,
+) -> DslResult<BTreeMap<String, MetricSummary>> {
+    let standard = composition
+        .outputs
+        .iter()
+        .filter(|output| !matches!(output.metric, ReportMetric::RepresentedCount))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut outputs = calculate_output_definitions(&standard, result)?;
+    for output in &composition.outputs {
+        if matches!(output.metric, ReportMetric::RepresentedCount) {
+            outputs.insert(
+                output.id.clone(),
+                MetricSummary {
+                    mean: represented_population,
+                    standard_deviation: 0.0,
+                },
+            );
+        }
+    }
+    Ok(outputs)
+}
+
 fn filtered_result(result: &DslRunResult, ids: &BTreeSet<&str>) -> DslRunResult {
     let selected_indices = result
         .state
@@ -259,6 +290,7 @@ fn cross_group_report(
     result: &DslRunResult,
     agent_groups: &BTreeMap<String, String>,
     action_aggregates: &BTreeMap<String, String>,
+    flows: &[ExecutedFlow],
     ticks: u64,
 ) -> DslReport {
     let mut counts = BTreeMap::<(String, String), BTreeMap<String, u64>>::new();
@@ -286,7 +318,7 @@ fn cross_group_report(
             .or_default() += 1;
     }
     let population = result.state.agents.len().max(1) as f64;
-    let rows = counts
+    let mut rows = counts
         .into_iter()
         .map(|((source, target), counts)| {
             let total = counts.values().sum::<u64>();
@@ -310,7 +342,40 @@ fn cross_group_report(
                 ]),
             }
         })
-        .collect();
+        .collect::<Vec<_>>();
+    if rows.is_empty() {
+        rows.extend(
+            flows
+                .iter()
+                .filter(|flow| {
+                    flow.effect == "visit"
+                        && composition
+                            .flows
+                            .iter()
+                            .any(|definition| definition.id == flow.id)
+                })
+                .map(|flow| DslReportRow {
+                    group_id: format!("{} → {}", flow.source, flow.target),
+                    values: BTreeMap::from([
+                        (
+                            "count".to_owned(),
+                            DslReportValue::Number(flow.agents as f64),
+                        ),
+                        (
+                            "rates_per_1000".to_owned(),
+                            DslReportValue::Rates(BTreeMap::from([(
+                                flow.id.clone(),
+                                flow.agents as f64 / population * 1000.0,
+                            )])),
+                        ),
+                        (
+                            "selection_index".to_owned(),
+                            DslReportValue::Text("boundary_flow".to_owned()),
+                        ),
+                    ]),
+                }),
+        );
+    }
     let legacy = composition.interaction_report_id == "cross_archetype_interactions";
     DslReport {
         id: composition.interaction_report_id.clone(),

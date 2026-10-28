@@ -89,6 +89,7 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "tick_hours": program.tick_hours,
                 "adult_population": program.population.size,
                 "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "composition_archetypes": program.composition_archetypes.iter().map(|item| json!({"id": item.id, "level": item.level, "child_level": item.child_level})).collect::<Vec<_>>(),
                 "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "aggregate_functions": program.aggregate_functions,
                 "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level, "cached": item.cached.is_some()})).collect::<Vec<_>>(),

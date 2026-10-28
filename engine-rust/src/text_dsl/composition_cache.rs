@@ -49,8 +49,10 @@ pub(super) struct HierarchyContext<'a> {
     pub(super) activities: BTreeMap<String, BranchActivity>,
     pub(super) states: BTreeMap<String, CachedNodeState>,
     pub(super) series: BTreeMap<String, Vec<AggregateTimePoint>>,
+    pub(super) convergence: BTreeMap<String, (u32, f64)>,
     flows: Vec<CachedFlowPoint>,
     memo: BTreeMap<String, BTreeMap<String, LearnedMetricSummary>>,
+    node_memo: BTreeMap<String, NodeDayResult>,
     iterations: u32,
     change_percent: f64,
 }
@@ -82,12 +84,14 @@ pub fn evaluate_cached_composition(
         activities: BTreeMap::new(),
         states: BTreeMap::new(),
         series: BTreeMap::new(),
+        convergence: BTreeMap::new(),
         flows: Vec::new(),
         memo: BTreeMap::new(),
+        node_memo: BTreeMap::new(),
         iterations: 0,
         change_percent: 0.0,
     };
-    let sync_days = composition.cached.as_ref().unwrap().sync_days;
+    let sync_days = minimum_sync(&program, composition);
     let mut day = sync_days;
     while day <= request.days {
         apply_input_schedule(function, &request.input_schedule, day, &mut root_inputs)?;
@@ -182,8 +186,18 @@ fn evaluate_node_day(
         context.request.branch_inputs.get(&composition.id),
         &BTreeMap::new(),
     )?;
+    let memo_key = format!(
+        "{}:{day}:{}:{record}",
+        composition.id,
+        inputs_hash(&node_inputs)
+    );
+    if let Some(result) = context.node_memo.get(&memo_key) {
+        return Ok(result.clone());
+    }
     let cached = composition.cached.as_ref();
-    let max_iterations = if record {
+    let sync_due =
+        cached.is_none_or(|value| day % value.sync_days == 0 || day == context.request.days);
+    let max_iterations = if record && sync_due {
         cached.map_or(1, |value| value.max_iterations)
     } else {
         1
@@ -191,14 +205,17 @@ fn evaluate_node_day(
     let tolerance = cached.map_or(0.01, |value| value.tolerance);
     let mut feedback_inputs = context.states[&composition.id].feedback_inputs.clone();
     if max_iterations == 1 {
-        return evaluate_node_once(
+        let result = evaluate_node_once(
             context,
             composition,
             day,
             &node_inputs,
             &feedback_inputs,
             record,
-        );
+            sync_due,
+        )?;
+        context.node_memo.insert(memo_key, result.clone());
+        return Ok(result);
     }
     let mut previous_outputs = BTreeMap::new();
     let mut iterations = 0;
@@ -237,16 +254,21 @@ fn evaluate_node_day(
     )?;
     context.states = states;
     let mut outputs = combine_outputs(context.program, composition, &node_inputs, &children)?;
-    let flows = apply_cached_flows(
-        context,
-        composition,
-        day,
-        &node_inputs,
-        &children,
-        &mut outputs,
-    )?;
+    let flows = if sync_due {
+        apply_cached_flows(
+            context,
+            composition,
+            day,
+            &node_inputs,
+            &children,
+            &mut outputs,
+        )?
+    } else {
+        Vec::new()
+    };
     if record {
-        if let Some(state) = context.states.get_mut(&composition.id) {
+        record_convergence(context, composition, iterations, change_percent);
+        if sync_due && let Some(state) = context.states.get_mut(&composition.id) {
             state.feedback_inputs = feedback_inputs;
         }
         context
@@ -258,12 +280,14 @@ fn evaluate_node_day(
                 outputs: outputs.clone(),
             });
     }
-    Ok(NodeDayResult {
+    let result = NodeDayResult {
         outputs,
         flows,
         iterations,
         change_percent,
-    })
+    };
+    context.node_memo.insert(memo_key, result.clone());
+    Ok(result)
 }
 
 fn evaluate_node_once(
@@ -273,6 +297,7 @@ fn evaluate_node_once(
     inputs: &BTreeMap<String, f64>,
     feedback_inputs: &BTreeMap<String, f64>,
     record: bool,
+    sync_due: bool,
 ) -> DslResult<NodeDayResult> {
     let mut states = std::mem::take(&mut context.states);
     let children = evaluate_children(
@@ -286,9 +311,14 @@ fn evaluate_node_once(
     )?;
     context.states = states;
     let mut outputs = combine_outputs(context.program, composition, inputs, &children)?;
-    let flows = apply_cached_flows(context, composition, day, inputs, &children, &mut outputs)?;
+    let flows = if sync_due {
+        apply_cached_flows(context, composition, day, inputs, &children, &mut outputs)?
+    } else {
+        Vec::new()
+    };
     if record {
-        if let Some(state) = context.states.get_mut(&composition.id) {
+        record_convergence(context, composition, 1, 0.0);
+        if sync_due && let Some(state) = context.states.get_mut(&composition.id) {
             state.feedback_inputs = feedback_values(composition, &outputs);
         }
         context
@@ -306,6 +336,38 @@ fn evaluate_node_once(
         iterations: 1,
         change_percent: 0.0,
     })
+}
+
+fn record_convergence(
+    context: &mut HierarchyContext<'_>,
+    composition: &CompositionDefinition,
+    iterations: u32,
+    change_percent: f64,
+) {
+    context
+        .convergence
+        .entry(composition.id.clone())
+        .and_modify(|current| {
+            current.0 = current.0.max(iterations);
+            current.1 = current.1.max(change_percent);
+        })
+        .or_insert((iterations, change_percent));
+}
+
+fn minimum_sync(program: &Program, composition: &CompositionDefinition) -> u32 {
+    composition.entries.iter().fold(
+        composition
+            .cached
+            .as_ref()
+            .map_or(u32::MAX, |cached| cached.sync_days),
+        |minimum, entry| {
+            program
+                .compositions
+                .iter()
+                .find(|child| child.id == entry.child)
+                .map_or(minimum, |child| minimum.min(minimum_sync(program, child)))
+        },
+    )
 }
 
 fn evaluate_children(
@@ -446,6 +508,16 @@ fn combine_outputs(
         ) {
             continue;
         }
+        if matches!(output.metric, ReportMetric::RepresentedCount) {
+            outputs.insert(
+                output.id.clone(),
+                LearnedMetricSummary {
+                    mean: composition.represented_population.unwrap_or(0) as f64,
+                    standard_deviation: 0.0,
+                },
+            );
+            continue;
+        }
         if matches!(output.metric, ReportMetric::Count) {
             outputs.insert(
                 output.id.clone(),
@@ -494,14 +566,27 @@ fn combine_outputs(
         }
         if matches!(
             output.metric,
-            ReportMetric::Sum { .. }
-                | ReportMetric::ActionCount { .. }
-                | ReportMetric::FlowCount { .. }
+            ReportMetric::Sum { .. } | ReportMetric::ActionCount { .. }
         ) {
-            let mean = values.iter().map(|(_, summary)| summary.mean).sum::<f64>();
-            let variance = values
+            let parent_population = composition_sample_population(program, composition) as f64;
+            let scaled = children
                 .iter()
-                .map(|(_, summary)| summary.standard_deviation.powi(2))
+                .filter_map(|(child_id, weight, child_outputs)| {
+                    let summary = child_outputs.get(&output.id)?;
+                    let child_population = child_sample_population(program, child_id) as f64;
+                    (child_population > 0.0).then_some((
+                        parent_population * weight / total_weight / child_population,
+                        summary,
+                    ))
+                })
+                .collect::<Vec<_>>();
+            let mean = scaled
+                .iter()
+                .map(|(scale, summary)| scale * summary.mean)
+                .sum::<f64>();
+            let variance = scaled
+                .iter()
+                .map(|(scale, summary)| scale.powi(2) * summary.standard_deviation.powi(2))
                 .sum::<f64>();
             outputs.insert(
                 output.id.clone(),
@@ -581,6 +666,24 @@ fn composition_sample_population(program: &Program, composition: &CompositionDef
         .sum()
 }
 
+fn child_sample_population(program: &Program, child_id: &str) -> usize {
+    if let Some(composition) = program.compositions.iter().find(|item| item.id == child_id) {
+        return composition_sample_population(program, composition);
+    }
+    program
+        .archetypes
+        .iter()
+        .find(|item| item.id == child_id)
+        .map_or(0, |archetype| {
+            archetype.sample_households
+                * archetype
+                    .composition
+                    .iter()
+                    .map(|group| group.count)
+                    .sum::<usize>()
+        })
+}
+
 fn collect_archetypes<'a>(
     composition: &'a CompositionDefinition,
     compositions: &BTreeMap<&'a str, &'a CompositionDefinition>,
@@ -658,6 +761,17 @@ fn apply_cached_flows(
         )
         .collect::<BTreeMap<_, _>>();
     for (child, _, child_outputs) in children {
+        if let Some(definition) = context
+            .program
+            .compositions
+            .iter()
+            .find(|definition| definition.id == *child)
+        {
+            for (parameter, value) in &definition.parameters {
+                values.insert(format!("{child}_{parameter}"), DslValue::Number(*value));
+                values.insert(format!("{child}.{parameter}"), DslValue::Number(*value));
+            }
+        }
         for (output, summary) in child_outputs {
             values.insert(format!("{child}_{output}"), DslValue::Number(summary.mean));
             values.insert(format!("{child}.{output}"), DslValue::Number(summary.mean));
@@ -731,6 +845,7 @@ fn apply_cached_flows(
             count: stable_number(count),
             rate: stable_number(rate),
         });
+        values.insert(flow.id.clone(), DslValue::Number(rate));
     }
     Ok(points)
 }

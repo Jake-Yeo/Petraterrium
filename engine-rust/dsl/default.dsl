@@ -906,3 +906,666 @@ aggregate_function Ontario:
       transit_available change > 0.10
       unemployment_national change > 0.02
       event = disruption, election
+
+archetype CountryFederalDemocracy:
+  level = country
+  child_level = division
+  parameters:
+    national_policy_tax = 0.25
+    federal_structure = 0.80
+  output mean_income = mean(money) where age >= 18 with sd
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+
+composition BritishColumbia:
+  level = division
+  children:
+    Vancouver: weight = 90
+    Toronto: weight = 10
+  institutions = Work, School, Bar, Cinema, Transit
+  parameters:
+    policy_tax = 0.23
+    unemployment_national = 0.06
+    transit_available = 0.82
+    economic_shock = 0.00
+  adjacency:
+    Vancouver <-> Toronto distance = 1
+  flows:
+    internal_exchange Vancouver -> Toronto rate = formula(clamp(0.05 + transit_available * 0.04 - policy_tax * 0.02, 0, 0.25)) effect = exchange
+    internal_migration Toronto -> Vancouver rate = formula(clamp(0.005 + unemployment_national * 0.08 + economic_shock * 0.03, 0, 0.08)) effect = transfer
+  cached:
+    sync = 5 days
+    max_iterations = 1
+    tolerance = 0.01
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output trade_balance = flow_count(internal_exchange)
+  output migration_rate = flow_rate(internal_migration)
+  output gdp_proxy = sum(money)
+
+composition California:
+  level = division
+  children:
+    Toronto: weight = 70
+    Vancouver: weight = 30
+  institutions = Work, School, Bar, Cinema, Transit
+  parameters:
+    policy_tax = 0.24
+    unemployment_national = 0.055
+    transit_available = 0.76
+    economic_shock = 0.00
+  adjacency:
+    Toronto <-> Vancouver distance = 1
+  flows:
+    internal_exchange Toronto -> Vancouver rate = formula(clamp(0.05 + transit_available * 0.04 - policy_tax * 0.02, 0, 0.25)) effect = exchange
+    internal_migration Vancouver -> Toronto rate = formula(clamp(0.005 + unemployment_national * 0.08 + economic_shock * 0.03, 0, 0.08)) effect = transfer
+  cached:
+    sync = 5 days
+    max_iterations = 1
+    tolerance = 0.01
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output trade_balance = flow_count(internal_exchange)
+  output migration_rate = flow_rate(internal_migration)
+  output gdp_proxy = sum(money)
+
+composition Texas:
+  level = division
+  children:
+    Toronto: weight = 30
+    Vancouver: weight = 70
+  institutions = Work, School, Bar, Cinema, Transit
+  parameters:
+    policy_tax = 0.2
+    unemployment_national = 0.05
+    transit_available = 0.68
+    economic_shock = 0.00
+  adjacency:
+    Toronto <-> Vancouver distance = 1
+  flows:
+    internal_exchange Toronto -> Vancouver rate = formula(clamp(0.05 + transit_available * 0.04 - policy_tax * 0.02, 0, 0.25)) effect = exchange
+    internal_migration Vancouver -> Toronto rate = formula(clamp(0.005 + unemployment_national * 0.08 + economic_shock * 0.03, 0, 0.08)) effect = transfer
+  cached:
+    sync = 5 days
+    max_iterations = 1
+    tolerance = 0.01
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output trade_balance = flow_count(internal_exchange)
+  output migration_rate = flow_rate(internal_migration)
+  output gdp_proxy = sum(money)
+
+composition CentralMexico:
+  level = division
+  children:
+    Toronto: weight = 45
+    Vancouver: weight = 55
+  institutions = Work, School, Bar, Cinema, Transit
+  parameters:
+    policy_tax = 0.19
+    unemployment_national = 0.075
+    transit_available = 0.62
+    economic_shock = 0.00
+  adjacency:
+    Toronto <-> Vancouver distance = 1
+  flows:
+    internal_exchange Toronto -> Vancouver rate = formula(clamp(0.05 + transit_available * 0.04 - policy_tax * 0.02, 0, 0.25)) effect = exchange
+    internal_migration Vancouver -> Toronto rate = formula(clamp(0.005 + unemployment_national * 0.08 + economic_shock * 0.03, 0, 0.08)) effect = transfer
+  cached:
+    sync = 5 days
+    max_iterations = 1
+    tolerance = 0.01
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output trade_balance = flow_count(internal_exchange)
+  output migration_rate = flow_rate(internal_migration)
+  output gdp_proxy = sum(money)
+
+composition NorthernMexico:
+  level = division
+  children:
+    Toronto: weight = 35
+    Vancouver: weight = 65
+  institutions = Work, School, Bar, Cinema, Transit
+  parameters:
+    policy_tax = 0.18
+    unemployment_national = 0.07
+    transit_available = 0.66
+    economic_shock = 0.00
+  adjacency:
+    Toronto <-> Vancouver distance = 1
+  flows:
+    internal_exchange Toronto -> Vancouver rate = formula(clamp(0.05 + transit_available * 0.04 - policy_tax * 0.02, 0, 0.25)) effect = exchange
+    internal_migration Vancouver -> Toronto rate = formula(clamp(0.005 + unemployment_national * 0.08 + economic_shock * 0.03, 0, 0.08)) effect = transfer
+  cached:
+    sync = 5 days
+    max_iterations = 1
+    tolerance = 0.01
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output trade_balance = flow_count(internal_exchange)
+  output migration_rate = flow_rate(internal_migration)
+  output gdp_proxy = sum(money)
+
+composition Canada:
+  level = country
+  template = CountryFederalDemocracy
+  represented_population = 40000000
+  children:
+    Ontario: weight = 100
+    BritishColumbia: weight = 50
+  institutions = Transit
+  parameters:
+    national_policy_tax = 0.25
+    policy_tax = 0.25
+    media_trend = 0.00
+    economic_shock = 0.00
+    unemployment_national = 0.06
+    transit_available = 0.82
+    border_policy = 0.82
+    tariff = 0.15
+    infection_modifier = 0.08
+    federal_structure = 0.72
+  adjacency:
+    Ontario <-> BritishColumbia distance = 1
+  flows:
+    division_exchange Ontario -> BritishColumbia rate = formula(clamp(0.04 + Ontario_gdp_proxy / 1000000000 - tariff * 0.10 + federal_structure * 0.01, 0, 0.30)) effect = exchange
+    division_migration BritishColumbia -> Ontario rate = formula(clamp(0.005 + unemployment_national * 0.08 + border_policy * 0.02, 0, 0.08)) effect = transfer
+    division_travel Ontario -> BritishColumbia rate = formula(clamp(0.03 + transit_available * 0.02, 0, 0.15)) effect = visit via Transit
+  cached:
+    sync = 30 days
+    max_iterations = 2
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.05
+  output population = count()
+  output represented_population = represented_count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output gdp_proxy = sum(money)
+  output trade_balance = flow_count(division_exchange)
+  output migration_rate = flow_rate(division_migration)
+
+composition USA:
+  level = country
+  template = CountryFederalDemocracy
+  represented_population = 335000000
+  children:
+    California: weight = 100
+    Texas: weight = 80
+  institutions = Transit
+  parameters:
+    national_policy_tax = 0.22
+    policy_tax = 0.22
+    media_trend = 0.00
+    economic_shock = 0.00
+    unemployment_national = 0.05
+    transit_available = 0.78
+    border_policy = 0.78
+    tariff = 0.25
+    infection_modifier = 0.12
+    federal_structure = 0.68
+  adjacency:
+    California <-> Texas distance = 1
+  flows:
+    division_exchange California -> Texas rate = formula(clamp(0.04 + California_gdp_proxy / 1000000000 - tariff * 0.10 + federal_structure * 0.01, 0, 0.30)) effect = exchange
+    division_migration Texas -> California rate = formula(clamp(0.005 + unemployment_national * 0.08 + border_policy * 0.02, 0, 0.08)) effect = transfer
+    division_travel California -> Texas rate = formula(clamp(0.03 + transit_available * 0.02, 0, 0.15)) effect = visit via Transit
+  cached:
+    sync = 30 days
+    max_iterations = 2
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.05
+  output population = count()
+  output represented_population = represented_count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output gdp_proxy = sum(money)
+  output trade_balance = flow_count(division_exchange)
+  output migration_rate = flow_rate(division_migration)
+
+composition Mexico:
+  level = country
+  template = CountryFederalDemocracy
+  represented_population = 130000000
+  children:
+    CentralMexico: weight = 100
+    NorthernMexico: weight = 70
+  institutions = Transit
+  parameters:
+    national_policy_tax = 0.19
+    policy_tax = 0.19
+    media_trend = 0.00
+    economic_shock = 0.00
+    unemployment_national = 0.075
+    transit_available = 0.64
+    border_policy = 0.64
+    tariff = 0.35
+    infection_modifier = 0.06
+    federal_structure = 0.8
+  adjacency:
+    CentralMexico <-> NorthernMexico distance = 1
+  flows:
+    division_exchange CentralMexico -> NorthernMexico rate = formula(clamp(0.04 + CentralMexico_gdp_proxy / 1000000000 - tariff * 0.10 + federal_structure * 0.01, 0, 0.30)) effect = exchange
+    division_migration NorthernMexico -> CentralMexico rate = formula(clamp(0.005 + unemployment_national * 0.08 + border_policy * 0.02, 0, 0.08)) effect = transfer
+    division_travel CentralMexico -> NorthernMexico rate = formula(clamp(0.03 + transit_available * 0.02, 0, 0.15)) effect = visit via Transit
+  cached:
+    sync = 30 days
+    max_iterations = 2
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.05
+  output population = count()
+  output represented_population = represented_count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output gdp_proxy = sum(money)
+  output trade_balance = flow_count(division_exchange)
+  output migration_rate = flow_rate(division_migration)
+
+composition World:
+  level = world
+  represented_population = 6999999999
+  children:
+    Canada: weight = 100
+    USA: weight = 300
+    Mexico: weight = 80
+  institutions = Transit
+  parameters:
+    global_interest_rate = 0.04
+    global_trade_policy = 0.70
+    policy_tax = 0.23
+    media_trend = 0.00
+    economic_shock = 0.00
+    unemployment_national = 0.06
+    border_policy = 0.72
+    tariff = 0.10
+    infection_rate = 0.04
+  adjacency:
+    Canada <-> USA distance = 1
+    USA <-> Mexico distance = 1
+  flows:
+    canada_usa_trade Canada -> USA rate = formula(clamp(0.04 + Canada_gdp_proxy / 1000000000 + USA_gdp_proxy / 3000000000 + global_trade_policy * 0.04 - tariff * 0.12, 0, 0.40)) effect = exchange
+    usa_mexico_trade USA -> Mexico rate = formula(clamp(0.03 + USA_gdp_proxy / 3000000000 + Mexico_gdp_proxy / 1000000000 + global_trade_policy * 0.03 - tariff * 0.10, 0, 0.35)) effect = exchange
+    mexico_usa_migration Mexico -> USA rate = formula(clamp(0.005 + Mexico_unemployment_national * 0.10 + USA_mean_income / 100000 - border_policy * 0.01, 0, 0.10)) effect = transfer
+    usa_canada_travel USA -> Canada rate = formula(clamp(0.03 + global_trade_policy * 0.02, 0, 0.12)) effect = visit via Transit
+    usa_canada_infection USA -> Canada rate = formula(clamp(usa_canada_travel + infection_rate * 0.20 + USA_infection_modifier * 0.02, 0, 0.15)) effect = infection
+    usa_canada_policy USA -> Canada rate = formula(clamp(global_trade_policy * 0.10 + media_trend * 0.02, 0, 0.20)) effect = diffusion
+  cached:
+    sync = 90 days
+    max_iterations = 5
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.04
+  output population = count()
+  output represented_population = represented_count()
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+  output fights_per_day = action_count(fights, window=day)
+  output gdp_proxy = sum(money)
+  output world_trade_volume = flow_count(canada_usa_trade)
+  output world_migration_rate = flow_rate(mexico_usa_migration)
+  output world_infection_rate = flow_rate(usa_canada_infection)
+
+composition_population WorldHouseholds:
+  World: represented = 6999999999
+
+composition_population SevenBillionWorld:
+  World: represented = 6999999999
+
+aggregate_function BritishColumbia:
+  inputs:
+    policy_tax = 0.22 range 0.10..0.40
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.18
+    field stress += economic_shock * 0.20 + unemployment_national * 0.20
+  outputs:
+    population = formula(policy_tax, economic_shock, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, unemployment_national)
+    trade_balance = formula(policy_tax, economic_shock, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, unemployment_national)
+    gdp_proxy = formula(policy_tax, economic_shock, unemployment_national)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = pandemic, sanctions, election
+
+aggregate_function California:
+  inputs:
+    policy_tax = 0.22 range 0.10..0.40
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.18
+    field stress += economic_shock * 0.20 + unemployment_national * 0.20
+  outputs:
+    population = formula(policy_tax, economic_shock, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, unemployment_national)
+    trade_balance = formula(policy_tax, economic_shock, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, unemployment_national)
+    gdp_proxy = formula(policy_tax, economic_shock, unemployment_national)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = pandemic, sanctions, election
+
+aggregate_function Texas:
+  inputs:
+    policy_tax = 0.22 range 0.10..0.40
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.18
+    field stress += economic_shock * 0.20 + unemployment_national * 0.20
+  outputs:
+    population = formula(policy_tax, economic_shock, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, unemployment_national)
+    trade_balance = formula(policy_tax, economic_shock, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, unemployment_national)
+    gdp_proxy = formula(policy_tax, economic_shock, unemployment_national)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = pandemic, sanctions, election
+
+aggregate_function CentralMexico:
+  inputs:
+    policy_tax = 0.22 range 0.10..0.40
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.18
+    field stress += economic_shock * 0.20 + unemployment_national * 0.20
+  outputs:
+    population = formula(policy_tax, economic_shock, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, unemployment_national)
+    trade_balance = formula(policy_tax, economic_shock, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, unemployment_national)
+    gdp_proxy = formula(policy_tax, economic_shock, unemployment_national)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = pandemic, sanctions, election
+
+aggregate_function NorthernMexico:
+  inputs:
+    policy_tax = 0.22 range 0.10..0.40
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.18
+    field stress += economic_shock * 0.20 + unemployment_national * 0.20
+  outputs:
+    population = formula(policy_tax, economic_shock, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, unemployment_national)
+    trade_balance = formula(policy_tax, economic_shock, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, unemployment_national)
+    gdp_proxy = formula(policy_tax, economic_shock, unemployment_national)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = pandemic, sanctions, election
+
+aggregate_function Canada:
+  inputs:
+    national_policy_tax = 0.25 range 0.1..0.4
+    policy_tax = 0.25 range 0.1..0.4
+    media_trend = 0.0 range -1..1
+    economic_shock = 0.0 range -0.2..0.2
+    unemployment_national = 0.06 range 0.02..0.15
+    border_policy = 0.82 range 0..1
+    tariff = 0.15 range 0..0.5
+    infection_modifier = 0.08 range 0..1
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - national_policy_tax * 0.18 + economic_shock * 0.15
+    field stress += economic_shock * 0.18 + unemployment_national * 0.18
+  outputs:
+    population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    represented_population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_income = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_stress = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_health = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    vote_liberal_share = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_kids_per_family = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    fights_per_day = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    gdp_proxy = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    trade_balance = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    migration_rate = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+  cache:
+    valid_for = 90 days
+    inputs_hash = hash(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    invalidate_on:
+      national_policy_tax change > 0.05
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      border_policy change > 0.10
+      tariff change > 0.05
+      infection_modifier change > 0.10
+      event = pandemic, sanctions, war, election
+
+aggregate_function USA:
+  inputs:
+    national_policy_tax = 0.22 range 0.1..0.4
+    policy_tax = 0.22 range 0.1..0.4
+    media_trend = 0.0 range -1..1
+    economic_shock = 0.0 range -0.2..0.2
+    unemployment_national = 0.05 range 0.02..0.15
+    border_policy = 0.78 range 0..1
+    tariff = 0.25 range 0..0.5
+    infection_modifier = 0.12 range 0..1
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - national_policy_tax * 0.18 + economic_shock * 0.15
+    field stress += economic_shock * 0.18 + unemployment_national * 0.18
+  outputs:
+    population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    represented_population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_income = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_stress = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_health = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    vote_liberal_share = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_kids_per_family = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    fights_per_day = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    gdp_proxy = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    trade_balance = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    migration_rate = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+  cache:
+    valid_for = 90 days
+    inputs_hash = hash(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    invalidate_on:
+      national_policy_tax change > 0.05
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      border_policy change > 0.10
+      tariff change > 0.05
+      infection_modifier change > 0.10
+      event = pandemic, sanctions, war, election
+
+aggregate_function Mexico:
+  inputs:
+    national_policy_tax = 0.19 range 0.1..0.4
+    policy_tax = 0.19 range 0.1..0.4
+    media_trend = 0.0 range -1..1
+    economic_shock = 0.0 range -0.2..0.2
+    unemployment_national = 0.075 range 0.02..0.15
+    border_policy = 0.64 range 0..1
+    tariff = 0.35 range 0..0.5
+    infection_modifier = 0.06 range 0..1
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - national_policy_tax * 0.18 + economic_shock * 0.15
+    field stress += economic_shock * 0.18 + unemployment_national * 0.18
+  outputs:
+    population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    represented_population = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_income = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_stress = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_health = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    vote_liberal_share = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    mean_kids_per_family = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    fights_per_day = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    gdp_proxy = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    trade_balance = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    migration_rate = formula(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+  cache:
+    valid_for = 90 days
+    inputs_hash = hash(national_policy_tax, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_modifier)
+    invalidate_on:
+      national_policy_tax change > 0.05
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      border_policy change > 0.10
+      tariff change > 0.05
+      infection_modifier change > 0.10
+      event = pandemic, sanctions, war, election
+
+aggregate_function World:
+  inputs:
+    global_interest_rate = 0.04 range 0..0.2
+    global_trade_policy = 0.7 range 0..1
+    policy_tax = 0.23 range 0.1..0.4
+    media_trend = 0 range -1..1
+    economic_shock = 0 range -0.2..0.2
+    unemployment_national = 0.06 range 0.02..0.15
+    border_policy = 0.72 range 0..1
+    tariff = 0.1 range 0..0.5
+    infection_rate = 0.04 range 0..0.5
+  time = 30 days
+  time_points = 1, 7, 30
+  effects:
+    field money *= 1 - global_interest_rate * 0.10 + economic_shock * 0.12
+    field stress += economic_shock * 0.15 + infection_rate * 0.08
+  outputs:
+    population = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    represented_population = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    mean_income = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    mean_stress = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    mean_health = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    vote_liberal_share = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    mean_kids_per_family = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    fights_per_day = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    gdp_proxy = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    world_trade_volume = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    world_migration_rate = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    world_infection_rate = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+  cache:
+    valid_for = 90 days
+    inputs_hash = hash(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
+    invalidate_on:
+      global_interest_rate change > 0.02
+      global_trade_policy change > 0.10
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      border_policy change > 0.10
+      tariff change > 0.05
+      infection_rate change > 0.05
+      event = pandemic, sanctions, war, election
