@@ -19,8 +19,15 @@
   source-target relationship. Target selectors support random, friend, enemy, and strongest.
 - The existing Rust time allocator supplies seeded duration sampling, tick budgets, deferral, and
   long-action continuation.
-- Runs persist as compressed records. Results include per-place and per-agent-type population,
-  action rates, money, health, stress, fights per day, family size, and kids per family.
+- DSL `output` blocks define each Rust report's grouping, collection cadence, columns, metric
+  formulas, labels, formats, and table/card presentation. Rust creates statistical snapshots only
+  for those reports; raw action receipts remain engine audit events.
+- Report formulas support counts, means, sums, action and outcome counts, action rates, family
+  size, and kids per family. Reports can group by all agents, place, or agent type and record every
+  tick, daily, or at the final tick.
+- Runs persist as compressed records. The frontend renders the generic Rust report contract and
+  does not contain fixed simulation-stat columns.
+- Saved runs from the earlier fixed aggregate contract reopen through a read-only legacy adapter.
 - The app opens directly to the exact DSL source in a line-numbered text editor. Rust validation,
   save, reset, run, and baseline deltas operate on that text.
 
@@ -46,20 +53,21 @@
 
 ## Focused verification
 
-- Rust DSL tests: 11 passed in under one second.
+- Rust DSL tests: 12 passed in under one second.
 - Rust duration sampling and tick scaling: two focused tests passed.
-- Python API persistence/routes: 2 passed in 0.03 seconds.
+- Python API persistence/routes and legacy run compatibility: 3 passed in 0.02 seconds.
 - Browser code-display/edit/save/run/compare and line-error tests: 2 passed in 5.9 seconds.
 - Frontend production build: 9 modules in 0.28 seconds.
 - Engine source grep contains none of the shipped place, action, or scenario names.
 
 ## Final demo run
 
-- Run ID: `71816756d216469d8b4e34108bf206d0`
-- DSL hash: `sha256:4510fd5fd5f61280de87d03c026716d5d270fcc435fa42c60014dc952b30212c`
+- Run ID: `5b8b8f5f1afe42ea921215e42a43f06a`
+- DSL hash: `sha256:d048e7f6b208f13f4120aa8928a8a24020334fbc1e5cf37a2f238f6586b76106`
 - Rust engine: `0.3.0`
 - Seed: `1`
 - Duration: `30` days / `720` ticks
 - Population: `100` sampled adults plus `30` generated children
+- DSL-defined reports: one final card report and two daily table reports with `30` snapshots each
 - Final output keeps health, stress, alcohol, reputation, money, and place states inside their
   DSL-declared ranges. Recorded fights are attributed to Bar, where they occurred.

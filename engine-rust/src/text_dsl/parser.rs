@@ -844,6 +844,13 @@ fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportMetric> {
         .filter_map(|value| value.split_once('='))
         .map(|(key, value)| (key.trim(), value.trim()))
         .collect::<BTreeMap<_, _>>();
+    if positional.len() + named.len() != parts.len() {
+        return Err(DslError::new(
+            "INVALID_OUTPUT_METRIC",
+            line,
+            "Output metric arguments must be unique",
+        ));
+    }
     let window = || named.get("window").copied().unwrap_or("day").to_owned();
     match name {
         "count" if parts.is_empty() => Ok(ReportMetric::Count),
@@ -853,11 +860,13 @@ fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportMetric> {
         "sum" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Sum {
             field: positional[0].to_owned(),
         }),
-        "action_count" if positional.len() == 1 => Ok(ReportMetric::ActionCount {
-            aggregate: positional[0].to_owned(),
-            window: window(),
-        }),
-        "outcome_count" if positional.len() == 1 => {
+        "action_count" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
+            Ok(ReportMetric::ActionCount {
+                aggregate: positional[0].to_owned(),
+                window: window(),
+            })
+        }
+        "outcome_count" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
             let Some((action, outcome)) = positional[0].split_once('.') else {
                 return Err(DslError::new(
                     "INVALID_OUTPUT_METRIC",
@@ -871,15 +880,14 @@ fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportMetric> {
                 window: window(),
             })
         }
-        "action_rates" if positional.is_empty() => {
+        "action_rates"
+            if positional.is_empty()
+                && named.keys().all(|key| matches!(*key, "per" | "window")) =>
+        {
             let per = named
                 .get("per")
                 .ok_or_else(|| {
-                    DslError::new(
-                        "INVALID_OUTPUT_METRIC",
-                        line,
-                        "action_rates needs per",
-                    )
+                    DslError::new("INVALID_OUTPUT_METRIC", line, "action_rates needs per")
                 })?
                 .parse::<f64>()
                 .map_err(|_| {
@@ -1374,27 +1382,24 @@ fn validate_program(program: &Program) -> DslResult<()> {
             return Err(DslError::new(
                 "INVALID_OUTPUT_GROUP",
                 report.line,
-                format!("Output {} has unsupported group {}", report.id, report.group_by),
+                format!(
+                    "Output {} has unsupported group {}",
+                    report.id, report.group_by
+                ),
             ));
         }
         if !matches!(report.display.as_str(), "table" | "cards") {
             return Err(DslError::new(
                 "INVALID_OUTPUT_DISPLAY",
                 report.line,
-                format!(
-                    "Output {} display must be table or cards",
-                    report.id
-                ),
+                format!("Output {} display must be table or cards", report.id),
             ));
         }
         if !matches!(report.record.as_str(), "tick" | "daily" | "final") {
             return Err(DslError::new(
                 "INVALID_OUTPUT_CADENCE",
                 report.line,
-                format!(
-                    "Output {} record must be tick, daily, or final",
-                    report.id
-                ),
+                format!("Output {} record must be tick, daily, or final", report.id),
             ));
         }
         if report.columns.is_empty() {
@@ -1445,9 +1450,9 @@ fn validate_program(program: &Program) -> DslResult<()> {
                     window,
                 } => {
                     let definition = program.actions.iter().find(|item| item.id == *action);
-                    if !definition.is_some_and(|item| {
-                        item.outcomes.iter().any(|item| item.id == *outcome)
-                    }) {
+                    if !definition
+                        .is_some_and(|item| item.outcomes.iter().any(|item| item.id == *outcome))
+                    {
                         return Err(DslError::new(
                             "UNKNOWN_OUTPUT_OUTCOME",
                             column.line,

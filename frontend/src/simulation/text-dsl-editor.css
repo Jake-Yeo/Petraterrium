@@ -32,7 +32,9 @@
 
 .text-dsl-heading h1,
 .text-dsl-results h2 {
-  font: 600 28px 'Space Grotesk', sans-serif;
+  font:
+    600 28px 'Space Grotesk',
+    sans-serif;
   margin: 4px 0;
 }
 
@@ -46,7 +48,9 @@
 .text-dsl-eyebrow,
 .text-dsl-hash {
   color: var(--dsl-accent);
-  font: 600 10px 'Space Grotesk', monospace;
+  font:
+    600 10px 'Space Grotesk',
+    monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -100,7 +104,10 @@
 
 .text-dsl-gutter,
 .text-dsl-code {
-  font: 13px/1.55 'SFMono-Regular', Consolas, monospace;
+  font:
+    13px/1.55 'SFMono-Regular',
+    Consolas,
+    monospace;
   margin: 0;
   tab-size: 2;
 }
@@ -163,7 +170,9 @@
 
 .text-dsl-invalid button span {
   color: #e79b90;
-  font: 600 10px 'Space Grotesk', monospace;
+  font:
+    600 10px 'Space Grotesk',
+    monospace;
 }
 
 .text-dsl-results {
@@ -189,8 +198,16 @@
   font-size: 28px;
 }
 
-.text-dsl-result-table h3 {
+.text-dsl-result-table h3,
+.text-dsl-result-cards h3 {
   margin: 0 0 7px;
+}
+
+.text-dsl-report-meta {
+  color: var(--dsl-muted);
+  font-size: 10px;
+  margin: -2px 0 8px;
+  text-transform: uppercase;
 }
 
 .text-dsl-result-table .table-scroll {
@@ -215,6 +232,46 @@
   color: var(--dsl-accent);
   display: block;
   margin-top: 2px;
+}
+
+.text-dsl-result-cards > div {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.text-dsl-result-cards article {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.text-dsl-result-cards h4 {
+  margin: 0 0 10px;
+}
+
+.text-dsl-result-cards dl {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  margin: 7px 0;
+}
+
+.text-dsl-result-cards dt {
+  color: var(--dsl-muted);
+  font-size: 10px;
+}
+
+.text-dsl-result-cards dd {
+  font-size: 12px;
+  margin: 0;
+  text-align: right;
+}
+
+.text-dsl-result-cards dd small {
+  color: var(--dsl-accent);
+  display: block;
 }
 
 @media (max-width: 900px) {

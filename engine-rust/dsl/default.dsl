@@ -11,7 +11,7 @@ output overview:
   display = cards
   record = final
   column population = count() label "Population" format integer
-  column money = mean(money) label "Mean money" format currency
+  column money = mean(money) label "Mean money" format number
   column health = mean(health) label "Mean health" format decimal
   column stress = mean(stress) label "Mean stress" format decimal
   column fights = action_count(fights, window=day) label "Fights / day" format integer
@@ -22,7 +22,7 @@ output places:
   display = table
   record = daily
   column population = count() label "Population" format integer
-  column money = mean(money) label "Money" format currency
+  column money = mean(money) label "Money" format number
   column health = mean(health) label "Health" format decimal
   column stress = mean(stress) label "Stress" format decimal
   column fights = action_count(fights, window=day) label "Fights / day" format integer
@@ -36,7 +36,7 @@ output agent_types:
   display = table
   record = daily
   column population = count() label "Population" format integer
-  column money = mean(money) label "Money" format currency
+  column money = mean(money) label "Money" format number
   column health = mean(health) label "Health" format decimal
   column stress = mean(stress) label "Stress" format decimal
   column actions = action_rates(per=1000, window=day) label "Action rates / 1,000" format action_rates

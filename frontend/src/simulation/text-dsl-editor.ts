@@ -279,12 +279,8 @@ export class TextDslEditor {
 
   private async runDsl(): Promise<void> {
     if (!this.document || this.dirty || !this.document.validation.valid) return;
-    const seed = Number(
-      this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value,
-    );
-    const days = Number(
-      this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value,
-    );
+    const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
+    const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
     this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
     try {
       this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
@@ -296,7 +292,7 @@ export class TextDslEditor {
           baseline_run_id: this.run?.run_id ?? null,
         }),
       });
-      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} ticks with ${this.run.total_agents.toLocaleString()} agents.`;
+      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks.`;
       this.renderResults();
     } catch (error) {
       this.options.onError(error);
@@ -336,7 +332,9 @@ export class TextDslEditor {
       this.diagnostics
         .querySelectorAll<HTMLButtonElement>('[data-dsl-error-line]')
         .forEach((button) =>
-          button.addEventListener('click', () => this.focusLine(Number(button.dataset.dslErrorLine))),
+          button.addEventListener('click', () =>
+            this.focusLine(Number(button.dataset.dslErrorLine)),
+          ),
         );
       this.status.textContent = 'Fix the DSL errors before saving or running.';
     }
@@ -345,7 +343,9 @@ export class TextDslEditor {
 
   private focusLine(line: number): void {
     const lines = this.textarea.value.split('\n');
-    const start = lines.slice(0, Math.max(0, line - 1)).reduce((sum, value) => sum + value.length + 1, 0);
+    const start = lines
+      .slice(0, Math.max(0, line - 1))
+      .reduce((sum, value) => sum + value.length + 1, 0);
     const end = start + (lines[line - 1]?.length ?? 0);
     this.textarea.focus();
     this.textarea.setSelectionRange(start, end);
@@ -360,35 +360,89 @@ export class TextDslEditor {
 
   private renderResults(): void {
     if (!this.run) return;
-    const places = this.run.final_aggregates.filter((row) => row.group_kind === 'place');
-    const types = this.run.final_aggregates.filter((row) => row.group_kind === 'agent_type');
     const deltaByKey = new Map(
-      this.run.comparison.map((row) => [`${row.group_kind}:${row.group_id}`, row]),
+      this.run.comparison.map((row) => [`${row.report_id}:${row.group_id}`, row]),
     );
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">RECORDED RUST OUTPUT</span><h2>Small-group aggregates</h2><p>Run ${escapeHtml(this.run.run_id.slice(0, 8))} · seed ${this.run.seed} · ${this.run.days} days · ${this.run.engine_version}</p></div><div><strong>${this.run.total_agents}</strong><span>${this.run.adult_population} adults + ${this.run.generated_children} generated children</span></div></header>
-      ${this.table('Places', places, deltaByKey)}
-      ${this.table('Agent types', types, deltaByKey)}
-      <details><summary>Action and outcome totals</summary><pre>${escapeHtml(JSON.stringify({ actions: this.run.action_counts, outcomes: this.run.outcome_counts }, null, 2))}</pre></details>`;
+      <header><div><span class="text-dsl-eyebrow">${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>Run ${escapeHtml(this.run.run_id.slice(0, 8))} · seed ${this.run.seed} · ${this.run.days} days · ${this.run.engine_version}</p></div></header>
+      ${this.run.reports.map((report) => this.report(report, deltaByKey)).join('')}`;
+  }
+
+  private report(report: Report, deltas: Map<string, ReportDelta>): string {
+    const snapshot = report.snapshots.at(-1);
+    if (!snapshot) {
+      return `<section class="text-dsl-result-table"><h3>${escapeHtml(report.title)}</h3><p>No snapshot was scheduled for this run.</p></section>`;
+    }
+    if (report.display === 'cards') {
+      return this.cards(report, snapshot, deltas);
+    }
+    return this.table(report, snapshot, deltas);
   }
 
   private table(
-    heading: string,
-    rows: AggregateRow[],
-    deltas: Map<string, AggregateDelta>,
+    report: Report,
+    snapshot: ReportSnapshot,
+    deltas: Map<string, ReportDelta>,
   ): string {
-    return `<section class="text-dsl-result-table"><h3>${heading}</h3><div class="table-scroll"><table><thead><tr><th>Group</th><th>Population</th><th>Money</th><th>Health</th><th>Stress</th><th>Fights/day</th><th>Family size</th><th>Kids/family</th><th>Top action rates / 1,000</th></tr></thead><tbody>${rows
+    return `<section class="text-dsl-result-table" data-report-id="${escapeHtml(report.id)}"><h3>${escapeHtml(report.title)}</h3><p class="text-dsl-report-meta">Grouped by ${escapeHtml(report.group_by)} · recorded ${escapeHtml(report.record)} · tick ${snapshot.tick}</p><div class="table-scroll"><table><thead><tr><th>Group</th>${report.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${snapshot.rows
       .map((row) => {
-        const delta = deltas.get(`${row.group_kind}:${row.group_id}`);
-        const deltaText = (value: number | undefined) =>
-          delta ? `<small>${signed(value ?? 0)} vs baseline</small>` : '';
-        const actions = Object.entries(row.action_rates_per_1000)
-          .sort((left, right) => right[1] - left[1])
-          .slice(0, 4)
-          .map(([name, rate]) => `${escapeHtml(name)} ${number(rate)}`)
-          .join(' · ');
-        return `<tr><th>${escapeHtml(row.group_id)}</th><td>${row.population}${deltaText(delta?.population)}</td><td>${number(row.mean_money)}${deltaText(delta?.mean_money)}</td><td>${number(row.mean_health)}${deltaText(delta?.mean_health)}</td><td>${number(row.mean_stress)}${deltaText(delta?.mean_stress)}</td><td>${row.fights_per_day}${deltaText(delta?.fights_per_day)}</td><td>${number(row.average_family_size)}</td><td>${number(row.average_kids_per_family)}</td><td>${actions || '0'}</td></tr>`;
+        const delta = deltas.get(`${report.id}:${row.group_id}`);
+        return `<tr><th>${escapeHtml(row.group_id)}</th>${report.columns
+          .map(
+            (column) =>
+              `<td>${this.value(row.values[column.id], column.format)}${this.delta(delta?.values[column.id], column.format)}</td>`,
+          )
+          .join('')}</tr>`;
       })
       .join('')}</tbody></table></div></section>`;
+  }
+
+  private cards(
+    report: Report,
+    snapshot: ReportSnapshot,
+    deltas: Map<string, ReportDelta>,
+  ): string {
+    return `<section class="text-dsl-result-cards" data-report-id="${escapeHtml(report.id)}"><h3>${escapeHtml(report.title)}</h3><p class="text-dsl-report-meta">Grouped by ${escapeHtml(report.group_by)} · recorded ${escapeHtml(report.record)} · tick ${snapshot.tick}</p><div>${snapshot.rows
+      .map((row) => {
+        const delta = deltas.get(`${report.id}:${row.group_id}`);
+        return `<article><h4>${escapeHtml(row.group_id)}</h4>${report.columns
+          .map(
+            (column) =>
+              `<dl><dt>${escapeHtml(column.label)}</dt><dd>${this.value(row.values[column.id], column.format)}${this.delta(delta?.values[column.id], column.format)}</dd></dl>`,
+          )
+          .join('')}</article>`;
+      })
+      .join('')}</div></section>`;
+  }
+
+  private value(value: ReportValue | undefined, format: string): string {
+    if (value === undefined) return '—';
+    if (isRates(value)) {
+      const values = Object.entries(value)
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 6)
+        .map(([name, rate]) => `${escapeHtml(name)} ${number(rate)}`)
+        .join(' · ');
+      return values || '0';
+    }
+    if (typeof value === 'string') return escapeHtml(value);
+    if (format === 'integer') return number(value, 0);
+    if (format === 'percent') return `${number(value * 100)}%`;
+    return number(value);
+  }
+
+  private delta(value: ReportValue | undefined, format: string): string {
+    if (value === undefined || typeof value === 'string') return '';
+    if (isRates(value)) {
+      const summary = Object.entries(value)
+        .filter(([, delta]) => delta !== 0)
+        .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
+        .slice(0, 3)
+        .map(([name, delta]) => `${escapeHtml(name)} ${signed(delta)}`)
+        .join(' · ');
+      return `<small>${summary || '+0'} vs baseline</small>`;
+    }
+    const scaled = format === 'percent' ? value * 100 : value;
+    return `<small>${signed(scaled)}${format === 'percent' ? '%' : ''} vs baseline</small>`;
   }
 }

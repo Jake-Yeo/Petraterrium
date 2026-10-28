@@ -11,6 +11,8 @@ test('shows exact DSL code, edits it, runs it, and compares place aggregates', a
   await expect(editor).toHaveValue(/agent Person:/);
   await expect(editor).toHaveValue(/decision where_to_go:/);
   await expect(editor).toHaveValue(/action start_fight:/);
+  await expect(editor).toHaveValue(/output places:/);
+  await expect(editor).toHaveValue(/column fights = action_count\(fights, window=day\)/);
   await expect(page.getByRole('tab', { name: 'DSL Code' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Graph' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Decision Trees' })).toHaveCount(0);
@@ -18,15 +20,30 @@ test('shows exact DSL code, edits it, runs it, and compares place aggregates', a
 
   await page.getByLabel('Days').fill('1');
   await page.getByRole('button', { name: 'Run saved DSL' }).click();
-  await expect(page.getByRole('heading', { name: 'Small-group aggregates' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'DSL-defined small-group statistics' }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Town overview' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Places' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Agent types' })).toBeVisible();
+  await expect(page.locator('.text-dsl-result-cards')).toBeVisible();
+  await expect(page.locator('.text-dsl-result-table').first()).toBeVisible();
 
   const original = await editor.inputValue();
-  const edited = original.replace(
-    'branch go_cinema p = 0.12 if hour >= 17 placeholder',
-    'branch go_cinema p = 0.72 if hour >= 17 placeholder',
-  );
+  const edited = original
+    .replace(
+      'branch go_cinema p = 0.12 if hour >= 17 placeholder',
+      'branch go_cinema p = 0.72 if hour >= 17 placeholder',
+    )
+    .replace(
+      'results_subtitle = "DSL-defined small-group statistics"',
+      'results_subtitle = "Edited DSL statistics"',
+    )
+    .replace('title = "Places"', 'title = "Location statistics"')
+    .replace(
+      'output places:\n  title = "Location statistics"\n  group_by = place\n  display = table',
+      'output places:\n  title = "Location statistics"\n  group_by = place\n  display = cards',
+    );
   expect(edited).not.toBe(original);
   await editor.fill(edited);
   await page.getByRole('button', { name: 'Validate code' }).click();
@@ -34,14 +51,24 @@ test('shows exact DSL code, edits it, runs it, and compares place aggregates', a
   await page.getByRole('button', { name: 'Save DSL' }).click();
   await expect(page.getByText('Saved DSL is valid and ready to run.')).toBeVisible();
   await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Edited DSL statistics' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Location statistics' })).toBeVisible();
+  await expect(page.locator('[data-report-id="places"].text-dsl-result-cards')).toBeVisible();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
-  await expect(page.getByRole('rowheader', { name: 'Cinema' })).toBeVisible();
+  await expect(
+    page.locator('[data-report-id="places"]').getByRole('heading', { name: 'Cinema' }),
+  ).toBeVisible();
 });
 
 test('shows Rust parser diagnostics with source line numbers', async ({ page }) => {
   const editor = page.getByLabel('Simulation DSL code');
   const original = await editor.inputValue();
-  await editor.fill(original.replace('duration = Triangular(min=0.20, median=0.45, max=0.90)', 'duration = Triangular(min=0.90, median=0.45, max=0.20)'));
+  await editor.fill(
+    original.replace(
+      'duration = Triangular(min=0.20, median=0.45, max=0.90)',
+      'duration = Triangular(min=0.90, median=0.45, max=0.20)',
+    ),
+  );
   await page.getByRole('button', { name: 'Validate code' }).click();
 
   await expect(page.getByText('UNORDERED_DURATION')).toBeVisible();

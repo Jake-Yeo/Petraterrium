@@ -202,15 +202,25 @@ pub struct ActionDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReportMetric {
     Count,
-    Mean { field: String },
-    Sum { field: String },
-    ActionCount { aggregate: String, window: String },
+    Mean {
+        field: String,
+    },
+    Sum {
+        field: String,
+    },
+    ActionCount {
+        aggregate: String,
+        window: String,
+    },
     OutcomeCount {
         action: String,
         outcome: String,
         window: String,
     },
-    ActionRates { per: f64, window: String },
+    ActionRates {
+        per: f64,
+        window: String,
+    },
     FamilySize,
     KidsPerFamily,
 }

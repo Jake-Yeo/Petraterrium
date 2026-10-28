@@ -127,6 +127,10 @@ fn python_like_dsl_parses_without_json_or_python_execution() {
     assert_eq!(program.places.len(), 2);
     assert_eq!(program.decisions.len(), 2);
     assert_eq!(program.actions.len(), 4);
+    assert_eq!(program.results_title, "Synthetic results");
+    assert_eq!(program.reports.len(), 2);
+    assert_eq!(program.reports[0].display, "table");
+    assert_eq!(program.reports[1].display, "cards");
 }
 
 #[test]
@@ -167,6 +171,24 @@ fn parser_reports_named_line_errors() {
 
     let state = SYNTHETIC.replace("effect self.stress -=", "effect self.missing -=");
     assert_eq!(parse_program(&state).unwrap_err().code, "UNKNOWN_STATE");
+
+    let output_field = SYNTHETIC.replace("mean(money)", "mean(missing)");
+    assert_eq!(
+        parse_program(&output_field).unwrap_err().code,
+        "UNKNOWN_OUTPUT_FIELD"
+    );
+
+    let output_action = SYNTHETIC.replace("action_count(travel", "action_count(missing");
+    assert_eq!(
+        parse_program(&output_action).unwrap_err().code,
+        "UNKNOWN_OUTPUT_ACTION"
+    );
+
+    let output_display = SYNTHETIC.replacen("display = table", "display = graph", 1);
+    assert_eq!(
+        parse_program(&output_display).unwrap_err().code,
+        "INVALID_OUTPUT_DISPLAY"
+    );
 }
 
 #[test]
@@ -322,7 +344,12 @@ fn long_dsl_action_continues_across_ticks_without_truncation() {
             .any(|time| time.active_primary.is_some())
     );
     let completed = run_program(DslRunRequest::resume(program, 3, 2, first.state)).unwrap();
-    assert!(completed.actions.iter().any(|record| record.action == "visit_lab"));
+    assert!(
+        completed
+            .actions
+            .iter()
+            .any(|record| record.action == "visit_lab")
+    );
 }
 
 #[test]
@@ -495,7 +522,12 @@ fn interpreter_runs_small_ticks_and_round_trips_checkpoint() {
 
     assert_eq!(first.completed_ticks, 2);
     assert_eq!(second.completed_ticks, 3);
-    assert!(second.reports.iter().any(|report| !report.snapshots.is_empty()));
+    assert!(
+        second
+            .reports
+            .iter()
+            .any(|report| !report.snapshots.is_empty())
+    );
     assert!(
         second
             .state
@@ -503,6 +535,18 @@ fn interpreter_runs_small_ticks_and_round_trips_checkpoint() {
             .iter()
             .all(|agent| agent.value("stress").unwrap().as_f64().unwrap() >= 0.0)
     );
+}
+
+#[test]
+fn report_collection_cadence_is_defined_by_the_dsl() {
+    let program = parse_program(SYNTHETIC).unwrap();
+    let result = run_program(DslRunRequest::new(program, 12, 3)).unwrap();
+
+    assert_eq!(result.reports[0].record, "tick");
+    assert_eq!(result.reports[0].snapshots.len(), 3);
+    assert_eq!(result.reports[1].record, "final");
+    assert_eq!(result.reports[1].snapshots.len(), 1);
+    assert_eq!(result.results_title, "Synthetic results");
 }
 
 #[test]

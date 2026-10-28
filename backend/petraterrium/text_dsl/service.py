@@ -160,7 +160,10 @@ class TextDslService:
         path = self.runs_path / f"{run_id}.json.gz"
         if not path.exists():
             raise KeyError(run_id)
-        return TextDslRunResult.model_validate(self._read_run(path)["view"])
+        view = self._read_run(path)["view"]
+        if "reports" not in view:
+            view = self._legacy_run_view(view)
+        return TextDslRunResult.model_validate(view)
 
     def _persist(self, view: TextDslRunResult, raw: dict[str, Any]) -> None:
         summary = TextDslRunSummary(
@@ -184,6 +187,133 @@ class TextDslService:
     def _read_run(self, path: Path) -> dict[str, Any]:
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             return json.load(handle)
+
+    @staticmethod
+    def _legacy_run_view(view: dict[str, Any]) -> dict[str, Any]:
+        columns = (
+            ("population", "Population", "integer"),
+            ("mean_money", "Money", "number"),
+            ("mean_health", "Health", "decimal"),
+            ("mean_stress", "Stress", "decimal"),
+            ("fights_per_day", "Fights / day", "integer"),
+            ("average_family_size", "Family size", "decimal"),
+            ("average_kids_per_family", "Kids / family", "decimal"),
+            ("action_rates_per_1000", "Action rates / 1,000", "action_rates"),
+        )
+        rows = view.get("final_aggregates", [])
+        reports = []
+        report_ids = {"place": "places", "agent_type": "agent_types"}
+        report_titles = {"place": "Places", "agent_type": "Agent types"}
+        for group_kind, report_id in report_ids.items():
+            selected = [row for row in rows if row.get("group_kind") == group_kind]
+            if not selected:
+                continue
+            reports.append(
+                {
+                    "id": report_id,
+                    "title": report_titles[group_kind],
+                    "group_by": group_kind,
+                    "display": "table",
+                    "record": "final",
+                    "columns": [
+                        {
+                            "id": field,
+                            "label": label,
+                            "format": format_name,
+                            "metric": "Legacy",
+                            "line": 1,
+                        }
+                        for field, label, format_name in columns
+                    ],
+                    "snapshots": [
+                        {
+                            "tick": max(int(row.get("tick", 0)) for row in selected),
+                            "rows": [
+                                {
+                                    "group_id": str(row["group_id"]),
+                                    "values": {
+                                        field: row.get(field, 0)
+                                        for field, _, _ in columns
+                                    },
+                                }
+                                for row in selected
+                            ],
+                        }
+                    ],
+                }
+            )
+        event_values = {
+            "actions": {
+                str(key): float(value)
+                for key, value in view.get("action_counts", {}).items()
+            },
+            "outcomes": {
+                str(key): float(value)
+                for key, value in view.get("outcome_counts", {}).items()
+            },
+        }
+        if any(event_values.values()):
+            reports.append(
+                {
+                    "id": "event_totals",
+                    "title": "Action and outcome totals",
+                    "group_by": "all",
+                    "display": "cards",
+                    "record": "final",
+                    "columns": [
+                        {
+                            "id": field,
+                            "label": label,
+                            "format": "action_rates",
+                            "metric": "Legacy",
+                            "line": 1,
+                        }
+                        for field, label in (
+                            ("actions", "Actions"),
+                            ("outcomes", "Outcomes"),
+                        )
+                    ],
+                    "snapshots": [
+                        {
+                            "tick": int(view["ticks"]),
+                            "rows": [{"group_id": "All", "values": event_values}],
+                        }
+                    ],
+                }
+            )
+        comparison = []
+        for row in view.get("comparison", []):
+            report_id = report_ids.get(row.get("group_kind"))
+            if report_id is None:
+                continue
+            comparison.append(
+                {
+                    "report_id": report_id,
+                    "group_id": str(row["group_id"]),
+                    "values": {
+                        field: row.get(field, 0)
+                        for field, _, _ in columns
+                        if field != "average_family_size"
+                        and field != "average_kids_per_family"
+                    },
+                }
+            )
+        return {
+            "run_id": view["run_id"],
+            "source_hash": view["source_hash"],
+            "seed": view["seed"],
+            "days": view["days"],
+            "ticks": view["ticks"],
+            "adult_population": view["adult_population"],
+            "total_agents": view["total_agents"],
+            "generated_children": view["generated_children"],
+            "results_title": "Recorded Rust output",
+            "results_subtitle": "Legacy recorded statistics",
+            "reports": reports,
+            "comparison": comparison,
+            "engine_version": view["engine_version"],
+            "created_at": view["created_at"],
+        }
 
     @staticmethod
     def _comparison(

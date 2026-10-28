@@ -1159,9 +1159,9 @@ fn report_value(
                 values.iter().sum::<f64>() / values.len() as f64
             })
         }
-        ReportMetric::Sum { field } => DslReportValue::Number(
-            numeric_values(state, indices, field).iter().sum::<f64>(),
-        ),
+        ReportMetric::Sum { field } => {
+            DslReportValue::Number(numeric_values(state, indices, field).iter().sum::<f64>())
+        }
         ReportMetric::ActionCount { aggregate, window } => {
             let selected = selected_actions(
                 definition,
@@ -1235,12 +1235,8 @@ fn report_value(
                     .collect(),
             )
         }
-        ReportMetric::FamilySize => {
-            DslReportValue::Number(average_family_size(state, indices))
-        }
-        ReportMetric::KidsPerFamily => {
-            DslReportValue::Number(average_kids_per_family(state, &ids))
-        }
+        ReportMetric::FamilySize => DslReportValue::Number(average_family_size(state, indices)),
+        ReportMetric::KidsPerFamily => DslReportValue::Number(average_kids_per_family(state, &ids)),
     }
 }
 
@@ -1324,8 +1320,7 @@ fn average_kids_per_family(state: &DslRunState, ids: &BTreeSet<&str>) -> f64 {
             .relationships
             .iter()
             .filter(|relationship| {
-                relationship.kind == "parent"
-                    && families.contains(relationship.source_id.as_str())
+                relationship.kind == "parent" && families.contains(relationship.source_id.as_str())
             })
             .count() as f64
             / families.len() as f64

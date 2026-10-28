@@ -1,3 +1,5 @@
+import gzip
+import json
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -119,3 +121,46 @@ def test_text_dsl_routes_return_code_validation_and_small_run(tmp_path):
     assert current.json()["validation"]["valid"]
     assert run.status_code == 200
     assert run.json()["total_agents"] == 3
+
+
+def test_legacy_fixed_aggregate_run_reopens_as_generic_reports(tmp_path):
+    dsl = service(tmp_path)
+    legacy = {
+        "run_id": "legacy",
+        "source_hash": "sha256:" + "0" * 64,
+        "seed": 1,
+        "days": 1,
+        "ticks": 24,
+        "adult_population": 2,
+        "total_agents": 3,
+        "generated_children": 1,
+        "action_counts": {"home": 4},
+        "outcome_counts": {"stay.rest": 4},
+        "final_aggregates": [
+            {
+                "tick": 24,
+                "group_kind": "place",
+                "group_id": "Home",
+                "population": 3,
+                "action_rates_per_1000": {"home": 100},
+                "mean_money": 10,
+                "mean_health": 0.8,
+                "mean_stress": 0.4,
+                "fights_per_day": 0,
+                "average_family_size": 3,
+                "average_kids_per_family": 1,
+            }
+        ],
+        "comparison": [],
+        "engine_version": "legacy-rust",
+        "created_at": "2026-01-01T00:00:00+00:00",
+    }
+    path = dsl.runs_path / "legacy.json.gz"
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        json.dump({"view": legacy}, handle)
+
+    reopened = dsl.get_run("legacy")
+
+    assert reopened.results_subtitle == "Legacy recorded statistics"
+    assert [report.id for report in reopened.reports] == ["places", "event_totals"]
+    assert reopened.reports[0].snapshots[0].rows[0].values["population"] == 3
