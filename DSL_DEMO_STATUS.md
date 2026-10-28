@@ -503,3 +503,119 @@
 - CanadaLeadership contains exactly one president and records one policy action in the 48-tick sync
   test. Equivalent one-per-instance checks pass for governor, mayor, CEO, brand/franchise/store
   managers, and influencer. Texas parameter edits do not affect California.
+
+## DSL visualization and intuitive run UI
+
+### Implemented
+
+- Rust validation now returns one generic graph projection for every parsed composition, archetype,
+  and agent. It includes source line, DSL level, root-derived slice, canonical parent, weight,
+  represented/simulated counts, places, parameters, state, traits, initial distributions, decisions,
+  actions, outputs, roles, role conditions, subtree roles, aggregate metadata, and couplings. The
+  execution compiler, expression evaluator, tick loop, bridge, and DSL source were not changed.
+- The read-only Graph view is generated only from that validated payload. It renders root-derived
+  swimlanes, solid composition edges, dashed coupling edges, daily/90-day sync labels, formula
+  tooltips, cache/leader/mass badges, search highlighting, role and slice filters, subtree role
+  expansion, subtree collapse, zoom, pan, fit, reset, and an always-visible legend.
+- Node details show every requested section and use `None declared in DSL` where the parsed node has
+  no declaration. Role selection filters the graph and lists that role's actions and conditions
+  across the program. `View in code` focuses the exact parsed line.
+- Code view now has a searchable, collapsible outline grouped by root-derived slice, DSL level, and
+  block in source order. Validate, Save, and Reset replace its graph data from the latest Rust
+  validation; the outline does not alter or annotate the source.
+- The common run path is one click: Town, 30 days, seed 1. Quick choices expose World, Reddit, and
+  CorporateFinancialSystem with simulated/represented counts. Every prior population and
+  composition ID remains available under collapsed All runs, and seed remains under Advanced.
+- Fast-forward is collapsed by default and explains that it is optional. Its existing aggregate,
+  input, day, event, branch, schedule, cached-evaluation, and relearn controls remain available with
+  ranges, invalidation thresholds, tooltips, disabled-state reasons, and cache status.
+- Results retain the DSL-authored title/subtitle, reports, cards/tables, report metadata, aggregate
+  time series, and baseline deltas. The new summary adds the selected run, seed, days, ticks,
+  simulated/represented counts, engine version, request time, and the baseline explanation.
+- The graph is not rendered while hidden, so Validate/Save/Reset do not pay the graph DOM cost.
+  Engine version remains `0.12.0`. Nothing was committed or pushed.
+
+### Implemented but narrower
+
+- The current immutable `default.dsl` has no `vertical_slice = Physical|Media|Corporate|Financial`
+  declaration or equivalent generic field. To preserve its required hash and avoid hardcoded domain
+  mappings, `vertical_slice` is the real root block ID computed from validated parent relations.
+  The default program therefore renders 34 true root-derived swimlanes, including World, Reddit,
+  CorporateForest, and FinancialEconomy, plus standalone role, leadership, transaction, allocation,
+  and coupling demos. Adding four semantic umbrella labels requires a generic slice declaration in a
+  later DSL migration.
+- The generic parent relation chooses the first non-coupling composition parent for a block reused
+  in multiple demos. Every declared parent edge still renders, but collapse/outline ancestry follows
+  that one canonical parent so repeated nodes are not invented.
+- Town's option says `100 adults plus generated children` because validation exposes the pre-run
+  adult count; the completed summary reports the exact 130 simulated/represented agents.
+
+### Deferred and not part of this UI prompt
+
+- LLM top-layer text and media UI top posts remain the saved Prompt 10.
+- Generic disease/ideology spread, research/data imports, fitted models, and calibration.
+- True DSL file/module splitting. It requires a generic module/import syntax and a default DSL
+  migration, which would change the protected source hash.
+- Visual DSL editing by dragging nodes or drawing edges. The graph remains read-only with source-line
+  navigation.
+- Globe work, result charts, and other chart visualizations.
+
+### Focused verification
+
+- Generic Rust graph tests: `3 passed` in `0.04s`. The projection contains exactly 71 compositions,
+  38 archetypes, and 22 agents, with no missing or invented block IDs. Its 132 parent-child and 14
+  coupling edges exactly equal the parsed declarations.
+- Focused rendered visualization/run workflow: `3 passed` in `1.0m`. It covers graph/legend/edges,
+  role search, node detail, exact code-line jumps, subtree roles/collapse, outline search, default and
+  quick runs, cached/relearn paths, Validate/Save/Reset, and line-numbered diagnostics.
+- Existing rendered code/edit/run and parser-diagnostic regressions: `2 passed` in `45.3s`; the
+  DSL-authored results subtitle, edited report display, baseline deltas, and invalid-code run guard
+  remain intact.
+- Production frontend build, Rust format/build, Ruff on the touched Python facade, source greps, and
+  `git diff --check` passed. Full suites were not run because this prompt explicitly requires focused
+  tests only.
+- Final numeric gate: Town through World, finance, Reddit, coupled physical/media, CorporateForest,
+  and coupled physical/corporate state/report/action payloads are byte-for-byte JSON-value exact
+  against Prompt 7 commit `9e29a7c` or Prompt 8 commit `81300ff`. Corporate-financial retains digest
+  `54868edab3252f69`. The default DSL hash remains
+  `sha256:4f1822f59dd844e50073501f4116cb1aa6b71f36ace758dfebb77370cfb7f96d`.
+- Final timings: Town 30/365 days `0.3835s` / `4.0821s`; weighted `0.4405s`;
+  neighbourhood `0.5238s`; municipality `0.6355s`; division `0.7481s`; country `0.9205s`;
+  world `1.7274s`; finance `0.0443s`; Reddit `0.5616s`; coupled physical/media `1.2638s`;
+  corporate `0.0509s`; coupled physical/corporate `0.0572s`; corporate-financial `0.0477s`.
+- Final compact warm caches all use zero ticks with `cache_hit=true`: corporate `0.0289s`, coupled
+  physical/corporate `0.0343s`, coupled physical/media `0.0620s`, and corporate-financial `0.0424s`.
+
+## Final graph view run
+
+- The default validation renders 131 nodes in 34 root-derived lanes. Nodes/edges by lane are:
+  World `21/36`; CorporateForest `16/16`; FinancialEconomy `9/12`; Reddit `9/11`;
+  RoleActionDemo `8/5`; ListedCorporateForest `7/10`; RoleChangeDemo `5/2`;
+  SecondaryBuyLab, TexasStoreDistribution, and TransactionStore `4/2`, `4/7`, and `4/1`;
+  PhysicalTown, RegionalStores, RoleDemandDemo, and SecondarySellLab `3/3`, `3/5`, `3/1`, and
+  `3/2`; BorrowLab, BrandLeadership, CaliforniaLeadership, CanadaLeadership, CommunityLeadership,
+  DallasLeadership, FranchiseLeadership, InterestLab, IssuanceLab, RepayLab, StoreLeadership, and
+  TexasLeadership `2/1`, `2/2`, `2/2`, `2/2`, `2/2`, `2/2`, `2/2`, `2/1`, `2/1`, `2/1`, `2/2`,
+  and `2/2`; CorporateFinancialSystem, CoupledPhysicalCorporate, CoupledTownMedia, Person,
+  PhysicalRetail, RetailPerson, UnifiedRolePopulation, and WorkingStudent `1/3`, `1/2`, `1/2`,
+  `1/0`, `1/3`, `1/0`, `1/3`, and `1/0`.
+- All 146 declared edges render: 132 solid parent-child edges and 14 dashed coupling edges. Four
+  couplings show daily sync and ten show 90-day sync. No coupling is omitted.
+- Leader examples are president on CanadaLeadership, CEO on FirmAlpha/FirmBeta, manager on
+  StoreLeadership, and influencer on CommunityLeadership. Mass examples are cashier/customer/manager
+  on StoreA, cashier/redditor/tiktoker/trader on DemandRolePerson, and contextual trader/CEO use on
+  FinancialPerson. World exposes no role directly and expands to its three subtree roles.
+- The StoreA graph/code jump selects line 2535 exactly. Outline search selects that same line after
+  Validate, Save, and Reset. A rendered Chromium graph with all 131 cards and 146 SVG edges measured
+  `108.9ms`, reported separately from simulation time.
+
+## Final intuitive run run
+
+- With no population or aggregate selection, Run simulation executes Town at seed 1 for 30 days:
+  720 ticks, 130 simulated agents, and 130 represented agents. DSL-authored result headings and
+  report tables/cards remain visible below the summary.
+- Quick-run browser checks execute World as 180 simulated / 6,999,999,999 represented, Reddit as
+  100 simulated / 8,000,000 represented, and CorporateFinancialSystem as 5 simulated agents.
+- Fast-forward starts collapsed. Opening it, choosing CorporateFinancialSystem, and evaluating twice
+  produces a visible `cache_hit=true`, zero-tick warm result; Relearn detailed still executes and
+  reports nonzero agent ticks.

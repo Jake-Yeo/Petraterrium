@@ -1,4 +1,6 @@
 import './text-dsl-editor.css';
+import { DslGraphView, type ProgramGraph } from './dsl-graph-view';
+import { DslOutline } from './dsl-outline';
 
 interface DslDiagnostic {
   code: string;
@@ -15,6 +17,8 @@ interface DslValidation {
   adult_population?: number | null;
   entities: string[];
   policies: string[];
+  roles: string[];
+  role_distributions: string[];
   spotlights: string[];
   archetypes: string[];
   composition_archetypes: Array<{ id: string; level: string; child_level: string }>;
@@ -25,6 +29,7 @@ interface DslValidation {
   neighbourhoods: string[];
   neighbourhood_populations: string[];
   diagnostics: DslDiagnostic[];
+  graph?: ProgramGraph | null;
 }
 
 interface AggregateInputDefinition {
@@ -171,10 +176,13 @@ const assignments = (source: string): Array<[string, string, number]> =>
     });
 
 const branchInputs = (source: string): Record<string, Record<string, number>> =>
-  assignments(source).reduce<Record<string, Record<string, number>>>((result, [branch, input, value]) => {
-    (result[branch] ??= {})[input] = value;
-    return result;
-  }, {});
+  assignments(source).reduce<Record<string, Record<string, number>>>(
+    (result, [branch, input, value]) => {
+      (result[branch] ??= {})[input] = value;
+      return result;
+    },
+    {},
+  );
 
 const inputSchedule = (source: string): Array<{ day: number; values: Record<string, number> }> => {
   const grouped = assignments(source).reduce<Map<number, Record<string, number>>>(
@@ -195,12 +203,17 @@ export class TextDslEditor {
   private loaded = false;
   private dirty = false;
   private resetArmed = false;
+  private view: 'code' | 'graph' = 'code';
+  private lastRunElapsedMs = 0;
+  private selectedRunLabel = 'Town';
   private readonly root = document.createElement('section');
   private readonly textarea = document.createElement('textarea');
   private readonly gutter = document.createElement('pre');
   private readonly status: HTMLElement;
   private readonly diagnostics: HTMLElement;
   private readonly results: HTMLElement;
+  private readonly graphView: DslGraphView;
+  private readonly outline: DslOutline;
 
   constructor(
     private readonly host: HTMLElement,
@@ -209,30 +222,48 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that Rust runs across physical, media, corporate, and financial peer modules, including mutable role-owned decision subtrees from individual agents through markets, companies, countries, and world compositions.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run the default Town in one click, inspect the exact DSL as code, or explore its validated composition and coupling graph.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
-      <div class="text-dsl-toolbar">
+      <div class="text-dsl-view-toggle" role="tablist" aria-label="DSL view">
+        <button type="button" role="tab" aria-selected="true" data-dsl-view="code">Code</button>
+        <button type="button" role="tab" aria-selected="false" data-dsl-view="graph">Graph</button>
+      </div>
+      <div class="text-dsl-source-actions">
         <button type="button" class="button secondary" data-dsl-action="validate">Validate code</button>
         <button type="button" class="button primary" data-dsl-action="save">Save DSL</button>
         <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
-        <label>Population<select data-dsl-population><option value="">Town</option></select></label>
-        <label>Seed<input type="number" min="0" step="1" value="1" data-dsl-seed></label>
-        <label>Days<input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
-        <button type="button" class="button primary" data-dsl-action="run">Run saved DSL</button>
       </div>
-      <div class="text-dsl-aggregate-toolbar">
-        <label>Aggregate function<select data-aggregate-function><option value="">Select aggregate</option></select></label>
-        <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
-        <label>Evaluation day<input type="number" min="0" step="1" value="0" data-aggregate-day></label>
-        <label>Events<input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
-        <label>Branch inputs<input type="text" placeholder="NorthOne.unemployment=0.8" data-aggregate-branch-inputs></label>
-        <label>Input schedule<input type="text" placeholder="30.unemployment=0.8" data-aggregate-input-schedule></label>
-        <button type="button" class="button secondary" data-dsl-action="aggregate-cached">Evaluate cached</button>
-        <button type="button" class="button secondary" data-dsl-action="aggregate-relearn">Relearn detailed</button>
-      </div>
+      <section class="text-dsl-run-panel">
+        <header><div><span class="text-dsl-eyebrow">RUN SIMULATION</span><h2>Choose a run</h2><p>Town is ready by default. Change only what matters, then run the saved DSL.</p></div></header>
+        <div class="text-dsl-run-controls">
+          <label>What to run <span class="dsl-help" title="Choose a population or composition; Town is the default detailed demo.">?</span><select data-dsl-population aria-label="What to run"><option value="">Town — default detailed demo</option></select></label>
+          <label>Days <span class="dsl-help" title="Days controls how long the simulation runs; the default is 30.">?</span><input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
+          <details class="text-dsl-all-runs"><summary>All runs</summary><label>Population or composition <span class="dsl-help" title="A population samples agents; a composition combines reusable hierarchy branches.">?</span><select data-dsl-all-runs aria-label="All runs"><option value="">Choose another run</option></select></label></details>
+          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Seed <span class="dsl-help" title="Seed = the same number gives the same random results; change it to get a different run.">?</span><input type="number" min="0" step="1" value="1" data-dsl-seed></label></details>
+          <button type="button" class="button primary text-dsl-run-button" data-dsl-action="run">Run simulation</button>
+        </div>
+      </section>
+      <details class="text-dsl-fast-forward" data-fast-forward>
+        <summary><div><span class="text-dsl-eyebrow">FAST-FORWARD · CACHED · ADVANCED</span><strong>You do not need this to run a simulation.</strong><p>Fast-forward uses a learned aggregate function to estimate a cohort instantly, with 0 agent ticks, instead of simulating agents again. Example: change unemployment and see mean income in 30 days.</p></div></summary>
+        <div class="text-dsl-aggregate-toolbar">
+          <label>Learned aggregate function <span class="dsl-help" title="A learned aggregate function estimates cohort outputs without rerunning individual agents.">?</span><select data-aggregate-function><option value="">Select aggregate</option></select></label>
+          <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
+          <label>Evaluation day <span class="dsl-help" title="Evaluation day = which day to evaluate to.">?</span><input type="number" min="0" step="1" value="0" data-aggregate-day></label>
+          <label>Events <span class="dsl-help" title="Events = e.g. disaster, pandemic, comma-separated.">?</span><input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
+          <label>Branch inputs <span class="dsl-help" title="Branch inputs = e.g. NorthOne.unemployment=0.8, changing one branch only.">?</span><input type="text" placeholder="NorthOne.unemployment=0.8" data-aggregate-branch-inputs></label>
+          <label>Input schedule <span class="dsl-help" title="Input schedule = e.g. 30.unemployment=0.8, changing an input from day 30.">?</span><input type="text" placeholder="30.unemployment=0.8" data-aggregate-input-schedule></label>
+          <button type="button" class="button secondary" data-dsl-action="aggregate-cached">Evaluate cached</button>
+          <button type="button" class="button secondary" data-dsl-action="aggregate-relearn">Relearn detailed</button>
+          <p class="text-dsl-fast-reason" data-fast-forward-reason></p>
+        </div>
+      </details>
       <div class="text-dsl-status" role="status" data-dsl-status>Loading Rust DSL…</div>
-      <div class="text-dsl-code-frame" data-dsl-code-frame></div>
+      <div class="text-dsl-code-view" data-dsl-code-view>
+        <aside data-dsl-outline></aside>
+        <div class="text-dsl-code-frame" data-dsl-code-frame></div>
+      </div>
+      <div data-dsl-graph-view hidden></div>
       <div class="text-dsl-diagnostics" data-dsl-diagnostics></div>
       <div class="text-dsl-results" data-dsl-results></div>`;
     const frame = this.root.querySelector<HTMLElement>('[data-dsl-code-frame]')!;
@@ -246,11 +277,24 @@ export class TextDslEditor {
     this.status = this.root.querySelector<HTMLElement>('[data-dsl-status]')!;
     this.diagnostics = this.root.querySelector<HTMLElement>('[data-dsl-diagnostics]')!;
     this.results = this.root.querySelector<HTMLElement>('[data-dsl-results]')!;
+    this.graphView = new DslGraphView(
+      this.root.querySelector<HTMLElement>('[data-dsl-graph-view]')!,
+      { onViewCode: (line) => this.showCode(line) },
+    );
+    this.outline = new DslOutline(this.root.querySelector<HTMLElement>('[data-dsl-outline]')!, {
+      onSelect: (line) => this.focusLine(line),
+    });
     this.host.replaceChildren(this.root);
     this.root.addEventListener('click', this.onClick);
     this.root
       .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
       .addEventListener('change', this.onAggregateFunctionChange);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!
+      .addEventListener('change', this.onAllRunsChange);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-dsl-population]')!
+      .addEventListener('change', this.onRunSelectionChange);
     this.textarea.addEventListener('input', this.onInput);
     this.textarea.addEventListener('scroll', this.onScroll);
   }
@@ -268,6 +312,14 @@ export class TextDslEditor {
     this.root
       .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
       .removeEventListener('change', this.onAggregateFunctionChange);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!
+      .removeEventListener('change', this.onAllRunsChange);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-dsl-population]')!
+      .removeEventListener('change', this.onRunSelectionChange);
+    this.graphView.destroy();
+    this.outline.destroy();
     this.root.remove();
   }
 
@@ -286,6 +338,11 @@ export class TextDslEditor {
   };
 
   private readonly onClick = (event: MouseEvent): void => {
+    const view = (event.target as Element).closest<HTMLButtonElement>('[data-dsl-view]');
+    if (view) {
+      this.setView(view.dataset.dslView === 'graph' ? 'graph' : 'code');
+      return;
+    }
     const button = (event.target as Element).closest<HTMLButtonElement>('[data-dsl-action]');
     if (!button) return;
     const action = button.dataset.dslAction;
@@ -301,6 +358,43 @@ export class TextDslEditor {
     this.renderAggregateInputs();
     this.updateButtons();
   };
+
+  private readonly onAllRunsChange = (event: Event): void => {
+    const select = event.target as HTMLSelectElement;
+    if (!select.value) return;
+    const primary = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!;
+    const selected = select.selectedOptions[0];
+    let option = [...primary.options].find((candidate) => candidate.value === select.value);
+    if (!option) {
+      option = new Option(selected.text, select.value);
+      primary.add(option);
+    }
+    primary.value = select.value;
+    this.selectedRunLabel = selected.text;
+    this.root.querySelector<HTMLDetailsElement>('.text-dsl-all-runs')!.open = false;
+  };
+
+  private readonly onRunSelectionChange = (event: Event): void => {
+    const select = event.target as HTMLSelectElement;
+    this.selectedRunLabel = select.selectedOptions[0]?.text ?? 'Town';
+  };
+
+  private setView(view: 'code' | 'graph'): void {
+    this.view = view;
+    const code = this.root.querySelector<HTMLElement>('[data-dsl-code-view]')!;
+    const graph = this.root.querySelector<HTMLElement>('[data-dsl-graph-view]')!;
+    code.hidden = view !== 'code';
+    graph.hidden = view !== 'graph';
+    this.root.querySelectorAll<HTMLButtonElement>('[data-dsl-view]').forEach((button) => {
+      button.setAttribute('aria-selected', String(button.dataset.dslView === view));
+    });
+    if (view === 'graph') this.graphView.render();
+  }
+
+  private showCode(line: number): void {
+    this.setView('code');
+    requestAnimationFrame(() => this.focusLine(line));
+  }
 
   private async load(): Promise<void> {
     this.status.textContent = 'Loading the DSL source from the API…';
@@ -403,7 +497,12 @@ export class TextDslEditor {
       compositionId || compositionPopulationId || neighbourhoodId || neighbourhoodPopulationId
         ? null
         : populationId || null;
-    this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
+    const ticks = Math.round((days * 24) / (this.document.validation.tick_hours || 1));
+    const runButton = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
+    runButton.disabled = true;
+    runButton.textContent = `Running… ${ticks.toLocaleString()} ticks`;
+    this.status.textContent = `Running ${this.selectedRunLabel} for ${days} days…`;
+    const started = performance.now();
     try {
       this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
         method: 'POST',
@@ -420,11 +519,15 @@ export class TextDslEditor {
           neighbourhood_population_id: neighbourhoodPopulationId,
         }),
       });
+      this.lastRunElapsedMs = performance.now() - started;
       this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks.`;
       this.renderResults();
     } catch (error) {
       this.options.onError(error);
-      this.status.textContent = error instanceof Error ? error.message : String(error);
+      this.status.textContent = this.plainError(error, 'The simulation could not run');
+    } finally {
+      runButton.textContent = 'Run simulation';
+      this.updateButtons();
     }
   }
 
@@ -452,6 +555,12 @@ export class TextDslEditor {
     this.status.textContent = forceRelearn
       ? `Relearning ${functionId} from detailed cohorts…`
       : `Evaluating cached ${functionId}…`;
+    const buttons = this.root.querySelectorAll<HTMLButtonElement>(
+      '[data-dsl-action^="aggregate-"]',
+    );
+    buttons.forEach((button) => {
+      button.disabled = true;
+    });
     try {
       const result = await requestJson<AggregateEvaluationResult>(
         '/simulation/text-dsl/aggregate/evaluate',
@@ -481,10 +590,16 @@ export class TextDslEditor {
           ? 'Branch relearn'
           : 'Hierarchy updated';
       this.status.textContent = `${evaluation} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.feedback_iterations ?? 0} feedback iterations.`;
+      this.graphView.setCacheStatus(
+        functionId,
+        `${evaluation.toLowerCase()} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms`,
+      );
       this.renderAggregateResults(result, days);
     } catch (error) {
       this.options.onError(error);
-      this.status.textContent = error instanceof Error ? error.message : String(error);
+      this.status.textContent = this.plainError(error, 'Fast-forward could not finish');
+    } finally {
+      this.updateButtons();
     }
   }
 
@@ -492,7 +607,7 @@ export class TextDslEditor {
     const deltas = new Map<string, ReportDelta>();
     const outputIds = Object.keys(result.time_series.at(-1)?.outputs ?? {});
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : result.agent_ticks > 0 ? 'BRANCH RELEARN' : 'HIERARCHY UPDATED'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks · ${result.feedback_iterations ?? 0} feedback iterations · ${number(result.feedback_change_percent ?? 0, 3)}% final change</p></div></header>
+      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : result.agent_ticks > 0 ? 'BRANCH RELEARN' : 'HIERARCHY UPDATED'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache_hit=${result.cache_hit} · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks · ${result.feedback_iterations ?? 0} feedback iterations · ${number(result.feedback_change_percent ?? 0, 3)}% final change</p></div></header>
       <section class="text-dsl-result-table" data-report-id="aggregate_time_series"><h3>Fast-forward time series</h3><div class="table-scroll"><table><thead><tr><th>Day</th>${outputIds.map((id) => `<th>${escapeHtml(id.replaceAll('_', ' '))}</th><th>${escapeHtml(id.replaceAll('_', ' '))} sd</th>`).join('')}</tr></thead><tbody>${result.time_series
         .map(
           (point) =>
@@ -518,12 +633,16 @@ export class TextDslEditor {
   }
 
   private renderValidation(validation: DslValidation): void {
+    this.graphView.setGraph(validation.valid ? validation.graph : null);
+    this.outline.setGraph(validation.valid ? validation.graph : null);
     this.renderPopulationOptions(
       validation.weighted_populations ?? [],
       validation.compositions ?? [],
       validation.composition_populations ?? [],
       validation.neighbourhoods ?? [],
       validation.neighbourhood_populations ?? [],
+      validation.graph ?? undefined,
+      validation.adult_population ?? 0,
     );
     this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
@@ -557,45 +676,71 @@ export class TextDslEditor {
     compositionPopulations: string[],
     neighbourhoods: string[],
     neighbourhoodPopulations: string[],
+    graph: ProgramGraph | undefined,
+    adultPopulation: number,
   ): void {
     const select = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!;
+    const allRuns = this.root.querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!;
     const selected = select.value;
-    select.replaceChildren(new Option('Town', ''));
-    for (const population of populations) {
-      select.add(new Option(population, population));
-    }
     const availableCompositions =
       compositions.length > 0
         ? compositions
         : neighbourhoods.map((id) => ({ id, level: 'neighbourhood' }));
-    for (const composition of availableCompositions) {
-      select.add(
-        new Option(
-          `${composition.level.replaceAll('_', ' ')} · ${composition.id}`,
-          `composition:${composition.id}`,
-        ),
-      );
-    }
     const availableCompositionPopulations =
-      compositionPopulations.length > 0
-        ? compositionPopulations
-        : neighbourhoodPopulations;
-    for (const population of availableCompositionPopulations) {
-      select.add(
-        new Option(
-          `Composition population · ${population}`,
-          `composition_population:${population}`,
-        ),
+      compositionPopulations.length > 0 ? compositionPopulations : neighbourhoodPopulations;
+    const nodeById = new Map((graph?.nodes ?? []).map((node) => [node.id, node]));
+    const compositionOption = (composition: {
+      id: string;
+      level: string;
+      cached?: boolean;
+    }): HTMLOptionElement => {
+      const node = nodeById.get(composition.id);
+      const counts = node
+        ? `${node.simulated_count?.toLocaleString() ?? '—'} simulated${node.represented_count ? ` representing ${node.represented_count.toLocaleString()}` : ''}`
+        : composition.level.replaceAll('_', ' ');
+      return new Option(
+        `${composition.id} — ${counts}${composition.cached ? ', detailed + cached' : ', detailed'}`,
+        `composition:${composition.id}`,
       );
-    }
-    const values = [
-      ...populations,
-      ...availableCompositions.map((composition) => `composition:${composition.id}`),
+    };
+    const quickLevels = ['world', 'platform', 'coupled_corporate_financial'];
+    const quick = quickLevels
+      .map((level) => availableCompositions.find((composition) => composition.level === level))
+      .filter((composition): composition is { id: string; level: string; cached?: boolean } =>
+        Boolean(composition),
+      );
+    select.replaceChildren(
+      new Option(
+        `Town — ${adultPopulation.toLocaleString()} adults plus generated children, detailed, 30 days, the default demo`,
+        '',
+      ),
+    );
+    for (const composition of quick) select.add(compositionOption(composition));
+    allRuns.replaceChildren(new Option('Choose another run', ''));
+    const allOptions = [
+      ...populations.map(
+        (population) => new Option(`Weighted population — ${population}`, population),
+      ),
+      ...availableCompositions.map(compositionOption),
       ...availableCompositionPopulations.map(
-        (population) => `composition_population:${population}`,
+        (population) =>
+          new Option(
+            `Composition population — ${population}`,
+            `composition_population:${population}`,
+          ),
       ),
     ];
+    for (const option of allOptions) {
+      allRuns.add(option);
+      if (![...select.options].some((candidate) => candidate.value === option.value)) {
+        const hidden = new Option(option.text, option.value);
+        hidden.hidden = true;
+        select.add(hidden);
+      }
+    }
+    const values = ['', ...allOptions.map((option) => option.value)];
     select.value = values.includes(selected) ? selected : '';
+    this.selectedRunLabel = select.selectedOptions[0]?.text ?? 'Town';
   }
 
   private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
@@ -621,12 +766,13 @@ export class TextDslEditor {
     host.innerHTML = (definition?.inputs ?? [])
       .map(
         (input) =>
-          `<label>${escapeHtml(input.id.replaceAll('_', ' '))}<input type="number" min="${input.minimum}" max="${input.maximum}" step="any" value="${input.default}" data-aggregate-input="${escapeHtml(input.id)}"><small>invalidate ±${number(input.invalidate_threshold)}</small></label>`,
+          `<label>${escapeHtml(input.id.replaceAll('_', ' '))} <span class="dsl-help" title="Allowed range ${number(input.minimum)} to ${number(input.maximum)}; changing by ±${number(input.invalidate_threshold)} invalidates the learned branch.">?</span><input type="number" min="${input.minimum}" max="${input.maximum}" step="any" value="${input.default}" data-aggregate-input="${escapeHtml(input.id)}"><small>range ${number(input.minimum)}–${number(input.maximum)} · invalidate ±${number(input.invalidate_threshold)}</small></label>`,
       )
       .join('');
   }
 
   private focusLine(line: number): void {
+    if (this.view !== 'code') this.setView('code');
     const lines = this.textarea.value.split('\n');
     const start = lines
       .slice(0, Math.max(0, line - 1))
@@ -650,6 +796,13 @@ export class TextDslEditor {
     aggregateButtons.forEach((button) => {
       button.disabled = this.dirty || !validation?.valid || !aggregateSelected;
     });
+    const reason = this.root.querySelector<HTMLElement>('[data-fast-forward-reason]')!;
+    reason.textContent =
+      this.dirty || !validation?.valid
+        ? 'Save valid DSL before fast-forwarding.'
+        : aggregateSelected
+          ? 'Ready to evaluate the selected learned aggregate.'
+          : 'Choose a learned aggregate function to enable fast-forward.';
   }
 
   private renderResults(): void {
@@ -657,9 +810,27 @@ export class TextDslEditor {
     const deltaByKey = new Map(
       this.run.comparison.map((row) => [`${row.report_id}:${row.group_id}`, row]),
     );
+    const selected = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
+    const compositionId = selected.startsWith('composition:')
+      ? selected.slice('composition:'.length)
+      : undefined;
+    const node = this.document?.validation.graph?.nodes.find(
+      (candidate) => candidate.id === compositionId,
+    );
+    const represented = node?.represented_count ?? this.run.total_agents;
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>Run ${escapeHtml(this.run.run_id.slice(0, 8))} · seed ${this.run.seed} · ${this.run.days} days · ${this.run.engine_version}</p></div></header>
+      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>What to run: ${escapeHtml(this.selectedRunLabel)} · ${this.run.days} days · seed ${this.run.seed} · ${this.run.ticks.toLocaleString()} ticks <span class="dsl-help" title="Ticks are the engine's fixed simulation steps across the selected days.">?</span> · ${this.run.total_agents.toLocaleString()} simulated <span class="dsl-help" title="Simulated agents are computed directly; represented agents are the real population their weighted sample stands for.">?</span> · ${represented.toLocaleString()} represented · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms · detailed run</p><p>Deltas below compare this run to the previous run of the same What to run, if any.</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
       ${this.run.reports.map((report) => this.report(report, deltaByKey)).join('')}`;
+  }
+
+  private plainError(error: unknown, prefix: string): string {
+    const raw = error instanceof Error ? error.message : String(error);
+    try {
+      const parsed = JSON.parse(raw) as { message?: string; code?: string };
+      return `${prefix}: ${parsed.message ?? parsed.code ?? raw}`;
+    } catch {
+      return `${prefix}: ${raw.replace(/^"|"$/g, '')}`;
+    }
   }
 
   private report(report: Report, deltas: Map<string, ReportDelta>): string {

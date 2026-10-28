@@ -11,6 +11,39 @@
   padding: 22px;
 }
 
+.text-dsl-workspace [hidden] {
+  display: none !important;
+}
+
+.text-dsl-workspace,
+.text-dsl-workspace * {
+  scrollbar-color: color-mix(in srgb, var(--dsl-accent) 55%, var(--dsl-line)) var(--dsl-bg);
+  scrollbar-width: thin;
+}
+
+.text-dsl-workspace *::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.text-dsl-workspace *::-webkit-scrollbar-track {
+  background: var(--dsl-bg);
+}
+
+.text-dsl-workspace *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--dsl-accent) 55%, var(--dsl-line));
+  border: 2px solid var(--dsl-bg);
+  border-radius: 999px;
+}
+
+.text-dsl-workspace *::-webkit-scrollbar-thumb:hover {
+  background: var(--dsl-accent);
+}
+
+.text-dsl-workspace *::-webkit-scrollbar-corner {
+  background: var(--dsl-bg);
+}
+
 :root[data-theme='light'] .text-dsl-workspace,
 :root[data-color-scheme='light'] .text-dsl-workspace,
 :root.theme-light .text-dsl-workspace {
@@ -55,34 +88,155 @@
   text-transform: uppercase;
 }
 
-.text-dsl-toolbar {
-  align-items: end;
-  background: var(--dsl-panel);
-  border: 1px solid var(--dsl-line);
-  border-radius: 7px;
+.text-dsl-view-toggle {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+}
+
+.text-dsl-view-toggle button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--dsl-muted);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+.text-dsl-view-toggle button[aria-selected='true'] {
+  border-bottom-color: var(--dsl-accent);
+  color: var(--dsl-text);
+}
+
+.text-dsl-source-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px;
 }
 
+.text-dsl-run-panel,
+.text-dsl-fast-forward {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 10px;
+}
+
+.text-dsl-run-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.text-dsl-run-panel h2 {
+  font-size: 20px;
+  margin: 3px 0;
+}
+
+.text-dsl-run-panel p,
+.text-dsl-fast-forward p {
+  color: var(--dsl-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.text-dsl-run-controls,
 .text-dsl-aggregate-toolbar {
   align-items: end;
-  background: var(--dsl-panel);
-  border: 1px solid var(--dsl-line);
-  border-radius: 7px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px;
 }
 
+.text-dsl-run-controls > label,
+.text-dsl-run-controls details label,
 .text-dsl-aggregate-toolbar label,
 .text-dsl-aggregate-inputs label {
   color: var(--dsl-muted);
   display: grid;
   font-size: 10px;
   gap: 3px;
+}
+
+.text-dsl-run-controls > label:first-child {
+  flex: 1 1 390px;
+}
+
+.text-dsl-run-controls input,
+.text-dsl-run-controls select,
+.text-dsl-aggregate-toolbar input,
+.text-dsl-aggregate-toolbar select,
+.dsl-graph-controls input,
+.dsl-graph-controls select {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 5px;
+  color: var(--dsl-text);
+  font: inherit;
+  min-height: 36px;
+  padding: 7px 9px;
+}
+
+.text-dsl-run-controls > label:first-child select {
+  width: 100%;
+}
+
+.text-dsl-run-controls input[type='number'] {
+  width: 90px;
+}
+
+.text-dsl-run-button {
+  min-height: 38px;
+  min-width: 160px;
+}
+
+.text-dsl-run-controls details,
+.text-dsl-fast-forward {
+  color: var(--dsl-text);
+}
+
+.text-dsl-run-controls details {
+  min-width: 120px;
+}
+
+.text-dsl-run-controls details summary,
+.text-dsl-fast-forward > summary,
+.dsl-outline summary {
+  cursor: pointer;
+}
+
+.text-dsl-run-controls details[open] {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.text-dsl-run-controls details[open] summary {
+  margin-bottom: 8px;
+}
+
+.text-dsl-all-runs select {
+  max-width: 360px;
+}
+
+.text-dsl-fast-forward > summary {
+  list-style-position: inside;
+  padding: 14px 16px;
+}
+
+.text-dsl-fast-forward > summary strong {
+  display: block;
+  margin: 3px 0;
+}
+
+.text-dsl-fast-forward[open] > summary {
+  border-bottom: 1px solid var(--dsl-line);
+}
+
+.text-dsl-aggregate-toolbar {
+  padding: 14px 16px;
 }
 
 .text-dsl-aggregate-inputs {
@@ -93,11 +247,6 @@
 
 .text-dsl-aggregate-toolbar input,
 .text-dsl-aggregate-toolbar select {
-  background: var(--dsl-bg);
-  border: 1px solid var(--dsl-line);
-  border-radius: 4px;
-  color: var(--dsl-text);
-  padding: 7px;
   width: 112px;
 }
 
@@ -111,36 +260,32 @@
   color: var(--dsl-muted);
 }
 
-.text-dsl-toolbar label {
-  color: var(--dsl-muted);
-  display: grid;
-  font-size: 10px;
-  gap: 3px;
-  margin-left: auto;
+.text-dsl-fast-reason {
+  flex-basis: 100%;
 }
 
-.text-dsl-toolbar label + label {
-  margin-left: 0;
-}
-
-.text-dsl-toolbar input,
-.text-dsl-toolbar select {
-  background: var(--dsl-bg);
+.dsl-help {
+  align-items: center;
   border: 1px solid var(--dsl-line);
-  border-radius: 4px;
-  color: var(--dsl-text);
-  padding: 7px;
-  width: 76px;
-}
-
-.text-dsl-toolbar select {
-  min-width: 170px;
-  width: auto;
+  border-radius: 50%;
+  color: var(--dsl-accent);
+  cursor: help;
+  display: inline-flex;
+  font-size: 9px;
+  height: 15px;
+  justify-content: center;
+  width: 15px;
 }
 
 .text-dsl-status {
   color: var(--dsl-muted);
   font-size: 12px;
+}
+
+.text-dsl-code-view {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(210px, 260px) minmax(0, 1fr);
 }
 
 .text-dsl-code-frame {
@@ -186,6 +331,371 @@
 
 .text-dsl-code:focus {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--dsl-accent) 45%, transparent);
+}
+
+.dsl-outline {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 7px;
+  height: min(64vh, 760px);
+  overflow: auto;
+}
+
+.dsl-outline > header {
+  background: var(--dsl-panel);
+  border-bottom: 1px solid var(--dsl-line);
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.dsl-outline input {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 5px;
+  color: var(--dsl-text);
+  padding: 7px;
+  width: 100%;
+}
+
+.dsl-outline > div {
+  padding: 6px;
+}
+
+.dsl-outline details {
+  border-left: 1px solid var(--dsl-line);
+  margin: 3px 0 3px 5px;
+  padding-left: 7px;
+}
+
+.dsl-outline summary {
+  color: var(--dsl-muted);
+  font-size: 11px;
+  padding: 5px 2px;
+}
+
+.dsl-outline button {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--dsl-text);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  text-align: left;
+  width: 100%;
+}
+
+.dsl-outline button:hover,
+.dsl-outline button:focus-visible {
+  background: color-mix(in srgb, var(--dsl-accent) 11%, transparent);
+}
+
+.dsl-outline small {
+  color: var(--dsl-muted);
+}
+
+.dsl-graph-view {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dsl-graph-empty {
+  color: var(--dsl-muted);
+  padding: 42px;
+  text-align: center;
+}
+
+.dsl-graph-controls {
+  align-items: end;
+  border-bottom: 1px solid var(--dsl-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+
+.dsl-graph-controls label {
+  color: var(--dsl-muted);
+  display: grid;
+  flex: 1 1 180px;
+  font-size: 10px;
+  gap: 3px;
+}
+
+.dsl-graph-controls button,
+.dsl-graph-detail button,
+.dsl-graph-node button {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 5px;
+  color: var(--dsl-text);
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+.dsl-graph-legend {
+  align-items: center;
+  background: color-mix(in srgb, var(--dsl-panel) 86%, var(--dsl-bg));
+  border-bottom: 1px solid var(--dsl-line);
+  color: var(--dsl-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 10px;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.dsl-graph-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.dsl-graph-legend i {
+  border-top: 2px solid var(--dsl-accent);
+  display: inline-block;
+  width: 22px;
+}
+
+.dsl-graph-legend i.dashed {
+  border-top-style: dashed;
+}
+
+.badge {
+  background: color-mix(in srgb, var(--dsl-accent) 18%, var(--dsl-bg));
+  border: 1px solid color-mix(in srgb, var(--dsl-accent) 50%, var(--dsl-line));
+  border-radius: 4px;
+  color: var(--dsl-accent);
+  font-size: 8px;
+  padding: 2px 4px;
+}
+
+.badge.leader {
+  border-radius: 50%;
+}
+
+.badge.mass {
+  color: var(--dsl-text);
+}
+
+.dsl-graph-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: min(70vh, 820px);
+}
+
+.dsl-graph-viewport {
+  background-color: var(--dsl-bg);
+  background-image: radial-gradient(var(--dsl-line) 0.7px, transparent 0.7px);
+  background-size: 18px 18px;
+  cursor: grab;
+  min-height: min(70vh, 820px);
+  overflow: hidden;
+  position: relative;
+}
+
+.dsl-graph-viewport:active {
+  cursor: grabbing;
+}
+
+.dsl-graph-canvas {
+  min-height: 100%;
+  padding: 24px;
+  position: relative;
+  transform-origin: 0 0;
+  width: max-content;
+}
+
+.dsl-graph-lanes {
+  align-items: start;
+  display: flex;
+  gap: 48px;
+  position: relative;
+  z-index: 1;
+}
+
+.dsl-graph-lane {
+  min-width: 270px;
+  width: 270px;
+}
+
+.dsl-graph-lane > header {
+  align-items: baseline;
+  border-bottom: 2px solid var(--dsl-accent);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  padding: 8px 3px;
+}
+
+.dsl-graph-lane > header span {
+  color: var(--dsl-muted);
+  font-size: 9px;
+}
+
+.dsl-graph-lane > div {
+  display: grid;
+  gap: 34px;
+}
+
+.dsl-graph-node {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 8px;
+  box-shadow: 0 7px 20px rgb(0 0 0 / 12%);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.dsl-graph-node:hover,
+.dsl-graph-node.selected {
+  border-color: var(--dsl-accent);
+}
+
+.dsl-graph-node.highlighted {
+  box-shadow:
+    0 0 0 2px var(--dsl-accent),
+    0 8px 26px rgb(0 0 0 / 18%);
+}
+
+.dsl-graph-node-top {
+  align-items: center;
+  color: var(--dsl-muted);
+  display: flex;
+  font-size: 9px;
+  justify-content: space-between;
+  text-transform: uppercase;
+}
+
+.dsl-graph-node-top > div {
+  display: flex;
+  gap: 3px;
+}
+
+.dsl-graph-node > small,
+.dsl-graph-node > p {
+  color: var(--dsl-muted);
+  font-size: 10px;
+  margin: 0;
+}
+
+.dsl-graph-node > p span {
+  color: var(--dsl-text);
+}
+
+.dsl-graph-node > p button {
+  background: transparent;
+  border: 0;
+  color: var(--dsl-accent);
+  min-height: 0;
+  padding: 0;
+}
+
+.dsl-graph-node > p small {
+  display: block;
+  margin-top: 5px;
+}
+
+.dsl-graph-edges {
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.dsl-graph-edges path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--dsl-accent) 70%, var(--dsl-line));
+  stroke-width: 1.5;
+}
+
+.dsl-graph-edges .coupling path {
+  stroke: #d89b61;
+  stroke-dasharray: 6 5;
+  stroke-width: 2;
+}
+
+.dsl-graph-edges text {
+  fill: #d89b61;
+  font:
+    9px 'SFMono-Regular',
+    monospace;
+  paint-order: stroke;
+  stroke: var(--dsl-bg);
+  stroke-width: 3px;
+}
+
+.dsl-graph-detail {
+  border-left: 1px solid var(--dsl-line);
+  max-height: min(70vh, 820px);
+  overflow: auto;
+  padding: 14px;
+}
+
+.dsl-graph-detail > header {
+  border-bottom: 1px solid var(--dsl-line);
+  display: grid;
+  gap: 5px;
+  padding-bottom: 12px;
+}
+
+.dsl-graph-detail > header h3,
+.dsl-graph-detail > header p {
+  margin: 0;
+}
+
+.dsl-graph-detail > header span,
+.dsl-graph-detail > header p,
+.dsl-graph-detail section > p,
+.dsl-graph-detail-empty p {
+  color: var(--dsl-muted);
+  font-size: 10px;
+}
+
+.dsl-graph-detail section {
+  border-bottom: 1px solid var(--dsl-line);
+  padding: 10px 0;
+}
+
+.dsl-graph-detail h4 {
+  font-size: 11px;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.dsl-graph-detail ul {
+  display: grid;
+  font-size: 10px;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dsl-graph-detail li button {
+  display: grid;
+  text-align: left;
+  width: 100%;
+}
+
+.dsl-graph-detail li button small {
+  color: var(--dsl-muted);
+  margin-top: 3px;
 }
 
 .text-dsl-valid,
@@ -332,7 +842,22 @@
     flex-direction: column;
   }
 
-  .text-dsl-toolbar label {
-    margin-left: 0;
+  .text-dsl-code-view,
+  .dsl-graph-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dsl-outline {
+    height: 300px;
+  }
+
+  .dsl-graph-detail {
+    border-left: 0;
+    border-top: 1px solid var(--dsl-line);
+    max-height: 420px;
+  }
+
+  .text-dsl-run-controls > label:first-child {
+    flex-basis: 100%;
   }
 }

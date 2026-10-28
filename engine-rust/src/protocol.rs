@@ -6,9 +6,9 @@ use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
     AggregateEvaluationProtocolRequest, CachedCompositionProtocolRequest, DslRunRequest,
-    TextDslProtocolRequest, TextDslValidateRequest, evaluate_aggregate_function,
-    evaluate_cached_composition, parse_program, run_composition, run_program,
-    run_weighted_population,
+    TextDslProtocolRequest, TextDslValidateRequest, build_program_graph,
+    evaluate_aggregate_function, evaluate_cached_composition, parse_program, run_composition,
+    run_program, run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -82,7 +82,9 @@ pub fn execute(request: Request) -> CoreResult<Value> {
         }
         Request::CsrMatvec(request) => serialize(crate::csr::run_matvec(request)?),
         Request::ValidateTextDsl(request) => match parse_program(&request.source) {
-            Ok(program) => Ok(json!({
+            Ok(program) => {
+                let graph = build_program_graph(&program).map_err(text_dsl_error)?;
+                Ok(json!({
                 "valid": true,
                 "program_id": program.id,
                 "version": program.version,
@@ -90,6 +92,8 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "adult_population": program.population.size,
                 "entities": program.entities.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "policies": program.policies.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "roles": program.roles.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "role_distributions": program.role_distributions.iter().map(|item| &item.role).collect::<Vec<_>>(),
                 "spotlights": program.archetypes.iter().filter(|item| item.spotlight).map(|item| &item.id).collect::<Vec<_>>(),
                 "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "composition_archetypes": program.composition_archetypes.iter().map(|item| json!({"id": item.id, "level": item.level, "child_level": item.child_level})).collect::<Vec<_>>(),
@@ -99,8 +103,10 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "composition_populations": program.composition_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "neighbourhoods": program.compositions.iter().filter(|item| item.report_id == "neighbourhoods").map(|item| &item.id).collect::<Vec<_>>(),
                 "neighbourhood_populations": program.composition_populations.iter().filter(|population| population.entries.iter().all(|entry| program.compositions.iter().any(|item| item.id == entry.composition && item.report_id == "neighbourhoods"))).map(|item| &item.id).collect::<Vec<_>>(),
+                "graph": graph,
                 "diagnostics": [],
-            })),
+                }))
+            }
             Err(error) => Ok(json!({
                 "valid": false,
                 "diagnostics": [error],

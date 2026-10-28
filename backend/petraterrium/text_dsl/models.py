@@ -24,6 +24,8 @@ class TextDslValidation(TextDslModel):
     adult_population: int | None = None
     entities: tuple[str, ...] = ()
     policies: tuple[str, ...] = ()
+    roles: tuple[str, ...] = ()
+    role_distributions: tuple[str, ...] = ()
     spotlights: tuple[str, ...] = ()
     archetypes: tuple[str, ...] = ()
     composition_archetypes: tuple[dict[str, str], ...] = ()
@@ -34,6 +36,7 @@ class TextDslValidation(TextDslModel):
     neighbourhoods: tuple[str, ...] = ()
     neighbourhood_populations: tuple[str, ...] = ()
     diagnostics: tuple[TextDslDiagnostic, ...] = ()
+    graph: dict[str, Any] | None = None
 
 
 class TextDslDocument(TextDslModel):

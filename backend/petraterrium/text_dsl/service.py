@@ -86,6 +86,10 @@ class TextDslService:
             adult_population=result.get("adult_population"),
             entities=tuple(str(value) for value in result.get("entities", [])),
             policies=tuple(str(value) for value in result.get("policies", [])),
+            roles=tuple(str(value) for value in result.get("roles", [])),
+            role_distributions=tuple(
+                str(value) for value in result.get("role_distributions", [])
+            ),
             spotlights=tuple(str(value) for value in result.get("spotlights", [])),
             archetypes=tuple(str(value) for value in result.get("archetypes", [])),
             composition_archetypes=tuple(
@@ -106,6 +110,7 @@ class TextDslService:
                 str(value) for value in result.get("neighbourhood_populations", [])
             ),
             diagnostics=diagnostics,
+            graph=(dict(result["graph"]) if result.get("graph") is not None else None),
         )
         self._validation_cache[source_hash] = validation
         return validation
