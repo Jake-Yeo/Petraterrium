@@ -202,3 +202,147 @@
 - Warm coupled evaluation is `0.0446s` with zero ticks. At 90 days, posting changes from `1.1384` on
   day 30 to `1.1088` on day 90, sharing from `5.8387` to `5.7519`, and polarization from `0.31415`
   to `0.31501`; the endpoint is not a repeated day-30 state.
+
+## Prompt 8 corporate vertical
+
+### Implemented
+
+- `CompositionDefinition` remains the only recursive hierarchy type. Corporate levels are ordinary
+  DSL strings, and the engine still exposes only `run_program` and `run_composition`. No corporate,
+  store, franchise, brand, conglomerate, or company runner was added.
+- The shipped DSL contains a corporate forest with one parent, two labels, two branches under one
+  label, four managed stores, and a separate family-owned store root. Store leaves contain the
+  physical `Store` place and the agents who buy, work, manage, quit, search, fire, close, reopen, set
+  terms, and receive owner payouts.
+- `random at current place where ...` and `current place` effects are generic target/effect
+  primitives. Customer and worker actions use the same action definitions at every store. Target
+  role filters resolve against agents at the source agent's exact current place and tick.
+- Purchases debit customer money once and credit store cash/revenue once. Work debits store cash and
+  credits worker money. Serve/work does not repeat the purchase transfer. A focused one-tick case
+  conserves exactly `200` money units across customer, worker, and store.
+- Employment is mutable DSL state. Quit and fire clear employer/employed, job search can restore the
+  link, and store worker count changes with those transitions. Store status and price/wage decisions
+  are also DSL actions rather than engine branches.
+- Composition formulas are generic report/output primitives. They can use parameters, prior outputs,
+  direct child outputs, `sum.output`, and `weighted.output`. Formula validation is line-numbered and
+  formula outputs are available to detailed and cached coupling evaluation.
+- Store, branch, label, and parent ledgers expose revenue, wages, costs, profit, payout, and cash.
+  Lower levels report zero post-payout cash and one payout, so the same money is not counted as cash
+  at every level. The parent retains received cash; debt and market capitalization remain separate.
+- The independent store reports its payout to the owner path and never contributes to parent cash.
+  Moving that store into a branch requires only a DSL membership edit; the parent profit recipient
+  changes without Rust changes.
+- Fractional composition weights and authoritative allocations are generic. A distribution declares
+  `authoritative_total`, `sample_budget`, and allocation leaves. Every allocation level must sum to
+  `1.0 ± 0.001`; largest-remainder allocation produces exact represented and simulated totals.
+  Optional declared leaf counts must cover every leaf, match the derived counts, and sum exactly.
+- The shipped Texas distribution declares `500` represented stores and a `30`-store sample. Weights
+  allocate `200` to Dallas, `150` to Austin, and `150` to Houston; Dallas splits into `100` and `100`.
+  Editing only the total to `550` reallocates the leaves and still sums exactly to `550`.
+- Scoped place construction keeps each nested store's place separate. No global store list or
+  cross-composition jump was added; movement still requires an explicit composition flow.
+- Corporate price and wage policies propagate down through existing aggregate inputs. Revenue,
+  wages, profit, and payouts aggregate up. Store operations sync daily, branches every 30 days, and
+  labels/parent every 90 days; the existing divide-cleanly validator checks those clocks.
+- Physical/corporate aggregate couplings are explicit DSL declarations. Removing the coupling block
+  removes both coupling receipts and cross-module effects. Changing the root sync from 90 to 180
+  days halves the coupling exchanges over 180 days without a Rust change.
+- Corporate functions use the existing artifact learner/cache. A brand-only price edit invalidates
+  that brand, its branches, and ancestors while the unrelated brand and family store remain cached.
+  Ancestor branch inputs are tracked separately from feedback/coupling inputs, preserving both branch
+  invalidation and standalone reuse of media artifacts.
+- The editor lists the new site/branch/label/parent/forest/allocation/coupled compositions and their
+  aggregate functions automatically. The focused browser demo edits revenue, wages, and franchise
+  fee, runs detailed output, obtains a zero-tick warm cache hit, and opens physical/corporate flows.
+- Engine version is `0.11.0`. Nothing was committed or pushed for Prompt 8.
+
+### Implemented but narrower
+
+- Corporate unit economics are concrete demo estimates authored in DSL. They are not researched,
+  fitted, calibrated, or claims about real companies.
+- Corporate sync ledgers are formula-derived state snapshots. Detailed Store place cash changes per
+  transaction, while branch/label/parent cash and payout are evaluated at composition sync rather
+  than stored in a persistent double-entry journal.
+- The corporate detailed run samples the declared store-team archetypes and represents the remaining
+  members through formulas/weights. The explicit Texas allocation is the scale proof: 30 simulated
+  store units represent 500. It does not instantiate 500 store objects.
+- The corporate forest itself contains the shared physical Store leaves and agents. The separate
+  physical/corporate coupling demo uses deterministic boundary pairing between module states rather
+  than aliasing one mutable agent object across both child modules.
+- The owner payout executes at the DSL's daily closing hour. Label/parent earnings synchronize at 90
+  days; no calendar-quarter accounting or tax calendar was added.
+
+### Deferred and not part of Prompt 8
+
+- Corporate-to-financial coupling, stock price, dividends, and capital allocation from market price.
+- New finance behavior beyond the unchanged `finance_demo.dsl` / `MarketLab`.
+- LLM text or decisions for CEOs, presidents, or other leaders.
+- Media UI top-post views, generic disease/ideology spread, research/data imports, fitted real-world
+  models, calibration, globe work, graphs, and visual editors.
+- Pause/resume and persistent full-text mass posts.
+
+### Prompt 8 focused verification
+
+- Corporate parser/runtime suite: `12 passed` in `1.21s`. Coverage includes non-corporate proof of
+  the generic primitives, same-place role targeting, conserved purchase/wage money, exact hierarchy
+  sums, family payout conservation, DSL-only acquisition, authoritative allocation and validation,
+  total expansion, branch cache isolation, explicit coupling, sync cadence, and 30-day composed
+  comparison.
+- Prompt 7 media tests: `6 passed`; cached composition tests: `9 passed`; country/world tests:
+  `8 passed`; generic composition tests: `5 passed`; archetype tests: `5 passed`; neighbourhood
+  tests: `7 passed`.
+- Targeted Python source/run and persisted hierarchy tests: `2 passed` in `0.02s`.
+- Focused rendered corporate workflow: `1 passed` in `4.3s` (`6.6s` including server setup).
+- Rust format/check, Ruff, generated-contract check, frontend production build, and
+  `git diff --check` passed. Full backend/frontend suites were not run because Prompt 8 explicitly
+  requires focused tests only.
+- Source grep finds no corporate/domain runner and none of the shipped corporate identifiers in
+  Rust engine source.
+- The first final-gate attempt stopped on an incorrect finance request shape. The second exposed a
+  detailed coupling formula-output gap. A focused regression fixed it, and the completed next gate
+  passed. The cached-media warm timing was repeated with compact persisted artifacts after an
+  initial non-comparable request included embedded learning reports.
+
+### Prompt 8 performance and compatibility
+
+- Every final Town, weighted, neighbourhood, municipality, division, country, world, finance,
+  Reddit, and coupled physical/media state/report payload exactly matches Prompt 7 commit `9e29a7c`.
+- Town, 30 days / 720 ticks / 130 agents: `0.5031s`; Town, 365 days / 8,760 ticks:
+  `3.9497s`.
+- Weighted households: `0.4255s`; neighbourhood: `0.5017s`; municipality: `0.6211s`;
+  division: `0.6832s`; country: `0.8357s`; world: `1.4312s`.
+- Finance: `0.0531s`; Reddit: `0.5444s`; coupled physical/media: `1.1170s`. Their final payloads
+  are exact against Prompt 7.
+- Cold media/coupled learning: `4.3397s` and `864,000` agent ticks. Compact warm Reddit is
+  `0.0458s`; compact warm coupled physical/media is `0.0543s`; both are cache hits with zero ticks.
+- Default DSL hash: `sha256:c9f3474d4d2123c3039552184acf75c0aba1941f7f19012c39c7d9ed6b03d994`.
+
+## Final corporate run
+
+- `CorporateForest`; seed `1`; 30 days / 720 ticks; 6 sampled agent states; `0.0430s`.
+- Synthetic exact ledger: Store A `65`, Store B `50`, Store C `58`, Store D `44`; branches `108`
+  and `52`; labels `151` and `41`; parent profit/cash `181`; independent profit/payout `40`; forest
+  total `221`. Lower-level post-payout cash is zero.
+- The detailed 30-day and composed cached outputs differ by `0%` for revenue, profit, and wages.
+- Before acquisition, parent profit is `181`, independent profit is `40`, and total is `221`. After
+  the DSL-only membership move, parent profit is `221`, independent output is absent, and total stays
+  `221`.
+
+## Final cached corporate run
+
+- Cold bootstrap: `0.1021s`, `8,640` detailed agent ticks. Compact warm evaluation: `0.0546s`, zero
+  ticks, `cache_hit=true`.
+- Store/branch artifacts are reused. Editing Brand One's price input invalidates Brand One, both of
+  its branches, the parent, and forest; Brand Two, Store D, and FamilyStore remain cached.
+- A scheduled price change makes day 90 differ from day 30, so fast-forward does not repeat a frozen
+  endpoint.
+
+## Final coupled physical+corporate run
+
+- `CoupledPhysicalCorporate`; seed `1`; 30 days / 720 ticks; 7 sampled module states; `0.0496s`.
+- The two directions are explicit: physical purchase output supplies corporate price policy, and
+  corporate total profit supplies physical demand. Identity boundary fields are money and stress.
+- Removing couplings yields zero coupling rows and removes the demand effect. Over 180 days, a
+  90-day sync records four directional exchanges and a 180-day sync records two.
+- Cold cached bootstrap: `0.1294s`, `11,520` detailed ticks. Compact warm evaluation: `0.0672s`, zero
+  ticks, `cache_hit=true`.

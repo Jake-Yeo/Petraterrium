@@ -1202,6 +1202,10 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
     match name {
         "count" if parts.is_empty() => Ok(ReportMetric::Count),
         "represented_count" if parts.is_empty() => Ok(ReportMetric::RepresentedCount),
+        "represented_total" if parts.is_empty() => Ok(ReportMetric::RepresentedTotal),
+        "formula" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Formula {
+            expression: parse_expression(positional[0], line)?,
+        }),
         "mean" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Mean {
             field: positional[0].to_owned(),
         }),
@@ -1347,6 +1351,20 @@ fn parse_duration(value: &str, line: usize) -> DslResult<DurationSpec> {
 }
 
 fn parse_target(value: &str, line: usize) -> DslResult<TargetSelector> {
+    if let Some(value) = value.strip_prefix("random at current place") {
+        let filter = value
+            .strip_prefix(" where ")
+            .map(|value| parse_expression(value, line))
+            .transpose()?;
+        if !value.is_empty() && filter.is_none() {
+            return Err(DslError::new(
+                "INVALID_TARGET",
+                line,
+                "Current-place target only accepts a where filter",
+            ));
+        }
+        return Ok(TargetSelector::CurrentRandom { filter });
+    }
     if let Some(value) = value.strip_prefix("random at ") {
         let (place, filter) = split_where(value);
         return Ok(TargetSelector::Random {
@@ -1466,6 +1484,8 @@ fn parse_effect(value: &str, line: usize) -> DslResult<EffectDefinition> {
         (EffectScope::SelfAgent, field.to_owned())
     } else if let Some(field) = left.strip_prefix("target.") {
         (EffectScope::Target, field.to_owned())
+    } else if let Some(field) = left.strip_prefix("current place ") {
+        (EffectScope::CurrentPlace, field.to_owned())
     } else if let Some(value) = left.strip_prefix("place ") {
         let Some((place, field)) = value.split_once(' ') else {
             return Err(DslError::new(
@@ -1767,13 +1787,18 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 TargetSelector::Random { place, .. }
                 | TargetSelector::Friend { place }
                 | TargetSelector::Enemy { place }
-                | TargetSelector::Strongest { place, .. } => place,
+                | TargetSelector::Strongest { place, .. } => Some(place),
+                TargetSelector::CurrentRandom { .. } => None,
             };
-            if !places.contains(target_place.as_str()) {
+            if target_place.is_some_and(|place| !places.contains(place.as_str())) {
                 return Err(DslError::new(
                     "UNKNOWN_PLACE",
                     action.line,
-                    format!("Action {} targets unknown place {target_place}", action.id),
+                    format!(
+                        "Action {} targets unknown place {}",
+                        action.id,
+                        target_place.unwrap()
+                    ),
                 ));
             }
         }
@@ -1830,6 +1855,18 @@ fn validate_program(program: &Program) -> DslResult<()> {
                             "UNKNOWN_STATE",
                             effect.line,
                             format!("Place {place} has no state {}", effect.field),
+                        ));
+                    }
+                    EffectScope::CurrentPlace
+                        if !program
+                            .places
+                            .iter()
+                            .any(|place| place.states.contains_key(&effect.field)) =>
+                    {
+                        return Err(DslError::new(
+                            "UNKNOWN_STATE",
+                            effect.line,
+                            format!("No place declares state {}", effect.field),
                         ));
                     }
                     _ => {}

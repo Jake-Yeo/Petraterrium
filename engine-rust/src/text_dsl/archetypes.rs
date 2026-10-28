@@ -3,10 +3,7 @@ use super::model::*;
 use super::runtime::{run_program, sample_population};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(super) struct MetricSummary {
-    pub(super) mean: f64,
-    pub(super) standard_deviation: f64,
-}
+pub(super) type MetricSummary = LearnedMetricSummary;
 
 struct ArchetypeRun<'a> {
     definition: &'a ArchetypeDefinition,

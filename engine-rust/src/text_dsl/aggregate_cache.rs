@@ -155,6 +155,7 @@ fn learn_aggregate_function(
                 (composition, composition_context.as_ref())
             {
                 decorate_composition_result(
+                    program,
                     composition,
                     &mut result,
                     agent_groups,
@@ -164,6 +165,7 @@ fn learn_aggregate_function(
                     prepared.tick_hours,
                     true,
                     &BTreeSet::new(),
+                    &inputs,
                 )?;
             }
             let mut detailed_outputs = if let Some(archetype) = archetype {

@@ -1,9 +1,12 @@
 use super::archetypes::{MetricSummary, calculate_output_definitions};
+use super::composition_allocations::allocation_report;
+use super::composition_formulas::{apply_formula_outputs, static_formula_children};
 use super::compositions::ExecutedFlow;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(super) fn decorate_composition_result(
+    program: &Program,
     composition: &CompositionDefinition,
     result: &mut DslRunResult,
     agent_groups: &BTreeMap<String, String>,
@@ -13,15 +16,18 @@ pub(super) fn decorate_composition_result(
     tick_hours: f64,
     record_actions: bool,
     recorded_actions: &BTreeSet<String>,
+    formula_inputs: &BTreeMap<String, f64>,
 ) -> DslResult<()> {
     let legacy = composition.report_id == "neighbourhoods";
     if !flows.is_empty() {
         result.reports.push(flow_report(flows, ticks));
     }
     let outputs = calculate_composition_outputs(
+        program,
         composition,
         result,
         composition.represented_population.unwrap_or(0) as f64,
+        formula_inputs,
     )?;
     result
         .reports
@@ -43,6 +49,9 @@ pub(super) fn decorate_composition_result(
             ticks,
             tick_hours,
         )?);
+    }
+    if let Some(report) = allocation_report(program, composition, ticks)? {
+        result.reports.push(report);
     }
     result.results_subtitle = if legacy {
         format!("{} neighbourhood aggregates", composition.id)
@@ -249,14 +258,23 @@ fn child_composition_report(
 }
 
 fn calculate_composition_outputs(
+    program: &Program,
     composition: &CompositionDefinition,
     result: &DslRunResult,
     represented_population: f64,
+    formula_inputs: &BTreeMap<String, f64>,
 ) -> DslResult<BTreeMap<String, MetricSummary>> {
     let standard = composition
         .outputs
         .iter()
-        .filter(|output| !matches!(output.metric, ReportMetric::RepresentedCount))
+        .filter(|output| {
+            !matches!(
+                output.metric,
+                ReportMetric::RepresentedCount
+                    | ReportMetric::RepresentedTotal
+                    | ReportMetric::Formula { .. }
+            )
+        })
         .cloned()
         .collect::<Vec<_>>();
     let mut outputs = calculate_output_definitions(&standard, result)?;
@@ -269,8 +287,18 @@ fn calculate_composition_outputs(
                     standard_deviation: 0.0,
                 },
             );
+        } else if matches!(output.metric, ReportMetric::RepresentedTotal) {
+            outputs.insert(
+                output.id.clone(),
+                MetricSummary {
+                    mean: composition.authoritative_total.unwrap_or(0) as f64,
+                    standard_deviation: 0.0,
+                },
+            );
         }
     }
+    let children = static_formula_children(program, composition)?;
+    apply_formula_outputs(composition, formula_inputs, &children, &mut outputs)?;
     Ok(outputs)
 }
 

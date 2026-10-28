@@ -46,7 +46,7 @@ pub(super) fn build_composition_state(
         None,
         &mut leaves,
     );
-    let allocations = leaf_allocations(&leaves, &archetypes);
+    let allocations = leaf_allocations(&leaves, &archetypes, composition.sample_budget);
     let mut combined = program.clone();
     combined.places.clear();
     combined.agents.clear();
@@ -255,10 +255,10 @@ fn flatten_composition(
     let total = composition
         .entries
         .iter()
-        .map(|entry| entry.weight as f64)
+        .map(|entry| entry.weight)
         .sum::<f64>();
     for entry in &composition.entries {
-        let weight = parent_weight * entry.weight as f64 / total;
+        let weight = parent_weight * entry.weight / total;
         let group = root_group.unwrap_or(&entry.child);
         if archetypes.contains_key(entry.child.as_str()) {
             let namespace = if path.is_empty() {
@@ -316,14 +316,20 @@ fn collect_composition_nodes<'a>(
 fn leaf_allocations(
     leaves: &[CompositionLeaf],
     archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
+    sample_budget: Option<u64>,
 ) -> BTreeMap<String, usize> {
-    let total_samples = leaves
-        .iter()
-        .map(|leaf| leaf.archetype.as_str())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .map(|id| archetypes[id].sample_households)
-        .sum::<usize>();
+    let total_samples = sample_budget.map_or_else(
+        || {
+            leaves
+                .iter()
+                .map(|leaf| leaf.archetype.as_str())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .map(|id| archetypes[id].sample_households)
+                .sum::<usize>()
+        },
+        |value| value as usize,
+    );
     let minimum = usize::from(leaves.len() <= total_samples);
     let mut allocations = leaves
         .iter()
@@ -520,6 +526,7 @@ fn namespace_program(
                             .cloned()
                             .unwrap_or_else(|| place.clone());
                     }
+                    TargetSelector::CurrentRandom { .. } => {}
                 }
             }
             for outcome in &mut action.outcomes {
@@ -539,6 +546,7 @@ fn namespace_program(
                                 .cloned()
                                 .unwrap_or_else(|| place.clone());
                         }
+                        EffectScope::CurrentPlace => {}
                         _ => {}
                     }
                     if effect.field == "location" {

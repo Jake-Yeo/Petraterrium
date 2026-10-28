@@ -1,3 +1,4 @@
+use super::composition_allocations::validate_authoritative_allocations;
 use super::expression::{evaluate, references};
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -219,7 +220,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                     format!("Unknown composition child {}", entry.child),
                 ));
             }
-            if entry.weight == 0 {
+            if !entry.weight.is_finite() || entry.weight <= 0.0 {
                 return Err(DslError::new(
                     if legacy {
                         "INVALID_NEIGHBOURHOOD_HOUSEHOLD"
@@ -253,6 +254,9 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
             match &output.metric {
                 ReportMetric::Count => {}
                 ReportMetric::RepresentedCount if composition.represented_population.is_some() => {}
+                ReportMetric::RepresentedTotal if composition.authoritative_total.is_some() => {}
+                ReportMetric::Formula { expression }
+                    if valid_formula_references(program, composition, output, expression) => {}
                 ReportMetric::Mean { field } | ReportMetric::Sum { field }
                     if base_fields.contains(field) => {}
                 ReportMetric::StandardDeviation { field } if base_fields.contains(field) => {}
@@ -285,6 +289,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
     }
     validate_composition_cycles(&compositions)?;
     validate_syncs(program, &compositions)?;
+    validate_authoritative_allocations(program)?;
     let mut population_ids = BTreeSet::new();
     for population in &program.composition_populations {
         if !population_ids.insert(population.id.as_str()) {
@@ -330,6 +335,48 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
     }
     Ok(())
+}
+
+fn valid_formula_references(
+    program: &Program,
+    composition: &CompositionDefinition,
+    output: &ArchetypeOutputDefinition,
+    expression: &Expr,
+) -> bool {
+    let prior_outputs = composition
+        .outputs
+        .iter()
+        .take_while(|candidate| candidate.id != output.id)
+        .map(|candidate| candidate.id.clone());
+    let mut allowed = composition
+        .parameters
+        .keys()
+        .cloned()
+        .chain(prior_outputs)
+        .collect::<BTreeSet<_>>();
+    for entry in &composition.entries {
+        let outputs = program
+            .compositions
+            .iter()
+            .find(|child| child.id == entry.child)
+            .map(|child| child.outputs.as_slice())
+            .or_else(|| {
+                program
+                    .archetypes
+                    .iter()
+                    .find(|child| child.id == entry.child)
+                    .map(|child| child.outputs.as_slice())
+            })
+            .unwrap_or_default();
+        for child_output in outputs {
+            allowed.insert(format!("{}.{}", entry.child, child_output.id));
+            allowed.insert(format!("sum.{}", child_output.id));
+            allowed.insert(format!("weighted.{}", child_output.id));
+        }
+    }
+    references(expression)
+        .into_iter()
+        .all(|reference| allowed.contains(&reference))
 }
 
 fn validate_boundaries(

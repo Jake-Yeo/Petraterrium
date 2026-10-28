@@ -20,13 +20,18 @@ pub(super) fn finalize_parent_artifacts(
         }
     }
     let function = aggregate_function(context.program, &composition.id)?;
-    let inputs = resolve_inputs(
-        function,
-        &composition.parameters,
-        inherited_inputs,
-        context.request.branch_inputs.get(&composition.id),
-        &BTreeMap::new(),
-    )?;
+    let inputs = context
+        .states
+        .get(&composition.id)
+        .filter(|state| !state.resolved_inputs.is_empty())
+        .map(|state| state.resolved_inputs.clone())
+        .unwrap_or(resolve_inputs(
+            function,
+            &composition.parameters,
+            inherited_inputs,
+            context.request.branch_inputs.get(&composition.id),
+            &BTreeMap::new(),
+        )?);
     let dependencies = composition
         .entries
         .iter()

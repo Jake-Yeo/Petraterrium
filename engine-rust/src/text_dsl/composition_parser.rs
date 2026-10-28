@@ -112,6 +112,9 @@ fn parse_composition_body(
     let mut level = compatibility_level.map(str::to_owned);
     let mut template = None;
     let mut represented_population = None;
+    let mut authoritative_total = None;
+    let mut sample_budget = None;
+    let mut allocation_leaf = false;
     let mut entries = Vec::new();
     let mut places = Vec::new();
     let mut parameters = BTreeMap::new();
@@ -150,6 +153,37 @@ fn parse_composition_body(
                 )
             })?);
             index += 1;
+        } else if let Some(value) = line.text.strip_prefix("authoritative_total = ") {
+            authoritative_total = Some(value.parse::<u64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_AUTHORITATIVE_TOTAL",
+                    line.number,
+                    "Authoritative total must be a positive integer",
+                )
+            })?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("sample_budget = ") {
+            sample_budget = Some(value.parse::<u64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_SAMPLE_BUDGET",
+                    line.number,
+                    "Sample budget must be a positive integer",
+                )
+            })?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("allocation_leaf = ") {
+            allocation_leaf = match value {
+                "true" => true,
+                "false" => false,
+                _ => {
+                    return Err(DslError::new(
+                        "INVALID_ALLOCATION_LEAF",
+                        line.number,
+                        "Allocation leaf must be true or false",
+                    ));
+                }
+            };
+            index += 1;
         } else if line.text == "children:" || line.text == "entries:" || line.text == "households:"
         {
             index += 1;
@@ -168,9 +202,12 @@ fn parse_composition_body(
                     ));
                 };
                 identifier(child, entry.number)?;
+                let (weight, declared_count) = weight
+                    .split_once(" count = ")
+                    .map_or((weight, None), |(weight, count)| (weight, Some(count)));
                 entries.push(CompositionEntry {
                     child: child.to_owned(),
-                    weight: weight.parse::<u64>().map_err(|_| {
+                    weight: weight.parse::<f64>().map_err(|_| {
                         DslError::new(
                             compatibility_code(
                                 compatibility_level,
@@ -178,9 +215,20 @@ fn parse_composition_body(
                                 "INVALID_COMPOSITION_CHILD",
                             ),
                             entry.number,
-                            "Composition weight must be a positive integer",
+                            "Composition weight must be a positive number",
                         )
                     })?,
+                    declared_count: declared_count
+                        .map(|count| {
+                            count.parse::<u64>().map_err(|_| {
+                                DslError::new(
+                                    "INVALID_DECLARED_ALLOCATION_COUNT",
+                                    entry.number,
+                                    "Declared allocation count must be a non-negative integer",
+                                )
+                            })
+                        })
+                        .transpose()?,
                     line: entry.number,
                 });
                 index += 1;
@@ -289,6 +337,9 @@ fn parse_composition_body(
             })?,
             template,
             represented_population,
+            authoritative_total,
+            sample_budget,
+            allocation_leaf,
             entries,
             places,
             parameters,

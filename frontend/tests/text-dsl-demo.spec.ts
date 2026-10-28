@@ -11,6 +11,10 @@ const countryWorldDsl = readFileSync(
   'utf8',
 );
 const mediaDsl = readFileSync(resolve(process.cwd(), '../engine-rust/dsl/media_test.dsl'), 'utf8');
+const corporateDsl = readFileSync(
+  resolve(process.cwd(), '../engine-rust/dsl/corporate_test.dsl'),
+  'utf8',
+);
 
 test.beforeEach(async ({ page, request }) => {
   await request.post('/api/simulation/text-dsl/reset');
@@ -433,4 +437,54 @@ test('runs media and physical coupling from editable DSL code', async ({ page })
   await expect(
     page.getByRole('rowheader', { name: /media_outage_to_physical/ }).first(),
   ).toBeVisible();
+});
+
+test('runs detailed, cached, and physically coupled corporate DSL code', async ({ page }) => {
+  test.setTimeout(90_000);
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/composition CorporateForest:/);
+  await expect(editor).toHaveValue(/composition TexasStoreDistribution:/);
+  await editor.fill(corporateDsl);
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+
+  await page.getByLabel('Population').selectOption('composition:CorporateForest');
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'CorporateForest forest aggregates' })).toBeVisible();
+  await expect(page.getByText('total profit', { exact: true }).first()).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(
+    source
+      .replace('revenue = 100', 'revenue = 120')
+      .replace('wages = 20', 'wages = 24')
+      .replace('franchise_fee = 5', 'franchise_fee = 6'),
+  );
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('composition:CorporateForest');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('CorporateForest');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
+  await expect(hierarchy.getByRole('rowheader', { name: 'CorporateForest', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'BrandOne', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'FamilyStore', exact: true })).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('CoupledPhysicalCorporate');
+  await page.getByLabel('Days').fill('180');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: /demand_to_price/ }).first()).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: /profit_to_demand/ }).first()).toBeVisible();
 });

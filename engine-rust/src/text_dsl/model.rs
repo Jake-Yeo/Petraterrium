@@ -203,7 +203,8 @@ pub struct CompositionAdjacency {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CompositionEntry {
     pub child: String,
-    pub weight: u64,
+    pub weight: f64,
+    pub declared_count: Option<u64>,
     pub line: usize,
 }
 
@@ -271,6 +272,9 @@ pub struct CompositionDefinition {
     pub level: String,
     pub template: Option<String>,
     pub represented_population: Option<u64>,
+    pub authoritative_total: Option<u64>,
+    pub sample_budget: Option<u64>,
+    pub allocation_leaf: bool,
     pub entries: Vec<CompositionEntry>,
     pub places: Vec<String>,
     pub parameters: BTreeMap<String, f64>,
@@ -390,6 +394,7 @@ pub struct DurationSpec {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum TargetSelector {
     Random { place: String, filter: Option<Expr> },
+    CurrentRandom { filter: Option<Expr> },
     Friend { place: String },
     Enemy { place: String },
     Strongest { place: String, field: String },
@@ -399,6 +404,7 @@ pub enum TargetSelector {
 pub enum EffectScope {
     SelfAgent,
     Target,
+    CurrentPlace,
     AllAt { place: String, filter: Option<Expr> },
     Place { place: String },
     RelationshipWithTarget,
@@ -468,6 +474,10 @@ pub enum ReportMetric {
     FamilySize,
     KidsPerFamily,
     RepresentedCount,
+    RepresentedTotal,
+    Formula {
+        expression: Expr,
+    },
     PlaceState {
         place: String,
         field: String,

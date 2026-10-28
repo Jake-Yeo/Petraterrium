@@ -1,4 +1,5 @@
 use super::composition_build::{build_composition_state, derived_seed};
+use super::composition_formulas::{apply_formula_outputs, static_formula_children};
 use super::composition_reports::decorate_composition_result;
 use super::expression::evaluate;
 use super::model::*;
@@ -97,6 +98,7 @@ fn execute_composition_definition(
         )?
     };
     decorate_composition_result(
+        &program,
         &composition,
         &mut result,
         &build.agent_groups,
@@ -106,6 +108,7 @@ fn execute_composition_definition(
         tick_hours,
         record_actions,
         &recorded_actions,
+        &BTreeMap::new(),
     )?;
     Ok(result)
 }
@@ -182,19 +185,20 @@ fn apply_detailed_couplings(
     let child_outputs = child_definitions
         .iter()
         .map(|(id, definition)| {
-            (
+            Ok((
                 (*id).to_owned(),
                 detailed_child_outputs(
+                    source_program,
                     definition,
                     state,
                     actions,
                     agent_groups,
                     action_aggregates,
                     ticks_per_day,
-                ),
-            )
+                )?,
+            ))
         })
-        .collect::<BTreeMap<_, _>>();
+        .collect::<DslResult<BTreeMap<_, _>>>()?;
     let mut values = composition
         .parameters
         .iter()
@@ -325,13 +329,14 @@ fn apply_boundary_agents(
 }
 
 fn detailed_child_outputs(
+    program: &Program,
     definition: &CompositionDefinition,
     state: &DslRunState,
     actions: &[DslActionRecord],
     agent_groups: &BTreeMap<String, String>,
     action_aggregates: &BTreeMap<String, String>,
     ticks_per_day: u64,
-) -> BTreeMap<String, f64> {
+) -> DslResult<BTreeMap<String, f64>> {
     let indices = state
         .agents
         .iter()
@@ -343,7 +348,7 @@ fn detailed_child_outputs(
         .iter()
         .map(|index| state.agents[*index].id.as_str())
         .collect::<BTreeSet<_>>();
-    definition
+    let mut summaries = definition
         .outputs
         .iter()
         .filter_map(|output| {
@@ -383,7 +388,22 @@ fn detailed_child_outputs(
             };
             Some((output.id.clone(), value))
         })
-        .collect()
+        .map(|(id, mean)| {
+            (
+                id,
+                LearnedMetricSummary {
+                    mean,
+                    standard_deviation: 0.0,
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let children = static_formula_children(program, definition)?;
+    apply_formula_outputs(definition, &BTreeMap::new(), &children, &mut summaries)?;
+    Ok(summaries
+        .into_iter()
+        .map(|(id, summary)| (id, summary.mean))
+        .collect())
 }
 
 fn mean_field(state: &DslRunState, indices: &[usize], field: &str) -> f64 {

@@ -5,6 +5,7 @@ use super::composition_cache_artifacts::{
 };
 use super::composition_cache_reports::cached_reports;
 use super::composition_couplings::apply_cached_couplings;
+use super::composition_formulas::apply_formula_outputs;
 use super::expression::evaluate;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,6 +15,7 @@ pub(super) struct CachedNodeState {
     weights: BTreeMap<String, f64>,
     feedback_inputs: BTreeMap<String, f64>,
     pub(super) coupling_inputs: BTreeMap<String, f64>,
+    pub(super) resolved_inputs: BTreeMap<String, f64>,
 }
 
 #[derive(Clone)]
@@ -188,6 +190,19 @@ fn evaluate_node_day(
         context.request.branch_inputs.get(&composition.id),
         &context.states[&composition.id].coupling_inputs,
     )?;
+    let artifact_inherited = artifact_inherited_inputs(context, &composition.id);
+    let artifact_inputs = resolve_inputs(
+        function,
+        &composition.parameters,
+        &artifact_inherited,
+        context.request.branch_inputs.get(&composition.id),
+        &BTreeMap::new(),
+    )?;
+    context
+        .states
+        .get_mut(&composition.id)
+        .unwrap()
+        .resolved_inputs = artifact_inputs;
     let memo_key = format!(
         "{}:{day}:{}:{record}",
         composition.id,
@@ -301,6 +316,54 @@ fn evaluate_node_day(
     };
     context.node_memo.insert(memo_key, result.clone());
     Ok(result)
+}
+
+fn artifact_inherited_inputs(
+    context: &HierarchyContext<'_>,
+    target: &str,
+) -> BTreeMap<String, f64> {
+    let mut values = context.request.inputs.clone();
+    let Some(root) = context
+        .program
+        .compositions
+        .iter()
+        .find(|composition| composition.id == context.request.function_id)
+    else {
+        return values;
+    };
+    let mut path = Vec::new();
+    if find_composition_path(context.program, root, target, &mut path) {
+        for id in path {
+            if let Some(branch) = context.request.branch_inputs.get(&id) {
+                values.extend(branch.clone());
+            }
+        }
+    }
+    values
+}
+
+fn find_composition_path(
+    program: &Program,
+    current: &CompositionDefinition,
+    target: &str,
+    path: &mut Vec<String>,
+) -> bool {
+    path.push(current.id.clone());
+    if current.id == target {
+        return true;
+    }
+    for entry in &current.entries {
+        if let Some(child) = program
+            .compositions
+            .iter()
+            .find(|composition| composition.id == entry.child)
+            && find_composition_path(program, child, target, path)
+        {
+            return true;
+        }
+    }
+    path.pop();
+    false
 }
 
 fn evaluate_node_once(
@@ -526,6 +589,9 @@ fn combine_outputs(
 ) -> DslResult<BTreeMap<String, LearnedMetricSummary>> {
     let mut outputs = BTreeMap::new();
     for output in &composition.outputs {
+        if matches!(output.metric, ReportMetric::Formula { .. }) {
+            continue;
+        }
         if matches!(
             output.metric,
             ReportMetric::FlowCount { .. } | ReportMetric::FlowRate { .. }
@@ -537,6 +603,16 @@ fn combine_outputs(
                 output.id.clone(),
                 LearnedMetricSummary {
                     mean: composition.represented_population.unwrap_or(0) as f64,
+                    standard_deviation: 0.0,
+                },
+            );
+            continue;
+        }
+        if matches!(output.metric, ReportMetric::RepresentedTotal) {
+            outputs.insert(
+                output.id.clone(),
+                LearnedMetricSummary {
+                    mean: composition.authoritative_total.unwrap_or(0) as f64,
                     standard_deviation: 0.0,
                 },
             );
@@ -647,6 +723,7 @@ fn combine_outputs(
             },
         );
     }
+    apply_formula_outputs(composition, inputs, children, &mut outputs)?;
     apply_parent_effects(program, composition, inputs, &mut outputs)?;
     Ok(outputs)
 }
@@ -967,10 +1044,11 @@ fn ensure_node_state(context: &mut HierarchyContext<'_>, composition: &Compositi
             weights: composition
                 .entries
                 .iter()
-                .map(|entry| (entry.child.clone(), entry.weight as f64))
+                .map(|entry| (entry.child.clone(), entry.weight))
                 .collect(),
             feedback_inputs: BTreeMap::new(),
             coupling_inputs: BTreeMap::new(),
+            resolved_inputs: BTreeMap::new(),
         });
 }
 

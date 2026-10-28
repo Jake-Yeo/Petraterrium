@@ -685,9 +685,17 @@ fn select_target(
         TargetSelector::Random { place, .. }
         | TargetSelector::Friend { place }
         | TargetSelector::Enemy { place }
-        | TargetSelector::Strongest { place, .. } => place,
+        | TargetSelector::Strongest { place, .. } => Some(place.as_str()),
+        TargetSelector::CurrentRandom { .. } => source.place(),
     };
-    if matches!(selector, TargetSelector::Random { filter: None, .. }) {
+    let Some(place) = place else {
+        return Ok(None);
+    };
+    if matches!(
+        selector,
+        TargetSelector::Random { filter: None, .. }
+            | TargetSelector::CurrentRandom { filter: None }
+    ) {
         let Some(members) = place_members.get(place) else {
             return Ok(None);
         };
@@ -714,17 +722,19 @@ fn select_target(
         .filter(|index| *index != source_index)
         .map(|index| (index, &state.agents[index]))
         .filter(|(_, agent)| match selector {
-            TargetSelector::Random { filter, .. } => filter
-                .as_ref()
-                .map(|filter| {
-                    let context = runtime_context(source, Some(agent), None, tick, 1.0)
-                        .with_labels(&agent.id, &source.id);
-                    evaluate(filter, &context)
-                        .ok()
-                        .and_then(|value| value.as_bool())
-                        .unwrap_or(false)
-                })
-                .unwrap_or(true),
+            TargetSelector::Random { filter, .. } | TargetSelector::CurrentRandom { filter } => {
+                filter
+                    .as_ref()
+                    .map(|filter| {
+                        let context = runtime_context(source, Some(agent), None, tick, 1.0)
+                            .with_labels(&agent.id, &source.id);
+                        evaluate(filter, &context)
+                            .ok()
+                            .and_then(|value| value.as_bool())
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(true)
+            }
             TargetSelector::Friend { .. } => {
                 relationship_exists(state, &source.id, &agent.id, "friend")
             }
@@ -853,6 +863,13 @@ fn expand_effect(
         EffectScope::Target => {
             if let Some(index) = target_index {
                 targets.push(PendingTarget::Agent(index));
+            }
+        }
+        EffectScope::CurrentPlace => {
+            if let Some(place) = source.place()
+                && let Some(index) = state.places.iter().position(|item| item.id == place)
+            {
+                targets.push(PendingTarget::Place(index));
             }
         }
         EffectScope::AllAt { place, filter } => {
@@ -1049,10 +1066,13 @@ impl ValueResolver for RuntimeContext<'_> {
             _ if name.starts_with("role.") => Some(DslValue::Bool(
                 self.agent.roles.contains(name.trim_start_matches("role.")),
             )),
-            _ if name.starts_with("target.") => self
-                .target
-                .and_then(|target| target.value(name.trim_start_matches("target.")))
-                .cloned(),
+            _ if name.starts_with("target.") => self.target.and_then(|target| {
+                let field = name.trim_start_matches("target.");
+                field
+                    .strip_prefix("role.")
+                    .map(|role| DslValue::Bool(target.roles.contains(role)))
+                    .or_else(|| target.value(field).cloned())
+            }),
             _ if name.starts_with("place.") => self
                 .place
                 .and_then(|place| place.states.get(name.trim_start_matches("place.")))
@@ -1108,6 +1128,9 @@ fn agent_context(
         values.insert("target".to_owned(), DslValue::Text(target.id.clone()));
         for (name, value) in target.traits.iter().chain(&target.states) {
             values.insert(format!("target.{name}"), value.clone());
+        }
+        for role in &target.roles {
+            values.insert(format!("target.role.{role}"), DslValue::Bool(true));
         }
     }
     if let Some(place) = place {
@@ -1268,7 +1291,10 @@ fn report_value(
         .collect::<BTreeSet<_>>();
     match &column.metric {
         ReportMetric::Count => DslReportValue::Number(indices.len() as f64),
-        ReportMetric::RepresentedCount => DslReportValue::Number(0.0),
+        ReportMetric::RepresentedCount | ReportMetric::RepresentedTotal => {
+            DslReportValue::Number(0.0)
+        }
+        ReportMetric::Formula { .. } => DslReportValue::Number(0.0),
         ReportMetric::Mean { field } => {
             let values = numeric_values(state, indices, field);
             DslReportValue::Number(if values.is_empty() {
