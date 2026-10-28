@@ -98,6 +98,8 @@ class LazyRustCoreClient:
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
+        composition_id: str | None = None,
+        composition_population_id: str | None = None,
         neighbourhood_id: str | None = None,
         neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
@@ -111,6 +113,8 @@ class LazyRustCoreClient:
             ticks=ticks,
             continuation=continuation,
             population_id=population_id,
+            composition_id=composition_id,
+            composition_population_id=composition_population_id,
             neighbourhood_id=neighbourhood_id,
             neighbourhood_population_id=neighbourhood_population_id,
         )

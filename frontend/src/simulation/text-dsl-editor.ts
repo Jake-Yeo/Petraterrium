@@ -16,6 +16,8 @@ interface DslValidation {
   archetypes: string[];
   weighted_populations: string[];
   aggregate_functions: AggregateFunctionDefinition[];
+  compositions: Array<{ id: string; level: string }>;
+  composition_populations: string[];
   neighbourhoods: string[];
   neighbourhood_populations: string[];
   diagnostics: DslDiagnostic[];
@@ -344,6 +346,12 @@ export class TextDslEditor {
     const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
     const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
     const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
+    const compositionId = populationId.startsWith('composition:')
+      ? populationId.slice('composition:'.length)
+      : null;
+    const compositionPopulationId = populationId.startsWith('composition_population:')
+      ? populationId.slice('composition_population:'.length)
+      : null;
     const neighbourhoodId = populationId.startsWith('neighbourhood:')
       ? populationId.slice('neighbourhood:'.length)
       : null;
@@ -351,7 +359,9 @@ export class TextDslEditor {
       ? populationId.slice('neighbourhood_population:'.length)
       : null;
     const weightedPopulationId =
-      neighbourhoodId || neighbourhoodPopulationId ? null : populationId || null;
+      compositionId || compositionPopulationId || neighbourhoodId || neighbourhoodPopulationId
+        ? null
+        : populationId || null;
     this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
     try {
       this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
@@ -363,6 +373,8 @@ export class TextDslEditor {
           baseline_run_id:
             this.run?.population_id === (populationId || null) ? this.run.run_id : null,
           population_id: weightedPopulationId,
+          composition_id: compositionId,
+          composition_population_id: compositionPopulationId,
           neighbourhood_id: neighbourhoodId,
           neighbourhood_population_id: neighbourhoodPopulationId,
         }),
@@ -456,6 +468,8 @@ export class TextDslEditor {
   private renderValidation(validation: DslValidation): void {
     this.renderPopulationOptions(
       validation.weighted_populations ?? [],
+      validation.compositions ?? [],
+      validation.composition_populations ?? [],
       validation.neighbourhoods ?? [],
       validation.neighbourhood_populations ?? [],
     );
@@ -487,6 +501,8 @@ export class TextDslEditor {
 
   private renderPopulationOptions(
     populations: string[],
+    compositions: Array<{ id: string; level: string }>,
+    compositionPopulations: string[],
     neighbourhoods: string[],
     neighbourhoodPopulations: string[],
   ): void {
@@ -496,21 +512,36 @@ export class TextDslEditor {
     for (const population of populations) {
       select.add(new Option(population, population));
     }
-    for (const neighbourhood of neighbourhoods) {
-      select.add(new Option(`Neighbourhood · ${neighbourhood}`, `neighbourhood:${neighbourhood}`));
-    }
-    for (const population of neighbourhoodPopulations) {
+    const availableCompositions =
+      compositions.length > 0
+        ? compositions
+        : neighbourhoods.map((id) => ({ id, level: 'neighbourhood' }));
+    for (const composition of availableCompositions) {
       select.add(
         new Option(
-          `Neighbourhood population · ${population}`,
-          `neighbourhood_population:${population}`,
+          `${composition.level.replaceAll('_', ' ')} · ${composition.id}`,
+          `composition:${composition.id}`,
+        ),
+      );
+    }
+    const availableCompositionPopulations =
+      compositionPopulations.length > 0
+        ? compositionPopulations
+        : neighbourhoodPopulations;
+    for (const population of availableCompositionPopulations) {
+      select.add(
+        new Option(
+          `Composition population · ${population}`,
+          `composition_population:${population}`,
         ),
       );
     }
     const values = [
       ...populations,
-      ...neighbourhoods.map((neighbourhood) => `neighbourhood:${neighbourhood}`),
-      ...neighbourhoodPopulations.map((population) => `neighbourhood_population:${population}`),
+      ...availableCompositions.map((composition) => `composition:${composition.id}`),
+      ...availableCompositionPopulations.map(
+        (population) => `composition_population:${population}`,
+      ),
     ];
     select.value = values.includes(selected) ? selected : '';
   }

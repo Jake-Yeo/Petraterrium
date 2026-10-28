@@ -91,6 +91,10 @@ class TextDslService:
             aggregate_functions=tuple(
                 dict(value) for value in result.get("aggregate_functions", [])
             ),
+            compositions=tuple(dict(value) for value in result.get("compositions", [])),
+            composition_populations=tuple(
+                str(value) for value in result.get("composition_populations", [])
+            ),
             neighbourhoods=tuple(str(value) for value in result.get("neighbourhoods", [])),
             neighbourhood_populations=tuple(
                 str(value) for value in result.get("neighbourhood_populations", [])
@@ -136,6 +140,8 @@ class TextDslService:
         tick_hours = document.validation.tick_hours or 1
         ticks = round(request.days * 24 / tick_hours)
         population_id = getattr(request, "population_id", None)
+        composition_id = getattr(request, "composition_id", None)
+        composition_population_id = getattr(request, "composition_population_id", None)
         neighbourhood_id = getattr(request, "neighbourhood_id", None)
         neighbourhood_population_id = getattr(request, "neighbourhood_population_id", None)
         result = self.rust.run_text_dsl(
@@ -143,6 +149,8 @@ class TextDslService:
             seed=request.seed,
             ticks=ticks,
             population_id=population_id,
+            composition_id=composition_id,
+            composition_population_id=composition_population_id,
             neighbourhood_id=neighbourhood_id,
             neighbourhood_population_id=neighbourhood_population_id,
         )
@@ -161,6 +169,8 @@ class TextDslService:
         adult_population = (
             sum(agent.get("parent_id") is None for agent in agents)
             if population_id is not None
+            or composition_id is not None
+            or composition_population_id is not None
             or neighbourhood_id is not None
             or neighbourhood_population_id is not None
             else document.validation.adult_population or 0
@@ -176,11 +186,22 @@ class TextDslService:
             generated_children=max(0, len(agents) - adult_population),
             population_id=(
                 population_id
-                if neighbourhood_id is None and neighbourhood_population_id is None
+                if composition_id is None
+                and composition_population_id is None
+                and neighbourhood_id is None
+                and neighbourhood_population_id is None
                 else (
-                    f"neighbourhood:{neighbourhood_id}"
-                    if neighbourhood_id is not None
-                    else f"neighbourhood_population:{neighbourhood_population_id}"
+                    f"composition:{composition_id}"
+                    if composition_id is not None
+                    else (
+                        f"composition_population:{composition_population_id}"
+                        if composition_population_id is not None
+                        else (
+                            f"neighbourhood:{neighbourhood_id}"
+                            if neighbourhood_id is not None
+                            else f"neighbourhood_population:{neighbourhood_population_id}"
+                        )
+                    )
                 )
             ),
             results_title=str(result.get("results_title", "Results")),

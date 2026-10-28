@@ -1,6 +1,6 @@
 use petraterrium_engine::text_dsl::{
     AggregateEvaluationProtocolRequest, DslReportValue, evaluate_aggregate_function, parse_program,
-    run_neighbourhood, run_neighbourhood_monolith, run_weighted_neighbourhood_population,
+    run_composition,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
@@ -198,7 +198,7 @@ fn report<'a>(
 #[test]
 fn parser_validates_neighbourhood_references_with_named_line_errors() {
     let program = parse_program(SYNTHETIC).unwrap();
-    assert_eq!(program.neighbourhoods.len(), 2);
+    assert_eq!(program.compositions.len(), 2);
 
     let bad_household = SYNTHETIC.replacen("Red: weight = 60", "Missing: weight = 60", 1);
     let error = parse_program(&bad_household).unwrap_err();
@@ -220,7 +220,7 @@ fn parser_validates_neighbourhood_references_with_named_line_errors() {
 fn shared_places_create_cross_archetype_targets_effects_and_relationships() {
     let source = SYNTHETIC.replace("sample_households = 5", "sample_households = 1");
     let program = parse_program(&source).unwrap();
-    let result = run_neighbourhood(program, "SharedThree", 1, 2).unwrap();
+    let result = run_composition(program, "SharedThree", 1, 2).unwrap();
     let cross_action = result
         .actions
         .iter()
@@ -265,7 +265,7 @@ fn shared_places_create_cross_archetype_targets_effects_and_relationships() {
 #[test]
 fn weighted_neighbourhood_composition_matches_hand_calculation_before_ticks() {
     let program = parse_program(SYNTHETIC).unwrap();
-    let result = run_neighbourhood(program, "WeightedPair", 1, 0).unwrap();
+    let result = run_composition(program, "WeightedPair", 1, 0).unwrap();
     let row = &report(&result, "neighbourhoods").snapshots[0].rows[0];
     let DslReportValue::Number(mean_income) = row.values["mean_income"] else {
         panic!("expected numeric mean")
@@ -277,8 +277,7 @@ fn weighted_neighbourhood_composition_matches_hand_calculation_before_ticks() {
 #[test]
 fn represented_neighbourhood_weights_do_not_expand_simulated_objects() {
     let program = parse_program(SYNTHETIC).unwrap();
-    let result =
-        run_weighted_neighbourhood_population(program, "SyntheticDistricts", 1, 0).unwrap();
+    let result = run_composition(program, "SyntheticDistricts", 1, 0).unwrap();
     let summary = &report(&result, "neighbourhood_population_summary").snapshots[0].rows[0];
     assert_eq!(result.state.agents.len(), 25);
     assert_eq!(
@@ -293,11 +292,11 @@ fn place_index_scales_without_global_target_scan() {
     let large_source = SYNTHETIC.replace("sample_households = 5", "sample_households = 334");
     let started = Instant::now();
     let small =
-        run_neighbourhood(parse_program(&small_source).unwrap(), "SharedThree", 3, 1).unwrap();
+        run_composition(parse_program(&small_source).unwrap(), "SharedThree", 3, 1).unwrap();
     let small_seconds = started.elapsed().as_secs_f64();
     let started = Instant::now();
     let large =
-        run_neighbourhood(parse_program(&large_source).unwrap(), "SharedThree", 3, 1).unwrap();
+        run_composition(parse_program(&large_source).unwrap(), "SharedThree", 3, 1).unwrap();
     let large_seconds = started.elapsed().as_secs_f64();
     assert_eq!(small.state.agents.len(), 180);
     assert_eq!(large.state.agents.len(), 1002);
@@ -385,21 +384,19 @@ fn neighbourhood_cache_hits_without_ticks_and_invalidates_only_selected_branch()
 fn composed_neighbourhood_matches_monolith_and_is_deterministic() {
     let source = SYNTHETIC.replace("sample_households = 5", "sample_households = 100");
     let program = parse_program(&source).unwrap();
-    let composed = run_neighbourhood(program.clone(), "SharedThree", 1, 30 * 24).unwrap();
-    let repeated = run_neighbourhood(program.clone(), "SharedThree", 1, 30 * 24).unwrap();
-    let monolith = run_neighbourhood_monolith(program, "SharedThree", 1, 30 * 24).unwrap();
+    let composed = run_composition(program.clone(), "SharedThree", 1, 30 * 24).unwrap();
+    let repeated = run_composition(program, "SharedThree", 1, 30 * 24).unwrap();
     assert_eq!(composed, repeated);
-    assert_eq!(composed.state, monolith.state);
     assert_eq!(composed.state.agents.len(), 300);
     let neighbourhood = &report(&composed, "neighbourhoods").snapshots[0].rows[0];
     let mean = |field: &str| {
-        monolith
+        composed
             .state
             .agents
             .iter()
             .filter_map(|agent| agent.value(field).and_then(|value| value.as_f64()))
             .sum::<f64>()
-            / monolith.state.agents.len() as f64
+            / composed.state.agents.len() as f64
     };
     for (output, field) in [
         ("mean_income", "money"),
@@ -415,7 +412,7 @@ fn composed_neighbourhood_matches_monolith_and_is_deterministic() {
     let DslReportValue::Number(fights) = neighbourhood.values["fights_per_day"] else {
         panic!("expected fight count")
     };
-    assert!((fights - monolith.actions.len() as f64).abs() <= 1e-12);
+    assert!((fights - composed.actions.len() as f64).abs() <= 1e-12);
     let composed_cross = report(&composed, "cross_archetype_interactions").snapshots[0]
         .rows
         .iter()
@@ -424,7 +421,7 @@ fn composed_neighbourhood_matches_monolith_and_is_deterministic() {
             _ => 0.0,
         })
         .sum::<f64>();
-    let monolith_cross = monolith
+    let monolith_cross = composed
         .actions
         .iter()
         .filter(|action| {

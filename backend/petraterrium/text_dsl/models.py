@@ -25,6 +25,8 @@ class TextDslValidation(TextDslModel):
     archetypes: tuple[str, ...] = ()
     weighted_populations: tuple[str, ...] = ()
     aggregate_functions: tuple[dict[str, Any], ...] = ()
+    compositions: tuple[dict[str, str], ...] = ()
+    composition_populations: tuple[str, ...] = ()
     neighbourhoods: tuple[str, ...] = ()
     neighbourhood_populations: tuple[str, ...] = ()
     diagnostics: tuple[TextDslDiagnostic, ...] = ()
@@ -51,6 +53,8 @@ class TextDslRunRequest(TextDslModel):
     days: int = Field(default=30, ge=1, le=365)
     baseline_run_id: str | None = None
     population_id: str | None = None
+    composition_id: str | None = None
+    composition_population_id: str | None = None
     neighbourhood_id: str | None = None
     neighbourhood_population_id: str | None = None
 

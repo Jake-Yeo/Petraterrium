@@ -132,7 +132,7 @@ test('learns, reuses, and invalidates an aggregate cache from DSL text', async (
 test('runs shared-place neighbourhoods and their cached aggregate', async ({ page }) => {
   const editor = page.getByLabel('Simulation DSL code');
   await expect(editor).toHaveValue(/neighbourhood UrbanLiberal:/);
-  await page.getByLabel('Population').selectOption('neighbourhood:UrbanLiberal');
+  await page.getByLabel('Population').selectOption('composition:UrbanLiberal');
   await page.getByLabel('Days').fill('1');
   await page.getByRole('button', { name: 'Run saved DSL' }).click();
   await expect(
@@ -147,7 +147,7 @@ test('runs shared-place neighbourhoods and their cached aggregate', async ({ pag
   );
   await page.getByRole('button', { name: 'Validate code' }).click();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('Population').selectOption('neighbourhood:UrbanLiberal');
+  await page.getByLabel('Population').selectOption('composition:UrbanLiberal');
   await page.getByRole('button', { name: 'Run saved DSL' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
@@ -158,4 +158,40 @@ test('runs shared-place neighbourhoods and their cached aggregate', async ({ pag
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
   await expect(page.getByText('CACHED FAST-FORWARD')).toBeVisible();
+});
+
+test('runs and edits generic municipality and division compositions', async ({ page }) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/composition Toronto:/);
+  await expect(editor).toHaveValue(/level = municipality/);
+  await expect(editor).toHaveValue(/composition Ontario:/);
+  await expect(editor).toHaveValue(/level = division/);
+
+  await page.getByLabel('Population').selectOption('composition:Toronto');
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Toronto municipality aggregates' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Composition boundary flows' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cross-composition interactions' })).toBeVisible();
+  await expect(page.getByText('commute_urban_suburban', { exact: true })).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(source.replace('UrbanLiberal: weight = 120', 'UrbanLiberal: weight = 140'));
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('composition:Toronto');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await page.getByLabel('Population').selectOption('composition:Ontario');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Ontario division aggregates' })).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('Toronto');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Relearn detailed' }).click();
+  await expect(page.getByRole('status')).toContainText('Detailed relearn', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
 });

@@ -111,6 +111,7 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
             places: program
                 .places
                 .iter()
+                .filter(|place| place.scope == "program")
                 .map(|place| DslPlaceState {
                     id: place.id.clone(),
                     states: place.states.clone(),
@@ -1163,6 +1164,7 @@ fn report_groups(
         "place" => program
             .places
             .iter()
+            .filter(|place| place.scope == "program")
             .map(|place| {
                 (
                     place.id.clone(),
@@ -1301,6 +1303,18 @@ fn report_value(
         }
         ReportMetric::FamilySize => DslReportValue::Number(average_family_size(state, indices)),
         ReportMetric::KidsPerFamily => DslReportValue::Number(average_kids_per_family(state, &ids)),
+        ReportMetric::PlaceState { place, field } => DslReportValue::Number(
+            state
+                .places
+                .iter()
+                .find(|item| item.id == *place)
+                .and_then(|item| item.states.get(field))
+                .and_then(DslValue::as_f64)
+                .unwrap_or(0.0),
+        ),
+        ReportMetric::FlowCount { .. } | ReportMetric::FlowRate { .. } => {
+            DslReportValue::Number(0.0)
+        }
     }
 }
 

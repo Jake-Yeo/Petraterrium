@@ -1,0 +1,587 @@
+use super::archetypes::build_archetype_state;
+use super::compositions::{CompositionBuild, ExecutedFlow};
+use super::model::*;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone)]
+struct CompositionLeaf {
+    archetype: String,
+    namespace: String,
+    root_group: String,
+    weight: f64,
+    scopes: Vec<(String, Vec<String>)>,
+    composition_path: Vec<String>,
+}
+
+struct CompositionNode<'a> {
+    definition: &'a CompositionDefinition,
+    path: Vec<String>,
+}
+
+pub(super) fn build_composition_state(
+    program: &Program,
+    composition: &CompositionDefinition,
+    seed: u64,
+) -> DslResult<CompositionBuild> {
+    let archetypes = program
+        .archetypes
+        .iter()
+        .map(|item| (item.id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    let compositions = program
+        .compositions
+        .iter()
+        .map(|item| (item.id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    let root_scope = vec![(String::new(), composition.places.clone())];
+    let mut leaves = Vec::new();
+    flatten_composition(
+        composition,
+        &compositions,
+        &archetypes,
+        1.0,
+        &[],
+        &root_scope,
+        None,
+        &mut leaves,
+    );
+    let allocations = leaf_allocations(&leaves, &archetypes);
+    let mut combined = program.clone();
+    combined.places.clear();
+    combined.agents.clear();
+    combined.decisions.clear();
+    combined.actions.clear();
+    combined.archetypes.clear();
+    combined.weighted_populations.clear();
+    combined.compositions.clear();
+    combined.composition_populations.clear();
+    combined.aggregate_functions.clear();
+    combined.population.child_generation = None;
+    combined.record_actions = true;
+    let mut agents = Vec::new();
+    let mut relationships = Vec::new();
+    let mut time = Vec::new();
+    let mut agent_groups = BTreeMap::new();
+    let mut agent_paths = BTreeMap::new();
+    let mut state_places = Vec::new();
+    let mut added_places = BTreeSet::new();
+    for leaf in &leaves {
+        let definition = archetypes[leaf.archetype.as_str()];
+        let mut sampled_definition = definition.clone();
+        sampled_definition.sample_households = allocations[leaf.namespace.as_str()];
+        let leaf_seed = if leaf.namespace == leaf.archetype {
+            derived_seed(seed, &leaf.archetype)
+        } else {
+            derived_seed(seed, &leaf.namespace)
+        };
+        let (prepared, mut state, _) =
+            build_archetype_state(program, &sampled_definition, leaf_seed)?;
+        let place_map = scoped_place_map(program, &leaf.scopes);
+        namespace_program(&mut combined, &prepared, &leaf.namespace, &place_map);
+        add_scoped_places(
+            program,
+            &leaf.scopes,
+            &place_map,
+            &mut combined.places,
+            &mut state_places,
+            &mut added_places,
+        );
+        rename_state_identifiers(&mut state, &leaf.archetype, &leaf.namespace, &place_map);
+        for agent in &mut state.agents {
+            agent.agent_type = namespaced(&leaf.namespace, &agent.agent_type);
+            agent.current_decision = namespaced(&leaf.namespace, &agent.current_decision);
+            agent_groups.insert(agent.id.clone(), leaf.root_group.clone());
+            agent_paths.insert(agent.id.clone(), leaf.composition_path.clone());
+        }
+        agents.extend(state.agents);
+        relationships.extend(state.relationships);
+        time.extend(state.time);
+    }
+    let mut state = DslRunState {
+        completed_ticks: 0,
+        agents,
+        places: state_places,
+        relationships,
+        time,
+    };
+    let mut nodes = Vec::new();
+    collect_composition_nodes(composition, &compositions, &[], &mut nodes);
+    let flows = apply_flows(
+        composition,
+        &compositions,
+        &nodes,
+        seed,
+        &mut state,
+        &mut agent_groups,
+        &mut agent_paths,
+    );
+    Ok(CompositionBuild {
+        program: combined,
+        state,
+        agent_groups,
+        flows,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn flatten_composition(
+    composition: &CompositionDefinition,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+    archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
+    parent_weight: f64,
+    path: &[String],
+    scopes: &[(String, Vec<String>)],
+    root_group: Option<&str>,
+    leaves: &mut Vec<CompositionLeaf>,
+) {
+    let total = composition
+        .entries
+        .iter()
+        .map(|entry| entry.weight as f64)
+        .sum::<f64>();
+    for entry in &composition.entries {
+        let weight = parent_weight * entry.weight as f64 / total;
+        let group = root_group.unwrap_or(&entry.child);
+        if archetypes.contains_key(entry.child.as_str()) {
+            let namespace = if path.is_empty() {
+                entry.child.clone()
+            } else {
+                namespaced(&path.join("__"), &entry.child)
+            };
+            leaves.push(CompositionLeaf {
+                archetype: entry.child.clone(),
+                namespace,
+                root_group: group.to_owned(),
+                weight,
+                scopes: scopes.to_vec(),
+                composition_path: path.to_vec(),
+            });
+        } else if let Some(child) = compositions.get(entry.child.as_str()) {
+            let mut child_path = path.to_vec();
+            child_path.push(entry.child.clone());
+            let child_scope = child_path.join("__");
+            let mut child_scopes = scopes.to_vec();
+            child_scopes.push((child_scope, child.places.clone()));
+            flatten_composition(
+                child,
+                compositions,
+                archetypes,
+                weight,
+                &child_path,
+                &child_scopes,
+                Some(group),
+                leaves,
+            );
+        }
+    }
+}
+
+fn collect_composition_nodes<'a>(
+    composition: &'a CompositionDefinition,
+    compositions: &BTreeMap<&str, &'a CompositionDefinition>,
+    path: &[String],
+    nodes: &mut Vec<CompositionNode<'a>>,
+) {
+    nodes.push(CompositionNode {
+        definition: composition,
+        path: path.to_vec(),
+    });
+    for entry in &composition.entries {
+        if let Some(child) = compositions.get(entry.child.as_str()) {
+            let mut child_path = path.to_vec();
+            child_path.push(entry.child.clone());
+            collect_composition_nodes(child, compositions, &child_path, nodes);
+        }
+    }
+}
+
+fn leaf_allocations(
+    leaves: &[CompositionLeaf],
+    archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
+) -> BTreeMap<String, usize> {
+    let total_samples = leaves
+        .iter()
+        .map(|leaf| leaf.archetype.as_str())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(|id| archetypes[id].sample_households)
+        .sum::<usize>()
+        .max(leaves.len());
+    let mut allocations = leaves
+        .iter()
+        .map(|leaf| {
+            let exact = total_samples as f64 * leaf.weight;
+            (
+                leaf.namespace.clone(),
+                exact.floor().max(1.0) as usize,
+                exact.fract(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let assigned = allocations
+        .iter()
+        .map(|(_, count, _)| *count)
+        .sum::<usize>();
+    if assigned > total_samples {
+        allocations.sort_by(|left, right| {
+            left.2
+                .total_cmp(&right.2)
+                .then_with(|| right.0.cmp(&left.0))
+        });
+        let mut extra = assigned - total_samples;
+        for (_, count, _) in &mut allocations {
+            if extra == 0 {
+                break;
+            }
+            if *count > 1 {
+                *count -= 1;
+                extra -= 1;
+            }
+        }
+    } else {
+        let mut remaining = total_samples - assigned;
+        allocations.sort_by(|left, right| {
+            right
+                .2
+                .total_cmp(&left.2)
+                .then_with(|| left.0.cmp(&right.0))
+        });
+        for (_, count, _) in &mut allocations {
+            if remaining == 0 {
+                break;
+            }
+            *count += 1;
+            remaining -= 1;
+        }
+    }
+    allocations
+        .into_iter()
+        .map(|(id, count, _)| (id, count))
+        .collect()
+}
+
+fn scoped_place_map(
+    program: &Program,
+    scopes: &[(String, Vec<String>)],
+) -> BTreeMap<String, String> {
+    program
+        .places
+        .iter()
+        .map(|place| {
+            let mapped = scopes
+                .iter()
+                .find(|(_, places)| places.contains(&place.id))
+                .map_or_else(
+                    || place.id.clone(),
+                    |(scope, _)| {
+                        if scope.is_empty() {
+                            place.id.clone()
+                        } else {
+                            namespaced(scope, &place.id)
+                        }
+                    },
+                );
+            (place.id.clone(), mapped)
+        })
+        .collect()
+}
+
+fn add_scoped_places(
+    program: &Program,
+    scopes: &[(String, Vec<String>)],
+    place_map: &BTreeMap<String, String>,
+    definitions: &mut Vec<PlaceDefinition>,
+    states: &mut Vec<DslPlaceState>,
+    added: &mut BTreeSet<String>,
+) {
+    for place in &program.places {
+        if !scopes.iter().any(|(_, places)| places.contains(&place.id)) {
+            continue;
+        }
+        let id = place_map[&place.id].clone();
+        if !added.insert(id.clone()) {
+            continue;
+        }
+        let mut definition = place.clone();
+        definition.id = id.clone();
+        definition.scope = "program".to_owned();
+        definitions.push(definition);
+        states.push(DslPlaceState {
+            id,
+            states: place.states.clone(),
+        });
+    }
+}
+
+fn rename_state_identifiers(
+    state: &mut DslRunState,
+    archetype: &str,
+    namespace: &str,
+    place_map: &BTreeMap<String, String>,
+) {
+    let id_map = state
+        .agents
+        .iter()
+        .map(|agent| {
+            (
+                agent.id.clone(),
+                replace_namespace(&agent.id, archetype, namespace),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for agent in &mut state.agents {
+        agent.id = id_map[&agent.id].clone();
+        agent.household_id = replace_namespace(&agent.household_id, archetype, namespace);
+        agent.parent_id = agent.parent_id.as_ref().map(|id| id_map[id].clone());
+        if let Some(DslValue::Text(place)) = agent.states.get_mut("location") {
+            if let Some(mapped) = place_map.get(place) {
+                *place = mapped.clone();
+            }
+        }
+    }
+    for relationship in &mut state.relationships {
+        relationship.source_id = id_map[&relationship.source_id].clone();
+        relationship.target_id = id_map[&relationship.target_id].clone();
+    }
+}
+
+fn replace_namespace(value: &str, archetype: &str, namespace: &str) -> String {
+    if archetype == namespace {
+        return value.to_owned();
+    }
+    value.strip_prefix(archetype).map_or_else(
+        || namespaced(namespace, value),
+        |suffix| format!("{namespace}{suffix}"),
+    )
+}
+
+fn namespace_program(
+    target: &mut Program,
+    source: &Program,
+    namespace: &str,
+    place_map: &BTreeMap<String, String>,
+) {
+    target
+        .agents
+        .extend(source.agents.iter().cloned().map(|mut agent| {
+            agent.id = namespaced(namespace, &agent.id);
+            agent.parent = agent.parent.map(|parent| namespaced(namespace, &parent));
+            agent.routine = namespaced(namespace, &agent.routine);
+            agent
+        }));
+    target
+        .decisions
+        .extend(source.decisions.iter().cloned().map(|mut decision| {
+            decision.id = namespaced(namespace, &decision.id);
+            for branch in &mut decision.branches {
+                branch.action = namespaced(namespace, &branch.action);
+            }
+            decision
+        }));
+    target
+        .actions
+        .extend(source.actions.iter().cloned().map(|mut action| {
+            action.id = namespaced(namespace, &action.id);
+            if let Some(target) = &mut action.target {
+                match target {
+                    TargetSelector::Random { place, .. }
+                    | TargetSelector::Friend { place }
+                    | TargetSelector::Enemy { place }
+                    | TargetSelector::Strongest { place, .. } => {
+                        *place = place_map
+                            .get(place)
+                            .cloned()
+                            .unwrap_or_else(|| place.clone());
+                    }
+                }
+            }
+            for outcome in &mut action.outcomes {
+                outcome.next_decision = outcome
+                    .next_decision
+                    .take()
+                    .map(|decision| namespaced(namespace, &decision));
+                outcome.target_next_decision = outcome
+                    .target_next_decision
+                    .take()
+                    .map(|decision| namespaced(namespace, &decision));
+                for effect in &mut outcome.effects {
+                    match &mut effect.scope {
+                        EffectScope::AllAt { place, .. } | EffectScope::Place { place } => {
+                            *place = place_map
+                                .get(place)
+                                .cloned()
+                                .unwrap_or_else(|| place.clone());
+                        }
+                        _ => {}
+                    }
+                    if effect.field == "location" {
+                        map_place_expression(&mut effect.value, place_map);
+                    }
+                }
+            }
+            action
+        }));
+}
+
+fn map_place_expression(expression: &mut Expr, place_map: &BTreeMap<String, String>) {
+    match expression {
+        Expr::Variable(value) if place_map.contains_key(value) => {
+            *expression = Expr::Value(DslValue::Text(place_map[value].clone()));
+        }
+        Expr::Unary { value, .. } => map_place_expression(value, place_map),
+        Expr::Binary { left, right, .. } => {
+            map_place_expression(left, place_map);
+            map_place_expression(right, place_map);
+        }
+        Expr::Conditional {
+            condition,
+            when_true,
+            when_false,
+        } => {
+            map_place_expression(condition, place_map);
+            map_place_expression(when_true, place_map);
+            map_place_expression(when_false, place_map);
+        }
+        Expr::Call { arguments, .. } => {
+            for argument in arguments {
+                map_place_expression(argument, place_map);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn apply_flows(
+    root: &CompositionDefinition,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+    nodes: &[CompositionNode<'_>],
+    seed: u64,
+    state: &mut DslRunState,
+    agent_groups: &mut BTreeMap<String, String>,
+    agent_paths: &mut BTreeMap<String, Vec<String>>,
+) -> Vec<ExecutedFlow> {
+    let mut executed = Vec::new();
+    for node in nodes {
+        for flow in &node.definition.flows {
+            let membership_index = node.path.len();
+            let source_agents = state
+                .agents
+                .iter()
+                .filter(|agent| {
+                    agent_paths
+                        .get(&agent.id)
+                        .and_then(|path| path.get(membership_index))
+                        == Some(&flow.source)
+                })
+                .map(|agent| agent.id.clone())
+                .collect::<BTreeSet<_>>();
+            let mut households = state
+                .agents
+                .iter()
+                .filter(|agent| source_agents.contains(&agent.id))
+                .map(|agent| agent.household_id.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+            households
+                .sort_by_key(|household| derived_seed(seed, &format!("{}:{household}", flow.id)));
+            let effective_rate = flow.rate / adjacency_distance(node.definition, flow).max(1.0);
+            let selected_count =
+                ((households.len() as f64 * effective_rate).round() as usize).min(households.len());
+            let selected = households
+                .into_iter()
+                .take(selected_count)
+                .collect::<BTreeSet<_>>();
+            let mut affected_agents = 0;
+            for agent in state
+                .agents
+                .iter_mut()
+                .filter(|agent| selected.contains(&agent.household_id))
+            {
+                affected_agents += 1;
+                if flow.effect == "visit" {
+                    if let Some(via) = &flow.via {
+                        let place = scoped_flow_place(root, compositions, &node.path, via);
+                        agent
+                            .states
+                            .insert("location".to_owned(), DslValue::Text(place));
+                    }
+                } else {
+                    if let Some(path) = agent_paths.get_mut(&agent.id)
+                        && let Some(group) = path.get_mut(membership_index)
+                    {
+                        *group = flow.target.clone();
+                    }
+                    if node.path.is_empty() {
+                        agent_groups.insert(agent.id.clone(), flow.target.clone());
+                    }
+                }
+            }
+            let source_count = source_agents.len().max(1);
+            executed.push(ExecutedFlow {
+                id: if node.path.is_empty() {
+                    flow.id.clone()
+                } else {
+                    namespaced(&node.path.join("__"), &flow.id)
+                },
+                source: flow.source.clone(),
+                target: flow.target.clone(),
+                effect: flow.effect.clone(),
+                via: flow.via.clone(),
+                households: selected_count,
+                agents: affected_agents,
+                rate: affected_agents as f64 / source_count as f64,
+            });
+        }
+    }
+    executed
+}
+
+fn scoped_flow_place(
+    root: &CompositionDefinition,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+    node_path: &[String],
+    place: &str,
+) -> String {
+    if root.places.iter().any(|item| item == place) {
+        return place.to_owned();
+    }
+    let mut path = Vec::new();
+    for child_id in node_path {
+        path.push(child_id.clone());
+        let Some(child) = compositions.get(child_id.as_str()) else {
+            break;
+        };
+        if child.places.iter().any(|item| item == place) {
+            return namespaced(&path.join("__"), place);
+        }
+    }
+    place.to_owned()
+}
+
+fn adjacency_distance(
+    composition: &CompositionDefinition,
+    flow: &CompositionFlowDefinition,
+) -> f64 {
+    composition
+        .adjacency
+        .iter()
+        .find(|edge| {
+            edge.source == flow.source && edge.target == flow.target
+                || edge.source == flow.target && edge.target == flow.source
+        })
+        .map_or(1.0, |edge| edge.distance)
+}
+
+fn namespaced(namespace: &str, id: &str) -> String {
+    format!("{namespace}__{id}")
+}
+
+pub(super) fn derived_seed(seed: u64, value: &str) -> u64 {
+    value
+        .as_bytes()
+        .iter()
+        .fold(seed ^ 0xcbf29ce484222325, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+        })
+}

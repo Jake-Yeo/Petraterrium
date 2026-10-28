@@ -309,8 +309,8 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
         .iter()
         .map(|item| (item.id.as_str(), item))
         .collect::<BTreeMap<_, _>>();
-    let neighbourhoods = program
-        .neighbourhoods
+    let compositions = program
+        .compositions
         .iter()
         .map(|item| (item.id.as_str(), item))
         .collect::<BTreeMap<_, _>>();
@@ -340,13 +340,14 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
             ));
         }
         let archetype = archetypes.get(function.id.as_str()).copied();
-        let neighbourhood = neighbourhoods.get(function.id.as_str()).copied();
-        if archetype.is_none() && neighbourhood.is_none() {
+        let composition = compositions.get(function.id.as_str()).copied();
+        let program_branch = function.id == program.id;
+        if archetype.is_none() && composition.is_none() && !program_branch {
             return Err(DslError::new(
                 "UNKNOWN_AGGREGATE_BRANCH",
                 function.line,
                 format!(
-                    "Aggregate function references unknown archetype or neighbourhood {}",
+                    "Aggregate function references unknown program, archetype, or composition {}",
                     function.id
                 ),
             ));
@@ -407,14 +408,11 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
                     .into_iter()
                     .flat_map(|item| item.initial.iter().map(|item| item.field.clone())),
             )
-            .chain(neighbourhood.into_iter().flat_map(|neighbourhood| {
-                neighbourhood.households.iter().flat_map(|entry| {
-                    archetypes[entry.archetype.as_str()]
-                        .initial
-                        .iter()
-                        .map(|item| item.field.clone())
-                })
-            }))
+            .chain(
+                composition
+                    .into_iter()
+                    .flat_map(|item| composition_initial_fields(item, &compositions, &archetypes)),
+            )
             .collect::<BTreeSet<_>>();
         for effect in &function.effects {
             match &effect.target {
@@ -436,10 +434,11 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
             }
             validate_references(&effect.value, &input_ids, effect.line)?;
         }
+        let empty_outputs = Vec::new();
         let branch_outputs = archetype
             .map(|item| &item.outputs)
-            .or_else(|| neighbourhood.map(|item| &item.outputs))
-            .unwrap();
+            .or_else(|| composition.map(|item| &item.outputs))
+            .unwrap_or(&empty_outputs);
         let archetype_outputs = branch_outputs
             .iter()
             .map(|output| output.id.as_str())
@@ -462,10 +461,21 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
             }
             if let Some(metric) = &output.metric {
                 match metric {
-                    ReportMetric::Mean { field } if fields.contains(field) => {}
+                    ReportMetric::Count => {}
+                    ReportMetric::Mean { field } | ReportMetric::Sum { field }
+                        if fields.contains(field) => {}
                     ReportMetric::ActionCount { aggregate, window }
                         if aggregates.contains(aggregate.as_str())
                             && matches!(window.as_str(), "tick" | "day" | "run") => {}
+                    ReportMetric::PlaceState { place, field }
+                        if program
+                            .places
+                            .iter()
+                            .any(|item| item.id == *place && item.states.contains_key(field)) => {}
+                    ReportMetric::FlowCount { flow } | ReportMetric::FlowRate { flow }
+                        if composition.is_some_and(|item| {
+                            item.flows.iter().any(|entry| entry.id == *flow)
+                        }) => {}
                     _ => {
                         return Err(DslError::new(
                             "INVALID_AGGREGATE_OUTPUT_SOURCE",
@@ -507,6 +517,30 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
         }
     }
     Ok(())
+}
+
+fn composition_initial_fields(
+    composition: &CompositionDefinition,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+    archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
+) -> Vec<String> {
+    composition
+        .entries
+        .iter()
+        .flat_map(|entry| {
+            if let Some(archetype) = archetypes.get(entry.child.as_str()) {
+                archetype
+                    .initial
+                    .iter()
+                    .map(|item| item.field.clone())
+                    .collect::<Vec<_>>()
+            } else if let Some(child) = compositions.get(entry.child.as_str()) {
+                composition_initial_fields(child, compositions, archetypes)
+            } else {
+                Vec::new()
+            }
+        })
+        .collect()
 }
 
 fn validate_references(expression: &Expr, inputs: &BTreeSet<&str>, line: usize) -> DslResult<()> {

@@ -117,6 +117,7 @@ pub fn run_expanded_archetype_population(
         places: program
             .places
             .iter()
+            .filter(|place| place.scope == "program")
             .map(|place| DslPlaceState {
                 id: place.id.clone(),
                 states: place.states.clone(),
@@ -213,6 +214,7 @@ pub(super) fn build_archetype_state(
         places: program
             .places
             .iter()
+            .filter(|place| place.scope == "program")
             .map(|place| DslPlaceState {
                 id: place.id.clone(),
                 states: place.states.clone(),
@@ -313,6 +315,7 @@ pub(super) fn calculate_output_definitions(
         .iter()
         .map(|output| {
             let mut values = match &output.metric {
+                ReportMetric::Count => vec![result.state.agents.len() as f64],
                 ReportMetric::Mean { field } => result
                     .state
                     .agents
@@ -320,8 +323,27 @@ pub(super) fn calculate_output_definitions(
                     .filter(|agent| output_filter(output, agent).unwrap_or(false))
                     .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
                     .collect::<Vec<_>>(),
+                ReportMetric::Sum { field } => vec![
+                    result
+                        .state
+                        .agents
+                        .iter()
+                        .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
+                        .sum(),
+                ],
                 ReportMetric::KidsPerFamily => kids_per_family_values(&result.state),
                 ReportMetric::ActionCount { .. } => report_metric_values(result, &output.metric),
+                ReportMetric::PlaceState { place, field } => result
+                    .state
+                    .places
+                    .iter()
+                    .find(|item| item.id == *place)
+                    .and_then(|item| item.states.get(field))
+                    .and_then(DslValue::as_f64)
+                    .into_iter()
+                    .collect(),
+                ReportMetric::FlowCount { flow } => composition_flow_values(result, flow, "count"),
+                ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
                 _ => Vec::new(),
             };
             if values.is_empty() && matches!(output.metric, ReportMetric::ActionCount { .. }) {
@@ -373,19 +395,55 @@ fn report_metric_values(result: &DslRunResult, metric: &ReportMetric) -> Vec<f64
         .collect()
 }
 
+fn composition_flow_values(result: &DslRunResult, flow: &str, value: &str) -> Vec<f64> {
+    result
+        .reports
+        .iter()
+        .find(|report| report.id == "composition_flows")
+        .and_then(|report| report.snapshots.last())
+        .and_then(|snapshot| snapshot.rows.iter().find(|row| row.group_id == flow))
+        .and_then(|row| row.values.get(value))
+        .and_then(|value| match value {
+            DslReportValue::Number(value) => Some(*value),
+            _ => None,
+        })
+        .into_iter()
+        .collect()
+}
+
 pub(super) fn calculate_aggregate_metric(
     result: &DslRunResult,
     metric: &ReportMetric,
     line: usize,
 ) -> DslResult<MetricSummary> {
     let mut values = match metric {
+        ReportMetric::Count => vec![result.state.agents.len() as f64],
         ReportMetric::Mean { field } => result
             .state
             .agents
             .iter()
             .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
             .collect::<Vec<_>>(),
+        ReportMetric::Sum { field } => vec![
+            result
+                .state
+                .agents
+                .iter()
+                .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
+                .sum(),
+        ],
         ReportMetric::ActionCount { .. } => report_metric_values(result, metric),
+        ReportMetric::PlaceState { place, field } => result
+            .state
+            .places
+            .iter()
+            .find(|item| item.id == *place)
+            .and_then(|item| item.states.get(field))
+            .and_then(DslValue::as_f64)
+            .into_iter()
+            .collect(),
+        ReportMetric::FlowCount { flow } => composition_flow_values(result, flow, "count"),
+        ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
         _ => Vec::new(),
     };
     if values.is_empty() && matches!(metric, ReportMetric::ActionCount { .. }) {
@@ -460,6 +518,7 @@ fn weighted_result(
             places: program
                 .places
                 .iter()
+                .filter(|place| place.scope == "program")
                 .map(|place| DslPlaceState {
                     id: place.id.clone(),
                     states: place.states.clone(),

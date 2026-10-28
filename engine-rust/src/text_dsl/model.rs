@@ -90,6 +90,7 @@ pub struct AgentDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PlaceDefinition {
     pub id: String,
+    pub scope: String,
     pub states: BTreeMap<String, DslValue>,
     pub state_bounds: BTreeMap<String, ValueBounds>,
     pub line: usize,
@@ -175,25 +176,59 @@ pub struct WeightedPopulationDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct NeighbourhoodDefinition {
-    pub id: String,
-    pub households: Vec<WeightedPopulationEntry>,
-    pub places: Vec<String>,
-    pub outputs: Vec<ArchetypeOutputDefinition>,
+pub struct CompositionAdjacency {
+    pub source: String,
+    pub target: String,
+    pub distance: f64,
     pub line: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct WeightedNeighbourhoodEntry {
-    pub neighbourhood: String,
+pub struct CompositionEntry {
+    pub child: String,
     pub weight: u64,
     pub line: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct WeightedNeighbourhoodPopulation {
+pub struct CompositionFlowDefinition {
     pub id: String,
-    pub entries: Vec<WeightedNeighbourhoodEntry>,
+    pub source: String,
+    pub target: String,
+    pub rate: f64,
+    pub effect: String,
+    pub via: Option<String>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionDefinition {
+    pub id: String,
+    pub level: String,
+    pub entries: Vec<CompositionEntry>,
+    pub places: Vec<String>,
+    pub parameters: BTreeMap<String, f64>,
+    pub adjacency: Vec<CompositionAdjacency>,
+    pub flows: Vec<CompositionFlowDefinition>,
+    pub outputs: Vec<ArchetypeOutputDefinition>,
+    pub report_id: String,
+    pub interaction_report_id: String,
+    pub report_title: String,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedCompositionEntry {
+    pub composition: String,
+    pub weight: u64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedCompositionPopulation {
+    pub id: String,
+    pub entries: Vec<WeightedCompositionEntry>,
+    pub legacy_neighbourhood: bool,
     pub line: usize,
 }
 
@@ -346,6 +381,16 @@ pub enum ReportMetric {
     },
     FamilySize,
     KidsPerFamily,
+    PlaceState {
+        place: String,
+        field: String,
+    },
+    FlowCount {
+        flow: String,
+    },
+    FlowRate {
+        flow: String,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -387,8 +432,8 @@ pub struct Program {
     pub archetypes: Vec<ArchetypeDefinition>,
     pub weighted_populations: Vec<WeightedPopulationDefinition>,
     pub aggregate_functions: Vec<AggregateFunctionDefinition>,
-    pub neighbourhoods: Vec<NeighbourhoodDefinition>,
-    pub neighbourhood_populations: Vec<WeightedNeighbourhoodPopulation>,
+    pub compositions: Vec<CompositionDefinition>,
+    pub composition_populations: Vec<WeightedCompositionPopulation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -571,6 +616,10 @@ pub struct TextDslProtocolRequest {
     pub continuation: Option<DslRunState>,
     #[serde(default)]
     pub population_id: Option<String>,
+    #[serde(default)]
+    pub composition_id: Option<String>,
+    #[serde(default)]
+    pub composition_population_id: Option<String>,
     #[serde(default)]
     pub neighbourhood_id: Option<String>,
     #[serde(default)]

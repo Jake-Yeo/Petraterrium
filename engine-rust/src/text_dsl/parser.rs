@@ -1,9 +1,10 @@
 use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
+use super::composition_parser::{
+    parse_composition, parse_composition_population, parse_neighbourhood,
+    parse_neighbourhood_population, validate_compositions,
+};
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
-use super::neighbourhood_parser::{
-    parse_neighbourhood, parse_neighbourhood_population, validate_neighbourhoods,
-};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -34,8 +35,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut archetypes = Vec::new();
     let mut weighted_populations = Vec::new();
     let mut aggregate_functions = Vec::new();
-    let mut neighbourhoods = Vec::new();
-    let mut neighbourhood_populations = Vec::new();
+    let mut compositions = Vec::new();
+    let mut composition_populations = Vec::new();
     let mut index = 1;
     while index < lines.len() {
         let line = &lines[index];
@@ -105,11 +106,19 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             index = next;
         } else if let Some(name) = block_name(&line.text, "neighbourhood") {
             let (value, next) = parse_neighbourhood(&lines, index, name)?;
-            neighbourhoods.push(value);
+            compositions.push(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "neighbourhood_population") {
             let (value, next) = parse_neighbourhood_population(&lines, index, name)?;
-            neighbourhood_populations.push(value);
+            composition_populations.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "composition") {
+            let (value, next) = parse_composition(&lines, index, name)?;
+            compositions.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "composition_population") {
+            let (value, next) = parse_composition_population(&lines, index, name)?;
+            composition_populations.push(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "decision") {
             let (value, next) = parse_decision(&lines, index, name)?;
@@ -185,8 +194,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         archetypes,
         weighted_populations,
         aggregate_functions,
-        neighbourhoods,
-        neighbourhood_populations,
+        compositions,
+        composition_populations,
     };
     validate_program(&program)?;
     Ok(program)
@@ -274,10 +283,23 @@ fn parse_place(lines: &[Line], start: usize, name: &str) -> DslResult<(PlaceDefi
     identifier(name, lines[start].number)?;
     let mut states = BTreeMap::new();
     let mut state_bounds = BTreeMap::new();
+    let mut scope = "program".to_owned();
     let mut index = start + 1;
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
+        if let Some(value) = line.text.strip_prefix("scope = ") {
+            if !matches!(value, "program" | "composition") {
+                return Err(DslError::new(
+                    "INVALID_PLACE_SCOPE",
+                    line.number,
+                    "Place scope must be program or composition",
+                ));
+            }
+            scope = value.to_owned();
+            index += 1;
+            continue;
+        }
         let Some(value) = line.text.strip_prefix("state ") else {
             return Err(DslError::new(
                 "UNKNOWN_PLACE_STATEMENT",
@@ -306,6 +328,7 @@ fn parse_place(lines: &[Line], start: usize, name: &str) -> DslResult<(PlaceDefi
     Ok((
         PlaceDefinition {
             id: name.to_owned(),
+            scope,
             states,
             state_bounds,
             line: lines[start].number,
@@ -1132,6 +1155,18 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
         "sum" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Sum {
             field: positional[0].to_owned(),
         }),
+        "place_state" if positional.len() == 2 && named.is_empty() => {
+            Ok(ReportMetric::PlaceState {
+                place: positional[0].to_owned(),
+                field: positional[1].to_owned(),
+            })
+        }
+        "flow_count" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::FlowCount {
+            flow: positional[0].to_owned(),
+        }),
+        "flow_rate" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::FlowRate {
+            flow: positional[0].to_owned(),
+        }),
         "action_count" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
             Ok(ReportMetric::ActionCount {
                 aggregate: positional[0].to_owned(),
@@ -1754,6 +1789,26 @@ fn validate_program(program: &Program) -> DslResult<()> {
                     }
                     validate_report_window(window, column.line)?;
                 }
+                ReportMetric::PlaceState { place, field } => {
+                    if !program
+                        .places
+                        .iter()
+                        .any(|item| item.id == *place && item.states.contains_key(field))
+                    {
+                        return Err(DslError::new(
+                            "UNKNOWN_OUTPUT_PLACE_STATE",
+                            column.line,
+                            format!("Output column references unknown place state {place}.{field}"),
+                        ));
+                    }
+                }
+                ReportMetric::FlowCount { .. } | ReportMetric::FlowRate { .. } => {
+                    return Err(DslError::new(
+                        "INVALID_OUTPUT_FLOW",
+                        column.line,
+                        "Flow metrics belong to composition outputs",
+                    ));
+                }
                 _ => {}
             }
         }
@@ -1918,7 +1973,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
             output_ids = Some(current_outputs);
         }
     }
-    validate_neighbourhoods(program)?;
+    validate_compositions(program)?;
     validate_aggregate_functions(program)?;
     validate_inheritance_cycles(&agents)?;
     Ok(())

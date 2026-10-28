@@ -2,179 +2,152 @@
 
 ## Implemented
 
-- The source of truth is `engine-rust/dsl/default.dsl`, a Python-like text program.
-- Rust parses, validates, compiles, samples, and executes the DSL. Python only stores source and
-  run records and exposes the Rust protocol over HTTP.
-- A compiled Rust execution plan resolves decision and action IDs, sorts seeded choices, builds
-  timed actions, and resolves inherited state bounds once before tick zero. Runtime expressions
-  read agent and place state directly without rebuilding string-keyed contexts.
-- Parser diagnostics include a named error code and source line for bad references, forward
-  initial references, invalid categorical probabilities, invalid indentation, and duration errors.
-- Agent definitions support single inheritance, roles, trait/state overrides, and inherited
-  initial distributions that are re-evaluated in declaration order.
-- Initial sampling supports Bernoulli, Categorical, Normal, LogNormal, Uniform, Beta, and Poisson
-  distributions with formula parameters and caps.
-- The default population samples 100 Student/Worker adults and generates linked Child/Student
-  agents from conditional family and kids values.
-- Decisions and action outcomes evaluate formula weights, remove zero-weight options, normalize,
-  and sample in sorted identity order so file order does not alter seeded results.
-- Action effects support self, target, all agents at a place with a filter, place state, and the
-  source-target relationship. Target selectors support random, friend, enemy, and strongest.
-- The existing Rust time allocator supplies seeded duration sampling, tick budgets, deferral, and
-  long-action continuation.
-- DSL `output` blocks define each Rust report's grouping, collection cadence, columns, metric
-  formulas, labels, formats, and table/card presentation. Rust creates statistical snapshots only
-  for those reports. `record_actions` explicitly controls whether raw action receipts are returned.
-- Report formulas support counts, means, sums, action and outcome counts, action rates, family
-  size, and kids per family. Reports can group by all agents, place, or agent type and record every
-  tick, daily, or at the final tick.
-- Runs persist as compressed records. The frontend renders the generic Rust report contract and
-  does not contain fixed simulation-stat columns.
-- Saved runs from the earlier fixed aggregate contract reopen through a read-only legacy adapter.
-- The app opens directly to the exact DSL source in a line-numbered text editor. Rust validation,
-  save, reset, run, and baseline deltas operate on that text.
-- Agent archetypes remain the numeric bottom level. Household archetypes compose agent mixes,
-  estimated initial distributions, decision multipliers, and derived outputs in DSL text.
-- Weighted populations map household archetypes to represented household counts. Rust simulates
-  each small archetype cohort once and weights its outputs without expanding represented counts.
-- Weighted results include a population summary, per-place and per-agent-type tables, and a
-  per-archetype table. Income, stress, and vote outputs retain mean and pooled standard deviation.
-- DSL `aggregate_function` blocks define parameter ranges, cohort effects, time points, outputs,
-  cache validity, input thresholds, and invalidating events for a single archetype.
-- Rust learns a deterministic low/high multilinear response table from detailed archetype cohorts.
-  Learned artifacts are versioned by DSL source hash and persisted outside the DSL source.
-- Cached evaluation interpolates the learned table without agent ticks and returns endpoint and
-  time-series aggregate reports with cache status, validity, input hash, and DSL hash.
-- Threshold, time, event, forced, function, and DSL-source changes relearn only the selected
-  archetype. Previous cache artifact versions remain available through the API.
-- DSL neighbourhoods compose weighted household archetypes into one detailed state with shared
-  places, shared place state, namespaced behaviour, and persistent cross-archetype relationships.
-- Target selection and all-at-place effects use a per-tick place-membership index. Cross-archetype
-  interaction counts and action rates are recorded without a global all-agent target scan.
-- Neighbourhood aggregate functions reuse the Prompt 2 learner, cache artifacts, invalidation
-  rules, time series, report interpolation, and zero-tick fast-forward path.
-- Weighted neighbourhood populations apply represented counts without expanding their detailed
-  neighbourhood cohorts.
+- The only numeric tick entry point is `run_program` in `engine-rust/src/text_dsl/runtime.rs`.
+  It parses no DSL during ticks and continues to use the compiled indexed execution plan.
+- The only composition entry point is `run_composition` in
+  `engine-rust/src/text_dsl/compositions.rs`. It accepts a composition or represented composition
+  population ID and delegates every detailed tick to `run_program`.
+- `CompositionDefinition` is the single recursive model for neighbourhoods, municipalities,
+  divisions, and arbitrary user-defined levels. A level is a DSL string. Rust has no level enum,
+  level match arm, or municipality/division runner.
+- Legacy `neighbourhood` and `neighbourhood_population` syntax parses into the generic composition
+  model. The compatibility adapter retains the previous report IDs, titles, state, and reports.
+- Generic `composition` blocks define a level, weighted children, places or institutions,
+  parameters, sparse adjacency, boundary flows, and outputs. Children may be agent archetypes or
+  other compositions.
+- Recursive composition keeps a fixed detailed sample budget. The represented weights never
+  expand into represented object counts. A division containing two municipalities still simulates
+  180 agents in the shipped example.
+- Place scope follows the composition tree. Parent-declared places are shared by children; other
+  places are namespaced at the closest declaring composition. This lets neighbourhoods meet at
+  shared institutions without making every place global.
+- Visit flows move selected households to a shared place. Transfer flows change composition
+  membership while preserving agent IDs, traits, state, household links, and relationships.
+  Sparse adjacency controls allowed direct flows and scales them by distance.
+- Composition reports include the root aggregate, immediate-child rows, boundary-flow counts and
+  rates, cross-child interaction counts and rates, base per-place reports, and base per-agent-type
+  reports. Income, stress, and vote outputs retain standard deviation.
+- The default DSL defines `Toronto` and `Vancouver` as municipalities and `Ontario` as a division.
+  It also defines composition-scoped SchoolDistrict, Hospital, ShoppingCentre, and Transit places.
+- Toronto and Vancouver define inter-neighbourhood visits, transfers, adjacency, concrete
+  parameters, and output metrics. Ontario recursively composes both municipalities using the same
+  runner and records their internal flows.
+- Municipality and division aggregate functions reuse the Prompt 2 low/high-grid learner,
+  interpolation, versioned artifacts, DSL/input hashes, time points, invalidation, and zero-tick
+  cache-hit path.
+- A generic program-level aggregate branch was added. `engine-rust/dsl/finance_demo.dsl` defines a
+  market using only agents, a place with price state, decisions, actions, effects, reports, and an
+  aggregate function. It runs through `run_program`; there is no finance or market runner.
+- `place_state(place, field)`, `flow_count(flow)`, and `flow_rate(flow)` are generic report metrics.
+  Composition-only place scope keeps new institutions out of unchanged Town and weighted reports.
+- Rust validation returns every composition with its DSL level. Python forwards generic
+  composition IDs, and the existing frontend selector renders neighbourhood, municipality,
+  division, and represented composition choices through one control.
+- Engine version is `0.7.0`. Nothing was pushed.
 
 ## Implemented but narrower
 
-- One primary decision is sampled per available agent per tick. Decision chaining advances when
-  the chosen action completes.
-- Household and parent relationships are generated by the default population. Friend/enemy and
-  strongest target selectors are engine primitives, but the shipped default uses random targets
-  for its social actions.
-- The API persists completed runs and Rust checkpoints round-trip in focused tests. There is no
-  pause/resume management UI for an interrupted active run in this demo.
-- Existing Town coefficients remain wide-uncertainty placeholders. Household archetype values are
-  direct estimates and are intentionally not measurements or fitted claims.
-- The shipped household values are direct estimates. Each archetype simulates 20 sample
-  households; represented household weights do not change simulated object count.
-- Household archetypes still run separately in weighted household mode. Neighbourhood mode joins
-  their agents so cross-archetype meetings occur at shared places within that neighbourhood.
-- Learning uses the two endpoints of every input range. With four inputs this is a 16-point grid,
-  evaluated at DSL-defined time points using the existing detailed cohort runner.
-- Fast-forward beyond the learned 30-day horizon repeats the learned 30-day endpoint. It provides
-  deterministic weekly/monthly parent inputs but does not model multi-level feedback.
+- Detailed boundary flows use concrete DSL rates and are applied at composition initialization.
+  They are deterministic and auditable, but they do not yet recalculate each day from changing
+  unemployment, jobs, rent, or stress.
+- The synthetic tests prove that shared-place state can be updated by agents from multiple child
+  compositions. The shipped daily-life program uses Work, School, Bar, and Cinema for its active
+  shared interactions; the four newly named institutions are available as composition-scoped
+  places, and Transit is used by visit flows, but the default does not define a separate action
+  routine for every new institution.
+- A division run executes the nested municipality flows, but it defines no inter-municipality flow.
+  The final Ontario run therefore records six internal municipality flows and zero Toronto-to-
+  Vancouver interactions.
+- Composition parameters are parsed and preserved as DSL data. Aggregate-function inputs drive
+  learned output changes; composition parameters are not yet expression variables inside flow
+  rates.
+- Aggregate learning still uses the two endpoints of each input range and multilinear
+  interpolation. Fast-forward beyond day 30 repeats the learned endpoint.
+- The finance example models price through generic place state and agent actions. It is an
+  expressiveness proof, not an order-book or exchange calibration.
 
 ## Deferred and not part of this demo
 
-- Countries, regions, global population weighting, Atlas, GeoNames, WDI, and external imports.
-- Research pipelines, evidence guards, provenance imports, and fitted behavior models.
-- Globe work, country polygons, graphs, inheritance visualizations, decision-tree visualizations,
-  and visual drag-and-drop editors.
-- Any real-world calibration or prediction claim.
-- Municipality, division, country, and world composition or flows.
-- Hierarchical time-loop feedback, convergence, and fast-forwarding across composed levels.
-- Inter-neighbourhood commuting and migration as a municipality-level system.
-- Archetype research/data imports, graph views, and visual archetype editors.
+- Country and world composition, country/world flows, and global represented-population weights.
+- Multi-level top-down and bottom-up feedback, convergence, and time-varying cached composition
+  functions.
+- Atlas, GeoNames, WDI, external imports, research pipelines, evidence guards, and fitted models.
+- Globe work, country polygons, graphs, inheritance views, decision-tree views, visual editors,
+  and per-level management panels.
+- Real-world calibration or prediction claims and interrupted-run pause/resume UI.
 
 ## Focused verification
 
-- Rust DSL tests: 13 passed in under one second.
-- Rust compiler and bounded report-window tests: 2 passed.
-- Rust duration sampling and tick scaling: two focused tests passed.
-- Python API persistence/routes, validation cache, and legacy compatibility: 4 passed.
-- Optimized Rust profile selection: 1 passed.
-- Browser code-display, weighted edit, cache learn/hit/invalidation, and line-error tests: 4 passed.
-- Frontend production build: 9 modules in 0.25 seconds.
-- Engine source grep contains none of the shipped place, action, or scenario names.
-- Generic archetype parser, exact weighting, million-weight representation, 300-agent comparison,
-  and determinism tests: 5 passed in 13.76 seconds.
-- Browser DSL edit/save/run test changes a household weight and its weighted aggregate: passed.
-- Generic aggregate parser, learning, cache hit, threshold/time/event/DSL invalidation, accuracy,
-  90-day fast-forward, and determinism tests: 5 passed in 0.77 seconds.
-- Python artifact persistence, cache reuse, and cache-version history tests: 5 passed.
-- Browser detailed-learn, zero-tick cache-hit, time-series, and DSL-hash invalidation demo: passed.
-- Generic neighbourhood parsing, shared targets/effects, persistent trust, exact weighting,
-  place-index scaling, cache invalidation, 300-agent monolith comparison, and determinism: 7 passed.
-- Synthetic place-index timing: `0.0048` seconds for 180 agents and `0.0142` seconds for 1,002.
-- Browser neighbourhood weight edit, shared-interaction report, detailed learn, and cache hit: passed.
+- Generic composition parser, arbitrary level reuse, exact middle/upper weighting, shared-place
+  interaction, transfer preservation, adjacency isolation, and zero-tick cache reuse: `4 passed`.
+- Expanded 300-agent individual run versus a composition run over 30 days: `1 passed`; population,
+  income, stress, health, vote, kids, action rate, commuting rate, and cross-group interaction rate
+  stayed within the required 10 percent tolerance.
+- Legacy neighbourhood parser, weighting, represented counts, place index, cache, determinism, and
+  300-agent comparison: `7 passed` in `21.11s` debug time.
+- DSL-only finance run, deterministic replay, place price, buy/sell reports, aggregate learning,
+  and zero-tick cache hit: `1 passed`.
+- Focused Python API routing and generic composition forwarding: passed.
+- Focused browser municipality/division edit, detailed run, flow reports, relearn, and zero-tick
+  cache test: `1 passed` in `8.4s`.
+- Frontend production build: passed in `0.276s`.
+- Targeted Ruff checks, generated-contract check, Rust format/check, and `git diff --check`: passed.
+- The full backend test suite and full frontend end-to-end suite were not run, as required by this
+  prompt.
+- Source grep finds no `run_neighbourhood`, `run_municipality`, `run_division`, or named domain
+  runner. Shipped municipality, division, neighbourhood, institution, and action names do not
+  occur in Rust engine source.
 
 ## Performance
 
-- A 30-day Town API run completes in `0.383` seconds.
-- A 365-day Town API run completes in `4.096` seconds for 130 agents and 8,760 ticks.
-- The unchanged 30-day weighted archetype run completes in `0.436` seconds.
-- The 180-agent, 30-day detailed neighbourhood run completes in `0.550` seconds.
-- One-time neighbourhood learning takes `7.676` seconds; its persisted cache hit takes `0.0518`
-  seconds and runs `0` agent ticks.
-- Detailed one-time learning takes `2.127`–`2.193` seconds per shipped archetype.
-- Persisted cache hits take `0.020`–`0.022` seconds and run `0` agent ticks.
-- The rendered app completed and displayed the same 365-day run in `4.345` seconds.
-- The default DSL records the requested daily/final reports and omits the unused 670,767-event
-  action payload. Set `record_actions = true` when a run needs every raw receipt.
+- Town, 30 days / 720 ticks / 130 agents: `0.428s`.
+- Town, 365 days / 8,760 ticks / 130 agents: `4.377s`.
+- Weighted household population, 30 days / 180 agents: `0.406s`.
+- Detailed neighbourhood, 30 days / 180 agents: `0.488s`.
+- Detailed municipality, 30 days / 180 agents: `0.732s`.
+- Detailed division, 30 days / 180 agents: `0.606s`.
+- Toronto aggregate learning: `2.257s` and `518,400` agent ticks.
+- Toronto persisted-artifact cache hit: `0.0141s` and `0` agent ticks.
+- DSL-only finance run, 30 days / 12 agents: `0.043s`.
+- Default DSL hash: `sha256:19135dd666e5bda8edfa9df06b42eec199bba0fa1e13207dc28750980feb81d4`.
 
 ## Final demo run
 
-- Run ID: `87edc98083d542d2a63ca69a0917a69c`
-- DSL hash: `sha256:339f75b8738ff734fb541fd12053f9dd382c30075319f51939fcdcc049c0a7a2`
-- Rust engine: `0.6.0`
-- Seed: `1`
-- Duration: `365` days / `8,760` ticks
-- Population: `100` sampled adults plus `30` generated children
-- State and report snapshots exactly match the pre-archetype 365-day golden run.
-- Final output keeps health, stress, alcohol, reputation, money, and place states inside their
-  DSL-declared ranges. Recorded fights are attributed to Bar, where they occurred.
+- Legacy golden record: `87edc98083d542d2a63ca69a0917a69c`.
+- Engine: `0.7.0`; seed: `1`; duration: `365` days / `8,760` ticks.
+- Population: `100` sampled adults plus `30` generated children.
+- Current state and every report are exactly equal to the persisted Prompt 3 golden after excluding
+  only protocol and engine-version metadata.
 
 ## Final weighted archetype run
 
-- Run ID: `6fef20f60e3a4ae2a3035c1253f1281e`
-- Seed: `1`
-- Duration: `30` days / `720` ticks
-- Simulated agents: `180`
-- Represented population: `300`
-- Archetypes: `3`
-- Runtime: `0.436` seconds
-- Raw action receipts: `0`
-- State and report snapshots exactly match the Prompt 1 weighted golden run.
-- The seven-billion example represents `6,999,999,999` agents with the same `180` simulated agents.
-
-## Final cached aggregate evaluations
-
-- `HouseholdLiberalUrban`: learn `2.193` seconds, cache hit `0.0206` seconds, cache version `4`.
-- `HouseholdConservativeSuburban`: learn `2.156` seconds, cache hit `0.0214` seconds, cache version `2`.
-- `HouseholdRuralMixed`: learn `2.127` seconds, cache hit `0.0207` seconds, cache version `2`.
-- Each detailed learn ran `691,200` agent ticks. Every cache hit ran `0` agent ticks.
-- Learned and persisted-replay time series are exactly equal for all three archetypes.
-- All artifacts are valid from day `0` through day `30` and expose their input and DSL hashes.
-- These Prompt 2 versions remain inspectable. The Prompt 3 DSL hash invalidates them before reuse,
-  as required.
+- Legacy golden record: `6fef20f60e3a4ae2a3035c1253f1281e`.
+- Seed: `1`; duration: `30` days / `720` ticks; simulated agents: `180`.
+- Current state and every report are exactly equal to the persisted Prompt 1 weighted golden.
 
 ## Final neighbourhood run
 
-- Run ID: `b1ac7e29863b4e8c8395e19bafd64c99`
-- Neighbourhood: `UrbanLiberal`
-- Seed: `1`
-- Duration: `30` days / `720` ticks
-- Simulated agents: `180`
-- Runtime: `0.550` seconds
-- Cross-archetype interactions: `2,730`
-- Raw action receipts returned: `0`
-- Shared place state and relationships include agents from all three household archetypes.
+- Legacy golden record: `b1ac7e29863b4e8c8395e19bafd64c99`.
+- Neighbourhood: `UrbanLiberal`; seed: `1`; duration: `30` days / `720` ticks.
+- Simulated agents: `180`; reports: `5`; runtime: `0.488s`.
+- Current state and every report are exactly equal to the persisted Prompt 3 neighbourhood golden.
 
-## Final neighbourhood cached evaluation
+## Final municipality run
 
-- Detailed learning: `7.676` seconds and `2,073,600` agent ticks.
-- Cache hit: `0.0518` seconds and `0` agent ticks.
-- Cache version: `1`.
-- Learned and persisted-replay time series are exactly equal.
+- Composition: `Toronto`; seed: `1`; duration: `30` days / `720` ticks.
+- Simulated agents: `180`; reports: `7`; runtime: `0.732s`.
+- Cross-neighbourhood interactions: `3,084`; boundary-flow rows: `3`.
+- Aggregate cache version: `1`; cache hit: `0.0141s`; cache agent ticks: `0`.
+
+## Final division run
+
+- Composition: `Ontario`; seed: `1`; duration: `30` days / `720` ticks.
+- Simulated agents: `180`; reports: `7`; runtime: `0.606s`.
+- Nested municipality flow rows: `6`; inter-municipality interactions: `0`.
+
+## Final DSL-only finance run
+
+- Program: `MarketLab`; seed: `1`; duration: `30` days / `720` ticks.
+- Simulated agents: `12`; runtime: `0.043s`; reports: `1`.
+- Final price: `51.54`; buys: `2,278`; sells: `1,902`; mean cash: `131.58`.
+- Focused cache test confirmed a persisted-artifact hit with `0` agent ticks.

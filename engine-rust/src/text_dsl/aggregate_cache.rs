@@ -2,9 +2,10 @@ use super::archetypes::{
     MetricSummary, build_archetype_state, calculate_aggregate_metric, calculate_output_definitions,
     calculate_outputs,
 };
+use super::composition_build::build_composition_state;
+use super::composition_reports::decorate_composition_result;
 use super::expression::evaluate;
 use super::model::*;
-use super::neighbourhoods::{build_neighbourhood_state, decorate_neighbourhood_result};
 use super::runtime::run_program;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -100,25 +101,29 @@ fn learn_aggregate_function(
         .archetypes
         .iter()
         .find(|item| item.id == function.id);
-    let neighbourhood = program
-        .neighbourhoods
+    let composition = program
+        .compositions
         .iter()
         .find(|item| item.id == function.id);
+    let program_branch = function.id == program.id;
     let mut points = Vec::new();
     let mut learning_agent_ticks = 0_u64;
     for inputs in input_grid(&function.inputs) {
-        let (mut prepared, mut state, output_definitions, agent_archetypes) =
+        let (mut prepared, mut state, output_definitions, composition_context) =
             if let Some(archetype) = archetype {
                 let (prepared, state, _) = build_archetype_state(program, archetype, seed)?;
-                (prepared, state, &archetype.outputs, None)
-            } else if let Some(neighbourhood) = neighbourhood {
-                let build = build_neighbourhood_state(program, neighbourhood, seed)?;
+                (prepared, state, archetype.outputs.clone(), None)
+            } else if let Some(composition) = composition {
+                let build = build_composition_state(program, composition, seed)?;
                 (
                     build.program,
                     build.state,
-                    &neighbourhood.outputs,
-                    Some(build.agent_archetypes),
+                    composition.outputs.clone(),
+                    Some((build.agent_groups, build.flows)),
                 )
+            } else if program_branch {
+                let initial = run_program(DslRunRequest::new(program.clone(), seed, 0))?;
+                (program.clone(), initial.state, Vec::new(), None)
             } else {
                 return Err(DslError::new(
                     "UNKNOWN_AGGREGATE_BRANCH",
@@ -146,22 +151,24 @@ fn learn_aggregate_function(
                 delta_ticks,
                 state,
             ))?;
-            if let (Some(neighbourhood), Some(agent_archetypes)) =
-                (neighbourhood, agent_archetypes.as_ref())
+            if let (Some(composition), Some((agent_groups, flows))) =
+                (composition, composition_context.as_ref())
             {
-                decorate_neighbourhood_result(
-                    neighbourhood,
+                decorate_composition_result(
+                    composition,
                     &mut result,
-                    agent_archetypes,
+                    agent_groups,
                     &action_aggregates,
+                    flows,
                     target_ticks,
+                    prepared.tick_hours,
                     true,
                 )?;
             }
             let mut detailed_outputs = if let Some(archetype) = archetype {
                 calculate_outputs(archetype, &result)?
             } else {
-                calculate_output_definitions(output_definitions, &result)?
+                calculate_output_definitions(&output_definitions, &result)?
             };
             let outputs = function
                 .outputs

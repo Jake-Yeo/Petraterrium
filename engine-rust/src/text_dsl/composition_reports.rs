@@ -1,0 +1,422 @@
+use super::archetypes::{MetricSummary, calculate_output_definitions};
+use super::compositions::ExecutedFlow;
+use super::model::*;
+use std::collections::{BTreeMap, BTreeSet};
+
+pub(super) fn decorate_composition_result(
+    composition: &CompositionDefinition,
+    result: &mut DslRunResult,
+    agent_groups: &BTreeMap<String, String>,
+    action_aggregates: &BTreeMap<String, String>,
+    flows: &[ExecutedFlow],
+    ticks: u64,
+    tick_hours: f64,
+    record_actions: bool,
+) -> DslResult<()> {
+    let legacy = composition.report_id == "neighbourhoods";
+    if !flows.is_empty() {
+        result.reports.push(flow_report(flows, ticks));
+    }
+    let outputs = calculate_output_definitions(&composition.outputs, result)?;
+    result
+        .reports
+        .insert(0, composition_report(composition, &outputs, result, ticks));
+    result.reports.push(cross_group_report(
+        composition,
+        result,
+        agent_groups,
+        action_aggregates,
+        ticks,
+    ));
+    if !legacy {
+        result.reports.push(child_composition_report(
+            composition,
+            result,
+            agent_groups,
+            action_aggregates,
+            ticks,
+            tick_hours,
+        )?);
+    }
+    result.results_subtitle = if legacy {
+        format!("{} neighbourhood aggregates", composition.id)
+    } else {
+        format!("{} {} aggregates", composition.id, composition.level)
+    };
+    if !record_actions {
+        result.actions.clear();
+    }
+    Ok(())
+}
+
+fn composition_report(
+    composition: &CompositionDefinition,
+    outputs: &BTreeMap<String, MetricSummary>,
+    result: &DslRunResult,
+    ticks: u64,
+) -> DslReport {
+    let mut columns = vec![ReportColumnDefinition {
+        id: "population".to_owned(),
+        label: "Population".to_owned(),
+        format: "integer".to_owned(),
+        metric: ReportMetric::Count,
+        line: composition.line,
+    }];
+    let mut values = BTreeMap::from([(
+        "population".to_owned(),
+        DslReportValue::Number(result.state.agents.len() as f64),
+    )]);
+    for output in &composition.outputs {
+        let summary = &outputs[&output.id];
+        columns.push(ReportColumnDefinition {
+            id: output.id.clone(),
+            label: output.id.replace('_', " "),
+            format: "decimal".to_owned(),
+            metric: output.metric.clone(),
+            line: output.line,
+        });
+        values.insert(output.id.clone(), DslReportValue::Number(summary.mean));
+        if output.spread {
+            let id = format!("{}_sd", output.id);
+            columns.push(ReportColumnDefinition {
+                id: id.clone(),
+                label: id.replace('_', " "),
+                format: "decimal".to_owned(),
+                metric: output.metric.clone(),
+                line: output.line,
+            });
+            values.insert(id, DslReportValue::Number(summary.standard_deviation));
+        }
+    }
+    DslReport {
+        id: composition.report_id.clone(),
+        title: composition.report_title.clone(),
+        group_by: if composition.report_id == "neighbourhoods" {
+            "neighbourhood".to_owned()
+        } else {
+            composition.level.clone()
+        },
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns,
+        snapshots: vec![DslReportSnapshot {
+            tick: ticks,
+            rows: vec![DslReportRow {
+                group_id: composition.id.clone(),
+                values,
+            }],
+        }],
+    }
+}
+
+fn child_composition_report(
+    composition: &CompositionDefinition,
+    result: &DslRunResult,
+    agent_groups: &BTreeMap<String, String>,
+    action_aggregates: &BTreeMap<String, String>,
+    ticks: u64,
+    tick_hours: f64,
+) -> DslResult<DslReport> {
+    let mut columns = vec![ReportColumnDefinition {
+        id: "population".to_owned(),
+        label: "Population".to_owned(),
+        format: "integer".to_owned(),
+        metric: ReportMetric::Count,
+        line: composition.line,
+    }];
+    for output in &composition.outputs {
+        columns.push(ReportColumnDefinition {
+            id: output.id.clone(),
+            label: output.id.replace('_', " "),
+            format: "decimal".to_owned(),
+            metric: output.metric.clone(),
+            line: output.line,
+        });
+        if output.spread {
+            let id = format!("{}_sd", output.id);
+            columns.push(ReportColumnDefinition {
+                id: id.clone(),
+                label: id.replace('_', " "),
+                format: "decimal".to_owned(),
+                metric: output.metric.clone(),
+                line: output.line,
+            });
+        }
+    }
+    let mut rows = Vec::new();
+    for entry in &composition.entries {
+        let ids = result
+            .state
+            .agents
+            .iter()
+            .filter(|agent| agent_groups.get(&agent.id) == Some(&entry.child))
+            .map(|agent| agent.id.as_str())
+            .collect::<BTreeSet<_>>();
+        let filtered = filtered_result(result, &ids);
+        let mut outputs = calculate_output_definitions(&composition.outputs, &filtered)?;
+        for output in &composition.outputs {
+            if let ReportMetric::ActionCount { aggregate, window } = &output.metric {
+                let first_tick = match window.as_str() {
+                    "tick" => ticks,
+                    "day" => ticks.saturating_sub((24.0 / tick_hours).round() as u64 - 1),
+                    _ => 0,
+                };
+                let count = filtered
+                    .actions
+                    .iter()
+                    .filter(|action| action.tick >= first_tick)
+                    .filter(|action| {
+                        action_aggregates.get(&action.action).map(String::as_str)
+                            == Some(aggregate.as_str())
+                    })
+                    .count() as f64;
+                outputs.insert(
+                    output.id.clone(),
+                    MetricSummary {
+                        mean: count,
+                        standard_deviation: 0.0,
+                    },
+                );
+            }
+        }
+        let mut values = BTreeMap::from([(
+            "population".to_owned(),
+            DslReportValue::Number(filtered.state.agents.len() as f64),
+        )]);
+        for output in &composition.outputs {
+            let summary = &outputs[&output.id];
+            values.insert(output.id.clone(), DslReportValue::Number(summary.mean));
+            if output.spread {
+                values.insert(
+                    format!("{}_sd", output.id),
+                    DslReportValue::Number(summary.standard_deviation),
+                );
+            }
+        }
+        rows.push(DslReportRow {
+            group_id: entry.child.clone(),
+            values,
+        });
+    }
+    Ok(DslReport {
+        id: "composition_children".to_owned(),
+        title: format!("{} children", composition.id),
+        group_by: "composition_child".to_owned(),
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns,
+        snapshots: vec![DslReportSnapshot { tick: ticks, rows }],
+    })
+}
+
+fn filtered_result(result: &DslRunResult, ids: &BTreeSet<&str>) -> DslRunResult {
+    let selected_indices = result
+        .state
+        .agents
+        .iter()
+        .enumerate()
+        .filter(|(_, agent)| ids.contains(agent.id.as_str()))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    DslRunResult {
+        completed_ticks: result.completed_ticks,
+        state: DslRunState {
+            completed_ticks: result.state.completed_ticks,
+            agents: selected_indices
+                .iter()
+                .map(|index| result.state.agents[*index].clone())
+                .collect(),
+            places: result.state.places.clone(),
+            relationships: result
+                .state
+                .relationships
+                .iter()
+                .filter(|relationship| {
+                    ids.contains(relationship.source_id.as_str())
+                        && ids.contains(relationship.target_id.as_str())
+                })
+                .cloned()
+                .collect(),
+            time: selected_indices
+                .iter()
+                .map(|index| result.state.time[*index].clone())
+                .collect(),
+        },
+        actions: result
+            .actions
+            .iter()
+            .filter(|action| ids.contains(action.agent_id.as_str()))
+            .cloned()
+            .collect(),
+        results_title: result.results_title.clone(),
+        results_subtitle: result.results_subtitle.clone(),
+        reports: result.reports.clone(),
+    }
+}
+
+fn cross_group_report(
+    composition: &CompositionDefinition,
+    result: &DslRunResult,
+    agent_groups: &BTreeMap<String, String>,
+    action_aggregates: &BTreeMap<String, String>,
+    ticks: u64,
+) -> DslReport {
+    let mut counts = BTreeMap::<(String, String), BTreeMap<String, u64>>::new();
+    for action in &result.actions {
+        let Some(target_id) = &action.target_id else {
+            continue;
+        };
+        let Some(source) = agent_groups.get(&action.agent_id) else {
+            continue;
+        };
+        let Some(target) = agent_groups.get(target_id) else {
+            continue;
+        };
+        if source == target {
+            continue;
+        }
+        let aggregate = action_aggregates
+            .get(&action.action)
+            .cloned()
+            .unwrap_or_else(|| action.action.clone());
+        *counts
+            .entry((source.clone(), target.clone()))
+            .or_default()
+            .entry(aggregate)
+            .or_default() += 1;
+    }
+    let population = result.state.agents.len().max(1) as f64;
+    let rows = counts
+        .into_iter()
+        .map(|((source, target), counts)| {
+            let total = counts.values().sum::<u64>();
+            DslReportRow {
+                group_id: format!("{source} → {target}"),
+                values: BTreeMap::from([
+                    ("count".to_owned(), DslReportValue::Number(total as f64)),
+                    (
+                        "rates_per_1000".to_owned(),
+                        DslReportValue::Rates(
+                            counts
+                                .into_iter()
+                                .map(|(action, count)| (action, count as f64 / population * 1000.0))
+                                .collect(),
+                        ),
+                    ),
+                    (
+                        "selection_index".to_owned(),
+                        DslReportValue::Text("place_membership".to_owned()),
+                    ),
+                ]),
+            }
+        })
+        .collect();
+    let legacy = composition.interaction_report_id == "cross_archetype_interactions";
+    DslReport {
+        id: composition.interaction_report_id.clone(),
+        title: if legacy {
+            "Cross-archetype interactions"
+        } else {
+            "Cross-composition interactions"
+        }
+        .to_owned(),
+        group_by: if legacy {
+            "archetype_pair"
+        } else {
+            "composition_pair"
+        }
+        .to_owned(),
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns: vec![
+            ReportColumnDefinition {
+                id: "count".to_owned(),
+                label: "Interactions".to_owned(),
+                format: "integer".to_owned(),
+                metric: ReportMetric::Count,
+                line: 1,
+            },
+            ReportColumnDefinition {
+                id: "rates_per_1000".to_owned(),
+                label: "Rates / 1,000".to_owned(),
+                format: "action_rates".to_owned(),
+                metric: ReportMetric::ActionRates {
+                    per: 1000.0,
+                    window: "run".to_owned(),
+                },
+                line: 1,
+            },
+            ReportColumnDefinition {
+                id: "selection_index".to_owned(),
+                label: "Target index".to_owned(),
+                format: "number".to_owned(),
+                metric: ReportMetric::Count,
+                line: 1,
+            },
+        ],
+        snapshots: vec![DslReportSnapshot { tick: ticks, rows }],
+    }
+}
+
+fn flow_report(flows: &[ExecutedFlow], ticks: u64) -> DslReport {
+    let rows = flows
+        .iter()
+        .map(|flow| DslReportRow {
+            group_id: flow.id.clone(),
+            values: BTreeMap::from([
+                (
+                    "source".to_owned(),
+                    DslReportValue::Text(flow.source.clone()),
+                ),
+                (
+                    "target".to_owned(),
+                    DslReportValue::Text(flow.target.clone()),
+                ),
+                (
+                    "effect".to_owned(),
+                    DslReportValue::Text(flow.effect.clone()),
+                ),
+                (
+                    "via".to_owned(),
+                    DslReportValue::Text(flow.via.clone().unwrap_or_default()),
+                ),
+                (
+                    "households".to_owned(),
+                    DslReportValue::Number(flow.households as f64),
+                ),
+                (
+                    "count".to_owned(),
+                    DslReportValue::Number(flow.agents as f64),
+                ),
+                ("rate".to_owned(), DslReportValue::Number(flow.rate)),
+            ]),
+        })
+        .collect();
+    let columns = [
+        ("source", "Origin", "number"),
+        ("target", "Destination", "number"),
+        ("effect", "Effect", "number"),
+        ("via", "Shared place", "number"),
+        ("households", "Households", "integer"),
+        ("count", "Agents", "integer"),
+        ("rate", "Rate", "percent"),
+    ]
+    .into_iter()
+    .map(|(id, label, format)| ReportColumnDefinition {
+        id: id.to_owned(),
+        label: label.to_owned(),
+        format: format.to_owned(),
+        metric: ReportMetric::Count,
+        line: 1,
+    })
+    .collect();
+    DslReport {
+        id: "composition_flows".to_owned(),
+        title: "Composition boundary flows".to_owned(),
+        group_by: "flow".to_owned(),
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns,
+        snapshots: vec![DslReportSnapshot { tick: ticks, rows }],
+    }
+}

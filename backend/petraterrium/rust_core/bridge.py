@@ -176,6 +176,8 @@ class RustCoreClient:
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
+        composition_id: str | None = None,
+        composition_population_id: str | None = None,
         neighbourhood_id: str | None = None,
         neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
@@ -189,6 +191,10 @@ class RustCoreClient:
             request["continuation"] = dict(continuation)
         if population_id is not None:
             request["population_id"] = population_id
+        if composition_id is not None:
+            request["composition_id"] = composition_id
+        if composition_population_id is not None:
+            request["composition_population_id"] = composition_population_id
         if neighbourhood_id is not None:
             request["neighbourhood_id"] = neighbourhood_id
         if neighbourhood_population_id is not None:
