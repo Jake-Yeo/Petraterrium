@@ -1,6 +1,9 @@
 use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
+use super::neighbourhood_parser::{
+    parse_neighbourhood, parse_neighbourhood_population, validate_neighbourhoods,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -31,6 +34,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut archetypes = Vec::new();
     let mut weighted_populations = Vec::new();
     let mut aggregate_functions = Vec::new();
+    let mut neighbourhoods = Vec::new();
+    let mut neighbourhood_populations = Vec::new();
     let mut index = 1;
     while index < lines.len() {
         let line = &lines[index];
@@ -97,6 +102,14 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         } else if let Some(name) = block_name(&line.text, "aggregate_function") {
             let (value, next) = parse_aggregate_function(&lines, index, name)?;
             aggregate_functions.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "neighbourhood") {
+            let (value, next) = parse_neighbourhood(&lines, index, name)?;
+            neighbourhoods.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "neighbourhood_population") {
+            let (value, next) = parse_neighbourhood_population(&lines, index, name)?;
+            neighbourhood_populations.push(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "decision") {
             let (value, next) = parse_decision(&lines, index, name)?;
@@ -172,6 +185,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         archetypes,
         weighted_populations,
         aggregate_functions,
+        neighbourhoods,
+        neighbourhood_populations,
     };
     validate_program(&program)?;
     Ok(program)
@@ -784,7 +799,10 @@ fn parse_archetype_composition(line: &Line) -> DslResult<ArchetypeCompositionGro
     })
 }
 
-fn parse_archetype_output(value: &str, line: usize) -> DslResult<ArchetypeOutputDefinition> {
+pub(super) fn parse_archetype_output(
+    value: &str,
+    line: usize,
+) -> DslResult<ArchetypeOutputDefinition> {
     let Some((id, metric)) = value.split_once(" = ") else {
         return Err(DslError::new(
             "INVALID_ARCHETYPE_OUTPUT",
@@ -1900,6 +1918,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
             output_ids = Some(current_outputs);
         }
     }
+    validate_neighbourhoods(program)?;
     validate_aggregate_functions(program)?;
     validate_inheritance_cycles(&agents)?;
     Ok(())

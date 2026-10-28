@@ -91,6 +91,10 @@ class TextDslService:
             aggregate_functions=tuple(
                 dict(value) for value in result.get("aggregate_functions", [])
             ),
+            neighbourhoods=tuple(str(value) for value in result.get("neighbourhoods", [])),
+            neighbourhood_populations=tuple(
+                str(value) for value in result.get("neighbourhood_populations", [])
+            ),
             diagnostics=diagnostics,
         )
         self._validation_cache[source_hash] = validation
@@ -132,11 +136,15 @@ class TextDslService:
         tick_hours = document.validation.tick_hours or 1
         ticks = round(request.days * 24 / tick_hours)
         population_id = getattr(request, "population_id", None)
+        neighbourhood_id = getattr(request, "neighbourhood_id", None)
+        neighbourhood_population_id = getattr(request, "neighbourhood_population_id", None)
         result = self.rust.run_text_dsl(
             document.code,
             seed=request.seed,
             ticks=ticks,
             population_id=population_id,
+            neighbourhood_id=neighbourhood_id,
+            neighbourhood_population_id=neighbourhood_population_id,
         )
         run_id = uuid.uuid4().hex
         created_at = datetime.now(UTC).isoformat()
@@ -153,6 +161,8 @@ class TextDslService:
         adult_population = (
             sum(agent.get("parent_id") is None for agent in agents)
             if population_id is not None
+            or neighbourhood_id is not None
+            or neighbourhood_population_id is not None
             else document.validation.adult_population or 0
         )
         response = TextDslRunResult(
@@ -164,7 +174,15 @@ class TextDslService:
             adult_population=adult_population,
             total_agents=len(agents),
             generated_children=max(0, len(agents) - adult_population),
-            population_id=population_id,
+            population_id=(
+                population_id
+                if neighbourhood_id is None and neighbourhood_population_id is None
+                else (
+                    f"neighbourhood:{neighbourhood_id}"
+                    if neighbourhood_id is not None
+                    else f"neighbourhood_population:{neighbourhood_population_id}"
+                )
+            ),
             results_title=str(result.get("results_title", "Results")),
             results_subtitle=str(result.get("results_subtitle", "")),
             reports=reports,

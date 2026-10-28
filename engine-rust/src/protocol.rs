@@ -6,8 +6,8 @@ use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
     AggregateEvaluationProtocolRequest, DslRunRequest, TextDslProtocolRequest,
-    TextDslValidateRequest, evaluate_aggregate_function, parse_program, run_program,
-    run_weighted_population,
+    TextDslValidateRequest, evaluate_aggregate_function, parse_program, run_neighbourhood,
+    run_program, run_weighted_neighbourhood_population, run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -89,6 +89,8 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "aggregate_functions": program.aggregate_functions,
+                "neighbourhoods": program.neighbourhoods.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "neighbourhood_populations": program.neighbourhood_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "diagnostics": [],
             })),
             Err(error) => Ok(json!({
@@ -98,7 +100,15 @@ pub fn execute(request: Request) -> CoreResult<Value> {
         },
         Request::RunTextDsl(request) => {
             let program = parse_program(&request.source).map_err(text_dsl_error)?;
-            let result = if let Some(population_id) = request.population_id {
+            let composition_count = usize::from(request.population_id.is_some())
+                + usize::from(request.neighbourhood_id.is_some())
+                + usize::from(request.neighbourhood_population_id.is_some());
+            let result = if composition_count > 1 {
+                return Err(CoreError::new(
+                    "MULTIPLE_COMPOSITIONS",
+                    "Choose either a weighted population or a neighbourhood",
+                ));
+            } else if let Some(population_id) = request.population_id {
                 if request.continuation.is_some() {
                     return Err(CoreError::new(
                         "WEIGHTED_CONTINUATION_UNSUPPORTED",
@@ -107,6 +117,29 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 }
                 run_weighted_population(program, &population_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
+            } else if let Some(neighbourhood_id) = request.neighbourhood_id {
+                if request.continuation.is_some() {
+                    return Err(CoreError::new(
+                        "NEIGHBOURHOOD_CONTINUATION_UNSUPPORTED",
+                        "Neighbourhood runs do not accept a continuation checkpoint",
+                    ));
+                }
+                run_neighbourhood(program, &neighbourhood_id, request.seed, request.ticks)
+                    .map_err(text_dsl_error)?
+            } else if let Some(population_id) = request.neighbourhood_population_id {
+                if request.continuation.is_some() {
+                    return Err(CoreError::new(
+                        "NEIGHBOURHOOD_POPULATION_CONTINUATION_UNSUPPORTED",
+                        "Weighted neighbourhood runs do not accept a continuation checkpoint",
+                    ));
+                }
+                run_weighted_neighbourhood_population(
+                    program,
+                    &population_id,
+                    request.seed,
+                    request.ticks,
+                )
+                .map_err(text_dsl_error)?
             } else {
                 run_program(DslRunRequest {
                     program,

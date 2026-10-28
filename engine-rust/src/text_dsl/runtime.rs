@@ -156,6 +156,7 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
     let run_start_tick = state.completed_ticks + 1;
     let final_tick = state.completed_ticks + request.ticks;
     for tick in state.completed_ticks + 1..=final_tick {
+        let place_members = place_membership(&state.agents);
         let mut completed_actions = Vec::new();
         for agent_index in 0..state.agents.len() {
             let selected_action = if state.time[agent_index].active_primary.is_none()
@@ -234,6 +235,7 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
                 request.seed,
                 tick,
                 occurrence_index,
+                &place_members,
             )?;
             if action.definition.target.is_some() && target.is_none() {
                 continue;
@@ -251,10 +253,19 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
                 self_decisions[agent_index] = Some(next.clone());
             }
             if let (Some(target_index), Some(next)) = (target, &outcome.target_next_decision) {
-                target_decisions[target_index] = Some(next.clone());
+                target_decisions[target_index] = Some(target_scoped_decision(
+                    next,
+                    &state.agents[target_index].agent_type,
+                ));
             }
             for effect in &outcome.effects {
-                effects.extend(expand_effect(effect, &state, agent_index, target)?);
+                effects.extend(expand_effect(
+                    effect,
+                    &state,
+                    agent_index,
+                    target,
+                    &place_members,
+                )?);
             }
             let place = state.agents[agent_index]
                 .place()
@@ -312,6 +323,16 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
         results_subtitle: program.results_subtitle.clone(),
         reports,
     })
+}
+
+fn target_scoped_decision(decision: &str, target_agent_type: &str) -> String {
+    let Some((target_namespace, _)) = target_agent_type.rsplit_once("__") else {
+        return decision.to_owned();
+    };
+    let Some((_, decision_id)) = decision.rsplit_once("__") else {
+        return decision.to_owned();
+    };
+    format!("{target_namespace}__{decision_id}")
 }
 
 fn choose_population_type<'a>(program: &'a Program, seed: u64, index: usize) -> DslResult<&'a str> {
@@ -609,6 +630,7 @@ fn select_target(
     seed: u64,
     tick: u64,
     occurrence: u64,
+    place_members: &BTreeMap<String, Vec<usize>>,
 ) -> DslResult<Option<usize>> {
     let Some(selector) = &action.target else {
         return Ok(None);
@@ -620,11 +642,32 @@ fn select_target(
         | TargetSelector::Enemy { place }
         | TargetSelector::Strongest { place, .. } => place,
     };
-    let mut candidates = state
-        .agents
-        .iter()
-        .enumerate()
-        .filter(|(index, agent)| *index != source_index && agent.place() == Some(place.as_str()))
+    if matches!(selector, TargetSelector::Random { filter: None, .. }) {
+        let Some(members) = place_members.get(place) else {
+            return Ok(None);
+        };
+        let source_position = members.binary_search(&source_index).ok();
+        let candidate_count = members.len() - usize::from(source_position.is_some());
+        if candidate_count == 0 {
+            return Ok(None);
+        }
+        let draw = keyed_draw(
+            seed,
+            &format!("{}:{tick}:{}:{occurrence}:target", source.id, action.id),
+        );
+        let mut selected = (draw * candidate_count as f64) as usize % candidate_count;
+        if source_position.is_some_and(|position| selected >= position) {
+            selected += 1;
+        }
+        return Ok(Some(members[selected]));
+    }
+    let mut candidates = place_members
+        .get(place)
+        .into_iter()
+        .flatten()
+        .copied()
+        .filter(|index| *index != source_index)
+        .map(|index| (index, &state.agents[index]))
         .filter(|(_, agent)| match selector {
             TargetSelector::Random { filter, .. } => filter
                 .as_ref()
@@ -749,6 +792,7 @@ fn expand_effect(
     state: &DslRunState,
     source_index: usize,
     target_index: Option<usize>,
+    place_members: &BTreeMap<String, Vec<usize>>,
 ) -> DslResult<Vec<PendingEffect>> {
     let source = &state.agents[source_index];
     let target = target_index.map(|index| &state.agents[index]);
@@ -767,10 +811,8 @@ fn expand_effect(
             }
         }
         EffectScope::AllAt { place, filter } => {
-            for (index, agent) in state.agents.iter().enumerate() {
-                if agent.place() != Some(place.as_str()) {
-                    continue;
-                }
+            for index in place_members.get(place).into_iter().flatten().copied() {
+                let agent = &state.agents[index];
                 if filter.as_ref().is_some_and(|filter| {
                     let context =
                         runtime_context(agent, Some(source), None, state.completed_ticks + 1, 1.0)
@@ -806,6 +848,16 @@ fn expand_effect(
             value: value.clone(),
         })
         .collect())
+}
+
+fn place_membership(agents: &[DslAgentState]) -> BTreeMap<String, Vec<usize>> {
+    let mut places = BTreeMap::<String, Vec<usize>>::new();
+    for (index, agent) in agents.iter().enumerate() {
+        if let Some(place) = agent.place() {
+            places.entry(place.to_owned()).or_default().push(index);
+        }
+    }
+    places
 }
 
 fn apply_effect(

@@ -176,6 +176,8 @@ class RustCoreClient:
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
+        neighbourhood_id: str | None = None,
+        neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
         request: dict[str, Any] = {
             "operation": "run_text_dsl",
@@ -187,6 +189,10 @@ class RustCoreClient:
             request["continuation"] = dict(continuation)
         if population_id is not None:
             request["population_id"] = population_id
+        if neighbourhood_id is not None:
+            request["neighbourhood_id"] = neighbourhood_id
+        if neighbourhood_population_id is not None:
+            request["neighbourhood_population_id"] = neighbourhood_population_id
         return self.call(request)
 
     def evaluate_text_dsl_aggregate(

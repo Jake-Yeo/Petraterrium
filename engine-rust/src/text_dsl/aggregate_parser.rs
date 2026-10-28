@@ -309,6 +309,11 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
         .iter()
         .map(|item| (item.id.as_str(), item))
         .collect::<BTreeMap<_, _>>();
+    let neighbourhoods = program
+        .neighbourhoods
+        .iter()
+        .map(|item| (item.id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
     let actions = program
         .actions
         .iter()
@@ -334,16 +339,18 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
                 format!("Duplicate aggregate function {}", function.id),
             ));
         }
-        let archetype = archetypes.get(function.id.as_str()).ok_or_else(|| {
-            DslError::new(
-                "UNKNOWN_AGGREGATE_ARCHETYPE",
+        let archetype = archetypes.get(function.id.as_str()).copied();
+        let neighbourhood = neighbourhoods.get(function.id.as_str()).copied();
+        if archetype.is_none() && neighbourhood.is_none() {
+            return Err(DslError::new(
+                "UNKNOWN_AGGREGATE_BRANCH",
                 function.line,
                 format!(
-                    "Aggregate function references unknown archetype {}",
+                    "Aggregate function references unknown archetype or neighbourhood {}",
                     function.id
                 ),
-            )
-        })?;
+            ));
+        }
         if function.inputs.is_empty() || function.outputs.is_empty() {
             return Err(DslError::new(
                 "EMPTY_AGGREGATE_FUNCTION",
@@ -395,7 +402,19 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
         let fields = base_fields
             .iter()
             .cloned()
-            .chain(archetype.initial.iter().map(|item| item.field.clone()))
+            .chain(
+                archetype
+                    .into_iter()
+                    .flat_map(|item| item.initial.iter().map(|item| item.field.clone())),
+            )
+            .chain(neighbourhood.into_iter().flat_map(|neighbourhood| {
+                neighbourhood.households.iter().flat_map(|entry| {
+                    archetypes[entry.archetype.as_str()]
+                        .initial
+                        .iter()
+                        .map(|item| item.field.clone())
+                })
+            }))
             .collect::<BTreeSet<_>>();
         for effect in &function.effects {
             match &effect.target {
@@ -417,8 +436,11 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
             }
             validate_references(&effect.value, &input_ids, effect.line)?;
         }
-        let archetype_outputs = archetype
-            .outputs
+        let branch_outputs = archetype
+            .map(|item| &item.outputs)
+            .or_else(|| neighbourhood.map(|item| &item.outputs))
+            .unwrap();
+        let archetype_outputs = branch_outputs
             .iter()
             .map(|output| output.id.as_str())
             .collect::<BTreeSet<_>>();

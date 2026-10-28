@@ -110,7 +110,7 @@ test('learns, reuses, and invalidates an aggregate cache from DSL text', async (
   await page.getByLabel('Aggregate function').selectOption('HouseholdLiberalUrban');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Relearn detailed' }).click();
-  await expect(page.getByRole('status')).toContainText('Detailed relearn');
+  await expect(page.getByRole('status')).toContainText('Detailed relearn', { timeout: 15_000 });
   await expect(page.getByRole('status')).not.toContainText('· 0 agent ticks');
 
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
@@ -127,4 +127,35 @@ test('learns, reuses, and invalidates an aggregate cache from DSL text', async (
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Detailed relearn');
   await expect(page.getByText('dsl_source_hash_changed')).toBeVisible();
+});
+
+test('runs shared-place neighbourhoods and their cached aggregate', async ({ page }) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/neighbourhood UrbanLiberal:/);
+  await page.getByLabel('Population').selectOption('neighbourhood:UrbanLiberal');
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'UrbanLiberal neighbourhood aggregates' }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cross-archetype interactions' })).toBeVisible();
+  await expect(page.getByText('place_membership').first()).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(
+    source.replace('HouseholdLiberalUrban: weight = 60', 'HouseholdLiberalUrban: weight = 80'),
+  );
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('neighbourhood:UrbanLiberal');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('UrbanLiberal');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Relearn detailed' }).click();
+  await expect(page.getByRole('status')).toContainText('Detailed relearn', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  await expect(page.getByText('CACHED FAST-FORWARD')).toBeVisible();
 });

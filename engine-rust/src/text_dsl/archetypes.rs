@@ -302,11 +302,17 @@ pub(super) fn calculate_outputs(
     archetype: &ArchetypeDefinition,
     result: &DslRunResult,
 ) -> DslResult<BTreeMap<String, MetricSummary>> {
-    archetype
-        .outputs
+    calculate_output_definitions(&archetype.outputs, result)
+}
+
+pub(super) fn calculate_output_definitions(
+    outputs: &[ArchetypeOutputDefinition],
+    result: &DslRunResult,
+) -> DslResult<BTreeMap<String, MetricSummary>> {
+    outputs
         .iter()
         .map(|output| {
-            let values = match &output.metric {
+            let mut values = match &output.metric {
                 ReportMetric::Mean { field } => result
                     .state
                     .agents
@@ -318,6 +324,9 @@ pub(super) fn calculate_outputs(
                 ReportMetric::ActionCount { .. } => report_metric_values(result, &output.metric),
                 _ => Vec::new(),
             };
+            if values.is_empty() && matches!(output.metric, ReportMetric::ActionCount { .. }) {
+                values.push(0.0);
+            }
             if values.is_empty() {
                 return Err(DslError::new(
                     "EMPTY_ARCHETYPE_METRIC",
@@ -369,7 +378,7 @@ pub(super) fn calculate_aggregate_metric(
     metric: &ReportMetric,
     line: usize,
 ) -> DslResult<MetricSummary> {
-    let values = match metric {
+    let mut values = match metric {
         ReportMetric::Mean { field } => result
             .state
             .agents
@@ -379,6 +388,9 @@ pub(super) fn calculate_aggregate_metric(
         ReportMetric::ActionCount { .. } => report_metric_values(result, metric),
         _ => Vec::new(),
     };
+    if values.is_empty() && matches!(metric, ReportMetric::ActionCount { .. }) {
+        values.push(0.0);
+    }
     if values.is_empty() {
         return Err(DslError::new(
             "EMPTY_AGGREGATE_METRIC",

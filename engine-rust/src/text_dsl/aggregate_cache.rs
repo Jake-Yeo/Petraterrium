@@ -1,8 +1,10 @@
 use super::archetypes::{
-    MetricSummary, build_archetype_state, calculate_aggregate_metric, calculate_outputs,
+    MetricSummary, build_archetype_state, calculate_aggregate_metric, calculate_output_definitions,
+    calculate_outputs,
 };
 use super::expression::evaluate;
 use super::model::*;
+use super::neighbourhoods::{build_neighbourhood_state, decorate_neighbourhood_result};
 use super::runtime::run_program;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -97,31 +99,70 @@ fn learn_aggregate_function(
     let archetype = program
         .archetypes
         .iter()
-        .find(|item| item.id == function.id)
-        .ok_or_else(|| {
-            DslError::new(
-                "UNKNOWN_AGGREGATE_ARCHETYPE",
-                function.line,
-                format!("Aggregate function {} has no archetype", function.id),
-            )
-        })?;
+        .find(|item| item.id == function.id);
+    let neighbourhood = program
+        .neighbourhoods
+        .iter()
+        .find(|item| item.id == function.id);
     let mut points = Vec::new();
     let mut learning_agent_ticks = 0_u64;
     for inputs in input_grid(&function.inputs) {
-        let (mut prepared, mut state, _) = build_archetype_state(program, archetype, seed)?;
+        let (mut prepared, mut state, output_definitions, agent_archetypes) =
+            if let Some(archetype) = archetype {
+                let (prepared, state, _) = build_archetype_state(program, archetype, seed)?;
+                (prepared, state, &archetype.outputs, None)
+            } else if let Some(neighbourhood) = neighbourhood {
+                let build = build_neighbourhood_state(program, neighbourhood, seed)?;
+                (
+                    build.program,
+                    build.state,
+                    &neighbourhood.outputs,
+                    Some(build.agent_archetypes),
+                )
+            } else {
+                return Err(DslError::new(
+                    "UNKNOWN_AGGREGATE_BRANCH",
+                    function.line,
+                    format!(
+                        "Aggregate function {} has no simulation branch",
+                        function.id
+                    ),
+                ));
+            };
+        let action_aggregates = prepared
+            .actions
+            .iter()
+            .map(|action| (action.id.clone(), action.aggregate.clone()))
+            .collect::<BTreeMap<_, _>>();
         apply_effects(&mut prepared, &mut state, function, &inputs)?;
         let mut completed_ticks = 0_u64;
         for day in &function.time_points {
             let target_ticks = u64::from(*day) * ticks_per_day(program.tick_hours);
             let delta_ticks = target_ticks - completed_ticks;
             learning_agent_ticks += state.agents.len() as u64 * delta_ticks;
-            let result = run_program(DslRunRequest::resume(
+            let mut result = run_program(DslRunRequest::resume(
                 prepared.clone(),
                 grid_seed(seed, &inputs),
                 delta_ticks,
                 state,
             ))?;
-            let mut detailed_outputs = calculate_outputs(archetype, &result)?;
+            if let (Some(neighbourhood), Some(agent_archetypes)) =
+                (neighbourhood, agent_archetypes.as_ref())
+            {
+                decorate_neighbourhood_result(
+                    neighbourhood,
+                    &mut result,
+                    agent_archetypes,
+                    &action_aggregates,
+                    target_ticks,
+                    true,
+                )?;
+            }
+            let mut detailed_outputs = if let Some(archetype) = archetype {
+                calculate_outputs(archetype, &result)?
+            } else {
+                calculate_output_definitions(output_definitions, &result)?
+            };
             let outputs = function
                 .outputs
                 .iter()
@@ -204,7 +245,13 @@ fn apply_effects(
                     .decisions
                     .iter_mut()
                     .flat_map(|decision| &mut decision.branches)
-                    .filter(|branch| branch.action == *action)
+                    .filter(|branch| {
+                        branch.action == *action
+                            || branch
+                                .action
+                                .rsplit_once("__")
+                                .is_some_and(|(_, id)| id == action)
+                    })
                 {
                     branch.probability = match effect.operation.as_str() {
                         "=" => Expr::Value(DslValue::Number(value)),

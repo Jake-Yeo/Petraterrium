@@ -175,6 +175,29 @@ pub struct WeightedPopulationDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct NeighbourhoodDefinition {
+    pub id: String,
+    pub households: Vec<WeightedPopulationEntry>,
+    pub places: Vec<String>,
+    pub outputs: Vec<ArchetypeOutputDefinition>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedNeighbourhoodEntry {
+    pub neighbourhood: String,
+    pub weight: u64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedNeighbourhoodPopulation {
+    pub id: String,
+    pub entries: Vec<WeightedNeighbourhoodEntry>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AggregateInputDefinition {
     pub id: String,
     pub default: f64,
@@ -364,6 +387,8 @@ pub struct Program {
     pub archetypes: Vec<ArchetypeDefinition>,
     pub weighted_populations: Vec<WeightedPopulationDefinition>,
     pub aggregate_functions: Vec<AggregateFunctionDefinition>,
+    pub neighbourhoods: Vec<NeighbourhoodDefinition>,
+    pub neighbourhood_populations: Vec<WeightedNeighbourhoodPopulation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -546,6 +571,10 @@ pub struct TextDslProtocolRequest {
     pub continuation: Option<DslRunState>,
     #[serde(default)]
     pub population_id: Option<String>,
+    #[serde(default)]
+    pub neighbourhood_id: Option<String>,
+    #[serde(default)]
+    pub neighbourhood_population_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

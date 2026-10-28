@@ -19,6 +19,8 @@ class FakeRustDsl:
     def __init__(self):
         self.validation_calls = 0
         self.last_population_id = None
+        self.last_neighbourhood_id = None
+        self.last_neighbourhood_population_id = None
 
     def validate_text_dsl(self, source: str):
         self.validation_calls += 1
@@ -41,8 +43,12 @@ class FakeRustDsl:
         ticks: int,
         continuation=None,
         population_id=None,
+        neighbourhood_id=None,
+        neighbourhood_population_id=None,
     ):
         self.last_population_id = population_id
+        self.last_neighbourhood_id = neighbourhood_id
+        self.last_neighbourhood_population_id = neighbourhood_population_id
         rate = 200 if "edited" in source else 100
         return {
             "engine_version": "test-rust",
@@ -202,6 +208,28 @@ def test_text_dsl_routes_return_code_validation_and_small_run(tmp_path):
     )
     assert weighted.status_code == 200
     assert dsl.rust.last_population_id == "Weighted"
+    neighbourhood = client.post(
+        "/simulation/text-dsl/runs",
+        json={
+            "seed": 1,
+            "days": 1,
+            "baseline_run_id": None,
+            "neighbourhood_id": "Shared",
+        },
+    )
+    assert neighbourhood.status_code == 200
+    assert dsl.rust.last_neighbourhood_id == "Shared"
+    neighbourhood_population = client.post(
+        "/simulation/text-dsl/runs",
+        json={
+            "seed": 1,
+            "days": 1,
+            "baseline_run_id": None,
+            "neighbourhood_population_id": "Districts",
+        },
+    )
+    assert neighbourhood_population.status_code == 200
+    assert dsl.rust.last_neighbourhood_population_id == "Districts"
 
 
 def test_legacy_fixed_aggregate_run_reopens_as_generic_reports(tmp_path):

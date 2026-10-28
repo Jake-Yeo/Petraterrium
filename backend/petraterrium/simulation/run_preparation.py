@@ -98,6 +98,8 @@ class LazyRustCoreClient:
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
+        neighbourhood_id: str | None = None,
+        neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             if self._client is None:
@@ -109,6 +111,8 @@ class LazyRustCoreClient:
             ticks=ticks,
             continuation=continuation,
             population_id=population_id,
+            neighbourhood_id=neighbourhood_id,
+            neighbourhood_population_id=neighbourhood_population_id,
         )
 
     def evaluate_text_dsl_aggregate(self, source: str, **request: Any) -> dict[str, Any]:

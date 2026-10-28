@@ -16,6 +16,8 @@ interface DslValidation {
   archetypes: string[];
   weighted_populations: string[];
   aggregate_functions: AggregateFunctionDefinition[];
+  neighbourhoods: string[];
+  neighbourhood_populations: string[];
   diagnostics: DslDiagnostic[];
 }
 
@@ -342,6 +344,14 @@ export class TextDslEditor {
     const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
     const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
     const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
+    const neighbourhoodId = populationId.startsWith('neighbourhood:')
+      ? populationId.slice('neighbourhood:'.length)
+      : null;
+    const neighbourhoodPopulationId = populationId.startsWith('neighbourhood_population:')
+      ? populationId.slice('neighbourhood_population:'.length)
+      : null;
+    const weightedPopulationId =
+      neighbourhoodId || neighbourhoodPopulationId ? null : populationId || null;
     this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
     try {
       this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
@@ -352,7 +362,9 @@ export class TextDslEditor {
           days,
           baseline_run_id:
             this.run?.population_id === (populationId || null) ? this.run.run_id : null,
-          population_id: populationId || null,
+          population_id: weightedPopulationId,
+          neighbourhood_id: neighbourhoodId,
+          neighbourhood_population_id: neighbourhoodPopulationId,
         }),
       });
       this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks.`;
@@ -442,7 +454,11 @@ export class TextDslEditor {
   }
 
   private renderValidation(validation: DslValidation): void {
-    this.renderPopulationOptions(validation.weighted_populations ?? []);
+    this.renderPopulationOptions(
+      validation.weighted_populations ?? [],
+      validation.neighbourhoods ?? [],
+      validation.neighbourhood_populations ?? [],
+    );
     this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
     if (validation.valid) {
@@ -469,14 +485,34 @@ export class TextDslEditor {
     this.updateButtons(validation);
   }
 
-  private renderPopulationOptions(populations: string[]): void {
+  private renderPopulationOptions(
+    populations: string[],
+    neighbourhoods: string[],
+    neighbourhoodPopulations: string[],
+  ): void {
     const select = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!;
     const selected = select.value;
     select.replaceChildren(new Option('Town', ''));
     for (const population of populations) {
       select.add(new Option(population, population));
     }
-    select.value = populations.includes(selected) ? selected : '';
+    for (const neighbourhood of neighbourhoods) {
+      select.add(new Option(`Neighbourhood · ${neighbourhood}`, `neighbourhood:${neighbourhood}`));
+    }
+    for (const population of neighbourhoodPopulations) {
+      select.add(
+        new Option(
+          `Neighbourhood population · ${population}`,
+          `neighbourhood_population:${population}`,
+        ),
+      );
+    }
+    const values = [
+      ...populations,
+      ...neighbourhoods.map((neighbourhood) => `neighbourhood:${neighbourhood}`),
+      ...neighbourhoodPopulations.map((population) => `neighbourhood_population:${population}`),
+    ];
+    select.value = values.includes(selected) ? selected : '';
   }
 
   private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {

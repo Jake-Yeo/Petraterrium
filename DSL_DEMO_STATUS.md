@@ -47,6 +47,14 @@
   time-series aggregate reports with cache status, validity, input hash, and DSL hash.
 - Threshold, time, event, forced, function, and DSL-source changes relearn only the selected
   archetype. Previous cache artifact versions remain available through the API.
+- DSL neighbourhoods compose weighted household archetypes into one detailed state with shared
+  places, shared place state, namespaced behaviour, and persistent cross-archetype relationships.
+- Target selection and all-at-place effects use a per-tick place-membership index. Cross-archetype
+  interaction counts and action rates are recorded without a global all-agent target scan.
+- Neighbourhood aggregate functions reuse the Prompt 2 learner, cache artifacts, invalidation
+  rules, time series, report interpolation, and zero-tick fast-forward path.
+- Weighted neighbourhood populations apply represented counts without expanding their detailed
+  neighbourhood cohorts.
 
 ## Implemented but narrower
 
@@ -61,8 +69,8 @@
   direct estimates and are intentionally not measurements or fitted claims.
 - The shipped household values are direct estimates. Each archetype simulates 20 sample
   households; represented household weights do not change simulated object count.
-- Archetype cohorts run separately, so cross-archetype meetings are outside this proof. Existing
-  shared-place interactions continue within each archetype cohort.
+- Household archetypes still run separately in weighted household mode. Neighbourhood mode joins
+  their agents so cross-archetype meetings occur at shared places within that neighbourhood.
 - Learning uses the two endpoints of every input range. With four inputs this is a 16-point grid,
   evaluated at DSL-defined time points using the existing detailed cohort runner.
 - Fast-forward beyond the learned 30-day horizon repeats the learned 30-day endpoint. It provides
@@ -75,9 +83,9 @@
 - Globe work, country polygons, graphs, inheritance visualizations, decision-tree visualizations,
   and visual drag-and-drop editors.
 - Any real-world calibration or prediction claim.
-- Neighbourhood, municipality, division, country, and world composition or flows.
+- Municipality, division, country, and world composition or flows.
 - Hierarchical time-loop feedback, convergence, and fast-forwarding across composed levels.
-- Cross-archetype meetings and interaction effects.
+- Inter-neighbourhood commuting and migration as a municipality-level system.
 - Archetype research/data imports, graph views, and visual archetype editors.
 
 ## Focused verification
@@ -97,12 +105,19 @@
   90-day fast-forward, and determinism tests: 5 passed in 0.77 seconds.
 - Python artifact persistence, cache reuse, and cache-version history tests: 5 passed.
 - Browser detailed-learn, zero-tick cache-hit, time-series, and DSL-hash invalidation demo: passed.
+- Generic neighbourhood parsing, shared targets/effects, persistent trust, exact weighting,
+  place-index scaling, cache invalidation, 300-agent monolith comparison, and determinism: 7 passed.
+- Synthetic place-index timing: `0.0048` seconds for 180 agents and `0.0142` seconds for 1,002.
+- Browser neighbourhood weight edit, shared-interaction report, detailed learn, and cache hit: passed.
 
 ## Performance
 
-- A 30-day Town API run completes in `0.384` seconds.
-- A 365-day Town API run completes in `4.167` seconds for 130 agents and 8,760 ticks.
-- The unchanged 30-day weighted archetype run completes in `0.434` seconds.
+- A 30-day Town API run completes in `0.383` seconds.
+- A 365-day Town API run completes in `4.096` seconds for 130 agents and 8,760 ticks.
+- The unchanged 30-day weighted archetype run completes in `0.436` seconds.
+- The 180-agent, 30-day detailed neighbourhood run completes in `0.550` seconds.
+- One-time neighbourhood learning takes `7.676` seconds; its persisted cache hit takes `0.0518`
+  seconds and runs `0` agent ticks.
 - Detailed one-time learning takes `2.127`–`2.193` seconds per shipped archetype.
 - Persisted cache hits take `0.020`–`0.022` seconds and run `0` agent ticks.
 - The rendered app completed and displayed the same 365-day run in `4.345` seconds.
@@ -111,9 +126,9 @@
 
 ## Final demo run
 
-- Run ID: `8c0338e6413b434d924dafc0cfd4e596`
-- DSL hash: `sha256:95b53f27cb374d0ae381a099c1a5731a09ccf7acb407cc1ebda9529bf9c8eea5`
-- Rust engine: `0.5.0`
+- Run ID: `87edc98083d542d2a63ca69a0917a69c`
+- DSL hash: `sha256:339f75b8738ff734fb541fd12053f9dd382c30075319f51939fcdcc049c0a7a2`
+- Rust engine: `0.6.0`
 - Seed: `1`
 - Duration: `365` days / `8,760` ticks
 - Population: `100` sampled adults plus `30` generated children
@@ -123,13 +138,13 @@
 
 ## Final weighted archetype run
 
-- Run ID: `4b82ec02909d4c3898da08101519f99d`
+- Run ID: `6fef20f60e3a4ae2a3035c1253f1281e`
 - Seed: `1`
 - Duration: `30` days / `720` ticks
 - Simulated agents: `180`
 - Represented population: `300`
 - Archetypes: `3`
-- Runtime: `0.434` seconds
+- Runtime: `0.436` seconds
 - Raw action receipts: `0`
 - State and report snapshots exactly match the Prompt 1 weighted golden run.
 - The seven-billion example represents `6,999,999,999` agents with the same `180` simulated agents.
@@ -142,3 +157,24 @@
 - Each detailed learn ran `691,200` agent ticks. Every cache hit ran `0` agent ticks.
 - Learned and persisted-replay time series are exactly equal for all three archetypes.
 - All artifacts are valid from day `0` through day `30` and expose their input and DSL hashes.
+- These Prompt 2 versions remain inspectable. The Prompt 3 DSL hash invalidates them before reuse,
+  as required.
+
+## Final neighbourhood run
+
+- Run ID: `b1ac7e29863b4e8c8395e19bafd64c99`
+- Neighbourhood: `UrbanLiberal`
+- Seed: `1`
+- Duration: `30` days / `720` ticks
+- Simulated agents: `180`
+- Runtime: `0.550` seconds
+- Cross-archetype interactions: `2,730`
+- Raw action receipts returned: `0`
+- Shared place state and relationships include agents from all three household archetypes.
+
+## Final neighbourhood cached evaluation
+
+- Detailed learning: `7.676` seconds and `2,073,600` agent ticks.
+- Cache hit: `0.0518` seconds and `0` agent ticks.
+- Cache version: `1`.
+- Learned and persisted-replay time series are exactly equal.
