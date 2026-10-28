@@ -1,6 +1,7 @@
 use super::aggregate_parser::parse_aggregate_effect;
 use super::model::*;
 use super::parser::{Line, identifier, parse_bounds, require_indent};
+use std::collections::BTreeMap;
 
 pub(super) fn parse_entity(
     lines: &[Line],
@@ -10,6 +11,7 @@ pub(super) fn parse_entity(
     identifier(name, lines[start].number)?;
     let mut fields = Vec::new();
     let mut owner_field = None;
+    let mut links = BTreeMap::new();
     let mut index = start + 1;
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
@@ -41,6 +43,23 @@ pub(super) fn parse_entity(
         } else if let Some(value) = line.text.strip_prefix("owner = ") {
             identifier(value, line.number)?;
             owner_field = Some(value.to_owned());
+        } else if let Some(value) = line.text.strip_prefix("link ") {
+            let (kind, target) = value.split_once(" = ").ok_or_else(|| {
+                DslError::new(
+                    "INVALID_ENTITY_LINK",
+                    line.number,
+                    "Entity links use link kind = target",
+                )
+            })?;
+            identifier(kind, line.number)?;
+            identifier(target, line.number)?;
+            if links.insert(kind.to_owned(), target.to_owned()).is_some() {
+                return Err(DslError::new(
+                    "DUPLICATE_ENTITY_LINK",
+                    line.number,
+                    format!("Entity {name} repeats link {kind}"),
+                ));
+            }
         } else {
             return Err(DslError::new(
                 "UNKNOWN_ENTITY_STATEMENT",
@@ -55,6 +74,7 @@ pub(super) fn parse_entity(
             id: name.to_owned(),
             fields,
             owner_field,
+            links,
             line: lines[start].number,
         },
         index,

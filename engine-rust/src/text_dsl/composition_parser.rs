@@ -115,6 +115,7 @@ fn parse_composition_body(
     let mut authoritative_total = None;
     let mut sample_budget = None;
     let mut allocation_leaf = false;
+    let mut report_descendants = false;
     let mut entries = Vec::new();
     let mut places = Vec::new();
     let mut parameters = BTreeMap::new();
@@ -123,6 +124,7 @@ fn parse_composition_body(
     let mut flows = Vec::new();
     let mut couplings = Vec::new();
     let mut boundaries = Vec::new();
+    let mut leaders = Vec::new();
     let mut cached = None;
     let mut outputs = Vec::new();
     let mut index = start + 1;
@@ -180,6 +182,19 @@ fn parse_composition_body(
                         "INVALID_ALLOCATION_LEAF",
                         line.number,
                         "Allocation leaf must be true or false",
+                    ));
+                }
+            };
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("report_descendants = ") {
+            report_descendants = match value {
+                "true" => true,
+                "false" => false,
+                _ => {
+                    return Err(DslError::new(
+                        "INVALID_DESCENDANT_REPORT",
+                        line.number,
+                        "report_descendants must be true or false",
                     ));
                 }
             };
@@ -305,6 +320,32 @@ fn parse_composition_body(
                 boundaries.push(parse_boundary(entry)?);
                 index += 1;
             }
+        } else if line.text == "leaders:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                let (role, count) = entry.text.split_once(": count = ").ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_COMPOSITION_LEADER",
+                        entry.number,
+                        "Composition leaders use role: count = number",
+                    )
+                })?;
+                identifier(role, entry.number)?;
+                leaders.push(CompositionLeaderDefinition {
+                    role: role.to_owned(),
+                    count: count.parse::<usize>().map_err(|_| {
+                        DslError::new(
+                            "INVALID_COMPOSITION_LEADER",
+                            entry.number,
+                            "Composition leader count must be a positive integer",
+                        )
+                    })?,
+                    line: entry.number,
+                });
+                index += 1;
+            }
         } else if line.text == "cached:" {
             let (definition, next) = parse_cached_composition(lines, index)?;
             cached = Some(definition);
@@ -340,6 +381,7 @@ fn parse_composition_body(
             authoritative_total,
             sample_budget,
             allocation_leaf,
+            report_descendants,
             entries,
             places,
             parameters,
@@ -348,6 +390,7 @@ fn parse_composition_body(
             flows,
             couplings,
             boundaries,
+            leaders,
             cached,
             outputs,
             report_id: if compatibility {

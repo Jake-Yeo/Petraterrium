@@ -361,6 +361,49 @@ fn family_owner_payout_moves_existing_cash_without_creating_money() {
 }
 
 #[test]
+fn store_actions_are_exposed_by_active_role_subtrees() {
+    let program = parse_program(SOURCE).unwrap();
+    for (role, decision) in [
+        ("customer", "customer_day"),
+        ("cashier", "employment_day"),
+        ("manager", "manager_day"),
+        ("owner", "family_owner_day"),
+    ] {
+        assert!(
+            program
+                .roles
+                .iter()
+                .find(|definition| definition.id == role)
+                .unwrap()
+                .decisions
+                .iter()
+                .any(|definition| definition.id == decision),
+            "{role}:{decision}"
+        );
+    }
+
+    let no_cashier = SOURCE.replacen("  role cashier\n", "", 1);
+    let no_cashier = run_composition(
+        parse_program(&no_cashier).unwrap(),
+        "TransactionStore",
+        1,
+        1,
+    )
+    .unwrap();
+    assert!(no_cashier.actions.is_empty());
+
+    let no_owner = SOURCE.replacen("  role owner\n", "", 1);
+    let no_owner =
+        run_composition(parse_program(&no_owner).unwrap(), "FamilyStore", 1, 24).unwrap();
+    assert!(
+        no_owner
+            .actions
+            .iter()
+            .all(|action| !action.action.ends_with("owner_payout"))
+    );
+}
+
+#[test]
 fn moving_membership_in_dsl_redirects_profit_without_engine_changes() {
     let before = run_composition(parse_program(SOURCE).unwrap(), "CorporateForest", 1, 0).unwrap();
     let acquired = SOURCE

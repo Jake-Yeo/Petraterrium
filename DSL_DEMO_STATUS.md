@@ -346,3 +346,160 @@
   90-day sync records four directional exchanges and a 180-day sync records two.
 - Cold cached bootstrap: `0.1294s`, `11,520` detailed ticks. Compact warm evaluation: `0.0672s`, zero
   ticks, `cache_hit=true`.
+
+## Prompt 9 corporate-financial coupling and role-owned decisions
+
+### Implemented
+
+- Corporate, financial, and physical-agent populations are peer compositions. The shipped DSL has
+  two stocks, two markets, two sectors, one financial economy, two listed firms, one unlisted family
+  business, a unified trader population, and one coupled corporate-financial root. No financial or
+  corporate level is nested inside the other hierarchy.
+- Listed firms use one entity declaration with generic named links to both their corporate node and
+  stock node. The family enterprise has only a corporate link and never exposes stock, dividend, or
+  market-cap outputs.
+- Traders are existing physical `FinancialPerson` agents with a mutable `trader` role. Secondary
+  buy/sell, issuance, borrowing, interest, and repayment run on those same money/share states. The
+  financial hierarchy contains ledger-state agents, not a second trader population.
+- Corporate-to-financial and financial-to-corporate channels are explicit composition couplings.
+  Profit feeds price/dividend formulas; price and market capitalization feed capital allocation,
+  expansion, wage policy, and price policy. Removing the coupling block removes those effects.
+- Secondary buys debit buyer money and credit seller money while firm cash stays unchanged. New
+  issuance debits trader money, credits firm cash, increases shares outstanding, and dilutes price.
+  Borrowing transfers lender cash to firm cash and debt; repayment reverses firm cash/lender cash and
+  reduces debt. Market capitalization remains `price × shares_outstanding`, separate from cash.
+- Financial stock/market/sector nodes synchronize daily. Firm and peer-root earnings synchronize at
+  90 days. Coupling values affect the following interval rather than the transaction tick. Changing
+  the root sync to 180 days halves exchanges over 180 days.
+- `role` blocks own decision subtrees. At runtime, the base decision and every active role subtree for
+  the current decision are merged by action ID, normalized once, and sampled once. Role declaration
+  order does not affect deterministic output.
+- `state roles` is represented as a mutable set. `roles += role`, `roles -= role`, and replacement
+  effects change the merged tree on the following tick without changing agent type or count.
+- Archetypes may assign initial roles. Generic `role_distribution` blocks compute a share from DSL
+  parameters, filter existing agents by trait expressions, and deterministically assign the role.
+  The shipped demand demo derives cashier, trader, Reddit, and TikTok shares from store/user/market
+  counts and conditions them on age, money, risk, interest, and activity.
+- Reddit and TikTok role subtrees expose posting both at home/rest and at feed. At-home formulas are
+  `0.05 + activity×0.10 + interest×0.20` for Reddit and
+  `0.04 + activity×0.08 + interest×0.18` for TikTok. Feed formulas are larger. A user with both
+  roles still produces one action per tick because the merged tree has one draw.
+- Store customer, cashier, manager, and owner behavior was migrated from scattered role conditions
+  into role-owned subtrees without changing action names or probabilities. Trader, CEO, president,
+  governor, mayor, brand manager, franchise manager, store manager, and influencer actions use the
+  same generic role mechanism.
+- Compositions can declare leader-role counts. Validation recursively checks the archetype subtree
+  and raises a line-numbered mismatch for zero, duplicate, missing, or incorrect counts. The shipped
+  DSL declares one president, governor, mayor, CEO, brand manager, franchise manager, store manager,
+  and influencer per demonstrated instance.
+- Leader decisions are numeric DSL rules. Country, division, municipality, corporate, and community
+  leaders act on declared sync days and affect only their own composition parameters/subtree. No LLM
+  call or leader-specific engine branch was added.
+- An opt-in recursive composition report exposes separate firm, market, sector, stock, and corporate
+  rows for the new peer root. Existing composition report payloads remain unchanged.
+- Engine version is `0.12.0`. Prompt 9 changes were not committed or pushed.
+
+### Implemented but narrower
+
+- Listed-firm entity links are validated DSL metadata. Numeric execution crosses through explicit
+  composition couplings rather than a persistent runtime entity-object registry.
+- Financial and corporate values are synthetic estimates for the demo, not researched or calibrated
+  claims. The Prompt 8 formula-snapshot ledger limitation still applies.
+- The role-demand demo assigns exact requested shares inside its 100-agent eligible cohort. It does
+  not fit a global joint role model or IPF role marginals against external microdata.
+- Role storage is a serialized Rust set exposed through the DSL as `state roles`; it is not a generic
+  list-valued `DslValue` available to arbitrary arithmetic expressions.
+- Quarterly leader conditions enumerate demo sync days 0/90/180/270. A calendar/recurrence language
+  and calendar-quarter accounting remain deferred.
+- The detailed financial hierarchy uses ledger states for stock nodes and the unified physical
+  population for trader behavior. It does not instantiate an order-book object per represented
+  trader or persist every mass trade receipt.
+- A 90-day warm corporate-financial evaluation measured `0.1054s`; the required 30-day compact warm
+  acceptance run is `0.0449s`. Both use zero ticks and are cache hits.
+
+### Deferred and not part of Prompt 9
+
+- LLM text or decisions for presidents, CEOs, influencers, or other leaders.
+- Research/data imports, fitted company/market/role models, calibration, and real securities data.
+- Media UI top-post views, generic disease/ideology spread, persistent full-text mass posts.
+- Globe work, graphs, visual role editors, financial order-book UI, pause/resume, and tax/calendar
+  accounting.
+
+### Prompt 9 focused verification
+
+- Role parser/compiler/runtime suite: `10 passed`. It covers subtree inclusion/exclusion, single-draw
+  arbitration, declaration-order determinism, join/quit next-tick behavior, adding a role without
+  editing the base tree, conditional role distributions, at-home versus feed posting, shipped demand
+  shares, and unchanged agent type/count.
+- Financial conservation/formula suite: `6 passed`. It covers listed/unlisted links, secondary
+  buy/sell, issuance/dilution, borrowing, interest, repayment, market-cap/cash separation, exact
+  price/dividend formulas, and 1,440 minute ticks.
+- Corporate-financial hierarchy/cache suite: `5 passed`. It covers separate firm/market/sector rows,
+  exact price-to-allocation formulas, explicit coupling isolation/cadence, branch-scoped cache
+  invalidation, 30-day composed comparison, and zero-tick warm reuse.
+- Leader validation/isolation suite: `3 passed`. It covers one leader per declared instance,
+  line-numbered duplicate rejection, sync-only actions, and Texas/California isolation.
+- Prompt 8 corporate suite: `13 passed`; Prompt 7 media: `6 passed`; cached compositions: `9 passed`;
+  country/world: `8 passed`; generic compositions: `5 passed`; archetypes: `5 passed`;
+  neighbourhoods: `7 passed`.
+- Focused Python text-DSL API tests: `2 passed` in `0.02s`. Focused rendered Prompt 9 workflow:
+  `1 passed` in `21.1s` (`23.4s` including server setup). The first browser attempt used an ambiguous
+  label locator; the data and UI were present, and the corrected data-attribute locator passed.
+- Rust format/check/build, Ruff, generated-contract check, frontend production build, and
+  `git diff --check` passed. Full backend/frontend suites were not run because Prompt 9 explicitly
+  requires focused tests only.
+- Source grep finds no market, stock, trader, firm, dividend, corporate, or named-domain runner and no
+  shipped company/market identifiers in Rust engine source.
+
+### Prompt 9 compatibility and performance
+
+- Final Town, weighted, neighbourhood, municipality, division, country, world, finance, Reddit, and
+  coupled physical/media payloads exactly match Prompt 7 commit `9e29a7c`. Final CorporateForest and
+  CoupledPhysicalCorporate payloads exactly match Prompt 8 commit `81300ff`, including report line
+  metadata. Prompt 8 ledger, acquisition, allocation, and conservation assertions remain exact.
+- Town 30/365 days: `0.3806s` / `4.0341s`; weighted households `0.4443s`; neighbourhood `0.5228s`;
+  municipality `0.6523s`; division `0.7080s`; country `0.9187s`; world `1.7055s`.
+- Finance `0.0539s`; Reddit `0.5612s`; coupled physical/media `1.2198s`; detailed corporate
+  `0.0502s`; detailed physical/corporate `0.0567s`.
+- Compact warm corporate: `0.0284s`; compact warm physical/corporate: `0.0333s`; compact warm
+  physical/media: `0.0606s`. All are cache hits with zero agent ticks.
+- Detailed corporate-financial: `0.0503s`, 5 sampled states, 720 ticks. Thirty-day cold cached
+  bootstrap: `0.1674s`, `7,200` learning ticks; compact warm: `0.0449s`, zero ticks,
+  `cache_hit=true`.
+- Default DSL hash: `sha256:4f1822f59dd844e50073501f4116cb1aa6b71f36ace758dfebb77370cfb7f96d`.
+
+## Final coupled corporate-financial run
+
+- `CorporateFinancialSystem`; seed `1`; 30 days / 720 ticks; `0.0503s`.
+- Firm Alpha profit is `100`; the financial formula yields price `31.25`, dividend `0.435`, and
+  market cap `3,125`. Baseline corporate capital allocation is `90`.
+- Detailed and composed cached results differ by `0%` for price, dividend, profit, and capital
+  allocation over 30 days.
+- A secondary buy conserves total money at `1,200`, moves price `10 → 10.1`, and leaves firm cash
+  exactly `100`. Issuance moves firm cash `100 → 110`, shares `100 → 101`, dilutes price to
+  `9.90099`, keeps market cap `1,000`, and conserves total money at `1,200`.
+- Borrowing moves firm/lender cash to `150`/`950`, raises debt to `50`, and conserves `1,100`.
+  Repricing alone changes valuation/allocation while firm cash stays `200`.
+
+## Final cached coupled corporate-financial run
+
+- Thirty-day cold bootstrap: `0.1674s`, `7,200` learning ticks. Compact warm evaluation: `0.0449s`,
+  zero ticks, `cache_hit=true`.
+- Changing Firm Alpha profit invalidates Firm Alpha, ListedCorporateForest, Stock/Market/Sector Alpha,
+  FinancialEconomy, and the coupled root. Firm Beta, Stock/Market/Sector Beta, and FamilyBusiness
+  remain cached.
+- Ninety-day versus 180-day DSL sync produces 14 versus 7 directional coupling receipts over 180
+  days. A one-day trade leaves corporate capital allocation unchanged until a later sync.
+
+## Final role-exposed actions and decision trees in roles
+
+- The 100-agent demand cohort assigns exactly 5 cashiers, 20 traders, 50 Reddit users, and 40 TikTok
+  users, conditional on declared traits, without adding agents or changing their type.
+- Over 30 days / 10 agents per row: neither-role users post `0/0`; Reddit-only users post `666/0`;
+  TikTok-only users post `0/595`; both-role users at home post `651/533`; both-role feed users post
+  `1,247/1,191` (Reddit/TikTok). Feed rates are higher while one action is sampled per tick.
+- Ten joiners gain Reddit and ten quitters lose it within the same 20-agent population; the tree
+  changes on the next tick and agent types remain unchanged.
+- CanadaLeadership contains exactly one president and records one policy action in the 48-tick sync
+  test. Equivalent one-per-instance checks pass for governor, mayor, CEO, brand/franchise/store
+  managers, and influencer. Texas parameter edits do not affect California.

@@ -111,29 +111,34 @@ archetype FamilyStoreTeam:
   output purchase_count = action_count(purchases, window=run)
   output work_count = action_count(work_shifts, window=run)
 
+role customer:
+  decision customer_day:
+    branch buy p = 1.0 estimated
+
+role cashier:
+  decision cashier_day:
+    branch work_cashier p = 1.0 if employed estimated
+  decision employment_day:
+    branch work_cashier p = 0.98 if employed and place.open == 1 estimated
+    branch quit_job p = 0.02 if employed estimated
+    branch job_search p = 1.0 if not employed estimated
+
+role manager:
+  decision manager_day:
+    branch manage_store p = 0.98 if place.open == 1 estimated
+    branch fire_worker p = 0.01 if place.worker_count > 0 estimated
+    branch close_store p = 0.01 if place.open == 1 estimated
+    branch reopen_store p = 1.0 if place.open == 0 estimated
+  decision at_sync:
+    branch set_store_schedule p = 1.0 if hour == 0 estimated
+
+role owner:
+  decision family_owner_day:
+    branch owner_payout p = 1.0 if hour >= 23 and place.cash > 50 estimated
+    branch family_manage p = 1.0 if hour < 23 estimated
+
 decision idle_day:
   branch idle p = 1.0 estimated
-
-decision customer_day:
-  branch buy p = 1.0 if role.customer estimated
-
-decision cashier_day:
-  branch work_cashier p = 1.0 if role.cashier and employed estimated
-
-decision employment_day:
-  branch work_cashier p = 0.98 if role.cashier and employed and place.open == 1 estimated
-  branch quit_job p = 0.02 if role.cashier and employed estimated
-  branch job_search p = 1.0 if role.cashier and not employed estimated
-
-decision manager_day:
-  branch manage_store p = 0.98 if role.manager and place.open == 1 estimated
-  branch fire_worker p = 0.01 if role.manager and place.worker_count > 0 estimated
-  branch close_store p = 0.01 if role.manager and place.open == 1 estimated
-  branch reopen_store p = 1.0 if role.manager and place.open == 0 estimated
-
-decision family_owner_day:
-  branch owner_payout p = 1.0 if role.owner and hour >= 23 and place.cash > 50 estimated
-  branch family_manage p = 1.0 if role.owner and hour < 23 estimated
 
 action idle:
   aggregate = idle
@@ -227,6 +232,14 @@ action reopen_store:
   outcome reopened p = 1.0 estimated:
     effect current place open = 1 estimated
     next = manager_day
+
+action set_store_schedule:
+  aggregate = store_schedules
+  duration = Triangular(min=0.1, median=0.2, max=0.5) estimated
+  record = agent, tick
+  outcome set p = 1.0 estimated:
+    effect self.stress += 0.001 estimated
+    next = at_sync
 
 action owner_payout:
   aggregate = owner_payouts

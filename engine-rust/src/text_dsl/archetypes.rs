@@ -164,6 +164,9 @@ pub(super) fn build_archetype_state(
         }
     }
     let mut agents = households.into_iter().flatten().collect::<Vec<_>>();
+    for agent in &mut agents {
+        agent.roles.extend(archetype.roles.iter().cloned());
+    }
     let mut relationships = Vec::new();
     let household_ids = agents
         .iter()
@@ -273,6 +276,19 @@ fn prepare_archetype_program(program: &Program, archetype: &ArchetypeDefinition)
         for branch in prepared
             .decisions
             .iter_mut()
+            .flat_map(|decision| &mut decision.branches)
+            .filter(|branch| branch.action == multiplier.action)
+        {
+            branch.probability = Expr::Binary {
+                operation: "*".to_owned(),
+                left: Box::new(branch.probability.clone()),
+                right: Box::new(Expr::Value(DslValue::Number(multiplier.multiplier))),
+            };
+        }
+        for branch in prepared
+            .roles
+            .iter_mut()
+            .flat_map(|role| &mut role.decisions)
             .flat_map(|decision| &mut decision.branches)
             .filter(|branch| branch.action == multiplier.action)
         {

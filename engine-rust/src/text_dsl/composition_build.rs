@@ -51,6 +51,7 @@ pub(super) fn build_composition_state(
     combined.places.clear();
     combined.agents.clear();
     combined.decisions.clear();
+    combined.roles.clear();
     combined.actions.clear();
     combined.archetypes.clear();
     combined.weighted_populations.clear();
@@ -168,6 +169,19 @@ fn apply_policies(
                         for branch in combined
                             .decisions
                             .iter_mut()
+                            .flat_map(|decision| &mut decision.branches)
+                            .filter(|branch| scoped_identifier(&branch.action, &prefix, action))
+                        {
+                            branch.probability = policy_expression(
+                                branch.probability.clone(),
+                                &effect.operation,
+                                value,
+                            );
+                        }
+                        for branch in combined
+                            .roles
+                            .iter_mut()
+                            .flat_map(|role| &mut role.decisions)
                             .flat_map(|decision| &mut decision.branches)
                             .filter(|branch| scoped_identifier(&branch.action, &prefix, action))
                         {
@@ -511,6 +525,33 @@ fn namespace_program(
             }
             decision
         }));
+    for source_role in &source.roles {
+        let target_role_index = target
+            .roles
+            .iter()
+            .position(|role| role.id == source_role.id);
+        if target_role_index.is_none() {
+            target.roles.push(RoleDefinition {
+                id: source_role.id.clone(),
+                decisions: Vec::new(),
+                line: source_role.line,
+            });
+        }
+        let target_role = target
+            .roles
+            .iter_mut()
+            .find(|role| role.id == source_role.id)
+            .unwrap();
+        target_role
+            .decisions
+            .extend(source_role.decisions.iter().cloned().map(|mut decision| {
+                decision.id = namespaced(namespace, &decision.id);
+                for branch in &mut decision.branches {
+                    branch.action = namespaced(namespace, &branch.action);
+                }
+                decision
+            }));
+    }
     target
         .actions
         .extend(source.actions.iter().cloned().map(|mut action| {

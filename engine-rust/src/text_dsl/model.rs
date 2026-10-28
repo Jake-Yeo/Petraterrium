@@ -80,6 +80,7 @@ pub struct AgentDefinition {
     pub scope: String,
     pub parent: Option<String>,
     pub roles: BTreeSet<String>,
+    pub mutable_roles: bool,
     pub traits: BTreeSet<String>,
     pub states: BTreeSet<String>,
     pub state_bounds: BTreeMap<String, ValueBounds>,
@@ -109,6 +110,7 @@ pub struct EntityDefinition {
     pub id: String,
     pub fields: Vec<EntityFieldDefinition>,
     pub owner_field: Option<String>,
+    pub links: BTreeMap<String, String>,
     pub line: usize,
 }
 
@@ -170,11 +172,29 @@ pub struct ArchetypeOutputDefinition {
 pub struct ArchetypeDefinition {
     pub id: String,
     pub spotlight: bool,
+    pub roles: BTreeSet<String>,
     pub sample_households: usize,
     pub composition: Vec<ArchetypeCompositionGroup>,
     pub initial: Vec<InitialAssignment>,
     pub decision_multipliers: Vec<ArchetypeDecisionMultiplier>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RoleDefinition {
+    pub id: String,
+    pub decisions: Vec<DecisionDefinition>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RoleDistributionDefinition {
+    pub role: String,
+    pub agent_type: String,
+    pub parameters: BTreeMap<String, f64>,
+    pub share: Expr,
+    pub condition: Expr,
     pub line: usize,
 }
 
@@ -248,6 +268,13 @@ pub struct CompositionFeedbackDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionLeaderDefinition {
+    pub role: String,
+    pub count: usize,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CachedCompositionDefinition {
     pub sync_days: u32,
     pub max_iterations: u32,
@@ -275,6 +302,7 @@ pub struct CompositionDefinition {
     pub authoritative_total: Option<u64>,
     pub sample_budget: Option<u64>,
     pub allocation_leaf: bool,
+    pub report_descendants: bool,
     pub entries: Vec<CompositionEntry>,
     pub places: Vec<String>,
     pub parameters: BTreeMap<String, f64>,
@@ -283,6 +311,7 @@ pub struct CompositionDefinition {
     pub flows: Vec<CompositionFlowDefinition>,
     pub couplings: Vec<CompositionCouplingDefinition>,
     pub boundaries: Vec<CompositionBoundaryDefinition>,
+    pub leaders: Vec<CompositionLeaderDefinition>,
     pub cached: Option<CachedCompositionDefinition>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
     pub report_id: String,
@@ -523,6 +552,8 @@ pub struct Program {
     pub places: Vec<PlaceDefinition>,
     pub entities: Vec<EntityDefinition>,
     pub policies: Vec<PolicyDefinition>,
+    pub roles: Vec<RoleDefinition>,
+    pub role_distributions: Vec<RoleDistributionDefinition>,
     pub agents: Vec<AgentDefinition>,
     pub population: PopulationDefinition,
     pub decisions: Vec<DecisionDefinition>,

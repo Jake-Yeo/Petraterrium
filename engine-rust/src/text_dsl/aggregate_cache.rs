@@ -273,6 +273,28 @@ fn apply_effects(
                         },
                     };
                 }
+                for branch in program
+                    .roles
+                    .iter_mut()
+                    .flat_map(|role| &mut role.decisions)
+                    .flat_map(|decision| &mut decision.branches)
+                    .filter(|branch| {
+                        branch.action == *action
+                            || branch
+                                .action
+                                .rsplit_once("__")
+                                .is_some_and(|(_, id)| id == action)
+                    })
+                {
+                    branch.probability = match effect.operation.as_str() {
+                        "=" => Expr::Value(DslValue::Number(value)),
+                        operation => Expr::Binary {
+                            operation: operation.trim_end_matches('=').to_owned(),
+                            left: Box::new(branch.probability.clone()),
+                            right: Box::new(Expr::Value(DslValue::Number(value))),
+                        },
+                    };
+                }
             }
         }
     }

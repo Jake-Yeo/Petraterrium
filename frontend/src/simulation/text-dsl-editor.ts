@@ -209,7 +209,7 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that Rust runs across physical, media, and corporate peer modules, from individual agents and stores through community, platform, company, country, and world compositions.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that Rust runs across physical, media, corporate, and financial peer modules, including mutable role-owned decision subtrees from individual agents through markets, companies, countries, and world compositions.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-toolbar">

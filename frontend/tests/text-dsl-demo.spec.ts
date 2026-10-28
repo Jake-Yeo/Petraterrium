@@ -488,3 +488,80 @@ test('runs detailed, cached, and physically coupled corporate DSL code', async (
   await expect(page.getByRole('rowheader', { name: /demand_to_price/ }).first()).toBeVisible();
   await expect(page.getByRole('rowheader', { name: /profit_to_demand/ }).first()).toBeVisible();
 });
+
+test('runs corporate-financial peers and mutable role-owned decisions from DSL code', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const editor = page.getByLabel('Simulation DSL code');
+  const population = page.locator('[data-dsl-population]');
+  await expect(editor).toHaveValue(/composition CorporateFinancialSystem:/);
+  await expect(editor).toHaveValue(/role redditor:/);
+  await expect(editor).toHaveValue(/role ceo:/);
+  await expect(editor).toHaveValue(/role_distribution trader:/);
+
+  await population.selectOption({ label: 'coupled corporate financial · CorporateFinancialSystem' });
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'CorporateFinancialSystem coupled_corporate_financial aggregates',
+    }),
+  ).toBeVisible();
+  await expect(page.getByText('alpha price', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('alpha dividend', { exact: true }).first()).toBeVisible();
+  const compositionHierarchy = page.locator('[data-report-id="composition_hierarchy"]');
+  await expect(compositionHierarchy.getByRole('rowheader', { name: 'FirmAlpha', exact: true })).toBeVisible();
+  await expect(compositionHierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true })).toBeVisible();
+  await expect(compositionHierarchy.getByRole('rowheader', { name: 'SectorAlpha', exact: true })).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(
+    source
+      .replace(
+        'composition FirmAlpha:\n  level = conglomerate\n  children:\n    LedgerCohort: weight = 1\n    CEOAlpha: weight = 1\n  parameters:\n    profit = 100',
+        'composition FirmAlpha:\n  level = conglomerate\n  children:\n    LedgerCohort: weight = 1\n    CEOAlpha: weight = 1\n  parameters:\n    profit = 140',
+      )
+      .replaceAll('interest_rate = 0.05', 'interest_rate = 0.08')
+      .replace(
+        'risk ~ Uniform(min=0.5, max=0.5)',
+        'risk ~ Uniform(min=0.8, max=0.8)',
+      )
+      .replace('roles = redditor, tiktoker', 'roles = redditor'),
+  );
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await population.selectOption({ label: 'coupled corporate financial · CorporateFinancialSystem' });
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await population.selectOption({ label: 'transaction lab · SecondaryBuyLab' });
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'SecondaryBuyLab transaction_lab aggregates' })).toBeVisible();
+  await expect(page.getByText('firm cash', { exact: true }).first()).toBeVisible();
+
+  await population.selectOption({ label: 'role action demo · RoleActionDemo' });
+  await page.getByLabel('Days').fill('5');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('rowheader', { name: 'NeitherRoleDemo', exact: true })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'BothRoleDemo', exact: true })).toBeVisible();
+
+  await population.selectOption({ label: 'country leadership · CanadaLeadership' });
+  await page.getByLabel('Days').fill('2');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'CanadaLeadership country_leadership aggregates' })).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('CorporateFinancialSystem');
+  await page.getByLabel('Days').fill('90');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
+  await expect(hierarchy.getByRole('rowheader', { name: 'FirmAlpha', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'FamilyBusiness', exact: true })).toBeVisible();
+});

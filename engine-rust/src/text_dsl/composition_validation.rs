@@ -288,6 +288,9 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
     }
     validate_composition_cycles(&compositions)?;
+    for composition in &program.compositions {
+        validate_composition_leaders(program, composition, &compositions)?;
+    }
     validate_syncs(program, &compositions)?;
     validate_authoritative_allocations(program)?;
     let mut population_ids = BTreeSet::new();
@@ -337,6 +340,114 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
     Ok(())
 }
 
+fn validate_composition_leaders(
+    program: &Program,
+    composition: &CompositionDefinition,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> DslResult<()> {
+    let known_roles = program
+        .roles
+        .iter()
+        .map(|role| role.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut declared = BTreeSet::new();
+    for leader in &composition.leaders {
+        if leader.count == 0 {
+            return Err(DslError::new(
+                "INVALID_COMPOSITION_LEADER",
+                leader.line,
+                "Leader count must be positive",
+            ));
+        }
+        if !declared.insert(leader.role.as_str()) {
+            return Err(DslError::new(
+                "DUPLICATE_COMPOSITION_LEADER",
+                leader.line,
+                format!(
+                    "Composition {} repeats leader role {}",
+                    composition.id, leader.role
+                ),
+            ));
+        }
+        if !known_roles.contains(leader.role.as_str()) {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_LEADER_ROLE",
+                leader.line,
+                format!("Unknown leader role {}", leader.role),
+            ));
+        }
+        let actual = composition_role_count(program, composition, &leader.role, compositions);
+        if actual != leader.count {
+            return Err(DslError::new(
+                "LEADER_COUNT_MISMATCH",
+                leader.line,
+                format!(
+                    "Composition {} declares {} {} leader(s), but its subtree defines {}",
+                    composition.id, leader.count, leader.role, actual
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn composition_role_count(
+    program: &Program,
+    composition: &CompositionDefinition,
+    role: &str,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> usize {
+    composition
+        .entries
+        .iter()
+        .map(|entry| {
+            if let Some(child) = compositions.get(entry.child.as_str()) {
+                composition_role_count(program, child, role, compositions)
+            } else {
+                program
+                    .archetypes
+                    .iter()
+                    .find(|archetype| archetype.id == entry.child)
+                    .map_or(0, |archetype| {
+                        archetype_role_count(program, archetype, role)
+                    })
+            }
+        })
+        .sum()
+}
+
+fn archetype_role_count(program: &Program, archetype: &ArchetypeDefinition, role: &str) -> usize {
+    let total = archetype
+        .composition
+        .iter()
+        .map(|group| {
+            let probability = if archetype.roles.contains(role) {
+                1.0
+            } else {
+                group
+                    .mix
+                    .iter()
+                    .filter(|entry| agent_definition_has_role(program, &entry.agent_type, role))
+                    .map(|entry| entry.probability)
+                    .sum::<f64>()
+            };
+            archetype.sample_households as f64 * group.count as f64 * probability
+        })
+        .sum::<f64>();
+    total.round() as usize
+}
+
+fn agent_definition_has_role(program: &Program, agent_id: &str, role: &str) -> bool {
+    let Some(agent) = program.agents.iter().find(|agent| agent.id == agent_id) else {
+        return false;
+    };
+    agent.roles.contains(role)
+        || agent
+            .parent
+            .as_ref()
+            .is_some_and(|parent| agent_definition_has_role(program, parent, role))
+}
+
 fn valid_formula_references(
     program: &Program,
     composition: &CompositionDefinition,
@@ -354,6 +465,13 @@ fn valid_formula_references(
         .cloned()
         .chain(prior_outputs)
         .collect::<BTreeSet<_>>();
+    if let Some(function) = program
+        .aggregate_functions
+        .iter()
+        .find(|function| function.id == composition.id)
+    {
+        allowed.extend(function.inputs.iter().map(|input| input.id.clone()));
+    }
     for entry in &composition.entries {
         let outputs = program
             .compositions

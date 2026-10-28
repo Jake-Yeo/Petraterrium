@@ -3,7 +3,6 @@ use crate::agent_types::{DurationDistribution, ProbabilityProvenance, TimedActio
 use std::collections::BTreeMap;
 
 pub(super) struct CompiledDecision<'a> {
-    pub(super) definition: &'a DecisionDefinition,
     pub(super) branches: Vec<&'a DecisionBranch>,
 }
 
@@ -15,6 +14,7 @@ pub(super) struct CompiledAction<'a> {
 
 pub(super) struct CompiledProgram<'a> {
     pub(super) decisions: BTreeMap<&'a str, CompiledDecision<'a>>,
+    pub(super) role_decisions: BTreeMap<&'a str, BTreeMap<&'a str, Vec<&'a DecisionBranch>>>,
     pub(super) actions: BTreeMap<&'a str, CompiledAction<'a>>,
     pub(super) agent_state_bounds: BTreeMap<String, BTreeMap<String, ValueBounds>>,
     pub(super) place_state_bounds: BTreeMap<String, BTreeMap<String, ValueBounds>>,
@@ -32,13 +32,7 @@ pub(super) fn compile_program(program: &Program) -> DslResult<CompiledProgram<'_
         .map(|definition| {
             let mut branches = definition.branches.iter().collect::<Vec<_>>();
             branches.sort_by(|left, right| left.action.cmp(&right.action));
-            (
-                definition.id.as_str(),
-                CompiledDecision {
-                    definition,
-                    branches,
-                },
-            )
+            (definition.id.as_str(), CompiledDecision { branches })
         })
         .collect();
     let actions = program
@@ -57,6 +51,17 @@ pub(super) fn compile_program(program: &Program) -> DslResult<CompiledProgram<'_
             )
         })
         .collect();
+    let mut role_decisions = BTreeMap::<&str, BTreeMap<&str, Vec<&DecisionBranch>>>::new();
+    for role in &program.roles {
+        for decision in &role.decisions {
+            let mut branches = decision.branches.iter().collect::<Vec<_>>();
+            branches.sort_by(|left, right| left.action.cmp(&right.action));
+            role_decisions
+                .entry(decision.id.as_str())
+                .or_default()
+                .insert(role.id.as_str(), branches);
+        }
+    }
     let agent_state_bounds = program
         .agents
         .iter()
@@ -74,6 +79,7 @@ pub(super) fn compile_program(program: &Program) -> DslResult<CompiledProgram<'_
         .collect();
     Ok(CompiledProgram {
         decisions,
+        role_decisions,
         actions,
         agent_state_bounds,
         place_state_bounds,

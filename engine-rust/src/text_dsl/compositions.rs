@@ -506,6 +506,20 @@ fn apply_detailed_coupling_effects(
                         branch.probability =
                             effect_expression(branch.probability.clone(), &effect.operation, value);
                     }
+                    for branch in program
+                        .roles
+                        .iter_mut()
+                        .flat_map(|role| &mut role.decisions)
+                        .flat_map(|decision| &mut decision.branches)
+                        .filter(|branch| {
+                            branch.action.starts_with(&format!("{prefix}__"))
+                                && (branch.action == *action
+                                    || branch.action.ends_with(&format!("__{action}")))
+                        })
+                    {
+                        branch.probability =
+                            effect_expression(branch.probability.clone(), &effect.operation, value);
+                    }
                 }
                 AggregateEffectTarget::Field(field) => {
                     if !fields_changed {

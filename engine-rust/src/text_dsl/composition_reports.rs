@@ -53,6 +53,11 @@ pub(super) fn decorate_composition_result(
     if let Some(report) = allocation_report(program, composition, ticks)? {
         result.reports.push(report);
     }
+    if composition.report_descendants {
+        result
+            .reports
+            .push(composition_hierarchy_report(program, composition, ticks)?);
+    }
     result.results_subtitle = if legacy {
         format!("{} neighbourhood aggregates", composition.id)
     } else {
@@ -62,6 +67,73 @@ pub(super) fn decorate_composition_result(
         result
             .actions
             .retain(|record| recorded_actions.contains(&record.action));
+    }
+    Ok(())
+}
+
+fn composition_hierarchy_report(
+    program: &Program,
+    root: &CompositionDefinition,
+    tick: u64,
+) -> DslResult<DslReport> {
+    let mut rows = Vec::new();
+    let mut output_ids = BTreeSet::new();
+    collect_hierarchy_rows(program, root, &mut rows, &mut output_ids)?;
+    let mut columns = vec![ReportColumnDefinition {
+        id: "level".to_owned(),
+        label: "Level".to_owned(),
+        format: "number".to_owned(),
+        metric: ReportMetric::Count,
+        line: root.line,
+    }];
+    columns.extend(output_ids.into_iter().map(|id| ReportColumnDefinition {
+        label: id.replace('_', " "),
+        id,
+        format: "decimal".to_owned(),
+        metric: ReportMetric::Count,
+        line: root.line,
+    }));
+    Ok(DslReport {
+        id: "composition_hierarchy".to_owned(),
+        title: format!("{} hierarchy outputs", root.id),
+        group_by: "composition".to_owned(),
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns,
+        snapshots: vec![DslReportSnapshot { tick, rows }],
+    })
+}
+
+fn collect_hierarchy_rows(
+    program: &Program,
+    parent: &CompositionDefinition,
+    rows: &mut Vec<DslReportRow>,
+    output_ids: &mut BTreeSet<String>,
+) -> DslResult<()> {
+    for entry in &parent.entries {
+        let Some(child) = program
+            .compositions
+            .iter()
+            .find(|composition| composition.id == entry.child)
+        else {
+            continue;
+        };
+        let children = static_formula_children(program, child)?;
+        let mut outputs = BTreeMap::new();
+        apply_formula_outputs(child, &BTreeMap::new(), &children, &mut outputs)?;
+        let mut values = BTreeMap::from([(
+            "level".to_owned(),
+            DslReportValue::Text(child.level.clone()),
+        )]);
+        for (id, summary) in outputs {
+            output_ids.insert(id.clone());
+            values.insert(id, DslReportValue::Number(summary.mean));
+        }
+        rows.push(DslReportRow {
+            group_id: child.id.clone(),
+            values,
+        });
+        collect_hierarchy_rows(program, child, rows, output_ids)?;
     }
     Ok(())
 }

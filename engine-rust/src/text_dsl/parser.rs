@@ -31,6 +31,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut places = Vec::new();
     let mut entities = Vec::new();
     let mut policies = Vec::new();
+    let mut roles = Vec::new();
+    let mut role_distributions = Vec::new();
     let mut agents = Vec::new();
     let mut population = None;
     let mut decisions = Vec::new();
@@ -96,6 +98,14 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         } else if let Some(name) = block_name(&line.text, "policy") {
             let (value, next) = parse_policy(&lines, index, name)?;
             policies.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "role") {
+            let (value, next) = parse_role(&lines, index, name)?;
+            roles.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "role_distribution") {
+            let (value, next) = parse_role_distribution(&lines, index, name)?;
+            role_distributions.push(value);
             index = next;
         } else if let Some(name) = spotlight_header(&line.text) {
             let (value, next) = parse_archetype(&lines, index, name, true)?;
@@ -208,6 +218,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         places,
         entities,
         policies,
+        roles,
+        role_distributions,
         agents,
         population: population.ok_or_else(|| {
             DslError::new(
@@ -376,6 +388,7 @@ fn parse_agent(
     identifier(name, lines[start].number)?;
     let mut scope = "program".to_owned();
     let mut roles = BTreeSet::new();
+    let mut mutable_roles = false;
     let mut traits = BTreeSet::new();
     let mut states = BTreeSet::new();
     let mut state_bounds = BTreeMap::new();
@@ -416,6 +429,11 @@ fn parse_agent(
                 (value, None)
             };
             identifier(name, line.number)?;
+            if name == "roles" {
+                mutable_roles = true;
+                index += 1;
+                continue;
+            }
             states.insert(name.to_owned());
             if let Some(bounds) = bounds {
                 state_bounds.insert(name.to_owned(), bounds);
@@ -447,6 +465,7 @@ fn parse_agent(
             scope,
             parent,
             roles,
+            mutable_roles,
             traits,
             states,
             state_bounds,
@@ -716,6 +735,7 @@ fn parse_archetype(
 ) -> DslResult<(ArchetypeDefinition, usize)> {
     identifier(name, lines[start].number)?;
     let mut sample_households = None;
+    let mut roles = BTreeSet::new();
     let mut composition = Vec::new();
     let mut initial = Vec::new();
     let mut decision_multipliers = Vec::new();
@@ -732,6 +752,12 @@ fn parse_archetype(
                     "sample_households must be a positive integer",
                 )
             })?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("roles = ") {
+            for role in value.split(',').map(str::trim) {
+                identifier(role, line.number)?;
+                roles.insert(role.to_owned());
+            }
             index += 1;
         } else if line.text == "composition:" {
             index += 1;
@@ -789,6 +815,7 @@ fn parse_archetype(
         ArchetypeDefinition {
             id: name.to_owned(),
             spotlight,
+            roles,
             sample_households: sample_households.ok_or_else(|| {
                 DslError::new(
                     "MISSING_ARCHETYPE_SAMPLE",
@@ -934,6 +961,139 @@ fn parse_weighted_population(
     ))
 }
 
+fn parse_role(lines: &[Line], start: usize, name: &str) -> DslResult<(RoleDefinition, usize)> {
+    identifier(name, lines[start].number)?;
+    let mut decisions = Vec::new();
+    let mut decision_ids = BTreeSet::new();
+    let mut index = start + 1;
+    while index < lines.len() && lines[index].indent > 0 {
+        let line = &lines[index];
+        require_indent(line, 2)?;
+        let decision_id = block_name(&line.text, "decision").ok_or_else(|| {
+            DslError::new(
+                "UNKNOWN_ROLE_STATEMENT",
+                line.number,
+                "Role statements are decision subtrees",
+            )
+        })?;
+        identifier(decision_id, line.number)?;
+        if !decision_ids.insert(decision_id.to_owned()) {
+            return Err(DslError::new(
+                "DUPLICATE_ROLE_DECISION",
+                line.number,
+                format!("Role {name} repeats decision {decision_id}"),
+            ));
+        }
+        let mut branches = Vec::new();
+        index += 1;
+        while index < lines.len() && lines[index].indent > 2 {
+            let branch = &lines[index];
+            require_indent(branch, 4)?;
+            branches.push(parse_decision_branch(branch)?);
+            index += 1;
+        }
+        decisions.push(DecisionDefinition {
+            id: decision_id.to_owned(),
+            branches,
+            line: line.number,
+        });
+    }
+    Ok((
+        RoleDefinition {
+            id: name.to_owned(),
+            decisions,
+            line: lines[start].number,
+        },
+        index,
+    ))
+}
+
+fn parse_role_distribution(
+    lines: &[Line],
+    start: usize,
+    role: &str,
+) -> DslResult<(RoleDistributionDefinition, usize)> {
+    identifier(role, lines[start].number)?;
+    let mut agent_type = None;
+    let mut parameters = BTreeMap::new();
+    let mut share = None;
+    let mut condition = Expr::Value(DslValue::Bool(true));
+    let mut index = start + 1;
+    while index < lines.len() && lines[index].indent > 0 {
+        let line = &lines[index];
+        require_indent(line, 2)?;
+        if let Some(value) = line.text.strip_prefix("agent = ") {
+            identifier(value, line.number)?;
+            agent_type = Some(value.to_owned());
+            index += 1;
+        } else if line.text == "parameters:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let parameter = &lines[index];
+                require_indent(parameter, 4)?;
+                let (id, value) = parameter.text.split_once(" = ").ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_ROLE_DISTRIBUTION_PARAMETER",
+                        parameter.number,
+                        "Role distribution parameters use name = number",
+                    )
+                })?;
+                identifier(id, parameter.number)?;
+                parameters.insert(
+                    id.to_owned(),
+                    value.parse::<f64>().map_err(|_| {
+                        DslError::new(
+                            "INVALID_ROLE_DISTRIBUTION_PARAMETER",
+                            parameter.number,
+                            "Role distribution parameter must be numeric",
+                        )
+                    })?,
+                );
+                index += 1;
+            }
+        } else if let Some(value) = line.text.strip_prefix("share = ") {
+            let value = value
+                .strip_prefix("formula(")
+                .and_then(|value| value.strip_suffix(')'))
+                .unwrap_or(value);
+            share = Some(parse_expression(value, line.number)?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("when = ") {
+            condition = parse_expression(value, line.number)?;
+            index += 1;
+        } else {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_DISTRIBUTION_STATEMENT",
+                line.number,
+                format!("Unknown role distribution statement {}", line.text),
+            ));
+        }
+    }
+    Ok((
+        RoleDistributionDefinition {
+            role: role.to_owned(),
+            agent_type: agent_type.ok_or_else(|| {
+                DslError::new(
+                    "MISSING_ROLE_DISTRIBUTION_AGENT",
+                    lines[start].number,
+                    "Role distribution needs an agent type",
+                )
+            })?,
+            parameters,
+            share: share.ok_or_else(|| {
+                DslError::new(
+                    "MISSING_ROLE_DISTRIBUTION_SHARE",
+                    lines[start].number,
+                    "Role distribution needs a share formula",
+                )
+            })?,
+            condition,
+            line: lines[start].number,
+        },
+        index,
+    ))
+}
+
 fn parse_decision(
     lines: &[Line],
     start: usize,
@@ -944,30 +1104,7 @@ fn parse_decision(
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        let value = remove_placeholder(&line.text, line.number)?;
-        let value = value.strip_prefix("branch ").ok_or_else(|| {
-            DslError::new(
-                "UNKNOWN_DECISION_STATEMENT",
-                line.number,
-                "Decision statements are branches",
-            )
-        })?;
-        let Some((action, probability_and_condition)) = value.split_once(" p = ") else {
-            return Err(DslError::new(
-                "INVALID_DECISION_BRANCH",
-                line.number,
-                "Decision branch needs p = formula",
-            ));
-        };
-        let (probability, condition) = split_if(probability_and_condition);
-        branches.push(DecisionBranch {
-            action: action.to_owned(),
-            probability: parse_expression(probability, line.number)?,
-            condition: condition
-                .map(|value| parse_expression(value, line.number))
-                .transpose()?,
-            line: line.number,
-        });
+        branches.push(parse_decision_branch(line)?);
         index += 1;
     }
     Ok((
@@ -978,6 +1115,33 @@ fn parse_decision(
         },
         index,
     ))
+}
+
+fn parse_decision_branch(line: &Line) -> DslResult<DecisionBranch> {
+    let value = remove_placeholder(&line.text, line.number)?;
+    let value = value.strip_prefix("branch ").ok_or_else(|| {
+        DslError::new(
+            "UNKNOWN_DECISION_STATEMENT",
+            line.number,
+            "Decision statements are branches",
+        )
+    })?;
+    let Some((action, probability_and_condition)) = value.split_once(" p = ") else {
+        return Err(DslError::new(
+            "INVALID_DECISION_BRANCH",
+            line.number,
+            "Decision branch needs p = formula",
+        ));
+    };
+    let (probability, condition) = split_if(probability_and_condition);
+    Ok(DecisionBranch {
+        action: action.to_owned(),
+        probability: parse_expression(probability, line.number)?,
+        condition: condition
+            .map(|value| parse_expression(value, line.number))
+            .transpose()?,
+        line: line.number,
+    })
 }
 
 fn parse_action(lines: &[Line], start: usize, name: &str) -> DslResult<(ActionDefinition, usize)> {
@@ -1527,11 +1691,24 @@ fn parse_effect(value: &str, line: usize) -> DslResult<EffectDefinition> {
             format!("Unknown effect scope {left}"),
         ));
     };
+    let value = if field == "roles" {
+        if operation == "*=" {
+            return Err(DslError::new(
+                "INVALID_ROLE_EFFECT",
+                line,
+                "Role effects use =, +=, or -=",
+            ));
+        }
+        identifier(right, line)?;
+        Expr::Value(DslValue::Text(right.to_owned()))
+    } else {
+        parse_expression(right, line)?
+    };
     Ok(EffectDefinition {
         scope,
         field,
         operation: operation.to_owned(),
-        value: parse_expression(right, line)?,
+        value,
         line,
     })
 }
@@ -1571,6 +1748,10 @@ fn validate_program(program: &Program) -> DslResult<()> {
     unique_ids(
         "policy",
         program.policies.iter().map(|item| (&item.id, item.line)),
+    )?;
+    unique_ids(
+        "role",
+        program.roles.iter().map(|item| (&item.id, item.line)),
     )?;
     unique_ids(
         "agent",
@@ -1615,6 +1796,12 @@ fn validate_program(program: &Program) -> DslResult<()> {
         .decisions
         .iter()
         .map(|item| item.id.as_str())
+        .chain(
+            program
+                .roles
+                .iter()
+                .flat_map(|role| role.decisions.iter().map(|item| item.id.as_str())),
+        )
         .collect::<BTreeSet<_>>();
     let actions = program
         .actions
@@ -1639,6 +1826,91 @@ fn validate_program(program: &Program) -> DslResult<()> {
         .into_iter()
         .flatten()
         .collect::<BTreeSet<_>>();
+    let known_roles = program
+        .roles
+        .iter()
+        .map(|role| role.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut role_distribution_keys = BTreeSet::new();
+    for distribution in &program.role_distributions {
+        if !role_distribution_keys
+            .insert((distribution.agent_type.as_str(), distribution.role.as_str()))
+        {
+            return Err(DslError::new(
+                "DUPLICATE_ROLE_DISTRIBUTION",
+                distribution.line,
+                format!(
+                    "Duplicate role distribution {} for {}",
+                    distribution.role, distribution.agent_type
+                ),
+            ));
+        }
+        if !known_roles.contains(distribution.role.as_str()) {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_DISTRIBUTION_ROLE",
+                distribution.line,
+                format!("Unknown role {}", distribution.role),
+            ));
+        }
+        let agent = agents
+            .get(distribution.agent_type.as_str())
+            .ok_or_else(|| {
+                DslError::new(
+                    "UNKNOWN_ROLE_DISTRIBUTION_AGENT",
+                    distribution.line,
+                    format!("Unknown agent type {}", distribution.agent_type),
+                )
+            })?;
+        if distribution
+            .parameters
+            .values()
+            .any(|value| !value.is_finite())
+        {
+            return Err(DslError::new(
+                "INVALID_ROLE_DISTRIBUTION_PARAMETER",
+                distribution.line,
+                "Role distribution parameters must be finite",
+            ));
+        }
+        let parameter_values = distribution
+            .parameters
+            .iter()
+            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .collect::<BTreeMap<_, _>>();
+        let unknown_share = references(&distribution.share)
+            .into_iter()
+            .filter(|reference| !distribution.parameters.contains_key(reference))
+            .collect::<Vec<_>>();
+        if !unknown_share.is_empty() {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_DISTRIBUTION_VALUE",
+                distribution.line,
+                format!("Unknown share values: {}", unknown_share.join(", ")),
+            ));
+        }
+        let share = evaluate(&distribution.share, &parameter_values)?
+            .as_f64()
+            .unwrap_or(f64::NAN);
+        if !share.is_finite() || !(0.0..=1.0).contains(&share) {
+            return Err(DslError::new(
+                "INVALID_ROLE_DISTRIBUTION_SHARE",
+                distribution.line,
+                "Role distribution share must resolve between zero and one",
+            ));
+        }
+        let fields = merged_fields(agent, &agents)?;
+        let unknown_condition = references(&distribution.condition)
+            .into_iter()
+            .filter(|reference| !fields.contains(reference))
+            .collect::<Vec<_>>();
+        if !unknown_condition.is_empty() {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_DISTRIBUTION_CONDITION",
+                distribution.line,
+                format!("Unknown condition values: {}", unknown_condition.join(", ")),
+            ));
+        }
+    }
     for entity in &program.entities {
         if entity.fields.is_empty() {
             return Err(DslError::new(
@@ -1744,6 +2016,36 @@ fn validate_program(program: &Program) -> DslResult<()> {
             }
         }
     }
+    for role in &program.roles {
+        if role.decisions.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_ROLE",
+                role.line,
+                format!("Role {} needs decision subtrees", role.id),
+            ));
+        }
+        for decision in &role.decisions {
+            if decision.branches.is_empty() {
+                return Err(DslError::new(
+                    "EMPTY_ROLE_DECISION",
+                    decision.line,
+                    format!("Role {} decision {} needs branches", role.id, decision.id),
+                ));
+            }
+            for branch in &decision.branches {
+                if !actions.contains(branch.action.as_str()) {
+                    return Err(DslError::new(
+                        "UNKNOWN_ACTION",
+                        branch.line,
+                        format!(
+                            "Role {} decision {} references unknown action {}",
+                            role.id, decision.id, branch.action
+                        ),
+                    ));
+                }
+            }
+        }
+    }
     for action in &program.actions {
         if !action.long && action.duration.maximum > program.tick_hours + 1e-9 {
             return Err(DslError::new(
@@ -1827,7 +2129,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
             for effect in &outcome.effects {
                 match &effect.scope {
                     EffectScope::SelfAgent | EffectScope::Target | EffectScope::AllAt { .. }
-                        if !all_agent_fields.contains(&effect.field) =>
+                        if effect.field != "roles" && !all_agent_fields.contains(&effect.field) =>
                     {
                         return Err(DslError::new(
                             "UNKNOWN_STATE",

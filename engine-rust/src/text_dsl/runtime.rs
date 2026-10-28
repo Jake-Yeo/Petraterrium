@@ -84,10 +84,76 @@ pub fn sample_population(program: &Program, seed: u64) -> DslResult<DslPopulatio
             }
         }
     }
+    apply_role_distributions(program, seed, &agents_by_id, &mut agents)?;
     Ok(DslPopulation {
         agents,
         relationships,
     })
+}
+
+fn apply_role_distributions(
+    program: &Program,
+    seed: u64,
+    agents_by_id: &BTreeMap<&str, &AgentDefinition>,
+    agents: &mut [DslAgentState],
+) -> DslResult<()> {
+    for distribution in &program.role_distributions {
+        let values = distribution
+            .parameters
+            .iter()
+            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .collect::<BTreeMap<_, _>>();
+        let share = evaluate(&distribution.share, &values)?
+            .as_f64()
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
+        let matching = agents
+            .iter()
+            .enumerate()
+            .filter(|(_, agent)| {
+                agent_type_is(agents_by_id, &agent.agent_type, &distribution.agent_type)
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let target = (matching.len() as f64 * share).round() as usize;
+        let existing = matching
+            .iter()
+            .filter(|index| agents[**index].roles.contains(&distribution.role))
+            .count();
+        let mut eligible = matching
+            .into_iter()
+            .filter(|index| !agents[*index].roles.contains(&distribution.role))
+            .filter(|index| {
+                evaluate(
+                    &distribution.condition,
+                    &agent_context(&agents[*index], None, None, 0, program.tick_hours),
+                )
+                .ok()
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+        eligible.sort_by_key(|index| {
+            keyed_seed(
+                seed,
+                &format!("role:{}:{}", distribution.role, agents[*index].id),
+            )
+        });
+        for index in eligible.into_iter().take(target.saturating_sub(existing)) {
+            agents[index].roles.insert(distribution.role.clone());
+        }
+    }
+    Ok(())
+}
+
+fn agent_type_is(agents: &BTreeMap<&str, &AgentDefinition>, actual: &str, expected: &str) -> bool {
+    if actual == expected {
+        return true;
+    }
+    agents
+        .get(actual)
+        .and_then(|agent| agent.parent.as_deref())
+        .is_some_and(|parent| agent_type_is(agents, parent, expected))
 }
 
 pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
@@ -601,16 +667,15 @@ fn select_action<'a>(
     tick: u64,
 ) -> DslResult<Option<&'a CompiledAction<'a>>> {
     let agent = &state.agents[agent_index];
-    let decision = compiled
-        .decisions
-        .get(agent.current_decision.as_str())
-        .ok_or_else(|| {
-            DslError::new(
-                "UNKNOWN_DECISION",
-                1,
-                format!("Unknown active decision {}", agent.current_decision),
-            )
-        })?;
+    let base_decision = compiled.decisions.get(agent.current_decision.as_str());
+    let role_decisions = compiled.role_decisions.get(agent.current_decision.as_str());
+    if base_decision.is_none() && role_decisions.is_none() {
+        return Err(DslError::new(
+            "UNKNOWN_DECISION",
+            1,
+            format!("Unknown active decision {}", agent.current_decision),
+        ));
+    }
     let context = runtime_context(
         agent,
         None,
@@ -621,38 +686,48 @@ fn select_action<'a>(
         tick,
         program.tick_hours,
     );
-    let weights = decision
-        .branches
-        .iter()
-        .map(|branch| {
-            if branch
-                .condition
-                .as_ref()
-                .map(|condition| evaluate(condition, &context))
-                .transpose()?
-                .is_some_and(|value| !value.as_bool().unwrap_or(false))
-            {
-                return Ok(0.0);
+    let mut branches = base_decision
+        .into_iter()
+        .flat_map(|decision| decision.branches.iter().copied())
+        .collect::<Vec<_>>();
+    if let Some(role_decisions) = role_decisions {
+        for role in &agent.roles {
+            if let Some(role_branches) = role_decisions.get(role.as_str()) {
+                branches.extend(role_branches.iter().copied());
             }
-            let weight = evaluate(&branch.probability, &context)?
-                .as_f64()
-                .ok_or_else(|| {
-                    DslError::new(
-                        "INVALID_DECISION_PROBABILITY",
-                        branch.line,
-                        "Decision probability must be numeric",
-                    )
-                })?;
-            if !weight.is_finite() || weight < 0.0 {
-                return Err(DslError::new(
+        }
+    }
+    let mut action_weights = BTreeMap::<&str, f64>::new();
+    for branch in branches {
+        if branch
+            .condition
+            .as_ref()
+            .map(|condition| evaluate(condition, &context))
+            .transpose()?
+            .is_some_and(|value| !value.as_bool().unwrap_or(false))
+        {
+            continue;
+        }
+        let weight = evaluate(&branch.probability, &context)?
+            .as_f64()
+            .ok_or_else(|| {
+                DslError::new(
                     "INVALID_DECISION_PROBABILITY",
                     branch.line,
-                    "Decision probability weights must be finite and non-negative",
-                ));
-            }
-            Ok(weight)
-        })
-        .collect::<DslResult<Vec<_>>>()?;
+                    "Decision probability must be numeric",
+                )
+            })?;
+        if !weight.is_finite() || weight < 0.0 {
+            return Err(DslError::new(
+                "INVALID_DECISION_PROBABILITY",
+                branch.line,
+                "Decision probability weights must be finite and non-negative",
+            ));
+        }
+        *action_weights.entry(branch.action.as_str()).or_default() += weight;
+    }
+    let actions = action_weights.keys().copied().collect::<Vec<_>>();
+    let weights = action_weights.values().copied().collect::<Vec<_>>();
     if weights.iter().sum::<f64>() <= 1e-15 {
         return Ok(None);
     }
@@ -660,12 +735,10 @@ fn select_action<'a>(
         &weights,
         keyed_draw(
             seed,
-            &format!("{}:{tick}:decision:{}", agent.id, decision.definition.id),
+            &format!("{}:{tick}:decision:{}", agent.id, agent.current_decision),
         ),
     )?;
-    Ok(Some(
-        &compiled.actions[decision.branches[selected].action.as_str()],
-    ))
+    Ok(Some(&compiled.actions[actions[selected]]))
 }
 
 fn select_target(
@@ -691,6 +764,7 @@ fn select_target(
     let Some(place) = place else {
         return Ok(None);
     };
+    let source_place = state.places.iter().find(|candidate| candidate.id == place);
     if matches!(
         selector,
         TargetSelector::Random { filter: None, .. }
@@ -726,7 +800,7 @@ fn select_target(
                 filter
                     .as_ref()
                     .map(|filter| {
-                        let context = runtime_context(source, Some(agent), None, tick, 1.0)
+                        let context = runtime_context(source, Some(agent), source_place, tick, 1.0)
                             .with_labels(&agent.id, &source.id);
                         evaluate(filter, &context)
                             .ok()
@@ -932,6 +1006,10 @@ fn apply_effect(
     match effect.target {
         PendingTarget::Agent(index) => {
             let agent = &mut state.agents[index];
+            if effect.field == "roles" {
+                apply_role_effect(&mut agent.roles, &effect.operation, &effect.value)?;
+                return Ok(());
+            }
             let bounds = agent_state_bounds
                 .get(&agent.agent_type)
                 .and_then(|values| values.get(&effect.field));
@@ -976,6 +1054,42 @@ fn apply_effect(
                 effect.value.as_f64().unwrap_or(0.0),
             )?;
             *current = next;
+        }
+    }
+    Ok(())
+}
+
+fn apply_role_effect(
+    roles: &mut BTreeSet<String>,
+    operation: &str,
+    value: &DslValue,
+) -> DslResult<()> {
+    let role = value.as_text().ok_or_else(|| {
+        DslError::new(
+            "INVALID_ROLE_EFFECT",
+            1,
+            "Role effects require a role identifier",
+        )
+    })?;
+    match operation {
+        "+=" => {
+            roles.insert(role.to_owned());
+        }
+        "-=" => {
+            roles.remove(role);
+        }
+        "=" => {
+            roles.clear();
+            if role != "none" {
+                roles.insert(role.to_owned());
+            }
+        }
+        _ => {
+            return Err(DslError::new(
+                "INVALID_ROLE_EFFECT",
+                1,
+                format!("Unknown role effect operation {operation}"),
+            ));
         }
     }
     Ok(())
@@ -1432,7 +1546,7 @@ fn eligible_action_population(
         .iter()
         .filter(|index| {
             let agent = &state.agents[**index];
-            program
+            let base = program
                 .decisions
                 .iter()
                 .find(|decision| decision.id == agent.current_decision)
@@ -1444,7 +1558,24 @@ fn eligible_action_population(
                             .find(|action| action.id == branch.action)
                             .is_some_and(|action| action.aggregate == aggregate)
                     })
-                })
+                });
+            let role = program.roles.iter().any(|role| {
+                agent.roles.contains(&role.id)
+                    && role
+                        .decisions
+                        .iter()
+                        .find(|decision| decision.id == agent.current_decision)
+                        .is_some_and(|decision| {
+                            decision.branches.iter().any(|branch| {
+                                program
+                                    .actions
+                                    .iter()
+                                    .find(|action| action.id == branch.action)
+                                    .is_some_and(|action| action.aggregate == aggregate)
+                            })
+                        })
+            });
+            base || role
         })
         .count()
 }
