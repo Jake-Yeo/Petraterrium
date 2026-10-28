@@ -304,12 +304,21 @@ impl ExpressionParser {
     }
 }
 
-pub fn evaluate(expression: &Expr, values: &BTreeMap<String, DslValue>) -> DslResult<DslValue> {
+pub trait ValueResolver {
+    fn resolve(&self, name: &str) -> Option<DslValue>;
+}
+
+impl ValueResolver for BTreeMap<String, DslValue> {
+    fn resolve(&self, name: &str) -> Option<DslValue> {
+        self.get(name).cloned()
+    }
+}
+
+pub fn evaluate(expression: &Expr, values: &(impl ValueResolver + ?Sized)) -> DslResult<DslValue> {
     match expression {
         Expr::Value(value) => Ok(value.clone()),
         Expr::Variable(name) => values
-            .get(name)
-            .cloned()
+            .resolve(name)
             .or_else(|| name.starts_with("role.").then(|| DslValue::Bool(false)))
             .or_else(|| {
                 name.chars()

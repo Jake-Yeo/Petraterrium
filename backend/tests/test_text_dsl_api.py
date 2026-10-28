@@ -15,7 +15,11 @@ SOURCE = '''program Tiny version "1.0":
 
 
 class FakeRustDsl:
+    def __init__(self):
+        self.validation_calls = 0
+
     def validate_text_dsl(self, source: str):
+        self.validation_calls += 1
         return {
             "valid": "invalid" not in source,
             "program_id": "Tiny",
@@ -102,6 +106,16 @@ def test_text_source_is_saved_and_run_without_python_parsing(tmp_path):
     assert saved.code == edited
     assert compared.comparison[0].values["actions"]["home"] == 100
     assert dsl.get_run(compared.run_id).model_dump() == compared.model_dump()
+
+
+def test_validation_is_cached_by_dsl_source_hash(tmp_path):
+    dsl = service(tmp_path)
+
+    first = dsl.current()
+    second = dsl.current()
+
+    assert first.validation == second.validation
+    assert dsl.rust.validation_calls == 1
 
 
 def test_text_dsl_routes_return_code_validation_and_small_run(tmp_path):

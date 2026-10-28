@@ -5,6 +5,9 @@
 - The source of truth is `engine-rust/dsl/default.dsl`, a Python-like text program.
 - Rust parses, validates, compiles, samples, and executes the DSL. Python only stores source and
   run records and exposes the Rust protocol over HTTP.
+- A compiled Rust execution plan resolves decision and action IDs, sorts seeded choices, builds
+  timed actions, and resolves inherited state bounds once before tick zero. Runtime expressions
+  read agent and place state directly without rebuilding string-keyed contexts.
 - Parser diagnostics include a named error code and source line for bad references, forward
   initial references, invalid categorical probabilities, invalid indentation, and duration errors.
 - Agent definitions support single inheritance, roles, trait/state overrides, and inherited
@@ -21,7 +24,7 @@
   long-action continuation.
 - DSL `output` blocks define each Rust report's grouping, collection cadence, columns, metric
   formulas, labels, formats, and table/card presentation. Rust creates statistical snapshots only
-  for those reports; raw action receipts remain engine audit events.
+  for those reports. `record_actions` explicitly controls whether raw action receipts are returned.
 - Report formulas support counts, means, sums, action and outcome counts, action rates, family
   size, and kids per family. Reports can group by all agents, place, or agent type and record every
   tick, daily, or at the final tick.
@@ -53,18 +56,28 @@
 
 ## Focused verification
 
-- Rust DSL tests: 12 passed in under one second.
+- Rust DSL tests: 13 passed in under one second.
+- Rust compiler and bounded report-window tests: 2 passed.
 - Rust duration sampling and tick scaling: two focused tests passed.
-- Python API persistence/routes and legacy run compatibility: 3 passed in 0.02 seconds.
-- Browser code-display/edit/save/run/compare and line-error tests: 2 passed in 5.9 seconds.
-- Frontend production build: 9 modules in 0.28 seconds.
+- Python API persistence/routes, validation cache, and legacy compatibility: 4 passed.
+- Optimized Rust profile selection: 1 passed.
+- Browser code-display/edit/save/run/compare and line-error tests: 2 passed.
+- Frontend production build: 9 modules in 0.25 seconds.
 - Engine source grep contains none of the shipped place, action, or scenario names.
+
+## Performance
+
+- A 30-day API run fell from `9.4` seconds to `0.387` seconds.
+- A 365-day API run completes in `4.307` seconds for 130 agents and 8,760 ticks.
+- The rendered app completed and displayed the same 365-day run in `4.345` seconds.
+- The default DSL records the requested daily/final reports and omits the unused 670,767-event
+  action payload. Set `record_actions = true` when a run needs every raw receipt.
 
 ## Final demo run
 
-- Run ID: `5b8b8f5f1afe42ea921215e42a43f06a`
-- DSL hash: `sha256:d048e7f6b208f13f4120aa8928a8a24020334fbc1e5cf37a2f238f6586b76106`
-- Rust engine: `0.3.0`
+- Run ID: `e4cc383ed65842ed9cc998c84a9e1015`
+- DSL hash: `sha256:6e75e7759f97e747d4509df6f8f2bd195c93a16fdeef5965dd175d6af4cd3922`
+- Rust engine: `0.3.1`
 - Seed: `1`
 - Duration: `30` days / `720` ticks
 - Population: `100` sampled adults plus `30` generated children

@@ -48,6 +48,7 @@ class TextDslService:
         self.active_path = self.root / "active.dsl"
         self.metadata_path = self.root / "active.json"
         self.runs_path = self.root / "runs"
+        self._validation_cache: dict[str, TextDslValidation] = {}
         self.root.mkdir(parents=True, exist_ok=True)
         self.runs_path.mkdir(parents=True, exist_ok=True)
 
@@ -62,12 +63,16 @@ class TextDslService:
         )
 
     def validate(self, code: str) -> TextDslValidation:
+        source_hash = self._hash(code)
+        cached = self._validation_cache.get(source_hash)
+        if cached is not None:
+            return cached
         result = self.rust.validate_text_dsl(code)
         diagnostics = tuple(
             TextDslDiagnostic.model_validate(value)
             for value in result.get("diagnostics", [])
         )
-        return TextDslValidation(
+        validation = TextDslValidation(
             valid=bool(result.get("valid")),
             program_id=result.get("program_id"),
             version=result.get("version"),
@@ -75,6 +80,8 @@ class TextDslService:
             adult_population=result.get("adult_population"),
             diagnostics=diagnostics,
         )
+        self._validation_cache[source_hash] = validation
+        return validation
 
     def save(self, code: str, expected_hash: str) -> TextDslDocument:
         current = self.current()

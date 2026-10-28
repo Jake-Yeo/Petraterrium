@@ -10,6 +10,16 @@ def rust_core() -> RustCoreClient:
     return RustCoreClient()
 
 
+def test_rust_core_defaults_to_optimized_release_profile(monkeypatch, tmp_path):
+    binary = tmp_path / "petraterrium-engine"
+    binary.touch()
+    monkeypatch.delenv("PETRATERRIUM_RUST_CORE_PROFILE", raising=False)
+
+    client = RustCoreClient(binary, build_if_missing=False)
+
+    assert client.profile == "release"
+
+
 def location_request() -> dict:
     return {
         "operation": "health",

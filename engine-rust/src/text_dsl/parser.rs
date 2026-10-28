@@ -18,6 +18,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut tick_hours = None;
     let mut placeholder_label = None;
     let mut uncertainty = None;
+    let mut record_actions = true;
     let mut results_title = None;
     let mut results_subtitle = None;
     let mut places = Vec::new();
@@ -36,6 +37,18 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
                 placeholder_label = Some(quoted(value, line.number)?);
             } else if let Some(value) = line.text.strip_prefix("uncertainty = ") {
                 uncertainty = Some(value.trim().to_owned());
+            } else if let Some(value) = line.text.strip_prefix("record_actions = ") {
+                record_actions = match value {
+                    "true" => true,
+                    "false" => false,
+                    _ => {
+                        return Err(DslError::new(
+                            "INVALID_BOOLEAN",
+                            line.number,
+                            "record_actions must be true or false",
+                        ));
+                    }
+                };
             } else if let Some(value) = line.text.strip_prefix("results_title = ") {
                 results_title = Some(quoted(value, line.number)?);
             } else if let Some(value) = line.text.strip_prefix("results_subtitle = ") {
@@ -113,6 +126,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
                 "Program needs uncertainty",
             )
         })?,
+        record_actions,
         results_title: results_title.ok_or_else(|| {
             DslError::new(
                 "MISSING_RESULTS_TITLE",

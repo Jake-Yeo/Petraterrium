@@ -1,10 +1,8 @@
-use super::expression::evaluate;
+use super::compiler::{CompiledAction, CompiledProgram, compile_program};
+use super::expression::{ValueResolver, evaluate};
 use super::model::*;
 use super::parser::{merged_fields, merged_initial, merged_roles, resolved_routine};
-use crate::agent_types::{
-    ActionEvent, DurationDistribution, ProbabilityProvenance, SampledTimedAction,
-    TimedActionDefinition,
-};
+use crate::agent_types::{ActionEvent, SampledTimedAction};
 use crate::time_budget::{allocate_agent_tick, sample_duration_hours};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -128,16 +126,19 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
             "Checkpoint time rows must match agents",
         ));
     }
-    let decisions = program
-        .decisions
-        .iter()
-        .map(|decision| (decision.id.as_str(), decision))
-        .collect::<BTreeMap<_, _>>();
-    let actions = program
-        .actions
-        .iter()
-        .map(|action| (action.id.as_str(), action))
-        .collect::<BTreeMap<_, _>>();
+    let compiled = compile_program(&program)?;
+    let mut relationship_indices = state.relationships.iter().enumerate().fold(
+        BTreeMap::new(),
+        |mut indices, (index, relationship)| {
+            indices
+                .entry((
+                    relationship.source_id.clone(),
+                    relationship.target_id.clone(),
+                ))
+                .or_insert(index);
+            indices
+        },
+    );
     let mut action_records = Vec::new();
     let mut reports = program
         .reports
@@ -155,52 +156,50 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
     let run_start_tick = state.completed_ticks + 1;
     let final_tick = state.completed_ticks + request.ticks;
     for tick in state.completed_ticks + 1..=final_tick {
-        let snapshot = state.clone();
         let mut completed_actions = Vec::new();
         for agent_index in 0..state.agents.len() {
+            let selected_action = if state.time[agent_index].active_primary.is_none()
+                && state.time[agent_index].deferred.is_empty()
+            {
+                select_action(&program, &state, &compiled, agent_index, request.seed, tick)?
+            } else {
+                None
+            };
             let time = &mut state.time[agent_index];
             let mut candidates = std::mem::take(&mut time.deferred);
-            if time.active_primary.is_none() && candidates.is_empty() {
-                if let Some(action) = select_action(
-                    &program,
-                    &snapshot,
-                    &decisions,
-                    &actions,
-                    agent_index,
+            if let Some(action) = selected_action {
+                let occurrence = time
+                    .occurrence_counts
+                    .entry(action.definition.id.clone())
+                    .or_default();
+                let occurrence_index = *occurrence;
+                *occurrence += 1;
+                let duration = sample_duration_hours(
+                    &action.timed.duration,
                     request.seed,
-                    tick,
-                )? {
-                    let occurrence = time.occurrence_counts.entry(action.id.clone()).or_default();
-                    let occurrence_index = *occurrence;
-                    *occurrence += 1;
-                    let definition = timed_definition(action, &program);
-                    let duration = sample_duration_hours(
-                        &definition.duration,
-                        request.seed,
+                    agent_index,
+                    &action.definition.id,
+                    occurrence_index,
+                )
+                .map_err(core_error)?;
+                candidates.push(SampledTimedAction {
+                    definition: action.timed.clone(),
+                    event: ActionEvent {
+                        tick,
                         agent_index,
-                        &action.id,
-                        occurrence_index,
-                    )
-                    .map_err(core_error)?;
-                    candidates.push(SampledTimedAction {
-                        definition,
-                        event: ActionEvent {
-                            tick,
-                            agent_index,
-                            place_index: 0,
-                            action: action.id.clone(),
-                            rule_index: 0,
-                            probability: 1.0,
-                            draw: 0.0,
-                            provenance: placeholder_provenance(&program),
-                        },
-                        occurrence_index,
-                        sampled_duration_hours: duration,
-                        remaining_duration_hours: duration,
-                        location_place_index: None,
-                        emit_event: true,
-                    });
-                }
+                        place_index: 0,
+                        action: action.definition.id.clone(),
+                        rule_index: 0,
+                        probability: 1.0,
+                        draw: 0.0,
+                        provenance: action.timed.duration.provenance.clone(),
+                    },
+                    occurrence_index,
+                    sampled_duration_hours: duration,
+                    remaining_duration_hours: duration,
+                    location_place_index: None,
+                    emit_event: true,
+                });
             }
             let allocation = allocate_agent_tick(
                 agent_index,
@@ -227,21 +226,21 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
         let mut self_decisions = vec![None; state.agents.len()];
         let mut target_decisions = vec![None; state.agents.len()];
         for (agent_index, action_id, occurrence_index) in completed_actions {
-            let action = actions[action_id.as_str()];
+            let action = &compiled.actions[action_id.as_str()];
             let target = select_target(
-                action,
-                &snapshot,
+                action.definition,
+                &state,
                 agent_index,
                 request.seed,
                 tick,
                 occurrence_index,
             )?;
-            if action.target.is_some() && target.is_none() {
+            if action.definition.target.is_some() && target.is_none() {
                 continue;
             }
             let outcome = select_outcome(
                 action,
-                &snapshot,
+                &state,
                 agent_index,
                 target,
                 request.seed,
@@ -255,19 +254,19 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
                 target_decisions[target_index] = Some(next.clone());
             }
             for effect in &outcome.effects {
-                effects.extend(expand_effect(effect, &snapshot, agent_index, target)?);
+                effects.extend(expand_effect(effect, &state, agent_index, target)?);
             }
-            let place = snapshot.agents[agent_index]
+            let place = state.agents[agent_index]
                 .place()
                 .unwrap_or("Unknown")
                 .to_owned();
             action_records.push(DslActionRecord {
                 tick,
-                agent_id: snapshot.agents[agent_index].id.clone(),
-                action: action.id.clone(),
+                agent_id: state.agents[agent_index].id.clone(),
+                action: action.definition.id.clone(),
                 outcome: outcome.id.clone(),
                 place,
-                target_id: target.map(|index| snapshot.agents[index].id.clone()),
+                target_id: target.map(|index| state.agents[index].id.clone()),
             });
         }
         for (index, decision) in target_decisions
@@ -282,7 +281,13 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
         }
         effects.sort_by(|left, right| left.key.cmp(&right.key));
         for effect in effects {
-            apply_effect(&program, &mut state, effect)?;
+            apply_effect(
+                &compiled.agent_state_bounds,
+                &compiled.place_state_bounds,
+                &mut relationship_indices,
+                &mut state,
+                effect,
+            )?;
         }
         state.completed_ticks = tick;
         record_reports(
@@ -298,9 +303,13 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
     Ok(DslRunResult {
         completed_ticks: state.completed_ticks,
         state,
-        actions: action_records,
-        results_title: program.results_title,
-        results_subtitle: program.results_subtitle,
+        actions: if program.record_actions {
+            action_records
+        } else {
+            Vec::new()
+        },
+        results_title: program.results_title.clone(),
+        results_subtitle: program.results_subtitle.clone(),
         reports,
     })
 }
@@ -388,19 +397,6 @@ fn merged_state_fields(
         BTreeSet::new()
     };
     result.extend(agent.states.iter().cloned());
-    Ok(result)
-}
-
-fn merged_state_bounds(
-    agent: &AgentDefinition,
-    agents: &BTreeMap<&str, &AgentDefinition>,
-) -> DslResult<BTreeMap<String, ValueBounds>> {
-    let mut result = if let Some(parent) = &agent.parent {
-        merged_state_bounds(agents[parent.as_str()], agents)?
-    } else {
-        BTreeMap::new()
-    };
-    result.extend(agent.state_bounds.clone());
     Ok(result)
 }
 
@@ -531,16 +527,16 @@ fn sample_distribution(
 }
 
 fn select_action<'a>(
-    program: &'a Program,
+    program: &Program,
     state: &DslRunState,
-    decisions: &BTreeMap<&str, &'a DecisionDefinition>,
-    actions: &BTreeMap<&str, &'a ActionDefinition>,
+    compiled: &'a CompiledProgram<'a>,
     agent_index: usize,
     seed: u64,
     tick: u64,
-) -> DslResult<Option<&'a ActionDefinition>> {
+) -> DslResult<Option<&'a CompiledAction<'a>>> {
     let agent = &state.agents[agent_index];
-    let decision = decisions
+    let decision = compiled
+        .decisions
         .get(agent.current_decision.as_str())
         .ok_or_else(|| {
             DslError::new(
@@ -549,7 +545,7 @@ fn select_action<'a>(
                 format!("Unknown active decision {}", agent.current_decision),
             )
         })?;
-    let context = agent_context(
+    let context = runtime_context(
         agent,
         None,
         state
@@ -559,9 +555,8 @@ fn select_action<'a>(
         tick,
         program.tick_hours,
     );
-    let mut candidates = decision.branches.iter().collect::<Vec<_>>();
-    candidates.sort_by(|left, right| left.action.cmp(&right.action));
-    let weights = candidates
+    let weights = decision
+        .branches
         .iter()
         .map(|branch| {
             if branch
@@ -599,52 +594,12 @@ fn select_action<'a>(
         &weights,
         keyed_draw(
             seed,
-            &format!("{}:{tick}:decision:{}", agent.id, decision.id),
+            &format!("{}:{tick}:decision:{}", agent.id, decision.definition.id),
         ),
     )?;
-    Ok(Some(actions[candidates[selected].action.as_str()]))
-}
-
-fn timed_definition(action: &ActionDefinition, program: &Program) -> TimedActionDefinition {
-    let mut shape_parameters = BTreeMap::new();
-    if let Some(sigma) = action.duration.sigma {
-        shape_parameters.insert("sigma".to_owned(), sigma);
-    }
-    TimedActionDefinition {
-        action_id: action.id.clone(),
-        category: action.aggregate.clone(),
-        duration: DurationDistribution {
-            duration_min_hours: action.duration.minimum,
-            duration_median_hours: action.duration.median,
-            duration_max_hours: action.duration.maximum,
-            shape: action.duration.shape.clone(),
-            shape_parameters,
-            provenance: placeholder_provenance(program),
-        },
-        duration_overrides: Vec::new(),
-        location_place_index_by_agent: Vec::new(),
-        priority: 0,
-        passive: false,
-        interruptibility: "interruptible".to_owned(),
-        interruption_outcome: "defer".to_owned(),
-        emergency_interruptions: Vec::new(),
-    }
-}
-
-fn placeholder_provenance(program: &Program) -> ProbabilityProvenance {
-    ProbabilityProvenance {
-        source: program.placeholder_label.clone(),
-        version: program.version.clone(),
-        status: "default_estimated".to_owned(),
-        resolution_status: None,
-        source_places: Vec::new(),
-        uncertainty: 1.0,
-        source_date: None,
-        evidence_id: None,
-        evidence_kind: Some("placeholder".to_owned()),
-        ci_low: Some(0.0),
-        ci_high: Some(1.0),
-    }
+    Ok(Some(
+        &compiled.actions[decision.branches[selected].action.as_str()],
+    ))
 }
 
 fn select_target(
@@ -674,9 +629,8 @@ fn select_target(
             TargetSelector::Random { filter, .. } => filter
                 .as_ref()
                 .map(|filter| {
-                    let mut context = agent_context(source, Some(agent), None, tick, 1.0);
-                    context.insert("agent".to_owned(), DslValue::Text(agent.id.clone()));
-                    context.insert("self".to_owned(), DslValue::Text(source.id.clone()));
+                    let context = runtime_context(source, Some(agent), None, tick, 1.0)
+                        .with_labels(&agent.id, &source.id);
                     evaluate(filter, &context)
                         .ok()
                         .and_then(|value| value.as_bool())
@@ -722,7 +676,7 @@ fn select_target(
 }
 
 fn select_outcome<'a>(
-    action: &'a ActionDefinition,
+    action: &'a CompiledAction<'a>,
     state: &DslRunState,
     source_index: usize,
     target: Option<usize>,
@@ -736,10 +690,9 @@ fn select_outcome<'a>(
         .places
         .iter()
         .find(|place| source.place() == Some(place.id.as_str()));
-    let context = agent_context(source, target_agent, place, tick, 1.0);
-    let mut outcomes = action.outcomes.iter().collect::<Vec<_>>();
-    outcomes.sort_by(|left, right| left.id.cmp(&right.id));
-    let weights = outcomes
+    let context = runtime_context(source, target_agent, place, tick, 1.0);
+    let weights = action
+        .outcomes
         .iter()
         .map(|outcome| {
             if outcome
@@ -766,10 +719,13 @@ fn select_outcome<'a>(
         &weights,
         keyed_draw(
             seed,
-            &format!("{}:{tick}:{}:{occurrence}:outcome", source.id, action.id),
+            &format!(
+                "{}:{tick}:{}:{occurrence}:outcome",
+                source.id, action.definition.id
+            ),
         ),
     )?;
-    Ok(outcomes[selected])
+    Ok(action.outcomes[selected])
 }
 
 #[derive(Clone)]
@@ -800,7 +756,7 @@ fn expand_effect(
         .places
         .iter()
         .find(|place| source.place() == Some(place.id.as_str()));
-    let context = agent_context(source, target, place, state.completed_ticks + 1, 1.0);
+    let context = runtime_context(source, target, place, state.completed_ticks + 1, 1.0);
     let value = evaluate(&effect.value, &context)?;
     let mut targets = Vec::new();
     match &effect.scope {
@@ -816,10 +772,9 @@ fn expand_effect(
                     continue;
                 }
                 if filter.as_ref().is_some_and(|filter| {
-                    let mut context =
-                        agent_context(agent, Some(source), None, state.completed_ticks + 1, 1.0);
-                    context.insert("agent".to_owned(), DslValue::Text(agent.id.clone()));
-                    context.insert("self".to_owned(), DslValue::Text(source.id.clone()));
+                    let context =
+                        runtime_context(agent, Some(source), None, state.completed_ticks + 1, 1.0)
+                            .with_labels(&agent.id, &source.id);
                     !evaluate(filter, &context)
                         .ok()
                         .and_then(|value| value.as_bool())
@@ -854,25 +809,20 @@ fn expand_effect(
 }
 
 fn apply_effect(
-    program: &Program,
+    agent_state_bounds: &BTreeMap<String, BTreeMap<String, ValueBounds>>,
+    place_state_bounds: &BTreeMap<String, BTreeMap<String, ValueBounds>>,
+    relationship_indices: &mut BTreeMap<(String, String), usize>,
     state: &mut DslRunState,
     effect: PendingEffect,
 ) -> DslResult<()> {
     match effect.target {
         PendingTarget::Agent(index) => {
             let agent = &mut state.agents[index];
-            let definitions = program
-                .agents
-                .iter()
-                .map(|item| (item.id.as_str(), item))
-                .collect::<BTreeMap<_, _>>();
-            let bounds = definitions
-                .get(agent.agent_type.as_str())
-                .map(|definition| merged_state_bounds(definition, &definitions))
-                .transpose()?
-                .and_then(|values| values.get(&effect.field).cloned());
+            let bounds = agent_state_bounds
+                .get(&agent.agent_type)
+                .and_then(|values| values.get(&effect.field));
             if let Some(current) = agent.states.get_mut(&effect.field) {
-                apply_value(current, &effect.operation, &effect.value, bounds.as_ref())?;
+                apply_value(current, &effect.operation, &effect.value, bounds)?;
             } else if let Some(current) = agent.traits.get_mut(&effect.field) {
                 apply_value(current, &effect.operation, &effect.value, None)?;
             } else {
@@ -880,11 +830,9 @@ fn apply_effect(
             }
         }
         PendingTarget::Place(index) => {
-            let bounds = program
-                .places
-                .iter()
-                .find(|item| item.id == state.places[index].id)
-                .and_then(|item| item.state_bounds.get(&effect.field));
+            let bounds = place_state_bounds
+                .get(&state.places[index].id)
+                .and_then(|values| values.get(&effect.field));
             let current = state.places[index]
                 .states
                 .entry(effect.field.clone())
@@ -894,19 +842,18 @@ fn apply_effect(
         PendingTarget::Relationship(source, target) => {
             let source_id = state.agents[source].id.clone();
             let target_id = state.agents[target].id.clone();
-            let relationship_index = state
-                .relationships
-                .iter()
-                .position(|item| item.source_id == source_id && item.target_id == target_id)
-                .unwrap_or_else(|| {
-                    state.relationships.push(DslRelationshipState {
-                        kind: "interaction".to_owned(),
-                        source_id: source_id.clone(),
-                        target_id: target_id.clone(),
-                        values: BTreeMap::new(),
-                    });
-                    state.relationships.len() - 1
+            let key = (source_id.clone(), target_id.clone());
+            let relationship_index = relationship_indices.get(&key).copied().unwrap_or_else(|| {
+                state.relationships.push(DslRelationshipState {
+                    kind: "interaction".to_owned(),
+                    source_id,
+                    target_id,
+                    values: BTreeMap::new(),
                 });
+                let index = state.relationships.len() - 1;
+                relationship_indices.insert(key, index);
+                index
+            });
             let relationship = &mut state.relationships[relationship_index];
             let current = relationship.values.entry(effect.field).or_default();
             let next = apply_number(
@@ -968,6 +915,71 @@ fn apply_number(current: f64, operation: &str, value: f64) -> DslResult<f64> {
             1,
             format!("Unknown effect operation {operation}"),
         )),
+    }
+}
+
+struct RuntimeContext<'a> {
+    agent: &'a DslAgentState,
+    target: Option<&'a DslAgentState>,
+    place: Option<&'a DslPlaceState>,
+    tick: u64,
+    tick_hours: f64,
+    agent_label: &'a str,
+    self_label: &'a str,
+}
+
+impl<'a> RuntimeContext<'a> {
+    fn with_labels(mut self, agent_label: &'a str, self_label: &'a str) -> Self {
+        self.agent_label = agent_label;
+        self.self_label = self_label;
+        self
+    }
+}
+
+impl ValueResolver for RuntimeContext<'_> {
+    fn resolve(&self, name: &str) -> Option<DslValue> {
+        match name {
+            "agent" => Some(DslValue::Text(self.agent_label.to_owned())),
+            "self" => Some(DslValue::Text(self.self_label.to_owned())),
+            "tick" => Some(DslValue::Number(self.tick as f64)),
+            "hour" => Some(DslValue::Number(
+                ((self.tick.saturating_sub(1)) as f64 * self.tick_hours) % 24.0,
+            )),
+            "day" => Some(DslValue::Number(
+                ((self.tick.saturating_sub(1)) as f64 * self.tick_hours / 24.0).floor(),
+            )),
+            "target" => self.target.map(|target| DslValue::Text(target.id.clone())),
+            _ if name.starts_with("role.") => Some(DslValue::Bool(
+                self.agent.roles.contains(name.trim_start_matches("role.")),
+            )),
+            _ if name.starts_with("target.") => self
+                .target
+                .and_then(|target| target.value(name.trim_start_matches("target.")))
+                .cloned(),
+            _ if name.starts_with("place.") => self
+                .place
+                .and_then(|place| place.states.get(name.trim_start_matches("place.")))
+                .cloned(),
+            _ => self.agent.value(name).cloned(),
+        }
+    }
+}
+
+fn runtime_context<'a>(
+    agent: &'a DslAgentState,
+    target: Option<&'a DslAgentState>,
+    place: Option<&'a DslPlaceState>,
+    tick: u64,
+    tick_hours: f64,
+) -> RuntimeContext<'a> {
+    RuntimeContext {
+        agent,
+        target,
+        place,
+        tick,
+        tick_hours,
+        agent_label: &agent.id,
+        self_label: &agent.id,
     }
 }
 
@@ -1263,19 +1275,28 @@ fn selected_actions<'a>(
         "day" => tick.saturating_sub(ticks_per_day - 1).max(run_start_tick),
         _ => run_start_tick,
     };
-    actions
+    action_window(actions, first_tick, tick)
         .iter()
         .filter(|record| {
-            (first_tick..=tick).contains(&record.tick)
-                && if definition.group_by == "place" {
-                    record.place == group_id
-                } else if definition.group_by == "agent_type" {
-                    ids.contains(record.agent_id.as_str())
-                } else {
-                    true
-                }
+            if definition.group_by == "place" {
+                record.place == group_id
+            } else if definition.group_by == "agent_type" {
+                ids.contains(record.agent_id.as_str())
+            } else {
+                true
+            }
         })
         .collect()
+}
+
+fn action_window(
+    actions: &[DslActionRecord],
+    first_tick: u64,
+    last_tick: u64,
+) -> &[DslActionRecord] {
+    let start = actions.partition_point(|record| record.tick < first_tick);
+    let end = actions.partition_point(|record| record.tick <= last_tick);
+    &actions[start..end]
 }
 
 fn action_aggregate<'a>(program: &'a Program, record: &'a DslActionRecord) -> &'a str {
@@ -1350,6 +1371,55 @@ fn weighted_index(weights: &[f64], draw: f64) -> DslResult<usize> {
         }
     }
     Ok(weights.len() - 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::text_dsl::parser::parse_program;
+
+    #[test]
+    fn compiler_resolves_and_sorts_hot_loop_definitions_once() {
+        let program = parse_program(include_str!("../../dsl/default.dsl")).unwrap();
+        let compiled = compile_program(&program).unwrap();
+        let decision = &compiled.decisions["where_to_go"];
+        let action = &compiled.actions["start_fight"];
+
+        assert!(
+            decision
+                .branches
+                .windows(2)
+                .all(|pair| pair[0].action <= pair[1].action)
+        );
+        assert!(
+            action
+                .outcomes
+                .windows(2)
+                .all(|pair| pair[0].id <= pair[1].id)
+        );
+        assert_eq!(action.timed.action_id, "start_fight");
+        assert!(compiled.agent_state_bounds["Worker"].contains_key("health"));
+    }
+
+    #[test]
+    fn action_window_slice_is_bounded_to_requested_ticks() {
+        let actions = (1..=10_000)
+            .map(|tick| DslActionRecord {
+                tick,
+                agent_id: "agent".to_owned(),
+                action: "action".to_owned(),
+                outcome: "outcome".to_owned(),
+                place: "place".to_owned(),
+                target_id: None,
+            })
+            .collect::<Vec<_>>();
+
+        let window = action_window(&actions, 9_977, 10_000);
+
+        assert_eq!(window.len(), 24);
+        assert_eq!(window.first().unwrap().tick, 9_977);
+        assert_eq!(window.last().unwrap().tick, 10_000);
+    }
 }
 
 fn keyed_seed(seed: u64, key: &str) -> u64 {

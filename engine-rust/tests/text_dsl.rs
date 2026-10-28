@@ -9,6 +9,7 @@ const SYNTHETIC: &str = r#"program Synthetic version "1.0":
   tick_hours = 1 placeholder
   placeholder = "placeholder — agent knowledge, for demo only, to be replaced by research"
   uncertainty = wide
+  record_actions = true
   results_title = "Synthetic results"
   results_subtitle = "Defined by this test DSL"
 
@@ -547,6 +548,25 @@ fn report_collection_cadence_is_defined_by_the_dsl() {
     assert_eq!(result.reports[1].record, "final");
     assert_eq!(result.reports[1].snapshots.len(), 1);
     assert_eq!(result.results_title, "Synthetic results");
+}
+
+#[test]
+fn reports_remain_complete_when_action_receipt_output_is_disabled() {
+    let program =
+        parse_program(&SYNTHETIC.replace("record_actions = true", "record_actions = false"))
+            .unwrap();
+    let result = run_program(DslRunRequest::new(program, 19, 1)).unwrap();
+    let travel = result.reports[0].snapshots[0]
+        .rows
+        .iter()
+        .map(|row| match row.values["travel"] {
+            DslReportValue::Number(value) => value,
+            _ => 0.0,
+        })
+        .sum::<f64>();
+
+    assert!(result.actions.is_empty());
+    assert!(travel > 0.0);
 }
 
 #[test]

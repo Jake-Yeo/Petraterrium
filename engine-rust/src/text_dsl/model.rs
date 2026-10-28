@@ -252,6 +252,7 @@ pub struct Program {
     pub tick_hours: f64,
     pub placeholder_label: String,
     pub uncertainty: String,
+    pub record_actions: bool,
     pub results_title: String,
     pub results_subtitle: String,
     pub places: Vec<PlaceDefinition>,

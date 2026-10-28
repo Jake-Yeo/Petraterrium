@@ -24,7 +24,7 @@ class RustCoreClient:
     ):
         self.repository_root = Path(__file__).resolve().parents[3]
         self.manifest_path = self.repository_root / "engine-rust" / "Cargo.toml"
-        self.profile = os.environ.get("PETRATERRIUM_RUST_CORE_PROFILE", "debug")
+        self.profile = os.environ.get("PETRATERRIUM_RUST_CORE_PROFILE", "release")
         configured_path = binary_path or os.environ.get("PETRATERRIUM_RUST_CORE_BINARY")
         self.managed_binary = configured_path is None
         self.binary_path = (

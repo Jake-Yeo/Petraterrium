@@ -2,6 +2,7 @@ program PetraterriumTown version "1.0":
   tick_hours = 1 placeholder
   placeholder = "placeholder — agent knowledge, for demo only, to be replaced by research"
   uncertainty = wide
+  record_actions = false
   results_title = "Recorded Rust output"
   results_subtitle = "DSL-defined small-group statistics"
 

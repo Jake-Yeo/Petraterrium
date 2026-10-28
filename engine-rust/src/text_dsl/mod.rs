@@ -1,3 +1,4 @@
+mod compiler;
 mod expression;
 mod model;
 mod parser;
