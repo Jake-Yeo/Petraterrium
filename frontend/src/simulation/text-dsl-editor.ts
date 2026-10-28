@@ -15,7 +15,24 @@ interface DslValidation {
   adult_population?: number | null;
   archetypes: string[];
   weighted_populations: string[];
+  aggregate_functions: AggregateFunctionDefinition[];
   diagnostics: DslDiagnostic[];
+}
+
+interface AggregateInputDefinition {
+  id: string;
+  default: number;
+  minimum: number;
+  maximum: number;
+  invalidate_threshold: number;
+}
+
+interface AggregateFunctionDefinition {
+  id: string;
+  inputs: AggregateInputDefinition[];
+  time_days: number;
+  time_points: number[];
+  cache: { valid_for_days: number };
 }
 
 interface DslDocument {
@@ -77,6 +94,24 @@ interface DslRunResult {
   comparison: ReportDelta[];
   engine_version: string;
   created_at: string;
+}
+
+interface AggregateEvaluationResult {
+  function_id: string;
+  cache_hit: boolean;
+  invalidation_reason?: string | null;
+  agent_ticks: number;
+  inputs_hash: string;
+  valid_from: number;
+  valid_until: number;
+  dsl_source_hash: string;
+  cache_version: number;
+  time_series: Array<{
+    day: number;
+    outputs: Record<string, { mean: number; standard_deviation: number }>;
+  }>;
+  reports: Report[];
+  elapsed_seconds: number;
 }
 
 export interface TextDslEditorOptions {
@@ -143,6 +178,14 @@ export class TextDslEditor {
         <label>Days<input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
         <button type="button" class="button primary" data-dsl-action="run">Run saved DSL</button>
       </div>
+      <div class="text-dsl-aggregate-toolbar">
+        <label>Aggregate function<select data-aggregate-function><option value="">Select archetype</option></select></label>
+        <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
+        <label>Evaluation day<input type="number" min="0" step="1" value="0" data-aggregate-day></label>
+        <label>Events<input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
+        <button type="button" class="button secondary" data-dsl-action="aggregate-cached">Evaluate cached</button>
+        <button type="button" class="button secondary" data-dsl-action="aggregate-relearn">Relearn detailed</button>
+      </div>
       <div class="text-dsl-status" role="status" data-dsl-status>Loading Rust DSL…</div>
       <div class="text-dsl-code-frame" data-dsl-code-frame></div>
       <div class="text-dsl-diagnostics" data-dsl-diagnostics></div>
@@ -160,6 +203,9 @@ export class TextDslEditor {
     this.results = this.root.querySelector<HTMLElement>('[data-dsl-results]')!;
     this.host.replaceChildren(this.root);
     this.root.addEventListener('click', this.onClick);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
+      .addEventListener('change', this.onAggregateFunctionChange);
     this.textarea.addEventListener('input', this.onInput);
     this.textarea.addEventListener('scroll', this.onScroll);
   }
@@ -174,6 +220,9 @@ export class TextDslEditor {
     this.root.removeEventListener('click', this.onClick);
     this.textarea.removeEventListener('input', this.onInput);
     this.textarea.removeEventListener('scroll', this.onScroll);
+    this.root
+      .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
+      .removeEventListener('change', this.onAggregateFunctionChange);
     this.root.remove();
   }
 
@@ -199,6 +248,13 @@ export class TextDslEditor {
     if (action === 'save') void this.save();
     if (action === 'run') void this.runDsl();
     if (action === 'reset') void this.reset(button);
+    if (action === 'aggregate-cached') void this.evaluateAggregate(false);
+    if (action === 'aggregate-relearn') void this.evaluateAggregate(true);
+  };
+
+  private readonly onAggregateFunctionChange = (): void => {
+    this.renderAggregateInputs();
+    this.updateButtons();
   };
 
   private async load(): Promise<void> {
@@ -307,6 +363,69 @@ export class TextDslEditor {
     }
   }
 
+  private async evaluateAggregate(forceRelearn: boolean): Promise<void> {
+    if (!this.document || this.dirty || !this.document.validation.valid) return;
+    const functionId = this.root.querySelector<HTMLSelectElement>(
+      '[data-aggregate-function]',
+    )!.value;
+    if (!functionId) return;
+    const inputs = Object.fromEntries(
+      [...this.root.querySelectorAll<HTMLInputElement>('[data-aggregate-input]')].map((input) => [
+        input.dataset.aggregateInput!,
+        Number(input.value),
+      ]),
+    );
+    const events = this.root
+      .querySelector<HTMLInputElement>('[data-aggregate-events]')!
+      .value.split(',')
+      .map((event) => event.trim())
+      .filter(Boolean);
+    const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
+    const evaluatedAtDay = Number(
+      this.root.querySelector<HTMLInputElement>('[data-aggregate-day]')!.value,
+    );
+    this.status.textContent = forceRelearn
+      ? `Relearning ${functionId} from detailed cohorts…`
+      : `Evaluating cached ${functionId}…`;
+    try {
+      const result = await requestJson<AggregateEvaluationResult>(
+        '/simulation/text-dsl/aggregate/evaluate',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            function_id: functionId,
+            seed: Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value),
+            days,
+            evaluated_at_day: evaluatedAtDay,
+            inputs,
+            events,
+            force_relearn: forceRelearn,
+          }),
+        },
+      );
+      this.status.textContent = `${result.cache_hit ? 'Cache hit' : 'Detailed relearn'} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms.`;
+      this.renderAggregateResults(result, days);
+    } catch (error) {
+      this.options.onError(error);
+      this.status.textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private renderAggregateResults(result: AggregateEvaluationResult, days: number): void {
+    const deltas = new Map<string, ReportDelta>();
+    const outputIds = Object.keys(result.time_series.at(-1)?.outputs ?? {});
+    this.results.innerHTML = `
+      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : 'DETAILED RELEARN'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks</p></div></header>
+      <section class="text-dsl-result-table" data-report-id="aggregate_time_series"><h3>Fast-forward time series</h3><div class="table-scroll"><table><thead><tr><th>Day</th>${outputIds.map((id) => `<th>${escapeHtml(id.replaceAll('_', ' '))}</th><th>${escapeHtml(id.replaceAll('_', ' '))} sd</th>`).join('')}</tr></thead><tbody>${result.time_series
+        .map(
+          (point) =>
+            `<tr><th>${point.day}</th>${outputIds.map((id) => `<td>${number(point.outputs[id]?.mean ?? 0)}</td><td>${number(point.outputs[id]?.standard_deviation ?? 0)}</td>`).join('')}</tr>`,
+        )
+        .join('')}</tbody></table></div></section>
+      ${result.reports.map((report) => this.report(report, deltas)).join('')}`;
+  }
+
   private renderDocument(): void {
     if (!this.document) return;
     this.root.querySelector<HTMLElement>('[data-dsl-hash]')!.textContent =
@@ -324,6 +443,7 @@ export class TextDslEditor {
 
   private renderValidation(validation: DslValidation): void {
     this.renderPopulationOptions(validation.weighted_populations ?? []);
+    this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
     if (validation.valid) {
       this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · ${number(validation.adult_population ?? 0, 0)} adults before generated children</span></div>`;
@@ -359,6 +479,34 @@ export class TextDslEditor {
     select.value = populations.includes(selected) ? selected : '';
   }
 
+  private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
+    const select = this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!;
+    const selected = select.value;
+    select.replaceChildren(new Option('Select archetype', ''));
+    for (const definition of functions) {
+      const option = new Option(definition.id, definition.id);
+      option.dataset.definition = JSON.stringify(definition);
+      select.add(option);
+    }
+    select.value = functions.some((definition) => definition.id === selected) ? selected : '';
+    this.renderAggregateInputs();
+  }
+
+  private renderAggregateInputs(): void {
+    const select = this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!;
+    const option = select.selectedOptions[0];
+    const definition = option?.dataset.definition
+      ? (JSON.parse(option.dataset.definition) as AggregateFunctionDefinition)
+      : undefined;
+    const host = this.root.querySelector<HTMLElement>('[data-aggregate-inputs]')!;
+    host.innerHTML = (definition?.inputs ?? [])
+      .map(
+        (input) =>
+          `<label>${escapeHtml(input.id.replaceAll('_', ' '))}<input type="number" min="${input.minimum}" max="${input.maximum}" step="any" value="${input.default}" data-aggregate-input="${escapeHtml(input.id)}"><small>invalidate ±${number(input.invalidate_threshold)}</small></label>`,
+      )
+      .join('');
+  }
+
   private focusLine(line: number): void {
     const lines = this.textarea.value.split('\n');
     const start = lines
@@ -372,8 +520,17 @@ export class TextDslEditor {
   private updateButtons(validation = this.document?.validation): void {
     const save = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="save"]')!;
     const run = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
+    const aggregateButtons = this.root.querySelectorAll<HTMLButtonElement>(
+      '[data-dsl-action^="aggregate-"]',
+    );
     save.disabled = !this.dirty;
     run.disabled = this.dirty || !validation?.valid;
+    const aggregateSelected = Boolean(
+      this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!.value,
+    );
+    aggregateButtons.forEach((button) => {
+      button.disabled = this.dirty || !validation?.valid || !aggregateSelected;
+    });
   }
 
   private renderResults(): void {

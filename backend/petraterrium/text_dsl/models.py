@@ -24,6 +24,7 @@ class TextDslValidation(TextDslModel):
     adult_population: int | None = None
     archetypes: tuple[str, ...] = ()
     weighted_populations: tuple[str, ...] = ()
+    aggregate_functions: tuple[dict[str, Any], ...] = ()
     diagnostics: tuple[TextDslDiagnostic, ...] = ()
 
 
@@ -115,3 +116,38 @@ class TextDslRunSummary(TextDslModel):
     total_agents: int
     population_id: str | None = None
     created_at: str
+
+
+class AggregateEvaluationRequest(TextDslModel):
+    function_id: str
+    seed: int = Field(default=1, ge=0)
+    days: int = Field(default=30, ge=1, le=365)
+    evaluated_at_day: int = Field(default=0, ge=0)
+    inputs: dict[str, float] = Field(default_factory=dict)
+    events: tuple[str, ...] = ()
+    force_relearn: bool = False
+
+
+class AggregateEvaluationResult(TextDslModel):
+    function_id: str
+    cache_hit: bool
+    invalidation_reason: str | None = None
+    agent_ticks: int
+    inputs_hash: str
+    valid_from: int
+    valid_until: int
+    dsl_source_hash: str
+    cache_version: int
+    time_series: tuple[dict[str, Any], ...]
+    reports: tuple[TextDslReport, ...]
+    elapsed_seconds: float
+
+
+class AggregateCacheVersion(TextDslModel):
+    function_id: str
+    version: int
+    dsl_source_hash: str
+    valid_from: int
+    valid_until: int
+    inputs_hash: str
+    learning_agent_ticks: int

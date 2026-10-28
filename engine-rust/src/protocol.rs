@@ -5,7 +5,8 @@ use crate::error::{CoreError, CoreResult};
 use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
-    DslRunRequest, TextDslProtocolRequest, TextDslValidateRequest, parse_program, run_program,
+    AggregateEvaluationProtocolRequest, DslRunRequest, TextDslProtocolRequest,
+    TextDslValidateRequest, evaluate_aggregate_function, parse_program, run_program,
     run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,7 @@ pub enum Request {
     CsrMatvec(CsrMatvecRequest),
     ValidateTextDsl(TextDslValidateRequest),
     RunTextDsl(TextDslProtocolRequest),
+    EvaluateAggregate(AggregateEvaluationProtocolRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -86,6 +88,7 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "adult_population": program.population.size,
                 "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "aggregate_functions": program.aggregate_functions,
                 "diagnostics": [],
             })),
             Err(error) => Ok(json!({
@@ -114,6 +117,10 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 .map_err(text_dsl_error)?
             };
             serialize(result)
+        }
+        Request::EvaluateAggregate(request) => {
+            let program = parse_program(&request.source).map_err(text_dsl_error)?;
+            serialize(evaluate_aggregate_function(program, request).map_err(text_dsl_error)?)
         }
     }
 }

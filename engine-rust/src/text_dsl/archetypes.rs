@@ -3,9 +3,9 @@ use super::model::*;
 use super::runtime::{run_program, sample_population};
 use std::collections::{BTreeMap, BTreeSet};
 
-struct MetricSummary {
-    mean: f64,
-    standard_deviation: f64,
+pub(super) struct MetricSummary {
+    pub(super) mean: f64,
+    pub(super) standard_deviation: f64,
 }
 
 struct ArchetypeRun<'a> {
@@ -49,7 +49,7 @@ pub fn run_weighted_population(
             ticks,
             state,
         ))?;
-        let outputs = calculate_outputs(definition, &result.state)?;
+        let outputs = calculate_outputs(definition, &result)?;
         runs.push(ArchetypeRun {
             definition,
             weight: entry.weight,
@@ -128,7 +128,7 @@ pub fn run_expanded_archetype_population(
     run_program(DslRunRequest::resume(combined_program, seed, ticks, state))
 }
 
-fn build_archetype_state(
+pub(super) fn build_archetype_state(
     program: &Program,
     archetype: &ArchetypeDefinition,
     seed: u64,
@@ -298,22 +298,24 @@ fn merge_declared_fields(target: &mut Program, source: &Program) {
     }
 }
 
-fn calculate_outputs(
+pub(super) fn calculate_outputs(
     archetype: &ArchetypeDefinition,
-    state: &DslRunState,
+    result: &DslRunResult,
 ) -> DslResult<BTreeMap<String, MetricSummary>> {
     archetype
         .outputs
         .iter()
         .map(|output| {
             let values = match &output.metric {
-                ReportMetric::Mean { field } => state
+                ReportMetric::Mean { field } => result
+                    .state
                     .agents
                     .iter()
                     .filter(|agent| output_filter(output, agent).unwrap_or(false))
                     .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
                     .collect::<Vec<_>>(),
-                ReportMetric::KidsPerFamily => kids_per_family_values(state),
+                ReportMetric::KidsPerFamily => kids_per_family_values(&result.state),
+                ReportMetric::ActionCount { .. } => report_metric_values(result, &output.metric),
                 _ => Vec::new(),
             };
             if values.is_empty() {
@@ -338,6 +340,62 @@ fn calculate_outputs(
             ))
         })
         .collect()
+}
+
+fn report_metric_values(result: &DslRunResult, metric: &ReportMetric) -> Vec<f64> {
+    result
+        .reports
+        .iter()
+        .filter(|report| report.group_by == "all")
+        .filter_map(|report| {
+            let column = report
+                .columns
+                .iter()
+                .find(|column| column.metric == *metric)?;
+            let value = report
+                .snapshots
+                .last()?
+                .rows
+                .first()?
+                .values
+                .get(&column.id)?;
+            report_number(value)
+        })
+        .collect()
+}
+
+pub(super) fn calculate_aggregate_metric(
+    result: &DslRunResult,
+    metric: &ReportMetric,
+    line: usize,
+) -> DslResult<MetricSummary> {
+    let values = match metric {
+        ReportMetric::Mean { field } => result
+            .state
+            .agents
+            .iter()
+            .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
+            .collect::<Vec<_>>(),
+        ReportMetric::ActionCount { .. } => report_metric_values(result, metric),
+        _ => Vec::new(),
+    };
+    if values.is_empty() {
+        return Err(DslError::new(
+            "EMPTY_AGGREGATE_METRIC",
+            line,
+            "Aggregate output source has no values",
+        ));
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    let variance = values
+        .iter()
+        .map(|value| (value - mean).powi(2))
+        .sum::<f64>()
+        / values.len() as f64;
+    Ok(MetricSummary {
+        mean,
+        standard_deviation: variance.sqrt(),
+    })
 }
 
 fn output_filter(output: &ArchetypeOutputDefinition, agent: &DslAgentState) -> DslResult<bool> {

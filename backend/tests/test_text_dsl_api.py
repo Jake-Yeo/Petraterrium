@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from petraterrium.text_dsl import TextDslService, create_text_dsl_router
+from petraterrium.text_dsl.models import AggregateEvaluationRequest
 
 SOURCE = '''program Tiny version "1.0":
   tick_hours = 1 placeholder
@@ -88,6 +89,49 @@ class FakeRustDsl:
                     ],
                 }
             ],
+        }
+
+    def evaluate_text_dsl_aggregate(
+        self,
+        source: str,
+        *,
+        dsl_source_hash: str,
+        function_id: str,
+        seed: int,
+        days: int,
+        evaluated_at_day: int,
+        inputs,
+        events,
+        artifact=None,
+        force_relearn=False,
+    ):
+        version = 1 if artifact is None else int(artifact["version"]) + int(force_relearn)
+        learned = artifact or {
+            "function_id": function_id,
+            "version": version,
+            "dsl_source_hash": dsl_source_hash,
+            "seed": seed,
+            "anchor_inputs": dict(inputs),
+            "valid_from": evaluated_at_day,
+            "valid_until": evaluated_at_day + 30,
+            "inputs_hash": "fnv1a64:test",
+            "learning_agent_ticks": 100,
+            "points": [],
+        }
+        if force_relearn:
+            learned = {**learned, "version": version}
+        return {
+            "function_id": function_id,
+            "cache_hit": artifact is not None and not force_relearn,
+            "invalidation_reason": None if artifact is not None else "cache_miss",
+            "agent_ticks": 0 if artifact is not None and not force_relearn else 100,
+            "inputs_hash": "fnv1a64:test",
+            "valid_from": learned["valid_from"],
+            "valid_until": learned["valid_until"],
+            "dsl_source_hash": dsl_source_hash,
+            "artifact": learned,
+            "time_series": [],
+            "reports": [],
         }
 
 
@@ -201,3 +245,22 @@ def test_legacy_fixed_aggregate_run_reopens_as_generic_reports(tmp_path):
     assert reopened.results_subtitle == "Legacy recorded statistics"
     assert [report.id for report in reopened.reports] == ["places", "event_totals"]
     assert reopened.reports[0].snapshots[0].rows[0].values["population"] == 3
+
+
+def test_aggregate_artifacts_persist_and_are_reused(tmp_path):
+    dsl = service(tmp_path)
+    request = AggregateEvaluationRequest(
+        function_id="Alpha",
+        inputs={"shock": 0.1},
+    )
+
+    learned = dsl.evaluate_aggregate(request)
+    cached = dsl.evaluate_aggregate(request)
+    relearned = dsl.evaluate_aggregate(request.model_copy(update={"force_relearn": True}))
+
+    assert not learned.cache_hit
+    assert learned.agent_ticks == 100
+    assert cached.cache_hit
+    assert cached.agent_ticks == 0
+    assert not relearned.cache_hit
+    assert [version.version for version in dsl.aggregate_versions("Alpha")] == [1, 2]

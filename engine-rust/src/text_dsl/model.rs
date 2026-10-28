@@ -175,6 +175,57 @@ pub struct WeightedPopulationDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateInputDefinition {
+    pub id: String,
+    pub default: f64,
+    pub minimum: f64,
+    pub maximum: f64,
+    pub invalidate_threshold: f64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum AggregateEffectTarget {
+    Field(String),
+    Decision(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateInputEffect {
+    pub target: AggregateEffectTarget,
+    pub operation: String,
+    pub value: Expr,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateFunctionOutput {
+    pub id: String,
+    pub inputs: Vec<String>,
+    pub metric: Option<ReportMetric>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateCacheDefinition {
+    pub valid_for_days: u32,
+    pub hash_inputs: Vec<String>,
+    pub invalidate_events: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateFunctionDefinition {
+    pub id: String,
+    pub inputs: Vec<AggregateInputDefinition>,
+    pub time_days: u32,
+    pub time_points: Vec<u32>,
+    pub effects: Vec<AggregateInputEffect>,
+    pub outputs: Vec<AggregateFunctionOutput>,
+    pub cache: AggregateCacheDefinition,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DecisionBranch {
     pub action: String,
     pub probability: Expr,
@@ -312,6 +363,7 @@ pub struct Program {
     pub reports: Vec<ReportDefinition>,
     pub archetypes: Vec<ArchetypeDefinition>,
     pub weighted_populations: Vec<WeightedPopulationDefinition>,
+    pub aggregate_functions: Vec<AggregateFunctionDefinition>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -500,4 +552,72 @@ pub struct TextDslProtocolRequest {
 #[serde(deny_unknown_fields)]
 pub struct TextDslValidateRequest {
     pub source: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LearnedMetricSummary {
+    pub mean: f64,
+    pub standard_deviation: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LearnedAggregatePoint {
+    pub inputs: BTreeMap<String, f64>,
+    pub day: u32,
+    pub outputs: BTreeMap<String, LearnedMetricSummary>,
+    pub reports: Vec<DslReport>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LearnedAggregateArtifact {
+    pub function_id: String,
+    pub version: u32,
+    pub dsl_source_hash: String,
+    pub seed: u64,
+    pub anchor_inputs: BTreeMap<String, f64>,
+    pub valid_from: u32,
+    pub valid_until: u32,
+    pub inputs_hash: String,
+    pub learning_agent_ticks: u64,
+    pub points: Vec<LearnedAggregatePoint>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AggregateEvaluationProtocolRequest {
+    pub source: String,
+    pub dsl_source_hash: String,
+    pub function_id: String,
+    pub seed: u64,
+    pub days: u32,
+    pub evaluated_at_day: u32,
+    #[serde(default)]
+    pub inputs: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub events: BTreeSet<String>,
+    #[serde(default)]
+    pub artifact: Option<LearnedAggregateArtifact>,
+    #[serde(default)]
+    pub force_relearn: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateTimePoint {
+    pub day: u32,
+    pub outputs: BTreeMap<String, LearnedMetricSummary>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AggregateEvaluationResult {
+    pub function_id: String,
+    pub cache_hit: bool,
+    pub invalidation_reason: Option<String>,
+    pub agent_ticks: u64,
+    pub inputs_hash: String,
+    pub valid_from: u32,
+    pub valid_until: u32,
+    pub dsl_source_hash: String,
+    pub artifact: LearnedAggregateArtifact,
+    pub time_series: Vec<AggregateTimePoint>,
+    pub reports: Vec<DslReport>,
 }

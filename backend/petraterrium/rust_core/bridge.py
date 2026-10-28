@@ -189,6 +189,36 @@ class RustCoreClient:
             request["population_id"] = population_id
         return self.call(request)
 
+    def evaluate_text_dsl_aggregate(
+        self,
+        source: str,
+        *,
+        dsl_source_hash: str,
+        function_id: str,
+        seed: int,
+        days: int,
+        evaluated_at_day: int,
+        inputs: Mapping[str, float],
+        events: list[str],
+        artifact: Mapping[str, Any] | None = None,
+        force_relearn: bool = False,
+    ) -> dict[str, Any]:
+        return self.call(
+            {
+                "operation": "evaluate_aggregate",
+                "source": source,
+                "dsl_source_hash": dsl_source_hash,
+                "function_id": function_id,
+                "seed": seed,
+                "days": days,
+                "evaluated_at_day": evaluated_at_day,
+                "inputs": dict(inputs),
+                "events": events,
+                "artifact": dict(artifact) if artifact is not None else None,
+                "force_relearn": force_relearn,
+            }
+        )
+
     def run_compiled_markov(
         self,
         program: Any,

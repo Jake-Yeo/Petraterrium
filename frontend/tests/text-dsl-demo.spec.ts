@@ -102,3 +102,29 @@ test('edits a household weight and changes weighted archetype output', async ({ 
     page.locator('[data-report-id="weighted_summary"] dd').filter({ hasText: /^420/ }),
   ).toBeVisible();
 });
+
+test('learns, reuses, and invalidates an aggregate cache from DSL text', async ({ page }) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/aggregate_function HouseholdLiberalUrban:/);
+  await expect(editor).toHaveValue(/invalidate_on:/);
+  await page.getByLabel('Aggregate function').selectOption('HouseholdLiberalUrban');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Relearn detailed' }).click();
+  await expect(page.getByRole('status')).toContainText('Detailed relearn');
+  await expect(page.getByRole('status')).not.toContainText('· 0 agent ticks');
+
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  await expect(page.getByText('CACHED FAST-FORWARD')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fast-forward time series' })).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(source.replace('valid_for = 30 days', 'valid_for = 31 days'));
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Aggregate function').selectOption('HouseholdLiberalUrban');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Detailed relearn');
+  await expect(page.getByText('dsl_source_hash_changed')).toBeVisible();
+});

@@ -185,6 +185,99 @@ archetype HouseholdRuralMixed:
   output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
   output mean_kids_per_family = kids_per_family()
 
+aggregate_function HouseholdLiberalUrban:
+  inputs:
+    policy_tax = 0.25 range 0.10..0.40
+    media_trend = 0.00 range -1.00..1.00
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 14, 30
+  effects:
+    field money *= 1 - policy_tax * 0.25 + economic_shock * 0.20
+    field stress += economic_shock * 0.25 + unemployment_national * 0.30 - media_trend * 0.05
+    field vote_liberal += media_trend * 0.15 - policy_tax * 0.05
+    decision go_work *= 1 - unemployment_national
+    decision go_bar *= 1 + media_trend * 0.10
+  outputs:
+    mean_income = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, media_trend, economic_shock, unemployment_national) from action_count(fights, window=day)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, media_trend, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = disaster, pandemic, election
+
+aggregate_function HouseholdConservativeSuburban:
+  inputs:
+    policy_tax = 0.25 range 0.10..0.40
+    media_trend = 0.00 range -1.00..1.00
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 14, 30
+  effects:
+    field money *= 1 - policy_tax * 0.22 + economic_shock * 0.18
+    field stress += economic_shock * 0.22 + unemployment_national * 0.28 - media_trend * 0.03
+    field vote_liberal += media_trend * 0.08 - policy_tax * 0.08
+    decision go_work *= 1 - unemployment_national
+    decision go_bar *= 1 + media_trend * 0.06
+  outputs:
+    mean_income = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, media_trend, economic_shock, unemployment_national) from action_count(fights, window=day)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, media_trend, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = disaster, pandemic, election
+
+aggregate_function HouseholdRuralMixed:
+  inputs:
+    policy_tax = 0.25 range 0.10..0.40
+    media_trend = 0.00 range -1.00..1.00
+    economic_shock = 0.00 range -0.20..0.20
+    unemployment_national = 0.06 range 0.02..0.15
+  time = 30 days
+  time_points = 1, 7, 14, 30
+  effects:
+    field money *= 1 - policy_tax * 0.20 + economic_shock * 0.16
+    field stress += economic_shock * 0.20 + unemployment_national * 0.25 - media_trend * 0.02
+    field vote_liberal += media_trend * 0.10 - policy_tax * 0.06
+    decision go_work *= 1 - unemployment_national
+    decision go_bar *= 1 + media_trend * 0.08
+  outputs:
+    mean_income = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_stress = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    vote_liberal_share = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_health = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, media_trend, economic_shock, unemployment_national)
+    fights_per_day = formula(policy_tax, media_trend, economic_shock, unemployment_national) from action_count(fights, window=day)
+  cache:
+    valid_for = 30 days
+    inputs_hash = hash(policy_tax, media_trend, economic_shock, unemployment_national)
+    invalidate_on:
+      policy_tax change > 0.05
+      media_trend change > 0.20
+      economic_shock change > 0.10
+      unemployment_national change > 0.02
+      event = disaster, pandemic, election
+
 population TownHouseholds:
   HouseholdLiberalUrban: weight = 40
   HouseholdConservativeSuburban: weight = 35

@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,9 @@ from typing import Any
 
 from ..rust_core import RustCoreClient
 from .models import (
+    AggregateCacheVersion,
+    AggregateEvaluationRequest,
+    AggregateEvaluationResult,
     TextDslDiagnostic,
     TextDslDocument,
     TextDslReport,
@@ -48,9 +52,11 @@ class TextDslService:
         self.active_path = self.root / "active.dsl"
         self.metadata_path = self.root / "active.json"
         self.runs_path = self.root / "runs"
+        self.aggregate_cache_path = self.root / "aggregate_cache"
         self._validation_cache: dict[str, TextDslValidation] = {}
         self.root.mkdir(parents=True, exist_ok=True)
         self.runs_path.mkdir(parents=True, exist_ok=True)
+        self.aggregate_cache_path.mkdir(parents=True, exist_ok=True)
 
     def current(self) -> TextDslDocument:
         code = self._code()
@@ -81,6 +87,9 @@ class TextDslService:
             archetypes=tuple(str(value) for value in result.get("archetypes", [])),
             weighted_populations=tuple(
                 str(value) for value in result.get("weighted_populations", [])
+            ),
+            aggregate_functions=tuple(
+                dict(value) for value in result.get("aggregate_functions", [])
             ),
             diagnostics=diagnostics,
         )
@@ -167,6 +176,65 @@ class TextDslService:
         self._persist(response, result)
         return response
 
+    def evaluate_aggregate(
+        self,
+        request: AggregateEvaluationRequest,
+    ) -> AggregateEvaluationResult:
+        document = self.current()
+        if not document.validation.valid:
+            raise ValueError("DSL has validation errors")
+        artifact = self._latest_aggregate_artifact(request.function_id)
+        started = time.perf_counter()
+        result = self.rust.evaluate_text_dsl_aggregate(
+            document.code,
+            dsl_source_hash=document.source_hash,
+            function_id=request.function_id,
+            seed=request.seed,
+            days=request.days,
+            evaluated_at_day=request.evaluated_at_day,
+            inputs=request.inputs,
+            events=list(request.events),
+            artifact=artifact,
+            force_relearn=request.force_relearn,
+        )
+        elapsed_seconds = time.perf_counter() - started
+        learned = dict(result["artifact"])
+        if not bool(result.get("cache_hit")):
+            self._persist_aggregate_artifact(request.function_id, learned)
+        return AggregateEvaluationResult(
+            function_id=str(result["function_id"]),
+            cache_hit=bool(result["cache_hit"]),
+            invalidation_reason=result.get("invalidation_reason"),
+            agent_ticks=int(result["agent_ticks"]),
+            inputs_hash=str(result["inputs_hash"]),
+            valid_from=int(result["valid_from"]),
+            valid_until=int(result["valid_until"]),
+            dsl_source_hash=str(result["dsl_source_hash"]),
+            cache_version=int(learned["version"]),
+            time_series=tuple(dict(value) for value in result.get("time_series", [])),
+            reports=tuple(
+                TextDslReport.model_validate(value) for value in result.get("reports", [])
+            ),
+            elapsed_seconds=elapsed_seconds,
+        )
+
+    def aggregate_versions(self, function_id: str) -> tuple[AggregateCacheVersion, ...]:
+        versions = []
+        for path in self._aggregate_function_path(function_id).glob("v*.json.gz"):
+            artifact = self._read_run(path)
+            versions.append(
+                AggregateCacheVersion(
+                    function_id=str(artifact["function_id"]),
+                    version=int(artifact["version"]),
+                    dsl_source_hash=str(artifact["dsl_source_hash"]),
+                    valid_from=int(artifact["valid_from"]),
+                    valid_until=int(artifact["valid_until"]),
+                    inputs_hash=str(artifact["inputs_hash"]),
+                    learning_agent_ticks=int(artifact["learning_agent_ticks"]),
+                )
+            )
+        return tuple(sorted(versions, key=lambda value: value.version))
+
     def list_runs(self) -> tuple[TextDslRunSummary, ...]:
         result = []
         for path in sorted(self.runs_path.glob("*.json.gz"), reverse=True):
@@ -206,6 +274,31 @@ class TextDslService:
     def _read_run(self, path: Path) -> dict[str, Any]:
         with gzip.open(path, "rt", encoding="utf-8") as handle:
             return json.load(handle)
+
+    def _latest_aggregate_artifact(self, function_id: str) -> dict[str, Any] | None:
+        paths = sorted(self._aggregate_function_path(function_id).glob("v*.json.gz"))
+        return self._read_run(paths[-1]) if paths else None
+
+    def _persist_aggregate_artifact(
+        self,
+        function_id: str,
+        artifact: dict[str, Any],
+    ) -> None:
+        path = self._aggregate_function_path(function_id)
+        path.mkdir(parents=True, exist_ok=True)
+        target = path / f"v{int(artifact['version']):06}.json.gz"
+        with gzip.open(target, "wt", encoding="utf-8") as handle:
+            json.dump(artifact, handle, sort_keys=True, separators=(",", ":"))
+
+    def _aggregate_function_path(self, function_id: str) -> Path:
+        safe = "".join(
+            character
+            for character in function_id
+            if character.isalnum() or character in "_-"
+        )
+        if not safe or safe != function_id:
+            raise ValueError("Invalid aggregate function ID")
+        return self.aggregate_cache_path / safe
 
     @staticmethod
     def _legacy_run_view(view: dict[str, Any]) -> dict[str, Any]:

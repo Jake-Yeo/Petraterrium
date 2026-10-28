@@ -66,6 +66,51 @@
   padding: 10px;
 }
 
+.text-dsl-aggregate-toolbar {
+  align-items: end;
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+
+.text-dsl-aggregate-toolbar label,
+.text-dsl-aggregate-inputs label {
+  color: var(--dsl-muted);
+  display: grid;
+  font-size: 10px;
+  gap: 3px;
+}
+
+.text-dsl-aggregate-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.text-dsl-aggregate-toolbar input,
+.text-dsl-aggregate-toolbar select {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 4px;
+  color: var(--dsl-text);
+  padding: 7px;
+  width: 112px;
+}
+
+.text-dsl-aggregate-toolbar select,
+.text-dsl-aggregate-toolbar input[type='text'] {
+  min-width: 180px;
+  width: auto;
+}
+
+.text-dsl-aggregate-toolbar small {
+  color: var(--dsl-muted);
+}
+
 .text-dsl-toolbar label {
   color: var(--dsl-muted);
   display: grid;

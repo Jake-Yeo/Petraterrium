@@ -39,6 +39,14 @@
   each small archetype cohort once and weights its outputs without expanding represented counts.
 - Weighted results include a population summary, per-place and per-agent-type tables, and a
   per-archetype table. Income, stress, and vote outputs retain mean and pooled standard deviation.
+- DSL `aggregate_function` blocks define parameter ranges, cohort effects, time points, outputs,
+  cache validity, input thresholds, and invalidating events for a single archetype.
+- Rust learns a deterministic low/high multilinear response table from detailed archetype cohorts.
+  Learned artifacts are versioned by DSL source hash and persisted outside the DSL source.
+- Cached evaluation interpolates the learned table without agent ticks and returns endpoint and
+  time-series aggregate reports with cache status, validity, input hash, and DSL hash.
+- Threshold, time, event, forced, function, and DSL-source changes relearn only the selected
+  archetype. Previous cache artifact versions remain available through the API.
 
 ## Implemented but narrower
 
@@ -55,6 +63,10 @@
   households; represented household weights do not change simulated object count.
 - Archetype cohorts run separately, so cross-archetype meetings are outside this proof. Existing
   shared-place interactions continue within each archetype cohort.
+- Learning uses the two endpoints of every input range. With four inputs this is a 16-point grid,
+  evaluated at DSL-defined time points using the existing detailed cohort runner.
+- Fast-forward beyond the learned 30-day horizon repeats the learned 30-day endpoint. It provides
+  deterministic weekly/monthly parent inputs but does not model multi-level feedback.
 
 ## Deferred and not part of this demo
 
@@ -64,7 +76,8 @@
   and visual drag-and-drop editors.
 - Any real-world calibration or prediction claim.
 - Neighbourhood, municipality, division, country, and world composition or flows.
-- Learned aggregate functions, cache validity, time-loop feedback, and fast-forwarding.
+- Hierarchical time-loop feedback, convergence, and fast-forwarding across composed levels.
+- Cross-archetype meetings and interaction effects.
 - Archetype research/data imports, graph views, and visual archetype editors.
 
 ## Focused verification
@@ -74,26 +87,33 @@
 - Rust duration sampling and tick scaling: two focused tests passed.
 - Python API persistence/routes, validation cache, and legacy compatibility: 4 passed.
 - Optimized Rust profile selection: 1 passed.
-- Browser code-display/edit/save/run/compare and line-error tests: 2 passed.
+- Browser code-display, weighted edit, cache learn/hit/invalidation, and line-error tests: 4 passed.
 - Frontend production build: 9 modules in 0.25 seconds.
 - Engine source grep contains none of the shipped place, action, or scenario names.
 - Generic archetype parser, exact weighting, million-weight representation, 300-agent comparison,
   and determinism tests: 5 passed in 13.76 seconds.
 - Browser DSL edit/save/run test changes a household weight and its weighted aggregate: passed.
+- Generic aggregate parser, learning, cache hit, threshold/time/event/DSL invalidation, accuracy,
+  90-day fast-forward, and determinism tests: 5 passed in 0.77 seconds.
+- Python artifact persistence, cache reuse, and cache-version history tests: 5 passed.
+- Browser detailed-learn, zero-tick cache-hit, time-series, and DSL-hash invalidation demo: passed.
 
 ## Performance
 
-- A 30-day Town API run completes in `0.374` seconds (`0.335` seconds in Rust execution).
-- A 365-day Town API run completes in `4.117` seconds for 130 agents and 8,760 ticks.
+- A 30-day Town API run completes in `0.384` seconds.
+- A 365-day Town API run completes in `4.167` seconds for 130 agents and 8,760 ticks.
+- The unchanged 30-day weighted archetype run completes in `0.434` seconds.
+- Detailed one-time learning takes `2.127`–`2.193` seconds per shipped archetype.
+- Persisted cache hits take `0.020`–`0.022` seconds and run `0` agent ticks.
 - The rendered app completed and displayed the same 365-day run in `4.345` seconds.
 - The default DSL records the requested daily/final reports and omits the unused 670,767-event
   action payload. Set `record_actions = true` when a run needs every raw receipt.
 
 ## Final demo run
 
-- Run ID: `d91ed6043dbe4a43b20c7aef614a904d`
-- DSL hash: `sha256:220960f5dc41b9c5bf523ebada1f3759ce71e3b393296a0e457c50cf34e0df81`
-- Rust engine: `0.4.0`
+- Run ID: `8c0338e6413b434d924dafc0cfd4e596`
+- DSL hash: `sha256:95b53f27cb374d0ae381a099c1a5731a09ccf7acb407cc1ebda9529bf9c8eea5`
+- Rust engine: `0.5.0`
 - Seed: `1`
 - Duration: `365` days / `8,760` ticks
 - Population: `100` sampled adults plus `30` generated children
@@ -103,12 +123,22 @@
 
 ## Final weighted archetype run
 
-- Run ID: `174837e544c74f0f95435d80f89a1436`
+- Run ID: `4b82ec02909d4c3898da08101519f99d`
 - Seed: `1`
 - Duration: `30` days / `720` ticks
 - Simulated agents: `180`
 - Represented population: `300`
 - Archetypes: `3`
-- Runtime: `0.429` seconds
+- Runtime: `0.434` seconds
 - Raw action receipts: `0`
+- State and report snapshots exactly match the Prompt 1 weighted golden run.
 - The seven-billion example represents `6,999,999,999` agents with the same `180` simulated agents.
+
+## Final cached aggregate evaluations
+
+- `HouseholdLiberalUrban`: learn `2.193` seconds, cache hit `0.0206` seconds, cache version `4`.
+- `HouseholdConservativeSuburban`: learn `2.156` seconds, cache hit `0.0214` seconds, cache version `2`.
+- `HouseholdRuralMixed`: learn `2.127` seconds, cache hit `0.0207` seconds, cache version `2`.
+- Each detailed learn ran `691,200` agent ticks. Every cache hit ran `0` agent ticks.
+- Learned and persisted-replay time series are exactly equal for all three archetypes.
+- All artifacts are valid from day `0` through day `30` and expose their input and DSL hashes.

@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException
 
 from ..rust_core import RustCoreError
 from .models import (
+    AggregateCacheVersion,
+    AggregateEvaluationRequest,
+    AggregateEvaluationResult,
     SaveTextDslRequest,
     TextDslDocument,
     TextDslRunRequest,
@@ -52,5 +55,22 @@ def create_text_dsl_router(service: TextDslService) -> APIRouter:
             return service.get_run(run_id)
         except KeyError as error:
             raise HTTPException(404, "DSL run was not found") from error
+
+    @router.post("/aggregate/evaluate", response_model=AggregateEvaluationResult)
+    def evaluate_aggregate(request: AggregateEvaluationRequest) -> AggregateEvaluationResult:
+        try:
+            return service.evaluate_aggregate(request)
+        except (ValueError, RustCoreError) as error:
+            raise HTTPException(422, str(error)) from error
+
+    @router.get(
+        "/aggregate/{function_id}/versions",
+        response_model=tuple[AggregateCacheVersion, ...],
+    )
+    def aggregate_versions(function_id: str) -> tuple[AggregateCacheVersion, ...]:
+        try:
+            return service.aggregate_versions(function_id)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
 
     return router

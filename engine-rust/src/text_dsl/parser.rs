@@ -1,12 +1,13 @@
+use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
-struct Line {
-    number: usize,
-    indent: usize,
-    text: String,
+pub(super) struct Line {
+    pub(super) number: usize,
+    pub(super) indent: usize,
+    pub(super) text: String,
 }
 
 pub fn parse_program(source: &str) -> DslResult<Program> {
@@ -29,6 +30,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut reports = Vec::new();
     let mut archetypes = Vec::new();
     let mut weighted_populations = Vec::new();
+    let mut aggregate_functions = Vec::new();
     let mut index = 1;
     while index < lines.len() {
         let line = &lines[index];
@@ -91,6 +93,10 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         } else if let Some(name) = block_name(&line.text, "population") {
             let (value, next) = parse_weighted_population(&lines, index, name)?;
             weighted_populations.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "aggregate_function") {
+            let (value, next) = parse_aggregate_function(&lines, index, name)?;
+            aggregate_functions.push(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "decision") {
             let (value, next) = parse_decision(&lines, index, name)?;
@@ -165,6 +171,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         reports,
         archetypes,
         weighted_populations,
+        aggregate_functions,
     };
     validate_program(&program)?;
     Ok(program)
@@ -1061,7 +1068,7 @@ fn parse_report_column(line: &Line) -> DslResult<ReportColumnDefinition> {
     })
 }
 
-fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportMetric> {
+pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportMetric> {
     let Some((name, arguments)) = value.split_once('(') else {
         return Err(DslError::new(
             "INVALID_OUTPUT_METRIC",
@@ -1812,6 +1819,11 @@ fn validate_program(program: &Program) -> DslResult<()> {
             match &output.metric {
                 ReportMetric::Mean { field } if archetype_fields.contains(field) => {}
                 ReportMetric::KidsPerFamily => {}
+                ReportMetric::ActionCount { aggregate, window }
+                    if aggregates.contains(aggregate.as_str()) =>
+                {
+                    validate_report_window(window, output.line)?;
+                }
                 ReportMetric::Mean { field } => {
                     return Err(DslError::new(
                         "UNKNOWN_ARCHETYPE_FIELD",
@@ -1823,7 +1835,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
                     return Err(DslError::new(
                         "INVALID_ARCHETYPE_OUTPUT",
                         output.line,
-                        "Archetype outputs support mean(field) and kids_per_family()",
+                        "Archetype output metric is invalid for this program",
                     ));
                 }
             }
@@ -1888,6 +1900,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
             output_ids = Some(current_outputs);
         }
     }
+    validate_aggregate_functions(program)?;
     validate_inheritance_cycles(&agents)?;
     Ok(())
 }
@@ -2068,7 +2081,7 @@ fn agent_header(value: &str) -> Option<(&str, Option<String>)> {
     }
 }
 
-fn identifier(value: &str, line: usize) -> DslResult<()> {
+pub(super) fn identifier(value: &str, line: usize) -> DslResult<()> {
     if value.is_empty()
         || !value
             .chars()
@@ -2087,7 +2100,7 @@ fn identifier(value: &str, line: usize) -> DslResult<()> {
     Ok(())
 }
 
-fn require_indent(line: &Line, expected: usize) -> DslResult<()> {
+pub(super) fn require_indent(line: &Line, expected: usize) -> DslResult<()> {
     if line.indent != expected {
         return Err(DslError::new(
             "INVALID_INDENTATION",

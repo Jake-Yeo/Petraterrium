@@ -111,6 +111,13 @@ class LazyRustCoreClient:
             population_id=population_id,
         )
 
+    def evaluate_text_dsl_aggregate(self, source: str, **request: Any) -> dict[str, Any]:
+        with self._lock:
+            if self._client is None:
+                self._client = RustCoreClient()
+            client = self._client
+        return client.evaluate_text_dsl_aggregate(source, **request)
+
 
 def _text_trait(agent: AgentRecord, name: str) -> str:
     value = agent.traits.get(name)
