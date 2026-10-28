@@ -1,6 +1,7 @@
 import ctypes
 import json
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -16,6 +17,16 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 AISource = Literal["openai_cli", "openai_api"]
 
 
+def default_cli_command() -> str:
+    discovered = shutil.which("codex")
+    if discovered:
+        return discovered
+    bundled = Path(
+        "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+    )
+    return str(bundled) if bundled.is_file() else "codex"
+
+
 class AISettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -23,8 +34,8 @@ class AISettingsModel(BaseModel):
 class StoredAISettings(AISettingsModel):
     schema_version: Literal["1"] = "1"
     source: AISource = "openai_cli"
-    cli_command: str = "codex"
-    cli_model: str = "gpt-5-mini"
+    cli_command: str = Field(default_factory=default_cli_command)
+    cli_model: str = "gpt-6.1-sol"
     api_model: str = "gpt-5-mini"
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

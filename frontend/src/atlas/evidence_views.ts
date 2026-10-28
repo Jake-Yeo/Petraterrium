@@ -106,27 +106,31 @@ export function hierarchyView(view: HierarchyOverview): string {
 }
 
 export function choiceEvidenceView(catalog: ChoiceEvidenceCatalog): string {
+  const rows = catalog.rows
+    .map(
+      (item) => `
+              <tr class="choice-${item.model_status}">
+                <th>${e(item.action_id)}<small>${e(item.country_code)} · ${e(item.definition)}</small></th>
+                <td><span class="choice-tier">${item.source_tier == null ? 'UNCLASSIFIED' : `T${item.source_tier}`}</span><span class="field-status ${item.model_status === 'active_fitted' ? 'present' : item.model_status === 'rejected_fit' ? 'imputed' : 'missing'}">${e(words(item.model_status))}</span><small>${e(words(item.source_type))} · ${e(words(item.source_status))}</small></td>
+                <td>${item.outcome_rate == null ? 'No linked outcome rate' : item.outcome_rate.toFixed(3)}<small>${item.ci_low == null || item.ci_high == null ? 'Interval unavailable' : `${item.ci_low.toFixed(3)}–${item.ci_high.toFixed(3)}`}${item.ci_method ? `<br>${e(item.ci_method)}` : ''}</small></td>
+                <td>${n(item.sample_size)} raw<small>${item.effective_sample_size == null ? 'Effective n unavailable' : `${item.effective_sample_size.toFixed(1)} effective`}<br>${e(item.provenance.source_date)} source · ${e(item.provenance.published_date)} published</small></td>
+                <td>${e(item.population)}<small>${e(item.denominator)}<br>${n(item.training_rows)} train · ${n(item.heldout_rows)} held out${item.heldout_loss == null || item.baseline_loss == null ? '' : `<br>${item.heldout_loss.toFixed(4)} fitted vs ${item.baseline_loss.toFixed(4)} baseline`}</small></td>
+                <td>${e(item.provenance.source)}<small>${e(item.provenance.version)} · ${e(item.provenance.scope)} · receipt ${e(item.provenance.import_id)}</small></td>
+              </tr>`,
+    )
+    .join('');
   return `
     <div class="atlas-evidence-heading">
       <div><p class="eyebrow">CHOICE EVIDENCE</p><h2>What agents do, separate from who they are</h2></div>
-      <div class="atlas-evidence-actions"><span class="mono">${n(catalog.rows.length)} CONDITIONAL ROWS</span><button class="button primary" type="button" data-atlas-action="import-evidence">Import behavior evidence</button></div>
+      <div class="atlas-evidence-actions"><span class="mono">${n(catalog.rows.length)} MODEL RECEIPTS</span><button class="button primary" type="button" data-atlas-action="import-evidence">Import behavior evidence</button></div>
     </div>
     <div class="table-scroll">
       <table class="choice-evidence-table">
         <thead><tr><th>Action / conditioning</th><th>Evidence</th><th>Probability / CI</th><th>n / date</th><th>Population / denominator</th><th>Provenance</th></tr></thead>
-        <tbody>${catalog.rows
-          .map(
-            (item) => `
-              <tr class="choice-${item.tier_flag}">
-                <th>${e(item.action_id)}<small>${e(item.conditioning_id)} · ${e(item.definition)} · per ${e(item.time_unit)}</small></th>
-                <td><span class="choice-tier">T${item.tier}</span><span class="field-status ${item.tier_flag === 'measured' ? 'present' : item.tier_flag === 'imputed' ? 'imputed' : 'missing'}">${e(words(item.tier_flag))}</span><small>${e(words(item.source_type))}</small></td>
-                <td>${item.value == null ? 'No coefficient' : item.value.toFixed(3)}<small>${item.ci_low.toFixed(3)}–${item.ci_high.toFixed(3)}</small></td>
-                <td>${item.sample_size == null ? 'No sample' : n(item.sample_size)}<small>${e(item.source_date ?? 'Undated')}</small></td>
-                <td>${e(item.population)}<small>${e(item.denominator)}</small></td>
-                <td>${e(item.provenance.source)}<small>${e(item.provenance.version)} · uncertainty ${item.provenance.uncertainty.toFixed(2)}${item.missing_requirement ? `<br>${e(item.missing_requirement)}` : ''}</small></td>
-              </tr>`,
-          )
-          .join('')}</tbody>
+        <tbody>${
+          rows ||
+          '<tr><td colspan="6"><div class="atlas-empty"><strong>Promote linked trait/outcome data to populate behavior evidence.</strong><span>Run-scoped imports remain private until you explicitly promote them.</span></div></td></tr>'
+        }</tbody>
       </table>
     </div>`;
 }

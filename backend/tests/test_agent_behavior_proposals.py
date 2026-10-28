@@ -177,6 +177,9 @@ def test_route_keeps_schedules_and_probabilities_unknown_until_one_confirmation(
     )
 
     with TestClient(application) as client:
+        default_agent_types = store.agent_types()
+        default_routines = store.routines()
+        default_decision_trees = store.decision_trees()
         proposal = client.post(
             "/simulation/agent-types/proposals",
             json={"prompt": "Create a work routine and social choice"},
@@ -206,9 +209,9 @@ def test_route_keeps_schedules_and_probabilities_unknown_until_one_confirmation(
         )
         assert rejected.status_code == 422
         assert "needs a confirmed schedule" in rejected.json()["detail"]
-        assert store.agent_types() is None
-        assert store.routines() is None
-        assert store.decision_trees().trees == []
+        assert store.agent_types() == default_agent_types
+        assert store.routines() == default_routines
+        assert store.decision_trees() == default_decision_trees
 
         routine = draft["routine_drafts"][0]
         routine["evidence"]["status"] = "user_defined"
@@ -227,11 +230,19 @@ def test_route_keeps_schedules_and_probabilities_unknown_until_one_confirmation(
 
     assert confirmed.status_code == 200
     assert store.agent_types() is not None
-    assert store.routines().routines[0].steps[0].schedule.start_time == "09:00"
-    assert "human-confirmed" in store.routines().routines[0].evidence.note
-    assert store.decision_trees().trees[0].status == "blocked"
-    assert "human-confirmed" in store.decision_trees().trees[0].source
-    assert "awaiting human confirmation" not in store.decision_trees().trees[0].source
+    saved_routine = next(
+        item for item in store.routines().routines if item.id == routine["id"]
+    )
+    saved_tree = next(
+        item
+        for item in store.decision_trees().trees
+        if item.id == draft["decision_tree_drafts"]["trees"][0]["id"]
+    )
+    assert saved_routine.steps[0].schedule.start_time == "09:00"
+    assert "human-confirmed" in saved_routine.evidence.note
+    assert saved_tree.status == "blocked"
+    assert "human-confirmed" in saved_tree.source
+    assert "awaiting human confirmation" not in saved_tree.source
     payload = json.loads(store.path.read_text(encoding="utf-8"))
     assert {
         "agent_types",

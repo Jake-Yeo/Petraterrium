@@ -74,6 +74,27 @@ def transition_evidence_matches(
     )
 
 
+def pipeline_estimate_matches(
+    row,
+    transition: ModuleTransition,
+    context: CompilationContext,
+    predictors: dict[str, object],
+) -> bool:
+    query = transition.probability
+    selected = set(row.selected_source_ids)
+    selected_sources = [source for source in row.sources if source.id in selected]
+    if predictors and not any(source.supports_joint_outcome for source in selected_sources):
+        return False
+    return (
+        row.outcome_id == query.outcome_id
+        and row.conditioning_id == query.conditioning_id
+        and row.place == context.place
+        and row.time_unit == context.time_unit
+        and row.predictor_values == predictors
+        and row.condition_values == context.conditions
+    )
+
+
 def requirement_key(
     module: MarkovModule,
     transition: ModuleTransition,
@@ -209,6 +230,37 @@ def resolve_probability(
                 ),
                 None,
             )
+    estimated_matches = [
+        row
+        for row in catalog.estimated_transition
+        if pipeline_estimate_matches(row, transition, context, predictors)
+    ]
+    estimated_matches.sort(key=lambda row: (row.ci_high - row.ci_low, row.id))
+    if estimated_matches:
+        row = estimated_matches[0]
+        return (
+            ResolvedProbability(
+                module_id=module.id,
+                transition_id=transition.id,
+                from_state=transition.from_state,
+                to_state=transition.to_state,
+                status="resolved",
+                probability=row.probability,
+                ci_low=row.ci_low,
+                ci_high=row.ci_high,
+                evidence_kind="pipeline_estimate",
+                evidence_id=row.id,
+                provenance=Evidence(
+                    source=row.source_summary,
+                    version=f"{row.pipeline_attempt_id}:{row.prompt_version}",
+                    status="literature_estimate",
+                    uncertainty=row.uncertainty,
+                    source_date=row.source_date,
+                ),
+                estimate=row,
+            ),
+            None,
+        )
     return (
         unknown_probability(module, transition),
         missing_requirement(module, transition, context, features),

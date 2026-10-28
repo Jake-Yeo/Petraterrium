@@ -308,6 +308,32 @@
   padding: 5px 0;
 }
 
+.agent-type-state-system {
+  border-top: 1px solid var(--agent-graph-line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.agent-type-state-system > summary {
+  color: var(--agent-graph-accent);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 8px 0;
+}
+
+.agent-type-state-system .agent-state-catalog {
+  --accent: var(--agent-graph-accent);
+  --bg: var(--agent-graph-control);
+  --border: var(--agent-graph-line);
+  --muted: var(--agent-graph-muted);
+  --panel: var(--agent-graph-surface);
+  --success: #72aa83;
+  --warning: #e9a377;
+  margin-top: 8px;
+}
+
 .agent-type-audit {
   background: color-mix(in srgb, var(--agent-graph-accent) 8%, transparent);
   border: 1px solid var(--agent-graph-line);

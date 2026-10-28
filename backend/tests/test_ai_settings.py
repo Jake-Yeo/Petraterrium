@@ -122,6 +122,7 @@ def test_cli_generation_uses_existing_login_environment_without_app_api_key(
     assert invocation["api_key_visible"] is False
     assert "exec" in invocation["argv"]
     assert "--ephemeral" in invocation["argv"]
+    assert "--ask-for-approval" not in invocation["argv"]
     assert invocation["argv"][invocation["argv"].index("--model") + 1] == "cli-test-model"
 
 
@@ -244,6 +245,53 @@ def test_structured_cli_output_is_validated_and_carries_provenance(tmp_path):
     assert result.provenance.prompt_version == "structured-v1"
     invocation = json.loads((tmp_path / "cli-invocations.jsonl").read_text())
     assert "--output-schema" in invocation["argv"]
+
+
+def test_structured_cli_schema_requires_nullable_fields_at_every_object_level(tmp_path):
+    class Node(BaseModel):
+        label: str
+        source_excerpt: str | None = None
+
+    class Proposal(BaseModel):
+        name: str
+        entry_label: str | None = None
+        nodes: list[Node]
+
+    captured = {}
+
+    class CapturingProvider(SelectedAIProvider):
+        def _run_cli(
+            self,
+            settings,
+            system_prompt,
+            user_prompt,
+            response_schema=None,
+        ):
+            captured["schema"] = response_schema
+            return json.dumps(
+                {
+                    "name": "Daily decision",
+                    "entry_label": None,
+                    "nodes": [{"label": "Stay home", "source_excerpt": None}],
+                }
+            )
+
+    store, _ = settings_store(tmp_path)
+    update_cli(store, "unused-cli")
+
+    result = CapturingProvider(store).generate_structured(
+        "Propose one chain.",
+        Proposal,
+        system_prompt="Return a proposal.",
+        prompt_version="strict-schema-v1",
+    )
+
+    schema = captured["schema"]
+    assert schema["required"] == ["name", "entry_label", "nodes"]
+    assert schema["$defs"]["Node"]["required"] == ["label", "source_excerpt"]
+    assert {"type": "null"} in schema["properties"]["entry_label"]["anyOf"]
+    assert result.output.entry_label is None
+    assert result.output.nodes[0].source_excerpt is None
 
 
 def test_settings_router_exposes_redacted_persistence_and_exact_test_result(tmp_path):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Sequence
 from math import isclose
 from threading import RLock
 from typing import Literal
@@ -181,7 +181,6 @@ class LocationPlaceSummary(LocationModel):
 
 class LocationAgentSummary(LocationModel):
     agent_id: str
-    display_name: str
     current_location_id: str
 
 
@@ -195,7 +194,6 @@ class LocationRunSnapshot(LocationModel):
 
 class LocationAgentDetail(LocationModel):
     agent_id: str
-    display_name: str
     current_location: LocationPlaceSummary
     ancestry: tuple[LocationPlaceSummary, ...]
     history: tuple[LocationHistoryRecord, ...]
@@ -429,7 +427,6 @@ class LocationRunCatalog:
         tick: int,
         registry: LocationRegistry,
         state: LocationRuntimeState,
-        display_names: Mapping[str, str] | None = None,
     ):
         if tick < 0:
             raise ValueError("Location run tick cannot be negative")
@@ -438,7 +435,6 @@ class LocationRunCatalog:
         self.tick = tick
         self.registry = registry
         self.state = state
-        self.display_names = dict(display_names or {})
         self._current = _current_locations(state)
         self._co_located = co_located_agent_ids(registry, state)
         occupancy = Counter(self._current.values())
@@ -473,7 +469,6 @@ class LocationRunCatalog:
         agents = tuple(
             LocationAgentSummary(
                 agent_id=agent_id,
-                display_name=self.display_names.get(agent_id, agent_id),
                 current_location_id=place_id,
             )
             for agent_id, place_id in self._current.items()
@@ -496,7 +491,6 @@ class LocationRunCatalog:
         co_located = tuple(
             LocationAgentSummary(
                 agent_id=other_id,
-                display_name=self.display_names.get(other_id, other_id),
                 current_location_id=self._current[other_id],
             )
             for other_id in self._co_located[agent_id]
@@ -504,7 +498,6 @@ class LocationRunCatalog:
         elsewhere = tuple(
             LocationAgentSummary(
                 agent_id=other_id,
-                display_name=self.display_names.get(other_id, other_id),
                 current_location_id=other_place_id,
             )
             for other_id, other_place_id in self._current.items()
@@ -512,7 +505,6 @@ class LocationRunCatalog:
         )
         return LocationAgentDetail(
             agent_id=agent_id,
-            display_name=self.display_names.get(agent_id, agent_id),
             current_location=self._summaries[place_id],
             ancestry=tuple(
                 self._summaries[place.id]
@@ -536,6 +528,7 @@ class LocationRunCatalog:
 class LocationRunRegistry:
     def __init__(self):
         self._catalogs: dict[str, LocationRunCatalog] = {}
+        self._loaders: dict[str, Callable[[], LocationRunCatalog]] = {}
         self._lock = RLock()
 
     def record(
@@ -544,25 +537,41 @@ class LocationRunRegistry:
         tick: int,
         places: Sequence[LocationPlace],
         state: LocationRuntimeState,
-        display_names: Mapping[str, str] | None = None,
     ) -> LocationRunCatalog:
         catalog = LocationRunCatalog(
             run_id,
             tick,
             LocationRegistry(places),
             state,
-            display_names,
         )
         with self._lock:
             self._catalogs[run_id] = catalog
+            self._loaders.pop(run_id, None)
         return catalog
+
+    def register_loader(
+        self,
+        run_id: str,
+        loader: Callable[[], LocationRunCatalog],
+    ) -> None:
+        with self._lock:
+            if run_id not in self._catalogs:
+                self._loaders[run_id] = loader
 
     def catalog(self, run_id: str) -> LocationRunCatalog:
         with self._lock:
-            try:
-                return self._catalogs[run_id]
-            except KeyError as error:
-                raise KeyError(f"No locations recorded for run {run_id}") from error
+            catalog = self._catalogs.get(run_id)
+            if catalog is not None:
+                return catalog
+            loader = self._loaders.get(run_id)
+            if loader is not None:
+                return loader()
+        raise KeyError(f"No locations recorded for run {run_id}")
+
+    def discard(self, run_id: str) -> None:
+        with self._lock:
+            self._catalogs.pop(run_id, None)
+            self._loaders.pop(run_id, None)
 
 
 def create_location_router(registry: LocationRunRegistry) -> APIRouter:

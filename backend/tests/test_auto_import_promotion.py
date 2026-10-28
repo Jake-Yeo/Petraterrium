@@ -14,6 +14,8 @@ from petraterrium.atlas.auto_import_research import (
 )
 from petraterrium.atlas.auto_import_service import PromotionPayload
 from petraterrium.atlas.database import AtlasStore
+from petraterrium.atlas.feature_catalog import FeatureCatalogStore
+from petraterrium.atlas.features import canonical_feature_registry
 
 
 def promotion_payload(
@@ -172,3 +174,68 @@ def test_retry_rejects_scope_or_provenance_changes(tmp_path):
             (promotion_id,),
         ).fetchone()[0]
     assert scope == "run-17"
+
+
+def test_promoted_specialization_is_visible_as_a_ready_feature_distribution(tmp_path):
+    store = AtlasStore(tmp_path / "atlas.sqlite3")
+    writer = AtlasAutoImportPromotionWriter(store, tmp_path / "MISSING.md")
+    base = promotion_payload(scope="shared")
+    values = {f"{code:02d}": 100 / 11 for code in range(11)}
+    first_key = next(iter(values))
+    values[first_key] += 100 - sum(values.values())
+    source = base.sources[0].model_copy(
+        update={
+            "feature": "specialization",
+            "place": "Canada",
+            "place_level": "country",
+            "denominator": "tertiary graduates",
+            "distribution": values,
+        }
+    )
+    mapping = MappingPreview(
+        version="specialization-isced-f-2013-v1",
+        rows=tuple(
+            LabelMapping(
+                source_label=label,
+                proposed_label=label,
+                confidence="exact",
+                reason="Canonical ISCED-F broad field",
+            )
+            for label in values
+        ),
+    )
+    target = base.target.model_copy(
+        update={
+            "level": "country",
+            "place_id": "CA",
+            "place_label": "Canada",
+            "feature_id": "specialization",
+            "country_code": "CA",
+        }
+    )
+    payload = base.model_copy(
+        update={
+            "target": target,
+            "distribution": values,
+            "sources": (source,),
+            "mapping": mapping,
+            "verifications": (
+                base.verifications[0].model_copy(
+                    update={"candidate_id": source.candidate_id}
+                ),
+            ),
+        }
+    )
+
+    writer.promote(payload)
+    detail = FeatureCatalogStore(store).detail(
+        canonical_feature_registry(), "specialization"
+    )
+
+    assert detail.status == "ready"
+    assert len(detail.distributions) == 1
+    distribution = detail.distributions[0]
+    assert distribution.level == "country"
+    assert distribution.place == "CA"
+    assert distribution.provenance.status == "present"
+    assert sum(distribution.values.values()) == pytest.approx(1)

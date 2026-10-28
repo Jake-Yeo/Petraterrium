@@ -1,5 +1,37 @@
 import { expect, test } from '@playwright/test';
 
+test('saved run summaries accept a nullable global demo summary', async ({ page }) => {
+  await page.route('/api/simulation/runs', async (route) => {
+    await route.fulfill({
+      json: [
+        {
+          run_id: 'summary-run',
+          config: {
+            population_size: 1000,
+            seed: 1,
+            days: 1,
+            tick_interval_hours: 1,
+            start_date: '2026-10-27',
+            place_scope: { level: 'global', identifier: null },
+            agent_type_mix: {},
+          },
+          status: 'completed',
+          progress: 1,
+          completed_ticks: 24,
+          total_ticks: 24,
+          result: null,
+          error: null,
+          global_demo_summary: null,
+        },
+      ],
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Run Simulation' }).click();
+
+  await expect(page.getByRole('button', { name: 'Open run summary-run' })).toBeVisible();
+});
+
 test('run panel shows the executable decision evidence blocker without creating a run', async ({
   page,
 }) => {
@@ -10,7 +42,7 @@ test('run panel shows the executable decision evidence blocker without creating 
     host.id = 'simulation-run-blocked-test';
     document.body.replaceChildren(host);
     const message =
-      'Run blocked: 2 selected agents have no applicable confirmed executable decision tree: agent-1 (worker), agent-2 (worker). Confirm ready decision trees with measured-joint or fitted-model evidence for every selected agent type in Simulation > Decision Trees, then run again.';
+      'Run blocked: 2 selected agents have no applicable confirmed executable decision tree: agent-1 (worker), agent-2 (worker). Confirm ready decision trees with default/estimated or fitted evidence for every selected agent type in Simulation > Decision Trees, then run again.';
     const client = {
       launch: async () => {
         throw new Error(message);
@@ -29,7 +61,7 @@ test('run panel shows the executable decision evidence blocker without creating 
       },
       events: async () => ({ items: [], total: 0, page: 1, page_size: 100, pages: 0 }),
     };
-    new SimulationRunPanel(host, client);
+    new SimulationRunPanel(host, client, { launchPreviewClient: null });
   });
 
   const panel = page.locator('#simulation-run-blocked-test');
@@ -38,7 +70,7 @@ test('run panel shows the executable decision evidence blocker without creating 
   await expect(panel.getByRole('alert')).toContainText('Run blocked: 2 selected agents');
   await expect(panel.getByRole('alert')).toContainText('agent-1 (worker), agent-2 (worker)');
   await expect(panel.getByRole('alert')).toContainText(
-    'Confirm ready decision trees with measured-joint or fitted-model evidence',
+    'Confirm ready decision trees with default/estimated or fitted evidence',
   );
   await expect(panel).toContainText('No saved runs yet.');
 });
@@ -149,14 +181,12 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
         items: [
           {
             agent_id: 'agent-1',
-            display_name: 'Avery',
             final_module: 'day',
             final_state: 'home',
             final_location: 'Vancouver',
           },
           {
             agent_id: 'agent-2',
-            display_name: 'Noah',
             final_module: 'day',
             final_state: 'home',
             final_location: 'Vancouver',
@@ -169,7 +199,6 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
       }),
       agent: async (_runId: string, agentId: string) => ({
         agent_id: agentId,
-        display_name: agentId === 'agent-1' ? 'Avery' : 'Noah',
         final_module: 'day',
         final_state: 'home',
         final_location: 'Vancouver',
@@ -214,6 +243,102 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
             module: 'day',
             state: 'outside',
             location: 'Downtown bar',
+            memory: { stress: 0.49 },
+            action_receipts: [
+              {
+                tick: 12,
+                action: 'bad_work',
+                rule_index: 1,
+                probability: 0.42,
+                draw: 0.17,
+                provenance: {
+                  source: 'Canadian work-stress estimate',
+                  version: '2026-v1',
+                  status: 'default_estimated',
+                  uncertainty: 0.4,
+                },
+              },
+            ],
+            state_receipts: [
+              {
+                tick: 12,
+                event_counts: { bad_work: 1 },
+                event_effects: [
+                  {
+                    event: 'bad_work',
+                    agent_index: 0,
+                    target_state_id: 'stress',
+                    operation: 'add',
+                    configured_value: 0.2,
+                    delta: 0.2,
+                    evidence: {
+                      source: 'Canadian work-stress estimate',
+                      source_version: '2026-v1',
+                      status: 'default_estimated',
+                      uncertainty: 0.4,
+                    },
+                  },
+                ],
+                state_rules: [
+                  {
+                    rule_index: 0,
+                    target_state_id: 'stress',
+                    input_state_ids: ['stress'],
+                    formula: 'stress[t+1] = stress[t] + event_delta - recovery',
+                    evidence: {
+                      source: 'Canadian work-stress estimate',
+                      source_version: '2026-v1',
+                      status: 'default_estimated',
+                      uncertainty: 0.4,
+                    },
+                  },
+                ],
+                agent_state_changes: [
+                  {
+                    agent_index: 0,
+                    target_state_id: 'stress',
+                    rule_index: 0,
+                    before: 0.3,
+                    event_delta: 0.2,
+                    equation_delta: -0.01,
+                    after: 0.49,
+                  },
+                ],
+                finance_changes: [
+                  {
+                    agent_index: 0,
+                    currency: 'CAD',
+                    provenance: {
+                      status: 'imputed',
+                      source: 'Statistics Canada finance cells',
+                    },
+                    flows: {
+                      wages: 160,
+                      business_income: 0,
+                      transfers: 0,
+                      housing: 0,
+                      food: 0,
+                      transport: 8,
+                      other_expenses: 0,
+                      taxes: 32,
+                      savings_contribution: 0,
+                      savings_withdrawal: 0,
+                      debt_draw: 0,
+                      debt_repayment: 0,
+                    },
+                    ledger_changes: [
+                      {
+                        ledger: 'money',
+                        before: 1000,
+                        flow_delta: 120,
+                        after: 1120,
+                      },
+                    ],
+                  },
+                ],
+                finance_formula: 'money[t+1] = money[t] + income - expenses',
+              },
+            ],
             actions: ['meet-friend'],
             routine_actions: ['commute'],
             interactions: [],
@@ -267,7 +392,6 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
                 interaction_type: 'talk',
                 channel: 'in_person',
                 other_agent_id: agentId === 'agent-1' ? 'agent-2' : 'agent-1',
-                other_agent_name: agentId === 'agent-1' ? 'Noah' : 'Avery',
                 place: 'Downtown bar',
                 state_deltas: [
                   {
@@ -410,7 +534,10 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
         };
       },
     };
-    new SimulationRunPanel(host, client, { pollIntervalMs: 10 });
+    new SimulationRunPanel(host, client, {
+      pollIntervalMs: 10,
+      launchPreviewClient: null,
+    });
   });
 
   const panel = page.locator('#simulation-run-panel-test');
@@ -424,7 +551,7 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
   await panel.getByLabel('Place', { exact: true }).fill('Vancouver');
   await panel.getByLabel('Agent type mix').fill('BusinessAgent: 0.5\nWorkerAgent: 0.5');
   await panel.getByRole('button', { name: 'Launch Rust simulation' }).click();
-  await expect(panel.getByText('Completed')).toBeVisible();
+  await expect(panel.locator('.simulation-result-heading').getByText('Completed')).toBeVisible();
   await expect(panel).toContainText('Rust 0.1.0');
   await expect(panel).toContainText('day / home');
   await expect(panel).toContainText('2 agents');
@@ -432,15 +559,25 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
   await expect(panel).toContainText('Interaction / Became Friends');
 
   await panel.getByRole('button', { name: 'Agents' }).click();
-  await expect(panel.getByRole('button', { name: /Open Avery/ })).toBeVisible();
-  await panel.getByRole('button', { name: /Open Avery/ }).click();
-  await expect(panel.getByRole('heading', { name: 'Avery' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /Open agent-1/ })).toBeVisible();
+  await panel.getByRole('button', { name: /Open agent-1/ }).click();
+  await expect(panel.getByRole('heading', { name: 'agent-1' })).toBeVisible();
   await expect(panel).toContainText('choose');
   await expect(panel).toContainText('Downtown bar');
   await expect(panel).toContainText('meet-friend');
+  await panel.getByText('1 causal action receipt').click();
+  await expect(panel).toContainText('Bad Work · 42%');
+  await expect(panel).toContainText('draw 0.17');
+  await expect(panel).toContainText('Canadian work-stress estimate');
+  await panel.getByText('State formulas and receipts').click();
+  await expect(panel).toContainText('Stress 0.3 +0.2 -0.01 → 0.49');
+  await expect(panel).toContainText('stress[t+1] = stress[t] + event_delta - recovery');
+  await expect(panel).toContainText('Money 1,000 +120 → 1,120 CAD');
+  await expect(panel).toContainText('Wages +160');
+  await expect(panel).toContainText('Statistics Canada finance cells');
   await expect(panel).toContainText('talked with agent-2');
   await panel.getByText('1 interaction detail').click();
-  await expect(panel).toContainText('Talk · In Person with Noah');
+  await expect(panel).toContainText('Talk · In Person with agent-2');
   await expect(panel).toContainText('Opening → Continue Talking');
   await expect(panel).toContainText('Friendship Subtree · Topic → Became Friends');
   await expect(panel).toContainText('Mood 0.2 +0.3 → 0.5');
@@ -455,9 +592,9 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
   await expect(panel).toContainText('Travel Started · weekday-commute');
   await expect(panel).toContainText('Rust Numeric Core · destination Downtown bar · tick 8');
   await panel.getByRole('button', { name: 'Back to results' }).click();
-  await panel.getByRole('button', { name: /Open Noah/ }).click();
+  await panel.getByRole('button', { name: /Open agent-2/ }).click();
   await panel.getByText('1 interaction detail').click();
-  await expect(panel).toContainText('Talk · In Person with Avery');
+  await expect(panel).toContainText('Talk · In Person with agent-1');
   await expect(panel).toContainText('Friendship Subtree · Topic → Became Friends');
   await expect(panel).toContainText('Mood 0.4 +0.1 → 0.5');
   await expect(panel).toContainText('Trust agent-1 → agent-2 0.7 +0.05 → 0.75');
@@ -515,7 +652,10 @@ test('run panel cancels an active Rust run', async ({ page }) => {
       },
       events: async () => ({ items: [], total: 0, page: 1, page_size: 100, pages: 0 }),
     };
-    new SimulationRunPanel(host, client, { pollIntervalMs: 60_000 });
+    new SimulationRunPanel(host, client, {
+      pollIntervalMs: 60_000,
+      launchPreviewClient: null,
+    });
   });
 
   const panel = page.locator('#simulation-run-cancel-test');

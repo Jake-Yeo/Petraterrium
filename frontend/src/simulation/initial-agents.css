@@ -52,6 +52,129 @@
   white-space: nowrap;
 }
 
+.initial-population-evidence {
+  background: var(--initial-surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-top: 18px;
+  padding: 14px;
+}
+
+.initial-population-evidence > header {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.initial-population-evidence h3 {
+  color: var(--initial-text);
+  font:
+    500 15px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  margin: 3px 0 0;
+}
+
+.initial-population-evidence > header > span {
+  color: var(--initial-muted);
+  font-size: 9px;
+}
+
+.initial-population-place-counts {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin: 13px 0;
+}
+
+.initial-population-place-counts > div {
+  background: var(--initial-control);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  min-width: 0;
+  padding: 9px;
+}
+
+.initial-population-place-counts small,
+.initial-population-evidence-table small {
+  color: var(--initial-muted);
+  display: block;
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.initial-population-place-counts p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 7px 0 0;
+}
+
+.initial-population-place-counts p span {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--initial-text);
+  display: flex;
+  font-size: 9px;
+  gap: 5px;
+  padding: 4px 7px;
+}
+
+.initial-population-place-counts p b {
+  color: var(--initial-accent);
+  font-weight: 600;
+}
+
+.initial-population-evidence-table {
+  max-height: 270px;
+  overflow: auto;
+}
+
+.initial-population-evidence-table table {
+  border-collapse: collapse;
+  min-width: 720px;
+  width: 100%;
+}
+
+.initial-population-evidence-table th,
+.initial-population-evidence-table td {
+  border-top: 1px solid var(--line);
+  color: var(--initial-muted);
+  font-size: 9px;
+  line-height: 1.45;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.initial-population-evidence-table thead th {
+  border-top: 0;
+  font:
+    8px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.initial-population-evidence-table tbody th {
+  color: var(--initial-text);
+  font-weight: 600;
+  width: 120px;
+}
+
+.initial-population-evidence-table td span {
+  color: var(--initial-text);
+  display: block;
+  margin-top: 3px;
+}
+
 .initial-agents-filters {
   align-items: end;
   background: var(--initial-surface);
@@ -101,10 +224,9 @@
 .initial-agent-row {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(170px, 1.2fr) minmax(140px, 0.9fr) minmax(105px, 0.65fr) minmax(
-      160px,
-      1fr
-    ) minmax(160px, 1fr) 18px;
+  grid-template-columns:
+    minmax(170px, 1.2fr) minmax(140px, 0.9fr) minmax(105px, 0.65fr) minmax(160px, 1fr)
+    minmax(160px, 1fr) 18px;
 }
 
 .initial-agents-column-labels {

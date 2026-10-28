@@ -20,6 +20,7 @@ from petraterrium.atlas.auto_import_contracts import (
     AutoImportMappingReview,
     AutoImportPromotionRequest,
     AutoImportQueuePageView,
+    AutoImportRerunRequest,
 )
 from petraterrium.atlas.contracts import (
     AtlasOverview,
@@ -226,6 +227,7 @@ def artifacts() -> dict[Path, str]:
         | AutoImportMappingReview
         | AutoImportPromotionRequest
         | AutoImportQueuePageView
+        | AutoImportRerunRequest
         | AIConnectionTest
         | AISettingsUpdate
         | AISettingsView

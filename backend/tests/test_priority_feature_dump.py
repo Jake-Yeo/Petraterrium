@@ -3,12 +3,46 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from petraterrium.atlas.feature_dump.priority_features import PRIORITY_COUNTRY_CODES
+from petraterrium.atlas.feature_dump.priority_features import (
+    PRIORITY_COUNTRY_CODES,
+    load_specialization_estimates,
+)
 from petraterrium.atlas.features import canonical_feature_registry
 from petraterrium.atlas.regions import CANONICAL_REGIONS
 from petraterrium.dsl import FeatureDistribution
 
 DUMP = Path(__file__).resolve().parents[1] / "data" / "registry_feature_dump"
+DATA = Path(__file__).resolve().parents[1] / "data"
+
+
+def test_specialization_estimates_preserve_pipeline_receipts():
+    estimates = load_specialization_estimates(DATA)
+    assert set(PRIORITY_COUNTRY_CODES) <= set(estimates)
+    for country_code, estimate in estimates.items():
+        receipt = json.loads(
+            (DATA / "sources" / "specialization" / "pipeline" / f"{country_code}.json")
+            .read_text()
+        )
+        assert estimate.values == {
+            label: value / 100
+            for label, value in sorted(receipt["mapped_distribution"].items())
+        }
+        assert abs(sum(estimate.values.values()) - 1) < 1e-9
+        assert receipt["attempt_id"] in estimate.version
+        assert receipt["mapping_preview"]["version"] in estimate.version
+        selected_titles = {
+            source["title"]
+            for source in receipt["sources"]
+            if source["candidate_id"] in receipt["selected_source_ids"]
+        }
+        assert selected_titles
+        assert selected_titles <= set(estimate.source.split("; "))
+    assert estimates["IN"].status == "present"
+    assert estimates["IN"].method == "measured"
+    assert estimates["IN"].uncertainty == 0.05
+    assert estimates["CN"].status == "literature_estimate"
+    assert estimates["CN"].method == "compositional"
+    assert estimates["CN"].uncertainty >= 0.3
 
 
 def test_priority_dump_covers_every_feature_for_priority_places():

@@ -9,6 +9,7 @@ FIELDS = (
     "age_sex",
     "income",
     "education",
+    "specialization",
     "ideology_economic",
     "ideology_state",
     "ideology_cultural",
@@ -20,6 +21,10 @@ SUGGESTIONS = {
     "age_sex": ("Census/IPUMS; UN WPP for a country archetype", "https://population.un.org/wpp/"),
     "income": ("Census/PUMS or licensed IPUMS microdata", "https://international.ipums.org/"),
     "education": ("Census/IPUMS or DHS education tables", "https://international.ipums.org/"),
+    "specialization": (
+        "UNESCO UIS, OECD UOE, or national field-of-study tables mapped to ISCED-F 2013",
+        "https://uis.unesco.org/",
+    ),
     "ideology_economic": (
         "Weighted economic-policy items from WVS, ESS, Pew or an election study",
         "https://www.worldvaluessurvey.org/",

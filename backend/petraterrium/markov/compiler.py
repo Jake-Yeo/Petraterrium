@@ -25,12 +25,14 @@ def compile_program(
             context=context,
             executable=False,
             issues=validation.issues,
+            warnings=[],
             modules=[],
             probabilities=[],
             outgoing_totals=[],
             missing_requirements=[],
         )
     issues: list[ValidationIssue] = []
+    warnings: list[ValidationIssue] = []
     probabilities = []
     missing = []
     compiled_modules = []
@@ -46,6 +48,20 @@ def compile_program(
             probabilities.append(resolved)
             module_probabilities[transition.from_state].append(resolved)
             partition_inputs.update(transition.probability.predictor_inputs)
+            if resolved.evidence_kind == "pipeline_estimate":
+                estimate = resolved.estimate
+                warnings.append(
+                    ValidationIssue(
+                        code="estimated_probability_evidence",
+                        path=f"modules.{module.id}.transitions.{transition.id}",
+                        message=(
+                            f"Draft pipeline estimate {resolved.evidence_id} drives this "
+                            f"transition at {resolved.probability:.6g} with "
+                            f"CI [{resolved.ci_low:.6g}, {resolved.ci_high:.6g}]. "
+                            f"{estimate.reasoning}"
+                        ),
+                    )
+                )
             if requirement is not None:
                 missing.append(requirement)
                 issues.append(
@@ -108,6 +124,7 @@ def compile_program(
         context=context,
         executable=not issues,
         issues=issues,
+        warnings=warnings,
         modules=compiled_modules,
         probabilities=probabilities,
         outgoing_totals=outgoing_totals,

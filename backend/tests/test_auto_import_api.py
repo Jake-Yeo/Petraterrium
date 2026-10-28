@@ -1,11 +1,15 @@
+import asyncio
 import json
+import threading
 import time
 from datetime import date
 
+import httpx
 from fastapi.testclient import TestClient
 
 from petraterrium.ai_settings import AISourceProvenance
 from petraterrium.atlas.auto_import_research import SourceCandidate
+from petraterrium.atlas.auto_import_service import AutoImportResearchService
 from petraterrium.atlas.database import AtlasStore
 from petraterrium.main import create_app
 
@@ -195,6 +199,84 @@ def test_queue_uses_default_city_threshold_and_separate_lower_priority_cohort(tm
     assert lower["primary_count"] == 3
 
 
+def test_attempt_creation_does_not_block_the_event_loop(tmp_path, monkeypatch):
+    path = tmp_path / "atlas.sqlite3"
+    seed_atlas(path)
+    application = create_app(
+        atlas_path=path,
+        research_provider=ScriptedResearchProvider(),
+    )
+    persistence_started = threading.Event()
+    persistence_release = threading.Event()
+    original_create_attempt = AutoImportResearchService.create_attempt
+
+    def blocking_create_attempt(self, target, user_sources=()):
+        persistence_started.set()
+        if not persistence_release.wait(timeout=0.3):
+            raise RuntimeError("Test did not release attempt persistence")
+        return original_create_attempt(self, target, user_sources)
+
+    monkeypatch.setattr(
+        AutoImportResearchService,
+        "create_attempt",
+        blocking_create_attempt,
+    )
+    target = {
+        "place_id": "1",
+        "place_label": "Alpha",
+        "level": "city",
+        "country_code": "US",
+        "geonameid": 1,
+        "population": 1_200_000,
+        "field_id": "income",
+        "field_label": "Income",
+        "current_status": "missing",
+        "as_of": "2026-10-27",
+        "required_distribution": {},
+        "missing_impact": 1_200_000,
+        "place_item_count": 1,
+        "priority": "primary",
+    }
+
+    async def exercise():
+        transport = httpx.ASGITransport(app=application)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+        ) as client:
+            started_at = time.monotonic()
+
+            async def heartbeat():
+                await asyncio.sleep(0.01)
+                return time.monotonic() - started_at
+
+            heartbeat_task = asyncio.create_task(heartbeat())
+            request_task = asyncio.create_task(
+                client.post(
+                    "/atlas/auto-import/attempts",
+                    data={
+                        "target": json.dumps(target),
+                        "scope": "shared",
+                        "urls": "[]",
+                        "pasted_text": "source",
+                    },
+                )
+            )
+            release_timer = threading.Timer(0.2, persistence_release.set)
+            release_timer.start()
+            try:
+                response = await request_task
+                heartbeat_elapsed = await heartbeat_task
+            finally:
+                persistence_release.set()
+                release_timer.cancel()
+            assert persistence_started.is_set()
+            assert response.status_code == 200, response.text
+            assert heartbeat_elapsed < 0.1
+
+    asyncio.run(exercise())
+
+
 def test_mapping_requires_review_and_explicit_promotion_updates_queue_and_trace(tmp_path):
     path = tmp_path / "atlas.sqlite3"
     store = seed_atlas(path)
@@ -232,7 +314,8 @@ def test_mapping_requires_review_and_explicit_promotion_updates_queue_and_trace(
         evidence_attempts = evidence.json()["attempts"]
     income = next(field for field in detail["city"]["fields"] if field["field"] == "income")
     assert income["status"] == "present"
-    assert income["research_trace"]["languages"] == ["en"]
+    assert income["research_trace"]["languages"][0] == "es"
+    assert set(income["research_trace"]["languages"]) >= {"en"}
     assert len(evidence_attempts) == 1
     assert evidence_attempts[0]["target"]["place_label"] == "Alpha"
     assert evidence_attempts[0]["sources"][0]["original_excerpt"]
@@ -243,7 +326,55 @@ def test_mapping_requires_review_and_explicit_promotion_updates_queue_and_trace(
     assert "Resolved with measured evidence" in (tmp_path / "MISSING.md").read_text()
 
 
-def test_wrong_source_is_rejected_and_no_result_keeps_queue_item(tmp_path):
+def test_mapping_review_can_edit_distribution_and_exposes_diff_and_promotion_record(
+    tmp_path,
+):
+    path = tmp_path / "atlas.sqlite3"
+    seed_atlas(path)
+    with TestClient(
+        create_app(atlas_path=path, research_provider=ScriptedResearchProvider())
+    ) as client:
+        target = next(item for item in queue(client)["items"] if item["place_id"] == "1")
+        attempt = start(client, target)
+        response = client.post(
+            f"/atlas/auto-import/attempts/{attempt['attempt_id']}/mapping",
+            json={
+                "reviewed": True,
+                "mappings": [
+                    {"column": row["column"], "target": row["target"]}
+                    for row in attempt["mappings"]
+                ],
+                "distribution": {"under 50k": 55, "50k or more": 45},
+            },
+        )
+        assert response.status_code == 200, response.text
+        ready = response.json()
+        assert ready["candidate_values"] == {"under 50k": 55, "50k or more": 45}
+        assert ready["distribution_changes"] == [
+            {
+                "source_label": "under 50k",
+                "target_label": "under 50k",
+                "before": 60,
+                "after": 55,
+            },
+            {
+                "source_label": "50k or more",
+                "target_label": "50k or more",
+                "before": 40,
+                "after": 45,
+            },
+        ]
+        promoted = client.post(
+            f"/atlas/auto-import/attempts/{attempt['attempt_id']}/promote",
+            json={"redistribution_confirmed": True},
+        )
+        assert promoted.status_code == 200, promoted.text
+        promoted_view = promoted.json()
+        assert promoted_view["promotion_id"]
+        assert promoted_view["draft_status"] == "promoted"
+
+
+def test_wrong_source_is_rejected_and_pipeline_estimate_keeps_queue_item(tmp_path):
     path = tmp_path / "atlas.sqlite3"
     seed_atlas(path)
     provider = ScriptedResearchProvider(failed_places={"1"})
@@ -251,13 +382,16 @@ def test_wrong_source_is_rejected_and_no_result_keeps_queue_item(tmp_path):
         target = next(item for item in queue(client)["items"] if item["place_id"] == "1")
         attempt = start(client, target, "wrong")
         after = queue(client)
-    assert attempt["stage"] == "failed"
+    assert attempt["stage"] == "mapping"
     assert attempt["can_promote"] is False
+    assert attempt["evidence_kind"] == "estimated"
+    assert attempt["draft_status"] == "editable_draft"
+    assert attempt["usable_in_demo"] is True
     assert any(source["accepted"] is False for source in attempt["sources"])
     assert any("different place" in check["detail"].lower() for check in attempt["verification"])
     assert attempt["search_log"]
     assert any(item["item_id"] == target["item_id"] for item in after["items"])
-    assert "Missing after research" in (tmp_path / "MISSING.md").read_text()
+    assert "Research or review in progress" in (tmp_path / "MISSING.md").read_text()
 
 
 def test_hint_promotes_only_as_estimated_with_wide_interval(tmp_path):
@@ -311,7 +445,8 @@ def test_bulk_continues_after_failure_and_waits_for_promotion(tmp_path):
                 break
             time.sleep(0.01)
         assert batch["summary"]["measured"] == 2
-        assert batch["summary"]["failed"] == 1
+        assert batch["summary"]["estimated"] == 1
+        assert batch["summary"]["failed"] == 0
         assert batch["summary"]["promoted"] == 0
         assert batch["summary"]["completed"] == 3
         assert all(item["mappings"] for item in batch["items"] if item["status"] == "ready")
@@ -319,7 +454,7 @@ def test_bulk_continues_after_failure_and_waits_for_promotion(tmp_path):
             not item["can_promote"] for item in batch["items"] if item["status"] == "ready"
         )
         states = {item["target"]["place_id"]: item["status"] for item in batch["items"]}
-        assert states == {"1": "ready", "2": "failed", "3": "ready"}
+        assert states == {"1": "ready", "2": "ready", "3": "ready"}
         blocked = client.post(
             f"/atlas/auto-import/batches/{batch['batch_id']}/promote",
             json={
@@ -344,10 +479,90 @@ def test_bulk_continues_after_failure_and_waits_for_promotion(tmp_path):
         latest = client.get("/atlas/auto-import/batches/latest", params={"scope": "shared"})
         assert latest.status_code == 200
         assert latest.json()["batch_id"] == batch["batch_id"]
-    assert result["summary"]["promoted"] == 2
+    assert result["summary"]["promoted"] == 3
     assert next(item for item in result["items"] if item["target"]["place_id"] == "2")[
         "status"
-    ] == "failed"
+    ] == "promoted"
+
+
+def test_multi_country_bulk_keeps_each_distribution_and_provenance_place_specific(tmp_path):
+    class CountrySpecificProvider(ScriptedResearchProvider):
+        distributions = {
+            "CN": {"under 50k": 82, "50k or more": 18},
+            "JP": {"under 50k": 63, "50k or more": 37},
+            "US": {"under 50k": 54, "50k or more": 46},
+        }
+
+        def candidate(self, target, source_kind, language="en"):
+            return super().candidate(target, source_kind, language).model_copy(
+                update={
+                    "title": f"{target.place_label} national income table",
+                    "url": f"https://example.test/{target.place_id}/income",
+                    "distribution": self.distributions[target.place_id],
+                }
+            )
+
+    path = tmp_path / "atlas.sqlite3"
+    seed_atlas(path)
+    with TestClient(
+        create_app(atlas_path=path, research_provider=CountrySpecificProvider())
+    ) as client:
+        queue_response = client.get(
+            "/atlas/auto-import/queue",
+            params={
+                "level": "country",
+                "feature_id": "income",
+                "page_size": 50,
+            },
+        )
+        assert queue_response.status_code == 200, queue_response.text
+        targets = {
+            item["place_id"]: item["item_id"] for item in queue_response.json()["items"]
+        }
+        selected = [targets[country] for country in ("CN", "JP", "US")]
+        response = client.post(
+            "/atlas/auto-import/batches",
+            json={
+                "scope": "shared",
+                "as_of": "2026-10-26",
+                "concurrency": 3,
+                "selection": {"mode": "explicit", "item_ids": selected},
+            },
+        )
+        assert response.status_code == 200, response.text
+        batch = response.json()
+        for _ in range(100):
+            batch = client.get(
+                f"/atlas/auto-import/batches/{batch['batch_id']}"
+            ).json()
+            if batch["status"] not in {"queued", "running"}:
+                break
+            time.sleep(0.01)
+        attempts = {
+            item["target"]["place_id"]: client.get(
+                f"/atlas/auto-import/attempts/{item['attempt_id']}"
+            ).json()
+            for item in batch["items"]
+        }
+
+    assert batch["summary"]["measured"] == 3
+    assert batch["summary"]["failed"] == 0
+    assert {
+        country: attempt["candidate_values"] for country, attempt in attempts.items()
+    } == CountrySpecificProvider.distributions
+    for country, attempt in attempts.items():
+        accepted = [source for source in attempt["sources"] if source["accepted"]]
+        assert len(accepted) == 1
+        assert accepted[0]["url"] == f"https://example.test/{country}/income"
+        assert (
+            country in accepted[0]["title"]
+            or attempt["target"]["place_label"] in accepted[0]["title"]
+        )
+        assert all(
+            other_country not in accepted[0]["url"]
+            for other_country in CountrySpecificProvider.distributions
+            if other_country != country
+        )
 
 
 def test_feature_evidence_respects_run_scope_and_availability_date(tmp_path):

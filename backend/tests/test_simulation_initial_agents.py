@@ -81,7 +81,6 @@ def interaction_program() -> InteractionProgramDefinition:
 
 def agent(
     agent_id: str,
-    name: str,
     age: int,
     agent_type: str,
     relationship_labels: dict[str, str],
@@ -95,21 +94,50 @@ def agent(
         role=agent_type,
         log_tier="spotlight",
         traits={
-            "name": name,
             "agent_types": [agent_type, "FamilyMember"],
             "age": age,
-            "sex": "female" if name in {"Avery", "Mira"} else "male",
+            "sex": "female" if agent_id in {"agent-avery", "agent-mira"} else "male",
             "country": "Canada",
+            "region": "Northern America",
             "city": "Vancouver",
             "household_id": "household-1",
             "family_status": "parent" if age == 40 else "child",
             "family_relationships": relationship_labels,
             "occupation": "Founder" if agent_type == "BusinessAgent" else "Student",
-            "income": 125000 if agent_type == "BusinessAgent" else 0,
-            "education": "Bachelor's degree" if age == 40 else "Primary school",
+            "years_of_education": 16 if age == 40 else max(0, age - 5),
+            "education_isced": 6 if age == 40 else 1,
+            "education_country_label": "Bachelor's degree" if age == 40 else "Primary school",
+            "education_mapping_version": "ca-isced-2023-v1",
+            "education_status": "measured_marginal",
+            "education_source": "Imported Canadian education mapping",
+            "education_source_population": "Canadian residents",
+            "education_uncertainty": 0.04,
+            "specialization_threshold_years": 12,
+            "specialization": "business" if age == 40 else None,
+            "finance_currency": "CAD",
+            "finance_status": "measured_joint",
+            "finance_source": "Imported Canadian finance joint table",
+            "finance_source_version": "2023-v1",
+            "finance_source_population": "Canadian residents",
+            "finance_uncertainty": 0.06,
             "big_five_extraversion": 0.72 if agent_type == "BusinessAgent" else 0.41,
+            "age_evidence_scope": "country_measured",
+            "sex_evidence_scope": "country_measured",
+            "education_evidence_scope": "country_measured",
+            "occupation_evidence_scope": "unknown",
+            "personality_evidence_scope": "country_measured",
+            "values_evidence_scope": "regional_imputed",
+            "finance_evidence_scope": "country_measured",
         },
-        states={"health": "healthy", "location": "home:household-1"},
+        states={
+            "health": "0.9",
+            "location": "home:household-1",
+            "finance.money": "40000" if age == 40 else "500",
+            "finance.income": "125000" if age == 40 else "0",
+            "finance.expenses": "70000" if age == 40 else "0",
+            "finance.savings": "80000" if age == 40 else "100",
+            "finance.debt": "20000" if age == 40 else "0",
+        },
         behaviour={},
         behaviour_provenance={},
         relationships=relationships,
@@ -121,7 +149,6 @@ def population() -> PopulationTable:
     members = [
         agent(
             "agent-avery",
-            "Avery",
             40,
             "BusinessAgent",
             {"agent-sam": "spouse", "agent-mira": "daughter", "agent-noah": "son"},
@@ -141,7 +168,6 @@ def population() -> PopulationTable:
         ),
         agent(
             "agent-sam",
-            "Sam",
             41,
             "WorkerAgent",
             {"agent-avery": "spouse", "agent-mira": "daughter", "agent-noah": "son"},
@@ -149,7 +175,6 @@ def population() -> PopulationTable:
         ),
         agent(
             "agent-mira",
-            "Mira",
             4,
             "StudentAgent",
             {"agent-avery": "mother", "agent-sam": "father", "agent-noah": "brother"},
@@ -157,7 +182,6 @@ def population() -> PopulationTable:
         ),
         agent(
             "agent-noah",
-            "Noah",
             6,
             "StudentAgent",
             {"agent-avery": "mother", "agent-sam": "father", "agent-mira": "sister"},
@@ -222,6 +246,11 @@ def test_initial_agent_catalog_searches_and_filters_without_loading_every_detail
     assert page.items[0].current_location == "home:household-1"
     assert "BusinessAgent" in page.facets.agent_types
     assert page.pages == 1
+    assert page.evidence_summary.country_agent_counts == {"Canada": 4}
+    assert page.evidence_summary.region_agent_counts == {"Northern America": 4}
+    assert page.evidence_summary.fields["age"].own_country_inherited == ["Canada"]
+    assert page.evidence_summary.fields["values"].regional_imputed == ["Canada"]
+    assert page.evidence_summary.fields["occupation"].estimated == ["Canada"]
 
 
 def test_initial_agent_detail_links_household_family_routines_and_decision_trees() -> None:
@@ -229,11 +258,11 @@ def test_initial_agent_detail_links_household_family_routines_and_decision_trees
 
     assert detail.agent_types == ["BusinessAgent", "FamilyMember"]
     assert detail.household is not None
-    assert [(member.display_name, member.age) for member in detail.household.members] == [
-        ("Avery", 40),
-        ("Mira", 4),
-        ("Noah", 6),
-        ("Sam", 41),
+    assert [(member.agent_id, member.age) for member in detail.household.members] == [
+        ("agent-avery", 40),
+        ("agent-mira", 4),
+        ("agent-noah", 6),
+        ("agent-sam", 41),
     ]
     assert {relationship.relationship for relationship in detail.family_relationships} == {
         "daughter",
@@ -246,10 +275,17 @@ def test_initial_agent_detail_links_household_family_routines_and_decision_trees
     ]
     assert detail.decision_trees[0].tree_id == "business-social"
     assert detail.occupation == "Founder"
-    assert detail.income == 125000
-    assert detail.education == "Bachelor's degree"
-    assert detail.health == "healthy"
+    assert detail.education_profile.years_of_education == 16
+    assert detail.education_profile.country_label == "Bachelor's degree"
+    assert detail.education_profile.specialization == "business"
+    assert detail.finances.income.value == 125000
+    assert detail.finances.money.value == 40000
+    assert detail.health == "0.9"
+    assert next(
+        value for value in detail.state_vector.values if value.state_id == "health"
+    ).value == 0.9
     assert detail.traits["big_five_extraversion"] == 0.72
+    assert "name" not in detail.traits
 
 
 def test_initial_agent_detail_reports_truthful_pre_run_interaction_context() -> None:

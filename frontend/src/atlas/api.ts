@@ -45,9 +45,9 @@ export const atlasApi = {
       `/atlas/hierarchy?scope=${encodeURIComponent(scope)}&as_of=${encodeURIComponent(asOf)}`,
       validator<HierarchyOverview>('HierarchyOverview'),
     ),
-  choices: () =>
+  choices: (scope: string, asOf: string) =>
     request(
-      '/atlas/choice-evidence',
+      `/atlas/choice-evidence?scope=${encodeURIComponent(scope)}&as_of=${encodeURIComponent(asOf)}`,
       validator<ChoiceEvidenceCatalog>('ChoiceEvidenceCatalog'),
     ),
   history: (scope: string) =>

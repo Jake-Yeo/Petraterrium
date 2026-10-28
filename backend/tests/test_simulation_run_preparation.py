@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from petraterrium.population import Relationship
+from petraterrium.population import AgentRecord, Relationship
 from petraterrium.rust_core import RustCoreClient
 from petraterrium.simulation.agent_types import AgentTypeDefinition, AgentTypeMember
 from petraterrium.simulation.decision_evidence import (
@@ -60,7 +60,7 @@ from petraterrium.simulation.routines import (
     RoutineSchedule,
     RoutineStep,
 )
-from petraterrium.simulation.run_preparation import prepare_registry_run
+from petraterrium.simulation.run_preparation import _select_agents, prepare_registry_run
 from petraterrium.simulation.run_service import SimulationPlaceScope, SimulationRunConfig
 from petraterrium.simulation.runtime_decision_compiler import (
     RuntimeDecisionCompilationError,
@@ -103,7 +103,6 @@ def _single_member_household(identity: str, city: str, age: int, mood: str) -> H
         members=[
             HouseholdMemberSeed(
                 member_id="resident",
-                name=identity.title(),
                 age=age,
                 sex="female",
                 relationship_to_reference="self",
@@ -311,6 +310,54 @@ def _run_config() -> SimulationRunConfig:
     )
 
 
+def test_agent_type_mix_selects_primary_types_when_memberships_overlap():
+    def candidate(agent_id: str, primary_type: str) -> AgentRecord:
+        return AgentRecord(
+            agent_id=agent_id,
+            place="global",
+            latitude=0,
+            longitude=0,
+            role=primary_type,
+            log_tier="mass",
+            traits={
+                "agent_type": primary_type,
+                "agent_types": ["person", primary_type],
+            },
+            states={},
+            behaviour={},
+            behaviour_provenance={},
+            relationships=[],
+            weight=1,
+        )
+
+    candidates = [
+        candidate("a", "person"),
+        candidate("b", "worker"),
+        candidate("c", "student"),
+    ]
+    config = SimulationRunConfig(
+        population_size=3,
+        seed=7,
+        days=1,
+        tick_interval_hours=24,
+        start_date="2026-10-27",
+        place_scope=SimulationPlaceScope(level="global"),
+        agent_type_mix={
+            "person": 1 / 3,
+            "student": 1 / 3,
+            "worker": 1 / 3,
+        },
+    )
+
+    selected = _select_agents(candidates, config)
+
+    assert sorted(agent.traits["agent_type"] for agent in selected) == [
+        "person",
+        "student",
+        "worker",
+    ]
+
+
 def _save_executable_decisions(store: SimulationRegistryStore) -> None:
     decision_id = "fixture-choice"
     factor_ids = ("first-input", "second-input")
@@ -479,7 +526,7 @@ def test_run_preparation_blocks_agents_without_executable_decision_evidence(tmp_
     for agent in materialization.population.agents:
         assert f"{agent.agent_id} (worker)" in message
     assert (
-        "Confirm ready decision trees with measured-joint or fitted-model evidence for every "
+        "Confirm ready decision trees with default/estimated or fitted evidence for every "
         "selected agent type in Simulation > Decision Trees, then run again."
     ) in message
 
@@ -605,7 +652,6 @@ def test_run_preparation_uses_unique_materialized_agents_and_scope(tmp_path):
                 members=[
                     HouseholdMemberSeed(
                         member_id="one",
-                        name="One",
                         age=40,
                         sex="female",
                         relationship_to_reference="self",
@@ -613,7 +659,6 @@ def test_run_preparation_uses_unique_materialized_agents_and_scope(tmp_path):
                     ),
                     HouseholdMemberSeed(
                         member_id="two",
-                        name="Two",
                         age=41,
                         sex="male",
                         relationship_to_reference="spouse",
@@ -640,11 +685,10 @@ def test_run_preparation_uses_unique_materialized_agents_and_scope(tmp_path):
 
     assert first == repeated
     assert len(set(first.agent_ids)) == 2
-    assert first.rust_request["agents"]["traits"]["age"] == [40.0, 41.0]
-    assert [profile["traits"]["age"] for profile in first.initial_agent_profiles] == [
-        40,
-        41,
-    ]
+    assert sorted(first.rust_request["agents"]["traits"]["age"]) == [40.0, 41.0]
+    assert sorted(
+        profile["traits"]["age"] for profile in first.initial_agent_profiles
+    ) == [40, 41]
     assert all(
         profile["agent_types"] == ["worker"]
         and profile["geography"]["country"] == "Canada"
@@ -700,7 +744,6 @@ def test_confirmed_same_place_relationships_produce_evidence_only_csr(tmp_path):
                 members=[
                     HouseholdMemberSeed(
                         member_id="one",
-                        name="One",
                         age=40,
                         sex="female",
                         relationship_to_reference="self",
@@ -708,7 +751,6 @@ def test_confirmed_same_place_relationships_produce_evidence_only_csr(tmp_path):
                     ),
                     HouseholdMemberSeed(
                         member_id="two",
-                        name="Two",
                         age=41,
                         sex="male",
                         relationship_to_reference="spouse",
@@ -802,7 +844,6 @@ def test_registry_program_reaches_rust_with_sourced_family_and_stranger_rates(tm
                 members=[
                     HouseholdMemberSeed(
                         member_id="parent",
-                        name="Parent",
                         age=42,
                         sex="female",
                         relationship_to_reference="self",
@@ -811,7 +852,6 @@ def test_registry_program_reaches_rust_with_sourced_family_and_stranger_rates(tm
                     ),
                     HouseholdMemberSeed(
                         member_id="partner",
-                        name="Partner",
                         age=44,
                         sex="male",
                         relationship_to_reference="spouse",
@@ -833,7 +873,6 @@ def test_registry_program_reaches_rust_with_sourced_family_and_stranger_rates(tm
                 members=[
                     HouseholdMemberSeed(
                         member_id="resident",
-                        name="Resident",
                         age=31,
                         sex="nonbinary",
                         relationship_to_reference="self",
@@ -1222,6 +1261,60 @@ def test_routines_move_agents_to_scoped_workplaces_and_distinct_homes(tmp_path):
     assert output["agents"]["place"] == home_destinations
 
 
+def test_default_estimated_routine_is_executable(tmp_path):
+    registry = _routine_registry()
+    worker = registry.agent_types[0].model_copy(
+        update={
+            "routines": [
+                *registry.agent_types[0].routines,
+                _routine_member("default_break"),
+            ]
+        }
+    )
+    default_break = RoutineDefinition(
+        id="default_break",
+        name="Default break",
+        agent_type_id="worker",
+        evidence=RoutineEvidence(
+            status="default_estimated",
+            source_title="Shipped Canadian time-use default",
+            source_date="2025",
+            note="Executable default with broad uncertainty",
+        ),
+        steps=[
+            RoutineStep(
+                id="break",
+                name="Break",
+                activity="take a break",
+                schedule=RoutineSchedule(
+                    days=["tuesday"],
+                    start_time="12:00",
+                    end_time="13:00",
+                    place_ids=["current_place"],
+                    role_ids=["worker"],
+                ),
+            )
+        ],
+    )
+    store = SimulationRegistryStore(tmp_path / "registry.json")
+    store.save_initial_population(_two_household_population())
+    _save_executable_decisions(store)
+    store.save_routines(
+        registry.model_copy(
+            update={
+                "agent_types": [worker],
+                "routines": [*registry.routines, default_break],
+            }
+        )
+    )
+
+    prepared = prepare_registry_run(store, _run_config())
+
+    assert "take a break" in {
+        schedule["action"] for schedule in prepared.rust_request["schedules"]
+    }
+
+
 def test_multi_typed_agent_runs_business_and_family_routines(tmp_path):
     population = materialize_initial_population(
         InitialPopulationRequest(
@@ -1244,7 +1337,6 @@ def test_multi_typed_agent_runs_business_and_family_routines(tmp_path):
                     members=[
                         HouseholdMemberSeed(
                             member_id="resident",
-                            name="Multi Role",
                             age=39,
                             sex="female",
                             relationship_to_reference="self",

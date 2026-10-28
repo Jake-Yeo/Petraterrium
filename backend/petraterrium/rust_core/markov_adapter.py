@@ -146,7 +146,7 @@ def _module_request(
                         "provenance": {
                             "source": probability.provenance.source,
                             "version": probability.provenance.version,
-                            "status": probability.provenance.status,
+                            "status": _engine_evidence_status(probability),
                             "uncertainty": probability.provenance.uncertainty,
                             "source_date": probability.provenance.source_date,
                             "evidence_id": probability.evidence_id,
@@ -201,6 +201,12 @@ def _compiled_probability(compilation: CompilationResult, index: int):
             f"Probability {probability.module_id}.{probability.transition_id} is unresolved",
         )
     return probability
+
+
+def _engine_evidence_status(probability) -> str:
+    if probability.evidence_kind == "pipeline_estimate":
+        return "default_estimated"
+    return probability.provenance.status
 
 
 def _conditions(

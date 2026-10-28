@@ -137,6 +137,12 @@ export const autoImportClient: AutoImportClient = {
       validators.attempt,
       jsonPost(),
     ),
+  rerun: (attemptId, request) =>
+    requestJson<AutoImportAttempt>(
+      `/api/atlas/auto-import/attempts/${encodeURIComponent(attemptId)}/rerun`,
+      validators.attempt,
+      jsonPost(request),
+    ),
   promote: (attemptId: string, request: PromotionRequest) =>
     requestJson<AutoImportAttempt>(
       `/api/atlas/auto-import/attempts/${encodeURIComponent(attemptId)}/promote`,

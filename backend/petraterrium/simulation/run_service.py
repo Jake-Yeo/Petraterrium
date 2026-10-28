@@ -15,6 +15,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .initial_agent_summary import InitialPopulationEvidenceSummary
 from .interactions import (
     AppliedRelationshipDelta,
     AppliedStateDelta,
@@ -28,6 +29,11 @@ from .locations import (
     LocationRuntimeState,
 )
 from .run_persistence import SimulationRunRecorder, StoredSimulationRun
+from .run_warnings import (
+    RunEvidenceSummary,
+    RunEvidenceWarning,
+    empty_evidence_summary,
+)
 
 RunStatus = Literal["queued", "running", "cancelling", "cancelled", "completed", "failed"]
 MAX_RUST_CHUNK_TICKS = 1024
@@ -40,6 +46,7 @@ CHUNK_EVENT_FIELDS = (
     "location_transitions",
     "interactions",
     "blocked_interactions",
+    "state_ticks",
     "synchronization",
 )
 
@@ -110,20 +117,24 @@ class SimulationRunConfig(SimulationRunModel):
 class PreparedRustRun(SimulationRunModel):
     rust_request: dict[str, Any]
     agent_ids: list[str] = Field(min_length=1)
-    agent_names: list[str] = Field(default_factory=list)
     data_version: str = Field(min_length=1)
     program_version: str = Field(min_length=1)
+    default_dsl_version: str | None = Field(default=None, min_length=1)
+    default_dsl_hash: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
     location_places: list[LocationPlace] = Field(default_factory=list)
     initial_location_ids: list[str] = Field(default_factory=list)
     runtime_place_location_ids: list[str] = Field(default_factory=list)
     initial_agent_profiles: list[dict[str, Any]] = Field(default_factory=list)
+    coefficient_evidence: RunEvidenceSummary = Field(default_factory=empty_evidence_summary)
+    evidence_warnings: list[RunEvidenceWarning] = Field(default_factory=list)
+    global_demo_summary: InitialPopulationEvidenceSummary | None = None
 
     @model_validator(mode="after")
     def complete_agent_identity(self):
+        if (self.default_dsl_version is None) != (self.default_dsl_hash is None):
+            raise ValueError("Prepared default DSL version and hash must be recorded together")
         if len(set(self.agent_ids)) != len(self.agent_ids):
             raise ValueError("Prepared Rust agent IDs must be unique")
-        if self.agent_names and len(self.agent_names) != len(self.agent_ids):
-            raise ValueError("Prepared Rust agent names must match the agent ID count")
         if self.initial_agent_profiles and len(self.initial_agent_profiles) != len(self.agent_ids):
             raise ValueError("Prepared initial agent profiles must match the agent ID count")
         location_fields = (
@@ -148,23 +159,18 @@ class PreparedRustRun(SimulationRunModel):
             raise ValueError("Prepared runtime location mappings must match Rust places")
         return self
 
-    def display_names(self) -> list[str]:
-        return self.agent_names or self.agent_ids
-
-
 class RustRunClient(Protocol):
     def run_agents(self, request: Mapping[str, Any]) -> dict[str, Any]: ...
 
 
 PreparedRunFactory = Callable[[SimulationRunConfig], PreparedRustRun]
-InteractionRecorder = Callable[[str, Mapping[str, Any], Mapping[str, str]], Any]
+InteractionRecorder = Callable[[str, Mapping[str, Any]], Any]
 LocationRecorder = Callable[
     [
         str,
         int,
         Sequence[LocationPlace],
         LocationRuntimeState,
-        Mapping[str, str],
     ],
     Any,
 ]
@@ -190,6 +196,8 @@ class SimulationResult(SimulationRunModel):
     engine_version: str
     data_version: str
     program_version: str
+    default_dsl_version: str | None = None
+    default_dsl_hash: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
     input_hash: str
     output_hash: str
     snapshots: list[SnapshotSummary]
@@ -204,11 +212,15 @@ class SimulationRunView(SimulationRunModel):
     total_ticks: int = Field(ge=1)
     result: SimulationResult | None = None
     error: str | None = None
+    default_dsl_version: str | None = None
+    default_dsl_hash: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    evidence_summary: RunEvidenceSummary = Field(default_factory=empty_evidence_summary)
+    evidence_warnings: list[RunEvidenceWarning] = Field(default_factory=list)
+    global_demo_summary: InitialPopulationEvidenceSummary | None = None
 
 
 class RunAgentSummary(SimulationRunModel):
     agent_id: str
-    display_name: str
     final_module: str
     final_state: str
     final_location: str
@@ -249,7 +261,6 @@ class AgentInteractionDetail(SimulationRunModel):
     interaction_type: str = Field(min_length=1)
     channel: str = Field(min_length=1)
     other_agent_id: str = Field(min_length=1)
-    other_agent_name: str = Field(min_length=1)
     place: str = Field(min_length=1)
     state_deltas: list[AppliedStateDelta]
     relationship_deltas: list[AppliedRelationshipDelta]
@@ -264,6 +275,9 @@ class AgentTimelinePoint(SimulationRunModel):
     module: str
     state: str
     location: str
+    memory: dict[str, float] = Field(default_factory=dict)
+    state_receipts: list[dict[str, Any]] = Field(default_factory=list)
+    action_receipts: list[dict[str, Any]] = Field(default_factory=list)
     actions: list[str]
     routine_actions: list[str]
     interactions: list[str]
@@ -317,6 +331,9 @@ class _AgentTick:
     modules: tuple[str, ...]
     states: tuple[str, ...]
     locations: tuple[str, ...]
+    memory: tuple[dict[str, float], ...]
+    state_receipts: tuple[tuple[dict[str, Any], ...], ...]
+    action_receipts: tuple[tuple[dict[str, Any], ...], ...]
     actions: tuple[tuple[str, ...], ...]
     routines: tuple[tuple[str, ...], ...]
     interactions: tuple[tuple[str, ...], ...]
@@ -335,6 +352,8 @@ class _RunRecord:
     completed_ticks: int = 0
     result: SimulationResult | None = None
     error: str | None = None
+    evidence_summary: RunEvidenceSummary = field(default_factory=empty_evidence_summary)
+    evidence_warnings: list[RunEvidenceWarning] = field(default_factory=list)
     prepared: PreparedRustRun | None = None
     agent_ticks: list[_AgentTick] = field(default_factory=list)
     events: list[RunEvent] = field(default_factory=list)
@@ -342,6 +361,12 @@ class _RunRecord:
     location_ids: list[str] = field(default_factory=list)
     location_history: list[LocationHistoryRecord] = field(default_factory=list)
     cancel_requested: threading.Event = field(default_factory=threading.Event)
+    frames_loaded: bool = True
+    events_loaded: bool = True
+    final_output_loaded: bool = True
+    prepared_loaded: bool = True
+    result_loaded: bool = True
+    location_history_loaded: bool = True
 
 
 class RunNotFoundError(KeyError):
@@ -399,6 +424,8 @@ class SimulationRunService:
             run_id=run_id,
             config=config,
             prepared=prepared,
+            evidence_summary=prepared.coefficient_evidence,
+            evidence_warnings=list(prepared.evidence_warnings),
             location_ids=list(prepared.initial_location_ids),
         )
         with self._lock:
@@ -409,11 +436,17 @@ class SimulationRunService:
 
     def list(self) -> list[SimulationRunView]:
         with self._lock:
-            return [self._view(record) for record in reversed(self._records.values())]
+            return [
+                self._view(record, include_result=False)
+                for record in reversed(self._records.values())
+            ]
 
     def get(self, run_id: str) -> SimulationRunView:
         with self._lock:
-            return self._view(self._record(run_id))
+            record = self._record(run_id)
+            self._ensure_prepared_loaded(record)
+            self._ensure_result_loaded(record)
+            return self._view(record)
 
     def cancel(self, run_id: str) -> SimulationRunView:
         with self._lock:
@@ -435,6 +468,7 @@ class SimulationRunService:
                 raise RunDeletionConflictError("Active simulation runs cannot be deleted")
             if self._persistence is not None:
                 self._persistence.delete(run_id)
+            self._discard_derived_catalogs(run_id)
             del self._records[run_id]
 
     def agents(
@@ -449,15 +483,15 @@ class SimulationRunService:
             raise ValueError("Agent page and page size are outside the allowed range")
         with self._lock:
             record = self._completed_record(run_id)
+            self._ensure_prepared_loaded(record)
             prepared = self._required_prepared(record)
+            self._ensure_final_output_loaded(record)
             final = self._required_final(record)
             columns = self._agent_columns(final)
             places = self._place_labels(prepared.rust_request)
-            names = prepared.display_names()
             summaries = [
                 RunAgentSummary(
                     agent_id=agent_id,
-                    display_name=names[index],
                     final_module=str(columns["module"][index]),
                     final_state=str(columns["state"][index]),
                     final_location=self._location_label(columns, index, places),
@@ -473,7 +507,6 @@ class SimulationRunService:
                 in " ".join(
                     (
                         item.agent_id,
-                        item.display_name,
                         item.final_module,
                         item.final_state,
                         item.final_location,
@@ -494,37 +527,49 @@ class SimulationRunService:
     def agent(self, run_id: str, agent_id: str) -> RunAgentDetail:
         with self._lock:
             record = self._completed_record(run_id)
+            self._ensure_prepared_loaded(record)
             prepared = self._required_prepared(record)
             try:
                 index = prepared.agent_ids.index(agent_id)
             except ValueError as error:
                 raise RunNotFoundError(agent_id) from error
+            frames, frame_agent_index = self._agent_frames(record, index)
+            self._ensure_final_output_loaded(record)
             final = self._required_final(record)
             columns = self._agent_columns(final)
             places = self._place_labels(prepared.rust_request)
             initial_columns = self._agent_columns({"agents": prepared.rust_request["agents"]})
-            names = prepared.display_names()
             timeline = [
                 AgentTimelinePoint(
                     day=frame.day,
                     date=frame.date,
                     tick=frame.tick,
                     elapsed_hours=frame.tick * record.config.tick_interval_hours,
-                    module=frame.modules[index],
-                    state=frame.states[index],
-                    location=frame.locations[index],
-                    actions=list(frame.actions[index]),
-                    routine_actions=list(frame.routines[index]),
-                    interactions=list(frame.interactions[index]),
-                    interaction_details=list(frame.interaction_details[index]),
-                    decision_path=list(frame.decisions[index]),
-                    location_transitions=list(frame.location_transitions[index]),
+                    module=frame.modules[frame_agent_index],
+                    state=frame.states[frame_agent_index],
+                    location=frame.locations[frame_agent_index],
+                    memory=dict(frame.memory[frame_agent_index]),
+                    state_receipts=[
+                        dict(item) for item in frame.state_receipts[frame_agent_index]
+                    ],
+                    action_receipts=[
+                        dict(item) for item in frame.action_receipts[frame_agent_index]
+                    ],
+                    actions=list(frame.actions[frame_agent_index]),
+                    routine_actions=list(frame.routines[frame_agent_index]),
+                    interactions=list(frame.interactions[frame_agent_index]),
+                    interaction_details=list(
+                        frame.interaction_details[frame_agent_index]
+                    ),
+                    decision_path=list(frame.decisions[frame_agent_index]),
+                    location_transitions=list(
+                        frame.location_transitions[frame_agent_index]
+                    ),
                 )
-                for frame in record.agent_ticks
+                for frame in frames
             ]
             return RunAgentDetail(
                 agent_id=agent_id,
-                display_name=names[index],
                 final_module=str(columns["module"][index]),
                 final_state=str(columns["state"][index]),
                 final_location=self._location_label(columns, index, places),
@@ -553,6 +598,30 @@ class SimulationRunService:
             raise ValueError("Event page and page size are outside the allowed range")
         with self._lock:
             record = self._completed_record(run_id)
+            page_loader = (
+                getattr(self._persistence, "load_event_page", None)
+                if self._persistence is not None and not record.events_loaded
+                else None
+            )
+            if page_loader is not None:
+                payloads, total = page_loader(
+                    record.run_id,
+                    kind=kind,
+                    page=page,
+                    page_size=page_size,
+                )
+                items = [
+                    RunEvent.model_validate_json(json.dumps(payload))
+                    for payload in payloads
+                ]
+                return RunEventPage(
+                    items=items,
+                    total=total,
+                    page=page,
+                    page_size=page_size,
+                    pages=(total + page_size - 1) // page_size,
+                )
+            self._ensure_events_loaded(record)
             items = [item for item in record.events if kind is None or item.kind == kind]
         total = len(items)
         start = (page - 1) * page_size
@@ -580,7 +649,10 @@ class SimulationRunService:
         return record
 
     @staticmethod
-    def _view(record: _RunRecord) -> SimulationRunView:
+    def _view(
+        record: _RunRecord, *, include_result: bool = True
+    ) -> SimulationRunView:
+        prepared = record.prepared
         return SimulationRunView(
             run_id=record.run_id,
             config=record.config,
@@ -588,8 +660,21 @@ class SimulationRunService:
             progress=record.progress,
             completed_ticks=record.completed_ticks,
             total_ticks=record.config.total_ticks,
-            result=record.result,
+            result=record.result if include_result else None,
             error=record.error,
+            default_dsl_version=(
+                prepared.default_dsl_version if prepared is not None else None
+            ),
+            default_dsl_hash=prepared.default_dsl_hash if prepared is not None else None,
+            evidence_summary=(
+                record.evidence_summary if include_result else empty_evidence_summary()
+            ),
+            evidence_warnings=record.evidence_warnings if include_result else [],
+            global_demo_summary=(
+                prepared.global_demo_summary
+                if include_result and prepared is not None
+                else None
+            ),
         )
 
     @staticmethod
@@ -621,6 +706,8 @@ class SimulationRunService:
                     "request": request,
                     "data_version": prepared.data_version,
                     "program_version": prepared.program_version,
+                    "default_dsl_version": prepared.default_dsl_version,
+                    "default_dsl_hash": prepared.default_dsl_hash,
                 }
             )
             output_digest = hashlib.sha256()
@@ -628,21 +715,22 @@ class SimulationRunService:
             with self._lock:
                 if record.cancel_requested.is_set():
                     record.status = "cancelled"
-                    self._persist_metadata(record)
-                    return
-                record.status = "running"
-                self._persist_metadata(record)
+                else:
+                    record.status = "running"
+            self._persist_metadata(record)
+            if record.status == "cancelled":
+                return
             previous_snapshot_tick = 0
             completed_tick = 0
             daily_output: dict[str, Any] | None = None
             accumulated_output: dict[str, Any] | None = None
-            agent_names = dict(zip(prepared.agent_ids, prepared.display_names(), strict=True))
             while completed_tick < config.total_ticks:
                 with self._lock:
                     if record.cancel_requested.is_set():
                         record.status = "cancelled"
-                        self._persist_metadata(record)
-                        return
+                if record.status == "cancelled":
+                    self._persist_metadata(record)
+                    return
                 ticks_until_snapshot = config.ticks_per_day - (
                     completed_tick % config.ticks_per_day
                 )
@@ -659,7 +747,6 @@ class SimulationRunService:
                     self._record_interactions(
                         run_id,
                         {"events": output.get("interactions", [])},
-                        agent_names,
                     )
                 if self._record_locations is not None and prepared.location_places:
                     location_state = self._location_state(record, output, prepared, tick)
@@ -668,19 +755,17 @@ class SimulationRunService:
                         tick,
                         prepared.location_places,
                         location_state,
-                        agent_names,
                     )
                 encoded = self._canonical_json(output)
                 output_digest.update(len(encoded).to_bytes(8, "big"))
                 output_digest.update(encoded)
-                accumulated_output = self._merge_chunk_output(accumulated_output, output)
+                accumulated_output = self._merge_final_output(accumulated_output, output)
                 daily_output = self._merge_chunk_output(daily_output, output)
                 completed_tick = tick
                 with self._lock:
                     record.final_output = accumulated_output
                     record.completed_ticks = tick
                     record.progress = tick / config.total_ticks
-                    self._persist_metadata(record)
                 if completed_tick < config.total_ticks:
                     self._prepare_continuation_request(request, output, prepared, tick)
                 if tick % config.ticks_per_day:
@@ -701,32 +786,38 @@ class SimulationRunService:
                     record.agent_ticks.append(frame)
                     record.events.extend(events)
                     summaries.append(summary)
-                    self._persist_checkpoint(
-                        record,
-                        len(record.agent_ticks) - 1,
-                        frame,
-                        first_event_index,
-                        events,
-                    )
+                    frame_index = len(record.agent_ticks) - 1
+                self._persist_checkpoint(
+                    record,
+                    frame_index,
+                    frame,
+                    first_event_index,
+                    events,
+                )
+                with self._lock:
+                    status_changed_during_checkpoint = record.status != "running"
+                if status_changed_during_checkpoint:
+                    self._persist_metadata(record)
                 previous_snapshot_tick = tick
                 daily_output = None
             with self._lock:
                 if record.cancel_requested.is_set():
                     record.status = "cancelled"
-                    self._persist_metadata(record)
-                    return
-                final = self._required_final(record)
-                record.result = SimulationResult(
-                    protocol_version=str(final["protocol_version"]),
-                    engine_version=str(final["engine_version"]),
-                    data_version=prepared.data_version,
-                    program_version=prepared.program_version,
-                    input_hash=input_hash,
-                    output_hash=output_digest.hexdigest(),
-                    snapshots=summaries,
-                )
-                record.status = "completed"
-                self._persist_metadata(record)
+                else:
+                    final = self._required_final(record)
+                    record.result = SimulationResult(
+                        protocol_version=str(final["protocol_version"]),
+                        engine_version=str(final["engine_version"]),
+                        data_version=prepared.data_version,
+                        program_version=prepared.program_version,
+                        default_dsl_version=prepared.default_dsl_version,
+                        default_dsl_hash=prepared.default_dsl_hash,
+                        input_hash=input_hash,
+                        output_hash=output_digest.hexdigest(),
+                        snapshots=summaries,
+                    )
+                    record.status = "completed"
+            self._persist_metadata(record)
         except Exception as error:
             with self._lock:
                 record = self._records.get(run_id)
@@ -736,7 +827,8 @@ class SimulationRunService:
                     else:
                         record.status = "failed"
                         record.error = str(error)
-                    self._persist_metadata(record)
+            if record is not None:
+                self._persist_metadata(record)
 
     @staticmethod
     def _merge_chunk_output(
@@ -752,6 +844,16 @@ class SimulationRunService:
             if not isinstance(earlier, list) or not isinstance(current, list):
                 raise ValueError(f"Rust output {field_name} must be a list")
             merged[field_name] = deepcopy(earlier) + deepcopy(current)
+        return merged
+
+    @staticmethod
+    def _merge_final_output(
+        accumulated: Mapping[str, Any] | None,
+        output: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        merged = deepcopy(dict(output))
+        for field_name in CHUNK_EVENT_FIELDS:
+            merged[field_name] = []
         return merged
 
     @classmethod
@@ -782,8 +884,26 @@ class SimulationRunService:
     def _restore(self) -> None:
         if self._persistence is None:
             return
-        for stored in self._persistence.load():
-            record = self._stored_record(stored)
+        metadata_loader = getattr(self._persistence, "load_metadata", None)
+        if metadata_loader is None:
+            stored_runs = self._persistence.load()
+            histories_loaded = True
+        else:
+            stored_runs = [
+                StoredSimulationRun(metadata=metadata, frames=[], events=[])
+                for metadata in metadata_loader()
+            ]
+            histories_loaded = False
+        for stored in stored_runs:
+            record = self._stored_record(
+                stored,
+                frames_loaded=histories_loaded,
+                events_loaded=histories_loaded,
+                final_output_loaded=histories_loaded,
+                prepared_loaded=histories_loaded,
+                result_loaded=histories_loaded,
+                location_history_loaded=histories_loaded,
+            )
             if record.status in {"queued", "running", "cancelling"}:
                 record.status = "failed"
                 record.error = "The API restarted before this Rust run reached a recorded result."
@@ -792,18 +912,60 @@ class SimulationRunService:
             self._restore_derived_catalogs(record)
 
     def _restore_derived_catalogs(self, record: _RunRecord) -> None:
-        if record.status != "completed" or record.prepared is None:
+        if record.status != "completed":
             return
-        prepared = record.prepared
-        names = dict(zip(prepared.agent_ids, prepared.display_names(), strict=True))
-        if self._record_interactions is not None and record.final_output is not None:
-            self._record_interactions(
-                record.run_id,
-                {"events": record.final_output.get("interactions", [])},
-                names,
+        if self._record_interactions is not None:
+            registry = getattr(self._record_interactions, "__self__", None)
+            register_event_loader = getattr(registry, "register_event_loader", None)
+            register_loader = getattr(registry, "register_loader", None)
+            interaction_loader = (
+                getattr(self._persistence, "iter_interactions", None)
+                if self._persistence is not None
+                else None
             )
-        if self._record_locations is None or not prepared.location_places:
+            if register_event_loader is not None and interaction_loader is not None:
+                register_event_loader(
+                    record.run_id,
+                    lambda record=record: interaction_loader(record.run_id),
+                )
+            elif register_loader is not None:
+                register_loader(
+                    record.run_id,
+                    lambda record=record: self._restore_interaction_catalog(record),
+                )
+            elif record.final_output is not None:
+                self._record_interactions(
+                    record.run_id,
+                    {"events": record.final_output.get("interactions", [])},
+                )
+        if self._record_locations is None:
             return
+        registry = getattr(self._record_locations, "__self__", None)
+        register_loader = getattr(registry, "register_loader", None)
+        if register_loader is not None:
+            register_loader(
+                record.run_id,
+                lambda record=record: self._restore_location_catalog(record),
+            )
+            return
+        self._restore_location_catalog(record)
+
+    def _restore_location_catalog(self, record: _RunRecord) -> Any:
+        with self._lock:
+            self._ensure_prepared_loaded(record)
+            self._ensure_location_history_loaded(record)
+            prepared = self._required_prepared(record)
+        if self._record_locations is None or not prepared.location_places:
+            return None
+        latest_frame = record.agent_ticks[-1] if record.agent_ticks else None
+        latest_frame_loader = (
+            getattr(self._persistence, "load_latest_frame", None)
+            if self._persistence is not None
+            else None
+        )
+        if latest_frame is None and latest_frame_loader is not None:
+            payload = latest_frame_loader(record.run_id)
+            latest_frame = self._stored_frame(payload) if payload is not None else None
         current_location_ids = record.location_ids or prepared.initial_location_ids
         state = LocationRuntimeState(
             agents=LocationAgentColumns(
@@ -811,15 +973,147 @@ class SimulationRunService:
                 current_location_ids=tuple(current_location_ids),
             ),
             history=tuple(record.location_history),
-            live_places=(record.agent_ticks[-1].live_places if record.agent_ticks else ()),
+            live_places=latest_frame.live_places if latest_frame is not None else (),
         )
-        self._record_locations(
+        return self._record_locations(
             record.run_id,
             record.completed_ticks,
             prepared.location_places,
             state,
-            names,
         )
+
+    def _restore_interaction_catalog(self, record: _RunRecord) -> Any:
+        if self._record_interactions is None:
+            return None
+        loader = (
+            getattr(self._persistence, "load_interactions", None)
+            if self._persistence is not None
+            else None
+        )
+        if loader is not None:
+            interactions = loader(record.run_id)
+        else:
+            with self._lock:
+                self._ensure_events_loaded(record)
+                interactions = [
+                    dict(event.details)
+                    for event in record.events
+                    if event.kind == "interaction"
+                ]
+        return self._record_interactions(record.run_id, {"events": interactions})
+
+    def _ensure_frames_loaded(self, record: _RunRecord) -> None:
+        if record.frames_loaded:
+            return
+        if self._persistence is None:
+            record.frames_loaded = True
+            return
+        loader = getattr(self._persistence, "load_frames", None)
+        if loader is None:
+            raise RunNotReadyError(f"Run {record.run_id} history cannot be restored")
+        record.agent_ticks = [self._stored_frame(frame) for frame in loader(record.run_id)]
+        record.frames_loaded = True
+
+    def _agent_frames(
+        self, record: _RunRecord, agent_index: int
+    ) -> tuple[list[_AgentTick], int]:
+        if record.frames_loaded:
+            return record.agent_ticks, agent_index
+        loader = (
+            getattr(self._persistence, "load_agent_frames", None)
+            if self._persistence is not None
+            else None
+        )
+        if loader is None:
+            self._ensure_frames_loaded(record)
+            return record.agent_ticks, agent_index
+        return [
+            self._stored_frame(frame) for frame in loader(record.run_id, agent_index)
+        ], 0
+
+    def _ensure_events_loaded(self, record: _RunRecord) -> None:
+        if record.events_loaded:
+            return
+        if self._persistence is None:
+            record.events_loaded = True
+            return
+        loader = getattr(self._persistence, "load_events", None)
+        if loader is None:
+            raise RunNotReadyError(f"Run {record.run_id} events cannot be restored")
+        record.events = [
+            RunEvent.model_validate_json(json.dumps(event))
+            for event in loader(record.run_id)
+        ]
+        record.events_loaded = True
+
+    def _ensure_final_output_loaded(self, record: _RunRecord) -> None:
+        if record.final_output_loaded:
+            return
+        if self._persistence is None:
+            record.final_output_loaded = True
+            return
+        loader = getattr(self._persistence, "load_final_output", None)
+        if loader is None:
+            raise RunNotReadyError(f"Run {record.run_id} Rust output cannot be restored")
+        record.final_output = loader(record.run_id)
+        record.final_output_loaded = True
+
+    def _ensure_prepared_loaded(self, record: _RunRecord) -> None:
+        if record.prepared_loaded:
+            return
+        if self._persistence is None:
+            record.prepared_loaded = True
+            return
+        loader = getattr(self._persistence, "load_prepared", None)
+        if loader is None:
+            raise RunNotReadyError(f"Run {record.run_id} population cannot be restored")
+        payload = loader(record.run_id)
+        record.prepared = (
+            PreparedRustRun.model_validate_json(json.dumps(payload))
+            if payload is not None
+            else None
+        )
+        record.prepared_loaded = True
+
+    def _ensure_result_loaded(self, record: _RunRecord) -> None:
+        if record.result_loaded:
+            return
+        if self._persistence is None:
+            record.result_loaded = True
+            return
+        loader = getattr(self._persistence, "load_result", None)
+        if loader is None:
+            raise RunNotReadyError(f"Run {record.run_id} result cannot be restored")
+        payload = loader(record.run_id)
+        record.result = (
+            SimulationResult.model_validate_json(json.dumps(payload))
+            if payload is not None
+            else None
+        )
+        record.result_loaded = True
+
+    def _ensure_location_history_loaded(self, record: _RunRecord) -> None:
+        if record.location_history_loaded:
+            return
+        if self._persistence is None:
+            record.location_history_loaded = True
+            return
+        loader = getattr(self._persistence, "load_location_history", None)
+        if loader is None:
+            raise RunNotReadyError(
+                f"Run {record.run_id} location history cannot be restored"
+            )
+        record.location_history = [
+            LocationHistoryRecord.model_validate(item) for item in loader(record.run_id)
+        ]
+        record.location_history_loaded = True
+
+    def _discard_derived_catalogs(self, run_id: str) -> None:
+        for recorder in (self._record_interactions, self._record_locations):
+            registry = getattr(recorder, "__self__", None)
+            discard = getattr(registry, "discard", None)
+            if discard is not None:
+                discard(run_id)
 
     def _persist_metadata(self, record: _RunRecord) -> None:
         if self._persistence is None:
@@ -838,7 +1132,16 @@ class SimulationRunService:
             return
         self._persistence.append_checkpoint(
             record.run_id,
-            self._metadata_payload(record),
+            {
+                "status": record.status,
+                "progress": record.progress,
+                "completed_ticks": record.completed_ticks,
+                "final_output": self._persisted_final_output(record.final_output),
+                "location_ids": record.location_ids,
+                "location_history": [
+                    item.model_dump(mode="json") for item in record.location_history
+                ],
+            },
             frame_index,
             self._frame_payload(frame),
             first_event_index,
@@ -855,11 +1158,28 @@ class SimulationRunService:
             "completed_ticks": record.completed_ticks,
             "result": record.result.model_dump(mode="json") if record.result else None,
             "error": record.error,
+            "evidence_summary": record.evidence_summary.model_dump(mode="json"),
+            "evidence_warnings": [
+                warning.model_dump(mode="json") for warning in record.evidence_warnings
+            ],
             "prepared": record.prepared.model_dump(mode="json") if record.prepared else None,
-            "final_output": record.final_output,
+            "final_output": SimulationRunService._persisted_final_output(
+                record.final_output
+            ),
             "location_ids": record.location_ids,
             "location_history": [item.model_dump(mode="json") for item in record.location_history],
         }
+
+    @staticmethod
+    def _persisted_final_output(
+        final_output: Mapping[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if final_output is None:
+            return None
+        persisted = dict(final_output)
+        for field_name in CHUNK_EVENT_FIELDS:
+            persisted[field_name] = []
+        return persisted
 
     @staticmethod
     def _frame_payload(frame: _AgentTick) -> dict[str, Any]:
@@ -870,6 +1190,13 @@ class SimulationRunService:
             "modules": list(frame.modules),
             "states": list(frame.states),
             "locations": list(frame.locations),
+            "memory": [dict(values) for values in frame.memory],
+            "state_receipts": [
+                [dict(value) for value in values] for values in frame.state_receipts
+            ],
+            "action_receipts": [
+                [dict(value) for value in values] for values in frame.action_receipts
+            ],
             "actions": [list(values) for values in frame.actions],
             "routines": [list(values) for values in frame.routines],
             "interactions": [list(values) for values in frame.interactions],
@@ -888,7 +1215,17 @@ class SimulationRunService:
         }
 
     @classmethod
-    def _stored_record(cls, stored: StoredSimulationRun) -> _RunRecord:
+    def _stored_record(
+        cls,
+        stored: StoredSimulationRun,
+        *,
+        frames_loaded: bool = True,
+        events_loaded: bool = True,
+        final_output_loaded: bool = True,
+        prepared_loaded: bool = True,
+        result_loaded: bool = True,
+        location_history_loaded: bool = True,
+    ) -> _RunRecord:
         metadata = stored.metadata
         return _RunRecord(
             run_id=str(metadata["run_id"]),
@@ -902,8 +1239,17 @@ class SimulationRunService:
                 else None
             ),
             error=str(metadata["error"]) if metadata.get("error") is not None else None,
+            evidence_summary=RunEvidenceSummary.model_validate_json(
+                json.dumps(
+                    metadata.get("evidence_summary", empty_evidence_summary().model_dump())
+                )
+            ),
+            evidence_warnings=[
+                RunEvidenceWarning.model_validate_json(json.dumps(item))
+                for item in metadata.get("evidence_warnings", [])
+            ],
             prepared=(
-                PreparedRustRun.model_validate(metadata["prepared"])
+                PreparedRustRun.model_validate_json(json.dumps(metadata["prepared"]))
                 if metadata.get("prepared") is not None
                 else None
             ),
@@ -915,12 +1261,31 @@ class SimulationRunService:
             location_ids=[str(value) for value in metadata.get("location_ids", [])],
             location_history=[
                 LocationHistoryRecord.model_validate(item)
-                for item in metadata.get("location_history", [])
+                for item in (metadata.get("location_history") or [])
             ],
+            frames_loaded=frames_loaded,
+            events_loaded=events_loaded,
+            final_output_loaded=final_output_loaded,
+            prepared_loaded=prepared_loaded,
+            result_loaded=result_loaded,
+            location_history_loaded=location_history_loaded,
         )
 
-    @staticmethod
-    def _stored_frame(payload: Mapping[str, Any]) -> _AgentTick:
+    @classmethod
+    def _stored_frame(cls, payload: Mapping[str, Any]) -> _AgentTick:
+        agent_count = len(payload["states"])
+        raw_state_receipts = payload.get("state_receipts", [])
+        if raw_state_receipts and all(
+            isinstance(values, list) for values in raw_state_receipts
+        ):
+            state_receipts = tuple(
+                tuple(dict(value) for value in values)
+                for values in raw_state_receipts
+            )
+        else:
+            state_receipts = cls._state_receipts_by_agent(
+                cls._list_of_mappings(raw_state_receipts), agent_count
+            )
         return _AgentTick(
             day=int(payload["day"]),
             date=date.fromisoformat(str(payload["date"])),
@@ -928,6 +1293,17 @@ class SimulationRunService:
             modules=tuple(str(value) for value in payload["modules"]),
             states=tuple(str(value) for value in payload["states"]),
             locations=tuple(str(value) for value in payload["locations"]),
+            memory=tuple(
+                {str(key): float(value) for key, value in row.items()}
+                for row in payload.get("memory", [{} for _ in payload["states"]])
+            ),
+            state_receipts=state_receipts,
+            action_receipts=tuple(
+                tuple(dict(value) for value in values)
+                for values in payload.get(
+                    "action_receipts", [[] for _ in range(agent_count)]
+                )
+            ),
             actions=tuple(tuple(str(value) for value in row) for row in payload["actions"]),
             routines=tuple(tuple(str(value) for value in row) for row in payload["routines"]),
             interactions=tuple(
@@ -1160,6 +1536,9 @@ class SimulationRunService:
         locations = tuple(
             cls._location_label(columns, index, places) for index in range(len(states))
         )
+        memory = tuple(
+            cls._agent_memory(columns, index) for index in range(len(states))
+        )
         live_places = cls._live_places(output, prepared) if prepared.location_places else ()
         events = cls._events_for_range(
             output,
@@ -1170,13 +1549,13 @@ class SimulationRunService:
             tick,
         )
         actions: list[list[str]] = [[] for _ in states]
+        action_receipts: list[list[dict[str, Any]]] = [[] for _ in states]
         routines: list[list[str]] = [[] for _ in states]
         interactions: list[list[str]] = [[] for _ in states]
         interaction_details: list[list[AgentInteractionDetail]] = [[] for _ in states]
         decisions: list[list[DecisionPathStep]] = [[] for _ in states]
         location_transitions: list[list[LocationTransitionStep]] = [[] for _ in states]
         id_indices = {agent_id: index for index, agent_id in enumerate(prepared.agent_ids)}
-        agent_names = dict(zip(prepared.agent_ids, prepared.display_names(), strict=True))
         for event in events:
             if event.kind == "transition":
                 for agent_id in event.agent_ids:
@@ -1221,7 +1600,7 @@ class SimulationRunService:
                     if index is not None:
                         interactions[index].append(event.label)
                         interaction_details[index].append(
-                            cls._agent_interaction_detail(event, agent_id, agent_names)
+                            cls._agent_interaction_detail(event, agent_id)
                         )
                 continue
             target = routines if event.kind == "routine" else actions
@@ -1229,6 +1608,21 @@ class SimulationRunService:
                 index = id_indices.get(agent_id)
                 if index is not None:
                     target[index].append(event.label)
+                    if event.kind == "action":
+                        action_receipts[index].append(
+                            {
+                                key: event.details[key]
+                                for key in (
+                                    "tick",
+                                    "action",
+                                    "rule_index",
+                                    "probability",
+                                    "draw",
+                                    "provenance",
+                                )
+                                if key in event.details
+                            }
+                        )
         state_counts = Counter(
             f"{module} / {state}" for module, state in zip(modules, states, strict=True)
         )
@@ -1238,6 +1632,14 @@ class SimulationRunService:
             for item in cls._list_of_mappings(output.get("transition_counts", []))
             if previous_tick < int(item.get("tick", -1)) <= tick
         ]
+        state_receipts = cls._state_receipts_by_agent(
+            [
+                dict(item)
+                for item in cls._list_of_mappings(output.get("state_ticks", []))
+                if previous_tick < int(item.get("tick", -1)) <= tick
+            ],
+            len(states),
+        )
         frame = _AgentTick(
             day=day,
             date=config.start_date + timedelta(days=day - 1),
@@ -1245,6 +1647,9 @@ class SimulationRunService:
             modules=modules,
             states=states,
             locations=locations,
+            memory=memory,
+            state_receipts=state_receipts,
+            action_receipts=tuple(tuple(values) for values in action_receipts),
             actions=tuple(tuple(values) for values in actions),
             routines=tuple(tuple(values) for values in routines),
             interactions=tuple(tuple(values) for values in interactions),
@@ -1269,11 +1674,65 @@ class SimulationRunService:
         return frame, summary, events
 
     @classmethod
+    def _state_receipts_by_agent(
+        cls,
+        receipts: Sequence[Mapping[str, Any]],
+        agent_count: int,
+    ) -> tuple[tuple[dict[str, Any], ...], ...]:
+        result: list[list[dict[str, Any]]] = [[] for _ in range(agent_count)]
+        for receipt in receipts:
+            effects = cls._list_of_mappings(receipt.get("event_effects", []))
+            changes = cls._list_of_mappings(receipt.get("agent_state_changes", []))
+            finance_changes = cls._list_of_mappings(receipt.get("finance_changes", []))
+            rules = cls._list_of_mappings(receipt.get("state_rules", []))
+            for agent_index in range(agent_count):
+                agent_effects = [
+                    dict(effect)
+                    for effect in effects
+                    if int(effect.get("agent_index", -1)) == agent_index
+                ]
+                agent_changes = [
+                    dict(change)
+                    for change in changes
+                    if int(change.get("agent_index", -1)) == agent_index
+                ]
+                agent_finance_changes = [
+                    dict(change)
+                    for change in finance_changes
+                    if int(change.get("agent_index", -1)) == agent_index
+                ]
+                rule_indices = {
+                    int(change["rule_index"])
+                    for change in agent_changes
+                    if "rule_index" in change
+                }
+                agent_rules = [
+                    {"rule_index": rule_index, **dict(rule)}
+                    for rule_index, rule in enumerate(rules)
+                    if rule_index in rule_indices
+                ]
+                event_counts = Counter(
+                    str(effect.get("event", "event")) for effect in agent_effects
+                )
+                projected = {
+                    "tick": int(receipt.get("tick", 0)),
+                    "event_counts": dict(sorted(event_counts.items())),
+                    "event_effects": agent_effects,
+                    "state_rules": agent_rules,
+                    "agent_state_changes": agent_changes,
+                    "finance_changes": agent_finance_changes,
+                }
+                if agent_finance_changes and receipt.get("finance_formula") is not None:
+                    projected["finance_formula"] = str(receipt["finance_formula"])
+                if agent_effects or agent_changes or agent_finance_changes:
+                    result[agent_index].append(projected)
+        return tuple(tuple(values) for values in result)
+
+    @classmethod
     def _agent_interaction_detail(
         cls,
         event: RunEvent,
         agent_id: str,
-        agent_names: Mapping[str, str],
     ) -> AgentInteractionDetail:
         if len(event.agent_ids) != 2:
             raise ValueError("Rust interaction output must identify two participants")
@@ -1320,7 +1779,6 @@ class SimulationRunService:
             interaction_type=str(details.get("interaction_type", event.label)),
             channel=str(details.get("channel", "unknown")),
             other_agent_id=other_agent_id,
-            other_agent_name=agent_names.get(other_agent_id, other_agent_id),
             place=place,
             state_deltas=state_deltas,
             relationship_deltas=relationship_deltas,

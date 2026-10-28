@@ -14,6 +14,7 @@ import type {
   AutoImportMappingOption,
   AutoImportMappingReview,
   AutoImportPromotionRequest as GeneratedPromotionRequest,
+  AutoImportRerunRequest as GeneratedRerunRequest,
   AutoImportQueueItemView,
   AutoImportQueuePageView,
   AutoImportResearchSource,
@@ -65,6 +66,7 @@ export type AutoImportSourceInput = {
 
 export type MappingConfirmation = AutoImportMappingReview;
 export type PromotionRequest = GeneratedPromotionRequest;
+export type RerunRequest = GeneratedRerunRequest;
 export type AutoImportBatchRequest = GeneratedAutoImportBatchRequest;
 export type BulkSelection = AutoImportBatchRequest['selection'];
 export type AutoImportBatchSummary = GeneratedAutoImportBatchSummary;
@@ -86,6 +88,7 @@ export type AutoImportClient = {
     confirmation: MappingConfirmation,
   ) => Promise<AutoImportAttempt>;
   continueResearch: (attemptId: string) => Promise<AutoImportAttempt>;
+  rerun: (attemptId: string, request: RerunRequest) => Promise<AutoImportAttempt>;
   promote: (attemptId: string, request: PromotionRequest) => Promise<AutoImportAttempt>;
   createBatch: (request: AutoImportBatchRequest) => Promise<AutoImportBatch>;
   batch: (batchId: string, signal?: AbortSignal) => Promise<AutoImportBatch>;

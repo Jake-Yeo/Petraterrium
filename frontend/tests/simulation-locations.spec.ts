@@ -136,9 +136,9 @@ test('place tree opens recorded agent location, history, state, and co-location 
           : [],
     }));
     const agents = [
-      { agent_id: 'avery', display_name: 'Avery', current_location_id: 'living-room' },
-      { agent_id: 'sam', display_name: 'Sam', current_location_id: 'living-room' },
-      { agent_id: 'mira', display_name: 'Mira', current_location_id: 'kitchen' },
+      { agent_id: 'agent-001', current_location_id: 'living-room' },
+      { agent_id: 'agent-002', current_location_id: 'living-room' },
+      { agent_id: 'agent-003', current_location_id: 'kitchen' },
     ];
     const detail = (agentId: string) => {
       const agent = agents.find((item) => item.agent_id === agentId)!;
@@ -149,18 +149,17 @@ test('place tree opens recorded agent location, history, state, and co-location 
       );
       return {
         agent_id: agent.agent_id,
-        display_name: agent.display_name,
         current_location: current,
         ancestry:
           current.id === 'living-room'
             ? places.filter((place) => place.id !== 'kitchen')
             : places.filter((place) => place.id !== 'living-room'),
         history:
-          agentId === 'avery'
+          agentId === 'agent-001'
             ? [
                 {
                   tick: 4,
-                  agent_id: 'avery',
+                  agent_id: 'agent-001',
                   from_location_id: 'kitchen',
                   to_location_id: 'living-room',
                   route_location_ids: ['kitchen', 'home-1', 'living-room'],
@@ -217,12 +216,12 @@ test('place tree opens recorded agent location, history, state, and co-location 
   await expect(placeDetail).toContainText('runtime-living-room');
   await expect(placeDetail).toContainText('Measured household place panel');
   await expect(placeDetail).toContainText('Bar talk unavailable — agent is at Living room');
-  await expect(placeDetail.getByRole('button', { name: /Avery/ })).toBeVisible();
-  await expect(placeDetail).not.toContainText('Mira');
+  await expect(placeDetail.getByRole('button', { name: /agent-001/ })).toBeVisible();
+  await expect(placeDetail).not.toContainText('agent-003');
 
-  await placeDetail.getByRole('button', { name: /Avery/ }).focus();
+  await placeDetail.getByRole('button', { name: /agent-001/ }).focus();
   await page.keyboard.press('Enter');
-  const agentDetail = view.getByRole('region', { name: 'Avery location detail' });
+  const agentDetail = view.getByRole('region', { name: 'agent-001 location detail' });
   await expect(agentDetail).toContainText('Canada');
   await expect(agentDetail).toContainText('Living room');
   await expect(agentDetail).toContainText('Crowd Density');
@@ -231,14 +230,14 @@ test('place tree opens recorded agent location, history, state, and co-location 
     agentDetail.getByRole('heading', { name: 'Live Rust state at current place' }),
   ).toBeVisible();
   await expect(agentDetail).toContainText('Kitchen → Living room');
-  await expect(agentDetail.getByRole('button', { name: /Sam/ })).toBeVisible();
+  await expect(agentDetail.getByRole('button', { name: /agent-002/ })).toBeVisible();
   await expect(agentDetail.getByRole('heading', { name: 'Elsewhere' })).toBeVisible();
   await expect(agentDetail).toContainText('Family dinner');
   await expect(agentDetail).toContainText('Bar talk unavailable — agent is at Living room');
-  await expect(agentDetail.getByRole('button', { name: /Mira.*Elsewhere/ })).toBeVisible();
+  await expect(agentDetail.getByRole('button', { name: /agent-003.*Elsewhere/ })).toBeVisible();
 
-  await agentDetail.getByRole('button', { name: /Sam/ }).click();
-  await expect(view.getByRole('region', { name: 'Sam location detail' })).toBeVisible();
+  await agentDetail.getByRole('button', { name: /agent-002/ }).click();
+  await expect(view.getByRole('region', { name: 'agent-002 location detail' })).toBeVisible();
   await view.getByRole('button', { name: 'Back to Living room' }).click();
   await expect(view.getByRole('region', { name: 'Living room location detail' })).toBeVisible();
 });

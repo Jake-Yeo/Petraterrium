@@ -1,0 +1,1348 @@
+{
+  "attempt_id": "2cf60f5325e54187b90114337e0560ab",
+  "target": {
+    "level": "country",
+    "place_id": "NG",
+    "place_label": "Nigeria",
+    "feature_id": "specialization",
+    "population": 227882945,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "NG",
+    "local_names": {},
+    "dominant_languages": [
+      "ha",
+      "yo",
+      "ig",
+      "en"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "Africa",
+        "place_label": "Africa",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "ready",
+  "result_kind": "estimated",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf",
+      "locator": "https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf",
+      "content": null,
+      "language": null
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "ha",
+      "en",
+      "yo",
+      "ig"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students census",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 3,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 4,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 5,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 6,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 7,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 8,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 9,
+        "language": "ha",
+        "language_name": "Hausa",
+        "query": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 10,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 11,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 12,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 13,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 14,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 15,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 16,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 17,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 18,
+        "language": "en",
+        "language_name": "English",
+        "query": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 19,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 20,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students census",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 21,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 22,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 23,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 24,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 25,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 26,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 27,
+        "language": "yo",
+        "language_name": "Yoruba",
+        "query": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 28,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 29,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students census",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 30,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 31,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 32,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 33,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 34,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 35,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 36,
+        "language": "ig",
+        "language_name": "Igbo",
+        "query": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing Nigeria local-language search",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "ha",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 11,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 12,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 13,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 14,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 15,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 16,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 17,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 18,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 19,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 20,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 21,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 22,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 23,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 24,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 25,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 26,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 27,
+      "origin": "automatic",
+      "language": "yo",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 28,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 29,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 30,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 31,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 32,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 33,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 34,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 35,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 36,
+      "origin": "automatic",
+      "language": "ig",
+      "engine": "Bing Nigeria local-language search",
+      "query_or_source": "Nigeria field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 37,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "9c8473a31d3e4dd0bad9a1120c30e8bb"
+      ],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 38,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Configured AI synthesis",
+      "query_or_source": "Canonical estimate synthesis for Nigeria Field-of-study specialization",
+      "source_kind": "expert_commentary",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "8c537c249dd144028bcd7ebf4ed63650"
+      ],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "9c8473a31d3e4dd0bad9a1120c30e8bb",
+      "title": "Nigerian university enrolment by discipline · Nigeria",
+      "url": "https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Nigeria",
+      "place_level": "country",
+      "denominator": "tertiary students",
+      "population": 2159461,
+      "observation_date": "2019-12-31",
+      "published_date": "2021-07-01",
+      "time_unit": "academic year",
+      "unit": "percent",
+      "distribution": {
+        "Administration and Management": 16.688516256000003,
+        "Sciences": 16.230485292,
+        "Social Sciences": 15.978709502,
+        "Education": 15.125441024,
+        "Engineering and Technology": 6.370154404,
+        "Arts": 6.273834072,
+        "Agriculture": 5.719112316,
+        "Basic Medical and Health Sciences": 5.322207718,
+        "Computing": 4.769847661,
+        "Law": 3.183340658,
+        "Environmental Sciences": 2.331044645,
+        "Medicine": 1.195020424,
+        "Pharmacy": 0.596445131,
+        "Veterinary Medicine": 0.215840897
+      },
+      "evidence_kind": "hint",
+      "credible": true,
+      "credibility_reason": "Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use",
+      "language": "en",
+      "original_excerpt": "NUC Table 3.5.5, total enrolment by discipline, 2159461 students",
+      "translated_excerpt": null,
+      "sample_size": 2159461,
+      "source_version": "Nigerian University System Statistical Digest 2019",
+      "license": "not stated",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    },
+    {
+      "candidate_id": "8c537c249dd144028bcd7ebf4ed63650",
+      "title": "Petraterrium ISCED-F crosswalk estimate for Nigeria",
+      "url": null,
+      "source_kind": "expert_commentary",
+      "feature": "specialization",
+      "place": "Nigeria",
+      "place_level": "country",
+      "denominator": "people with a post-secondary field of study",
+      "population": 2159461,
+      "observation_date": "2019-12-31",
+      "published_date": "2021-07-01",
+      "time_unit": "academic year, graduation year, census date, or survey wave",
+      "unit": "percent",
+      "distribution": {
+        "00": 0.0,
+        "01": 15.125441024,
+        "02": 6.273834072,
+        "03": 15.978709502,
+        "04": 19.871856914,
+        "05": 18.561529937,
+        "06": 4.769847661,
+        "07": 6.370154404,
+        "08": 5.934953213,
+        "09": 7.113673273,
+        "10": 0.0
+      },
+      "evidence_kind": "hint",
+      "credible": true,
+      "credibility_reason": "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none.",
+      "language": "en",
+      "original_excerpt": "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none.",
+      "translated_excerpt": null,
+      "sample_size": null,
+      "source_version": "atlas-specialization-crosswalk-v1",
+      "license": "Project-generated estimate; upstream source rights remain with publishers",
+      "estimate_reasoning": "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none.",
+      "estimate_assumptions": [
+        "Broad source disciplines were crosswalked to ISCED-F 2013 broad fields.",
+        "The distribution is descriptive population evidence and does not imply a behavioral coefficient."
+      ],
+      "estimate_confidence_intervals": {
+        "00": [
+          0.0,
+          35.0
+        ],
+        "01": [
+          0.0,
+          35.0
+        ],
+        "02": [
+          0.0,
+          35.0
+        ],
+        "03": [
+          0.0,
+          35.0
+        ],
+        "04": [
+          2.371856914,
+          37.371856914
+        ],
+        "05": [
+          1.061529937,
+          36.061529937
+        ],
+        "06": [
+          0.0,
+          35.0
+        ],
+        "07": [
+          0.0,
+          35.0
+        ],
+        "08": [
+          0.0,
+          35.0
+        ],
+        "09": [
+          0.0,
+          35.0
+        ],
+        "10": [
+          0.0,
+          35.0
+        ]
+      },
+      "estimate_source_ids": [
+        "9c8473a31d3e4dd0bad9a1120c30e8bb"
+      ],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "8c537c249dd144028bcd7ebf4ed63650"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "9c8473a31d3e4dd0bad9a1120c30e8bb",
+      "accepted": true,
+      "direct_measurement": false,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use",
+          "reason": "Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Nigeria",
+          "actual": "country: Nigeria",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary students",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "2159461",
+          "reason": "Population is stated"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2019-12-31; published 2021-07-01",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "academic year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "hint",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    },
+    {
+      "candidate_id": "8c537c249dd144028bcd7ebf4ed63650",
+      "accepted": true,
+      "direct_measurement": false,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none.",
+          "reason": "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none."
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Nigeria",
+          "actual": "country: Nigeria",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "people with a post-secondary field of study",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "2159461",
+          "reason": "Population is stated"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2019-12-31; published 2021-07-01",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "academic year, graduation year, census date, or survey wave",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "hint",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "00": 0.0,
+    "01": 15.125441,
+    "02": 6.273834,
+    "03": 15.97871,
+    "04": 19.871857,
+    "05": 18.56153,
+    "06": 4.769848,
+    "07": 6.370154,
+    "08": 5.934953,
+    "09": 7.113673,
+    "10": 0.0
+  },
+  "mapped_distribution": {
+    "00": 0.0,
+    "01": 15.125441,
+    "02": 6.273834,
+    "03": 15.97871,
+    "04": 19.871857,
+    "05": 18.56153,
+    "06": 4.769848,
+    "07": 6.370154,
+    "08": 5.934953,
+    "09": 7.113673,
+    "10": 0.0
+  },
+  "estimate_trace": {
+    "method": "maximum_uncertainty_prior",
+    "extractions": [
+      {
+        "candidate_id": "8c537c249dd144028bcd7ebf4ed63650",
+        "title": "Petraterrium ISCED-F crosswalk estimate for Nigeria",
+        "extracted_distribution": {
+          "00": 0.0,
+          "01": 15.125441,
+          "02": 6.273834,
+          "03": 15.97871,
+          "04": 19.871857,
+          "05": 18.56153,
+          "06": 4.769848,
+          "07": 6.370154,
+          "08": 5.934953,
+          "09": 7.113673,
+          "10": 0.0
+        },
+        "weight": 1.0,
+        "weight_basis": "equal source weight because no sample size was reported"
+      }
+    ],
+    "calculation": [
+      "Configured synthesis was unavailable (OpenAI CLI exited with status 1: OpenAI Codex v0.162.0-alpha.17.2\n--------\nworkdir: /private/var/folders/93/p9hzq_lx1ndg0v7_9dtb5q000000gn/T/vscode-agent-codex-sandbox-33hSw3/petraterrium-ai-9n4ozv1s\nmodel: gpt-6.1-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: xhigh\nreasoning summaries: none\nsession id: 01a17df3-53bf-77e0-b1a7-c592a0f89103\n--------\nuser\nSystem instructions:\nProduce a transparent place-specific estimated distribution after the app's ordered research attempts. Use accepted or partial evidence when present, then related country or regional evidence, and finally a maximum-uncertainty prior. Use only canonical category IDs when the requirement supplies them. Values must be finite percentages from 0 to 100 and sum to exactly 100. Explain every crosswalk, assumption, and source contribution. Never describe an estimate as measured. Every confidence interval must be at least 30 percentage points wide.\n\nUser input:\n{\"target\": {\"level\": \"country\", \"place_id\": \"NG\", \"place_label\": \"Nigeria\", \"feature_id\": \"specialization\", \"population\": 227882945, \"current_status\": \"missing\", \"scope\": \"shared\", \"as_of\": \"2026-10-27\", \"country_code\": \"NG\", \"local_names\": {}, \"dominant_languages\": [\"ha\", \"yo\", \"ig\", \"en\"], \"place_aliases\": [], \"context_places\": [{\"level\": \"region\", \"place_id\": \"Africa\", \"place_label\": \"Africa\", \"aliases\": []}]}, \"requirement\": {\"feature_id\": \"specialization\", \"name\": \"Field-of-study specialization\", \"value_specification\": \"ISCED-F 2013 broad-field distribution for qualified people\", \"canonical_values\": [\"00\", \"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\"], \"denominator\": \"people with a post-secondary field of study\", \"accepted_denominators\": [\"people with a post-secondary field of study\", \"tertiary graduates\", \"post-secondary graduates\", \"tertiary students\", \"post-secondary students\", \"graduates\", \"students\"], \"time_unit\": \"academic year, graduation year, census date, or survey wave\", \"accepted_units\": [\"percent\", \"percentage\", \"%\"], \"distribution_total\": 100.0, \"allows_source_categories\": false, \"better_data_needed\": \"A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country\", \"feature_aliases\": [\"specialization\", \"field of study\", \"fields of education and training\", \"isced-f\", \"university major\", \"discipline\"], \"label_aliases\": {\"f00\": \"00\", \"f01\": \"01\", \"f02\": \"02\", \"f03\": \"03\", \"f04\": \"04\", \"f05\": \"05\", \"f06\": \"06\", \"f07\": \"07\", \"f08\": \"08\", \"f09\": \"09\", \"f10\": \"10\", \"generic programmes and qualifications\": \"00\", \"education\": \"01\", \"arts and humanities\": \"02\", \"humanities and arts\": \"02\", \"social sciences journalism and information\": \"03\", \"social sciences business and law\": \"03\", \"business administration and law\": \"04\", \"business and law\": \"04\", \"natural sciences mathematics and statistics\": \"05\", \"science\": \"05\", \"information and communication technologies\": \"06\", \"information and communication technology\": \"06\", \"ict\": \"06\", \"engineering manufacturing and construction\": \"07\", \"engineering manufacturing and building\": \"07\", \"agriculture forestry fisheries and veterinary\": \"08\", \"agriculture\": \"08\", \"health and welfare\": \"09\", \"health and social services\": \"09\", \"services\": \"10\"}}, \"search_log\": [{\"sequence\": 1, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 2, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 3, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 4, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 5, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 6, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 7, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 8, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 9, \"origin\": \"automatic\", \"language\": \"ha\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 10, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 11, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Official statistics and census catalogs\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 12, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 13, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 14, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 15, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Google Scholar\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"error\", \"candidate_ids\": [], \"rejection_reasons\": [\"Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DNigeria%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGND_gtcGIixYHNNXK5FNtiUgi9AVlMal2dMiUTeOEmNTktYTLXb9irfLWJ0brIct-gNFyjICclJaAUNgyp_094vbsc9-'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\"]}, {\"sequence\": 16, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing News\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 17, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 18, \"origin\": \"automatic\", \"language\": \"en\", \"engine\": \"Bing\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 19, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 20, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 21, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 22, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 23, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 24, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 25, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 26, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 27, \"origin\": \"automatic\", \"language\": \"yo\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 28, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students official statistics\", \"source_kind\": \"official_statistics\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 29, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students census\", \"source_kind\": \"census\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 30, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students representative survey\", \"source_kind\": \"representative_survey\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 31, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students research article\", \"source_kind\": \"research_article\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 32, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students government report\", \"source_kind\": \"government_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 33, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students university report\", \"source_kind\": \"university_report\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 34, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students local news\", \"source_kind\": \"news\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 35, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students public opinion forum\", \"source_kind\": \"online_opinion\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 36, \"origin\": \"automatic\", \"language\": \"ig\", \"engine\": \"Bing Nigeria local-language search\", \"query_or_source\": \"Nigeria field of study ISCED-F distribution graduates students expert commentary\", \"source_kind\": \"expert_commentary\", \"outcome\": \"no_result\", \"candidate_ids\": [], \"rejection_reasons\": []}, {\"sequence\": 37, \"origin\": \"user\", \"language\": \"en\", \"engine\": \"User supplied\", \"query_or_source\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"user_url\", \"outcome\": \"candidate\", \"candidate_ids\": [\"9c8473a31d3e4dd0bad9a1120c30e8bb\"], \"rejection_reasons\": []}], \"candidate_evidence\": [{\"candidate_id\": \"9c8473a31d3e4dd0bad9a1120c30e8bb\", \"title\": \"Nigerian university enrolment by discipline · Nigeria\", \"url\": \"https://nuc.edu.ng/wp-content/uploads/2021/07/2019-NIGERIAN-UNIVERSITY-SYSTEM-STATISTICAL-DIGEST-CONDENSED-VERSION-FINAL-2_compressed.pdf\", \"source_kind\": \"official_statistics\", \"place\": \"Nigeria\", \"language\": \"en\", \"distribution\": {\"Administration and Management\": 16.688516256000003, \"Sciences\": 16.230485292, \"Social Sciences\": 15.978709502, \"Education\": 15.125441024, \"Engineering and Technology\": 6.370154404, \"Arts\": 6.273834072, \"Agriculture\": 5.719112316, \"Basic Medical and Health Sciences\": 5.322207718, \"Computing\": 4.769847661, \"Law\": 3.183340658, \"Environmental Sciences\": 2.331044645, \"Medicine\": 1.195020424, \"Pharmacy\": 0.596445131, \"Veterinary Medicine\": 0.215840897}, \"excerpt\": \"NUC Table 3.5.5, total enrolment by discipline, 2159461 students\", \"translation\": null, \"credibility_reason\": \"Official national university enrolment counts require a transparent discipline-to-ISCED-F crosswalk before use\"}]}\n\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}\nERROR: {\"type\":\"error\",\"error\":{\"message\":\"Invalid schema for response_format 'codex_output_schema': 'schema.properties.distribution.properties' is required for object schemas.\",\"type\":\"invalid_request_error\",\"param\":\"text.format.schema\",\"code\":\"invalid_json_schema\"},\"status\":400}). The in-app research pipeline applied its versioned ISCED-F crosswalk to source categories. Mapped categories: Administration and Management, Sciences, Social Sciences, Education, Engineering and Technology, Arts, Agriculture, Basic Medical and Health Sciences, Computing, Law, Environmental Sciences, Medicine, Pharmacy, Veterinary Medicine. Unmapped categories: none."
+    ],
+    "assumptions": [
+      "Broad source disciplines were crosswalked to ISCED-F 2013 broad fields.",
+      "The distribution is descriptive population evidence and does not imply a behavioral coefficient."
+    ],
+    "confidence_intervals": {
+      "00": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "01": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "02": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "03": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "04": {
+        "lower": 2.371856914,
+        "upper": 37.371856914
+      },
+      "05": {
+        "lower": 1.061529937,
+        "upper": 36.061529937
+      },
+      "06": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "07": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "08": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "09": {
+        "lower": 0.0,
+        "upper": 35.0
+      },
+      "10": {
+        "lower": 0.0,
+        "upper": 35.0
+      }
+    },
+    "source_ids_used": [
+      "9c8473a31d3e4dd0bad9a1120c30e8bb"
+    ],
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country"
+  },
+  "languages_searched": [
+    "ha",
+    "en",
+    "yo",
+    "ig"
+  ],
+  "failure_reason": null,
+  "promotion_id": null,
+  "created_at": "2026-10-27T15:10:16.326624Z",
+  "updated_at": "2026-10-27T15:21:22.441516Z"
+}

@@ -68,7 +68,10 @@ def test_agent_type_proposal_requires_confirmation_and_persists(tmp_path):
 
     assert proposed.status_code == 200
     assert proposed.json()["audit"]["provider"] == "openai_cli"
-    assert before.json()["configured"] is False
+    assert before.json()["configured"] is True
+    assert "person" in {
+        item["id"] for item in before.json()["resolved"]["types"]
+    }
     assert confirmed.status_code == 200
     assert after.json()["configured"] is True
     assert [item["id"] for item in after.json()["resolved"]["types"]] == [

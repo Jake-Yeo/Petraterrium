@@ -1,0 +1,178 @@
+.agent-state-catalog,
+.agent-state-vector,
+.agent-profile-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-state-catalog-heading,
+.agent-state-group > header,
+.agent-state-vector > header,
+.agent-profile-panel > header,
+.relationship-state-definition > div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.agent-state-catalog-heading span,
+.agent-profile-panel > header span,
+.agent-state-vector > header span {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-state-group {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.agent-state-group > header h4,
+.agent-state-vector h3,
+.agent-state-vector h4,
+.agent-profile-panel h3,
+.agent-state-definition h5 {
+  margin: 0;
+}
+
+.agent-state-definition,
+.relationship-state-definition,
+.agent-profile-panel,
+.agent-state-vector {
+  background: color-mix(in srgb, var(--panel) 92%, var(--accent) 8%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.agent-state-definition summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.agent-state-definition summary span,
+.agent-state-definition-body section,
+.agent-state-evidence {
+  display: grid;
+  gap: 4px;
+}
+
+.agent-state-definition summary small,
+.agent-state-definition summary i,
+.agent-state-definition-body small,
+.agent-state-evidence small,
+.relationship-state-definition span {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.agent-state-definition-body {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+}
+
+.agent-state-definition-body ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent-state-definition-body li {
+  display: grid;
+  gap: 5px;
+}
+
+.agent-state-definition code,
+.agent-finance-formula,
+.relationship-state-definition code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  padding: 7px;
+  white-space: normal;
+}
+
+.agent-state-evidence {
+  border-left: 3px solid var(--muted);
+  padding-left: 8px;
+}
+
+.agent-state-evidence.is-measured_joint,
+.agent-state-evidence.is-measured_marginal,
+.agent-state-evidence.is-simulated {
+  border-left-color: var(--success);
+}
+
+.agent-state-evidence.is-default_estimated,
+.agent-state-evidence.is-imputed,
+.agent-state-evidence.is-literature_support {
+  border-left-color: var(--warning);
+}
+
+.agent-state-evidence p,
+.relationship-state-definition p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.relationship-state-definition,
+.agent-profile-panel,
+.agent-state-vector {
+  padding: 12px;
+}
+
+.agent-profile-panel dl,
+.agent-state-values dl {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+}
+
+.agent-profile-panel dl > div,
+.agent-state-values dl > div {
+  background: var(--bg);
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
+.agent-profile-panel dt,
+.agent-state-values dt {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.agent-profile-panel dd,
+.agent-state-values dd {
+  margin: 0;
+}
+
+.agent-state-values {
+  display: grid;
+  gap: 7px;
+}
+
+@media (max-width: 720px) {
+  .agent-profile-panel dl,
+  .agent-state-values dl {
+    grid-template-columns: 1fr;
+  }
+}

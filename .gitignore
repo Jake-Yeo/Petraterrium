@@ -18,3 +18,11 @@ backend/data/*
 !backend/data/countryInfo.txt
 !backend/data/registry_feature_dump/
 !backend/data/registry_feature_dump/**
+!backend/data/sources/
+backend/data/sources/*
+!backend/data/sources/statscan_98100407_fra.zip
+!backend/data/sources/statscan_11100016_fra.zip
+!backend/data/sources/statscan_11100223_fra.zip
+!backend/data/sources/specialization/
+!backend/data/sources/specialization/pipeline/
+!backend/data/sources/specialization/pipeline/*.json

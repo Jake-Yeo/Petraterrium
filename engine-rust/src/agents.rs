@@ -7,6 +7,9 @@ use crate::interactions::{
     InteractionAgentColumns, InteractionPlace, InteractionRequest, run_interactions,
 };
 use crate::random::DeterministicRng;
+use crate::state_finance::{
+    CashFlowColumns, FinanceColumns, StateColumns, advance_finance_columns, advance_state_columns,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -110,6 +113,7 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
         request.agents.agent_ids.clone()
     };
     let mut synchronization = Vec::new();
+    let mut state_ticks = Vec::new();
     for tick in completed_tick + 1..=final_tick {
         let elapsed_hours = (tick - 1) as f64 * request.tick_hours;
         let absolute_hour = request.start_hour + elapsed_hours;
@@ -198,6 +202,17 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             interaction_events.extend(result.events);
             blocked_interactions.extend(result.blocked);
         }
+        if let Some(receipt) = apply_state_dynamics(
+            tick,
+            &current,
+            &mut next,
+            &tick_routines,
+            &tick_events,
+            &outcomes,
+            &request.state_dynamics,
+        )? {
+            state_ticks.push(receipt);
+        }
         transition_counts.extend(counts);
         transition_outcomes.extend(outcomes);
         current = next;
@@ -238,7 +253,276 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
         relationships: interaction_relationships,
         synchronization,
         shard_populations,
+        state_ticks,
     })
+}
+
+fn apply_state_dynamics(
+    tick: u64,
+    current: &AgentBatch,
+    next: &mut AgentBatch,
+    routines: &[RoutineActionBatch],
+    events: &[ActionEvent],
+    outcomes: &[AgentTransitionOutcome],
+    program: &StateDynamicsProgram,
+) -> CoreResult<Option<StateRuntimeTickReceipt>> {
+    if program.events.is_empty()
+        && program.state_rules.is_empty()
+        && program.finance.is_none()
+        && program.finance_rules.is_empty()
+    {
+        return Ok(None);
+    }
+    let occurrences = state_event_occurrences(routines, events, outcomes);
+    let event_definitions: BTreeMap<_, _> = program
+        .events
+        .iter()
+        .map(|event| (event.id.as_str(), event))
+        .collect();
+    let mut event_counts = BTreeMap::new();
+    let rule_targets: BTreeSet<_> = program
+        .state_rules
+        .iter()
+        .map(|rule| rule.target_state_id.as_str())
+        .collect();
+    let mut event_deltas = BTreeMap::new();
+    for target in &rule_targets {
+        let current_values = &current.memory[*target];
+        let next_values = &next.memory[*target];
+        event_deltas.insert(
+            (*target).to_owned(),
+            current_values
+                .iter()
+                .zip(next_values)
+                .map(|(before, after)| after - before)
+                .collect::<Vec<_>>(),
+        );
+    }
+    let mut flows = zero_cash_flows(current.len());
+    let mut event_effects = Vec::new();
+    for (event_id, agents) in &occurrences {
+        let Some(definition) = event_definitions.get(event_id.as_str()) else {
+            continue;
+        };
+        event_counts.insert(event_id.clone(), agents.len() as u64);
+        for agent in agents {
+            for effect in &definition.effects {
+                let state_id = effect.target.strip_prefix("memory.").ok_or_else(|| {
+                    CoreError::at(
+                        "INVALID_STATE_EVENT_TARGET",
+                        "State dynamics event effects must target memory fields",
+                        format!("state_dynamics.events.{event_id}.effects"),
+                    )
+                })?;
+                let values = event_deltas.get_mut(state_id).ok_or_else(|| {
+                    CoreError::at(
+                        "MISSING_STATE_EVENT_RULE",
+                        format!("State event {event_id} targets {state_id} without a state rule"),
+                        format!("state_dynamics.events.{event_id}.effects"),
+                    )
+                })?;
+                let current_value = current.memory[state_id][*agent] + values[*agent];
+                let delta = match effect.operation.as_str() {
+                    "add" => effect.value,
+                    "subtract" => -effect.value,
+                    "set" => effect.value - current_value,
+                    "multiply" => current_value * effect.value - current_value,
+                    _ => {
+                        return Err(CoreError::at(
+                            "INVALID_STATE_EVENT_OPERATION",
+                            format!("Unsupported state event operation {}", effect.operation),
+                            format!("state_dynamics.events.{event_id}.effects"),
+                        ));
+                    }
+                };
+                values[*agent] += delta;
+                event_effects.push(AgentStateEventReceipt {
+                    event: event_id.clone(),
+                    agent_index: *agent,
+                    target_state_id: state_id.to_owned(),
+                    operation: effect.operation.clone(),
+                    configured_value: effect.value,
+                    delta,
+                    evidence: definition.evidence.clone(),
+                });
+            }
+            if let Some(columns) = &definition.cash_flow_by_agent {
+                add_cash_flow_columns(&mut flows, *agent, columns);
+            } else {
+                add_cash_flow(&mut flows, *agent, &definition.cash_flow);
+            }
+        }
+    }
+    let mut state_rule_receipts = Vec::new();
+    let mut agent_state_changes = Vec::new();
+    if !program.state_rules.is_empty() {
+        let result = advance_state_columns(
+            &StateColumns {
+                values: current.memory.clone(),
+            },
+            &StateColumns {
+                values: event_deltas,
+            },
+            &program.state_rules,
+        )?;
+        for rule in &program.state_rules {
+            next.memory.insert(
+                rule.target_state_id.clone(),
+                result.columns.values[&rule.target_state_id].clone(),
+            );
+        }
+        state_rule_receipts = result.receipts;
+        agent_state_changes = result.agent_state_changes;
+    }
+    let mut finance_changes = Vec::new();
+    let finance_formula = if let Some(metadata) = &program.finance {
+        let finance_result = advance_finance_columns(
+            &finance_columns(next, metadata)?,
+            &flows,
+            &program.finance_rules,
+        )?;
+        write_finance_columns(next, &finance_result.columns);
+        finance_changes = finance_result.finance_changes;
+        Some(finance_result.formula)
+    } else {
+        None
+    };
+    Ok(Some(StateRuntimeTickReceipt {
+        tick,
+        event_counts,
+        event_effects,
+        state_rules: state_rule_receipts,
+        agent_state_changes,
+        finance_changes,
+        finance_formula,
+    }))
+}
+
+fn state_event_occurrences(
+    routines: &[RoutineActionBatch],
+    events: &[ActionEvent],
+    outcomes: &[AgentTransitionOutcome],
+) -> BTreeMap<String, Vec<usize>> {
+    let mut result: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for routine in routines {
+        result
+            .entry(routine.action.clone())
+            .or_default()
+            .extend(&routine.agent_indices);
+    }
+    for event in events {
+        result
+            .entry(event.action.clone())
+            .or_default()
+            .push(event.agent_index);
+    }
+    for outcome in outcomes {
+        result
+            .entry(outcome.transition.clone())
+            .or_default()
+            .push(outcome.agent_index);
+    }
+    result
+}
+
+fn zero_cash_flows(agent_count: usize) -> CashFlowColumns {
+    CashFlowColumns {
+        wages: vec![0.0; agent_count],
+        business_income: vec![0.0; agent_count],
+        transfers: vec![0.0; agent_count],
+        housing: vec![0.0; agent_count],
+        food: vec![0.0; agent_count],
+        transport: vec![0.0; agent_count],
+        other_expenses: vec![0.0; agent_count],
+        taxes: vec![0.0; agent_count],
+        savings_contribution: vec![0.0; agent_count],
+        savings_withdrawal: vec![0.0; agent_count],
+        debt_draw: vec![0.0; agent_count],
+        debt_repayment: vec![0.0; agent_count],
+    }
+}
+
+fn add_cash_flow(flows: &mut CashFlowColumns, agent: usize, amount: &CashFlowAmounts) {
+    flows.wages[agent] += amount.wages;
+    flows.business_income[agent] += amount.business_income;
+    flows.transfers[agent] += amount.transfers;
+    flows.housing[agent] += amount.housing;
+    flows.food[agent] += amount.food;
+    flows.transport[agent] += amount.transport;
+    flows.other_expenses[agent] += amount.other_expenses;
+    flows.taxes[agent] += amount.taxes;
+    flows.savings_contribution[agent] += amount.savings_contribution;
+    flows.savings_withdrawal[agent] += amount.savings_withdrawal;
+    flows.debt_draw[agent] += amount.debt_draw;
+    flows.debt_repayment[agent] += amount.debt_repayment;
+}
+
+fn add_cash_flow_columns(flows: &mut CashFlowColumns, agent: usize, amounts: &CashFlowColumns) {
+    flows.wages[agent] += amounts.wages[agent];
+    flows.business_income[agent] += amounts.business_income[agent];
+    flows.transfers[agent] += amounts.transfers[agent];
+    flows.housing[agent] += amounts.housing[agent];
+    flows.food[agent] += amounts.food[agent];
+    flows.transport[agent] += amounts.transport[agent];
+    flows.other_expenses[agent] += amounts.other_expenses[agent];
+    flows.taxes[agent] += amounts.taxes[agent];
+    flows.savings_contribution[agent] += amounts.savings_contribution[agent];
+    flows.savings_withdrawal[agent] += amounts.savings_withdrawal[agent];
+    flows.debt_draw[agent] += amounts.debt_draw[agent];
+    flows.debt_repayment[agent] += amounts.debt_repayment[agent];
+}
+
+fn finance_columns(
+    batch: &AgentBatch,
+    metadata: &FinanceRuntimeMetadata,
+) -> CoreResult<FinanceColumns> {
+    let column = |name: &str| -> CoreResult<Vec<Option<f64>>> {
+        batch
+            .memory
+            .get(name)
+            .map(|values| values.iter().copied().map(Some).collect())
+            .ok_or_else(|| {
+                CoreError::at(
+                    "UNKNOWN_FINANCE_STATE",
+                    format!("Finance runtime requires memory column {name}"),
+                    "state_dynamics.finance",
+                )
+            })
+    };
+    Ok(FinanceColumns {
+        currency: metadata.currency.clone(),
+        money: column("finance.money")?,
+        income: column("finance.income")?,
+        expenses: column("finance.expenses")?,
+        savings: column("finance.savings")?,
+        debt: column("finance.debt")?,
+        status: metadata.status.clone(),
+        source: metadata.source.clone(),
+    })
+}
+
+fn write_finance_columns(batch: &mut AgentBatch, finances: &FinanceColumns) {
+    let values = |column: &[Option<f64>]| {
+        column
+            .iter()
+            .map(|value| value.expect("validated known finance state"))
+            .collect()
+    };
+    batch
+        .memory
+        .insert("finance.money".to_owned(), values(&finances.money));
+    batch
+        .memory
+        .insert("finance.income".to_owned(), values(&finances.income));
+    batch
+        .memory
+        .insert("finance.expenses".to_owned(), values(&finances.expenses));
+    batch
+        .memory
+        .insert("finance.savings".to_owned(), values(&finances.savings));
+    batch
+        .memory
+        .insert("finance.debt".to_owned(), values(&finances.debt));
 }
 
 fn interaction_actions(
@@ -950,9 +1234,28 @@ fn evaluate_meaningful_actions(
     rng: &mut DeterministicRng,
     queue: &mut EventQueue,
 ) -> CoreResult<()> {
+    let mut evaluated_groups = BTreeSet::new();
     for (action_index, action) in request.meaningful_actions.iter().enumerate() {
+        if let Some(group) = &action.exclusive_choice_group {
+            if evaluated_groups.insert(group.as_str()) {
+                evaluate_exclusive_action_group(
+                    tick,
+                    hour,
+                    weekday,
+                    batch,
+                    request,
+                    neighbor_values,
+                    place_states,
+                    rng,
+                    queue,
+                    group,
+                )?;
+            }
+            continue;
+        }
         for agent in 0..batch.len() {
-            let probability = resolve_transition_probability(
+            let rule_path = format!("meaningful_actions.{action_index}");
+            let matched = matching_probability_rule(
                 &action.rules,
                 agent,
                 hour,
@@ -961,19 +1264,96 @@ fn evaluate_meaningful_actions(
                 &request.places,
                 place_states,
                 neighbor_values,
-                &format!("meaningful_actions.{action_index}"),
-                true,
+                &rule_path,
             )?;
+            let probability = matched
+                .and_then(|(_, rule)| rule.probability)
+                .unwrap_or(0.0);
             let draw = rng.draw();
             if draw < probability {
+                let (rule_index, rule) = matched.expect("positive probability requires a rule");
                 queue.push(ActionEvent {
                     tick,
                     agent_index: agent,
                     place_index: batch.places[agent],
                     action: action.id.clone(),
+                    rule_index,
+                    probability,
+                    draw,
+                    provenance: rule.provenance.clone(),
                 });
             }
         }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_exclusive_action_group(
+    tick: u64,
+    hour: f64,
+    weekday: u8,
+    batch: &AgentBatch,
+    request: &AgentProgramRequest,
+    neighbor_values: &BTreeMap<String, Vec<f64>>,
+    place_states: &[BTreeMap<String, f64>],
+    rng: &mut DeterministicRng,
+    queue: &mut EventQueue,
+    group: &str,
+) -> CoreResult<()> {
+    let branches = request
+        .meaningful_actions
+        .iter()
+        .enumerate()
+        .filter(|(_, action)| action.exclusive_choice_group.as_deref() == Some(group))
+        .collect::<Vec<_>>();
+    for agent in 0..batch.len() {
+        let mut matching_rules = Vec::with_capacity(branches.len());
+        let mut probabilities = Vec::with_capacity(branches.len());
+        for (action_index, action) in &branches {
+            let path = format!("meaningful_actions.{action_index}");
+            let matched = matching_probability_rule(
+                &action.rules,
+                agent,
+                hour,
+                weekday,
+                batch,
+                &request.places,
+                place_states,
+                neighbor_values,
+                &path,
+            )?;
+            probabilities.push(
+                matched
+                    .and_then(|(_, rule)| rule.probability)
+                    .unwrap_or(0.0),
+            );
+            matching_rules.push(matched);
+        }
+        if matching_rules.iter().all(Option::is_none) {
+            continue;
+        }
+        let path =
+            format!("meaningful_actions.exclusive_choice_group.{group}.agents.{agent}.tick.{tick}");
+        let (selected, draw) = rng.categorical_with_draw(&probabilities, &path)?;
+        let (_, action) = branches[selected];
+        let (rule_index, rule) = matching_rules[selected].ok_or_else(|| {
+            CoreError::at(
+                "INVALID_DISTRIBUTION",
+                "Exclusive action choice selected an ineligible branch",
+                &path,
+            )
+        })?;
+        queue.push(ActionEvent {
+            tick,
+            agent_index: agent,
+            place_index: batch.places[agent],
+            action: action.id.clone(),
+            rule_index,
+            probability: probabilities[selected],
+            draw,
+            provenance: rule.provenance.clone(),
+        });
     }
     Ok(())
 }

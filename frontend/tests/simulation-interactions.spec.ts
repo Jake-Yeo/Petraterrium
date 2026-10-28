@@ -19,9 +19,7 @@ test('interaction browser filters an agent and audits directed effects and evide
         interaction_type: 'talk',
         channel: 'in_person',
         initiator_id: 'agent-mara',
-        initiator_name: 'Mara',
         target_id: 'agent-noah',
-        target_name: 'Noah',
         place_id: 'home-1',
         relationship_type: 'family',
         probability: 0.54,
@@ -36,9 +34,7 @@ test('interaction browser filters an agent and audits directed effects and evide
         interaction_type: 'share_media',
         channel: 'phone_message',
         initiator_id: 'agent-avery',
-        initiator_name: 'Avery',
         target_id: 'agent-mara',
-        target_name: 'Mara',
         place_id: 'home-1',
         relationship_type: 'friend',
         probability: 0.18,
@@ -60,7 +56,7 @@ test('interaction browser filters an agent and audits directed effects and evide
           page_size: 50,
           pages: 1,
           facets: {
-            agents: { 'agent-mara': 'Mara', 'agent-noah': 'Noah', 'agent-avery': 'Avery' },
+            agents: ['agent-avery', 'agent-mara', 'agent-noah'],
             interaction_types: ['share_media', 'talk'],
             channels: ['in_person', 'phone_message'],
             relationships: ['family', 'friend'],
@@ -80,7 +76,7 @@ test('interaction browser filters an agent and audits directed effects and evide
               ]),
             ),
             by_place: { 'home-1': selected.length },
-            by_counterparty: query.agent_id ? { Noah: 1, Avery: 1 } : {},
+            by_counterparty: query.agent_id ? { 'agent-noah': 1, 'agent-avery': 1 } : {},
           },
         };
       },
@@ -228,14 +224,14 @@ test('interaction browser filters an agent and audits directed effects and evide
   await expect(view.getByRole('region', { name: 'Interaction breakdowns' })).toContainText(
     'Family',
   );
-  await view.getByLabel('Agent').selectOption('agent-mara');
+  await view.locator('select[data-interaction-filter="agent_id"]').selectOption('agent-mara');
   await expect(view.getByLabel('Direction')).toBeEnabled();
-  await expect(view.getByRole('button', { name: /Open Mara to Noah/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /Open agent-mara to agent-noah/ })).toBeVisible();
   await view.getByLabel('Direction').selectOption('target');
-  await expect(view.getByRole('button', { name: /Open Avery to Mara/ })).toBeVisible();
+  await expect(view.getByRole('button', { name: /Open agent-avery to agent-mara/ })).toBeVisible();
   await view.getByLabel('Direction').selectOption('either');
-  await view.getByRole('button', { name: /Open Mara to Noah/ }).click();
-  await expect(view.getByRole('heading', { name: /Mara.*Noah/ })).toBeVisible();
+  await view.getByRole('button', { name: /Open agent-mara to agent-noah/ }).click();
+  await expect(view.getByRole('heading', { name: /agent-mara.*agent-noah/ })).toBeVisible();
   await expect(view).toContainText('P(hourly contact)');
   await expect(view).toContainText('Imported time-use panel');
   await expect(view).toContainText('agent-noah · Mood');
@@ -250,5 +246,5 @@ test('interaction browser filters an agent and audits directed effects and evide
   await expect(view).toContainText('Place State Crowd Density = 0.8');
   await expect(view).toContainText('Observed relationship outcome panel');
   await view.getByRole('button', { name: 'Back to interactions' }).click();
-  await expect(view.getByLabel('Agent')).toHaveValue('agent-mara');
+  await expect(view.locator('select[data-interaction-filter="agent_id"]')).toHaveValue('agent-mara');
 });

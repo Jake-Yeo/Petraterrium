@@ -27,13 +27,22 @@ impl DeterministicRng {
     }
 
     pub fn categorical(&mut self, probabilities: &[f64], path: &str) -> CoreResult<usize> {
+        self.categorical_with_draw(probabilities, path)
+            .map(|(index, _)| index)
+    }
+
+    pub fn categorical_with_draw(
+        &mut self,
+        probabilities: &[f64],
+        path: &str,
+    ) -> CoreResult<(usize, f64)> {
         validate_distribution(probabilities, path)?;
         let draw = self.draw();
         let mut cumulative = 0.0;
         for (index, probability) in probabilities.iter().enumerate() {
             cumulative += probability;
             if draw < cumulative || index + 1 == probabilities.len() {
-                return Ok(index);
+                return Ok((index, draw));
             }
         }
         Err(CoreError::at(

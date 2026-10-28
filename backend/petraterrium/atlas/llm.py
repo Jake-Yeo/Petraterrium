@@ -11,7 +11,7 @@ inside headers or sample rows. Do not change data, infer units, infer country id
 invent distributions, or map traits to outcomes without an explicit trait-to-action link.
 Return exactly one mapping for each input header, using null when uncertain or irrelevant.
 Mark ambiguous=true when the meaning, units, or geography is unclear.
-Targets: geonameid, city, country_code, admin1, admin2, age_sex, income, education,
+Targets: geonameid, city, country_code, admin1, admin2, age_sex, income, education, specialization,
 ideology_economic, ideology_state, ideology_cultural, ideology, household_size, unit,
 behaviour, outcome, survey_weight, observation_date.
 Distribution components can use field.category, for example age_sex.female_1.
@@ -34,6 +34,7 @@ ALIASES = {
     "age_sex": "age_sex",
     "income": "income",
     "education": "education",
+    "specialization": "specialization",
     "ideology": "ideology",
     "ideology_economic": "ideology_economic",
     "ideology_state": "ideology_state",
@@ -58,6 +59,7 @@ def exact_proposal(headers: list[str]) -> list[ColumnMapping]:
                 "age_sex.",
                 "income.",
                 "education.",
+                "specialization.",
                 "ideology.",
                 "ideology_economic.",
                 "ideology_state.",

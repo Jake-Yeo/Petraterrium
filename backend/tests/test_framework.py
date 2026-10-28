@@ -56,7 +56,7 @@ from petraterrium.leaders import EvidenceTable, anchor_run
 from petraterrium.llm_gateway import AIGeneration
 from petraterrium.media import MediaObject, media_probabilities, media_response, rank_feed
 from petraterrium.network import influence_update
-from petraterrium.population import generate_population
+from petraterrium.population import generate_population, nearest_friend_targets
 
 
 def evidence(source="FAKE framework fixture", status="present", uncertainty=0.05):
@@ -367,6 +367,23 @@ def test_population_is_deterministic_homophilic_and_bundle_provenance_is_retaine
     second = generate_population(dsl, None, 42)
     assert first.model_dump() == second.model_dump()
     by_id = {agent.agent_id: agent for agent in first.agents}
+    for agent in first.agents:
+        candidates = [
+            candidate
+            for candidate in first.agents
+            if candidate.place == agent.place and candidate.agent_id != agent.agent_id
+        ]
+        expected = min(
+            candidates,
+            key=lambda candidate: (
+                abs(float(candidate.traits.get("age", 0)) - float(agent.traits.get("age", 0))),
+                candidate.agent_id,
+            ),
+        )
+        if agent.traits.get("has_friend") == "yes":
+            assert agent.relationships[0].target_id == expected.agent_id
+        else:
+            assert agent.relationships == []
     gaps = [
         abs(
             float(agent.traits["age"])
@@ -382,6 +399,43 @@ def test_population_is_deterministic_homophilic_and_bundle_provenance_is_retaine
     assert japan.values != america.values
     assert japan.provenance["trust"].source == "FAKE fitted Japan fixture"
     assert america.provenance["trust"].source == "FAKE fitted USA fixture"
+
+
+def test_nearest_friend_selection_preserves_age_and_agent_id_tie_breaks():
+    drafts = [
+        {"agent_id": "subject", "place": "A", "traits": {"age": 30}},
+        {"agent_id": "z-lower", "place": "A", "traits": {"age": 20}},
+        {"agent_id": "a-upper", "place": "A", "traits": {"age": 40}},
+        {"agent_id": "a-self", "place": "B", "traits": {"age": 50}},
+        {"agent_id": "b-peer", "place": "B", "traits": {"age": 50}},
+        {"agent_id": "c-peer", "place": "B", "traits": {"age": 50}},
+        {"agent_id": "alone", "place": "C", "traits": {"age": 25}},
+    ]
+    indexes_by_place = {"A": [0, 1, 2], "B": [3, 4, 5], "C": [6]}
+
+    targets = nearest_friend_targets(drafts, indexes_by_place)
+
+    assert drafts[targets[0]]["agent_id"] == "a-upper"
+    assert drafts[targets[3]]["agent_id"] == "b-peer"
+    assert drafts[targets[4]]["agent_id"] == "a-self"
+    assert 6 not in targets
+    for index, target in targets.items():
+        candidates = [
+            candidate
+            for candidate in indexes_by_place[drafts[index]["place"]]
+            if candidate != index
+        ]
+        expected = min(
+            candidates,
+            key=lambda candidate: (
+                abs(
+                    float(drafts[candidate]["traits"].get("age", 0))
+                    - float(drafts[index]["traits"].get("age", 0))
+                ),
+                drafts[candidate]["agent_id"],
+            ),
+        )
+        assert target == expected
 
 
 def test_action_bundles_conflicts_chains_and_role_changes_are_explicit():

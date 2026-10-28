@@ -2,6 +2,10 @@ use crate::csr::CsrMatrix;
 use crate::interactions::{
     BlockedInteraction, DirectedInteractionEvent, InteractionRelationship, InteractionRule,
 };
+use crate::state_finance::{
+    AgentFinanceChangeReceipt, AgentStateChangeReceipt, CashFlowColumns, EvidenceReceipt,
+    LinearStateRule, StateTickReceipt,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -32,6 +36,8 @@ pub struct AgentProgramRequest {
     pub interactions: InteractionProgram,
     #[serde(default)]
     pub synchronization: SynchronizationConfig,
+    #[serde(default)]
+    pub state_dynamics: StateDynamicsProgram,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -298,7 +304,91 @@ pub struct ScheduledTravelPlan {
 #[serde(deny_unknown_fields)]
 pub struct MeaningfulAction {
     pub id: String,
+    #[serde(default)]
+    pub exclusive_choice_group: Option<String>,
     pub rules: Vec<ProbabilityRule>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StateDynamicsProgram {
+    #[serde(default)]
+    pub events: Vec<StateDynamicsEvent>,
+    #[serde(default)]
+    pub state_rules: Vec<LinearStateRule>,
+    #[serde(default)]
+    pub finance: Option<FinanceRuntimeMetadata>,
+    #[serde(default)]
+    pub finance_rules: Vec<crate::state_finance::FinanceLedgerRule>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StateDynamicsEvent {
+    pub id: String,
+    #[serde(default)]
+    pub effects: Vec<TransitionEffect>,
+    #[serde(default)]
+    pub cash_flow: CashFlowAmounts,
+    #[serde(default)]
+    pub cash_flow_by_agent: Option<CashFlowColumns>,
+    pub evidence: EvidenceReceipt,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CashFlowAmounts {
+    #[serde(default)]
+    pub wages: f64,
+    #[serde(default)]
+    pub business_income: f64,
+    #[serde(default)]
+    pub transfers: f64,
+    #[serde(default)]
+    pub housing: f64,
+    #[serde(default)]
+    pub food: f64,
+    #[serde(default)]
+    pub transport: f64,
+    #[serde(default)]
+    pub other_expenses: f64,
+    #[serde(default)]
+    pub taxes: f64,
+    #[serde(default)]
+    pub savings_contribution: f64,
+    #[serde(default)]
+    pub savings_withdrawal: f64,
+    #[serde(default)]
+    pub debt_draw: f64,
+    #[serde(default)]
+    pub debt_repayment: f64,
+}
+
+impl CashFlowAmounts {
+    pub fn values(&self) -> [f64; 12] {
+        [
+            self.wages,
+            self.business_income,
+            self.transfers,
+            self.housing,
+            self.food,
+            self.transport,
+            self.other_expenses,
+            self.taxes,
+            self.savings_contribution,
+            self.savings_withdrawal,
+            self.debt_draw,
+            self.debt_repayment,
+        ]
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinanceRuntimeMetadata {
+    pub currency: Vec<String>,
+    pub status: Vec<String>,
+    pub source: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -336,6 +426,31 @@ pub struct AgentProgramResult {
     pub relationships: Vec<InteractionRelationship>,
     pub synchronization: Vec<SynchronizationEnvelope>,
     pub shard_populations: Vec<ShardPopulation>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub state_ticks: Vec<StateRuntimeTickReceipt>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct StateRuntimeTickReceipt {
+    pub tick: u64,
+    pub event_counts: BTreeMap<String, u64>,
+    pub event_effects: Vec<AgentStateEventReceipt>,
+    pub state_rules: Vec<StateTickReceipt>,
+    pub agent_state_changes: Vec<AgentStateChangeReceipt>,
+    pub finance_changes: Vec<AgentFinanceChangeReceipt>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finance_formula: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct AgentStateEventReceipt {
+    pub event: String,
+    pub agent_index: usize,
+    pub target_state_id: String,
+    pub operation: String,
+    pub configured_value: f64,
+    pub delta: f64,
+    pub evidence: EvidenceReceipt,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -378,12 +493,16 @@ pub struct AgentTransitionOutcome {
     pub provenance: ProbabilityProvenance,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ActionEvent {
     pub tick: u64,
     pub agent_index: usize,
     pub place_index: usize,
     pub action: String,
+    pub rule_index: usize,
+    pub probability: f64,
+    pub draw: f64,
+    pub provenance: ProbabilityProvenance,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

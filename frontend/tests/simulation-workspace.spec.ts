@@ -216,9 +216,24 @@ test('Graph decision mode renders the shared filtered tree navigator', async ({ 
 test('Initial agent routine links open the typed routine detail and return to the agent', async ({
   page,
 }) => {
+  const stateEvidence = {
+    status: 'default_estimated',
+    source: 'Workspace state fixture',
+    source_version: 'v1',
+    source_date: null,
+    url: null,
+    place: 'CA',
+    population: 'Synthetic fixture agent',
+    language: null,
+    original_title: null,
+    english_title: null,
+    search_source: null,
+    uncertainty: 1,
+    default_reason: 'Workspace fixture value',
+  };
+  const financeEvidence = { ...stateEvidence, currency: 'CAD' };
   const listItem = {
     agent_id: 'business-1',
-    display_name: 'Morgan Lee',
     agent_types: ['business_agent'],
     age: 40,
     sex: 'female',
@@ -246,9 +261,34 @@ test('Initial agent routine links open the typed routine detail and return to th
           family_relationships: [],
           traits: {},
           initial_states: { location: 'home:household-1' },
+          education_profile: {
+            years_of_education: 16,
+            isced_level: 6,
+            country_label: 'Bachelor degree',
+            country_code: 'CA',
+            specialization: 'business',
+            specialization_threshold_years: 12,
+            specialization_status: 'present',
+            provenance: stateEvidence,
+          },
+          state_vector: {
+            catalog_version: 'fixture-v1',
+            values: [],
+          },
+          finances: {
+            currency: 'CAD',
+            status: 'default_estimated',
+            source_distribution_id: 'workspace-fixture',
+            source_cell_id: 'owner-40',
+            money: { value: 40000, evidence: financeEvidence },
+            income: { value: 90000, evidence: financeEvidence },
+            expenses: { value: 50000, evidence: financeEvidence },
+            savings: { value: 30000, evidence: financeEvidence },
+            debt: { value: 10000, evidence: financeEvidence },
+            evidence: financeEvidence,
+            formula: 'money[t+1] = money[t] + income - expenses',
+          },
           occupation: 'Owner',
-          income: 90000,
-          education: 'ISCED 6',
           health: 'healthy',
           routines: [
             {
@@ -331,13 +371,13 @@ test('Initial agent routine links open the typed routine detail and return to th
     .getByRole('tablist', { name: 'Simulation sections' })
     .getByRole('tab', { name: 'Initial Agents', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Open Morgan Lee initial state' }).click();
+  await page.getByRole('button', { name: 'Open business-1 initial state' }).click();
   await page.getByRole('button', { name: 'Open Business weekday routine' }).click();
 
   await expect(page.getByRole('heading', { name: 'BusinessAgent routines' })).toBeVisible();
   await expect(page.getByText('Pub business meeting')).toBeVisible();
   await page.getByRole('button', { name: '← Back' }).click();
-  await expect(page.getByRole('heading', { name: 'Morgan Lee' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'business-1' })).toBeVisible();
 });
 
 test('Decision Trees exposes registered two-agent interaction trees', async ({ page }) => {

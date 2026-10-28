@@ -3,9 +3,7 @@ import { expect, test } from '@playwright/test';
 const mountEditor = async (page: Parameters<typeof test>[0]['page']) => {
   await page.goto('/');
   await page.evaluate(async () => {
-    const { InitialPopulationEditor } = await import(
-      '/src/simulation/initial-population.ts'
-    );
+    const { InitialPopulationEditor } = await import('/src/simulation/initial-population.ts');
     const evidenceId = 'ca-household-joint-2024';
     const fieldEvidence = {
       age: evidenceId,
@@ -15,14 +13,12 @@ const mountEditor = async (page: Parameters<typeof test>[0]['page']) => {
     };
     const member = (
       memberId: string,
-      name: string,
       age: number,
       sex: string,
       relationship: 'self' | 'spouse' | 'child',
       agentTypes: string[],
     ) => ({
       member_id: memberId,
-      name,
       age,
       sex,
       relationship_to_reference: relationship,
@@ -49,22 +45,10 @@ const mountEditor = async (page: Parameters<typeof test>[0]['page']) => {
           weight: 1,
           evidence_id: evidenceId,
           members: [
-            member('reference', 'Avery', 40, 'male', 'self', [
-              'BusinessAgent',
-              'FamilyMan',
-            ]),
-            member('spouse', 'Morgan', 39, 'female', 'spouse', [
-              'WorkerAgent',
-              'FamilyMan',
-            ]),
-            member('child-four', 'Mira', 4, 'female', 'child', [
-              'StudentAgent',
-              'FamilyMember',
-            ]),
-            member('child-six', 'Noah', 6, 'male', 'child', [
-              'StudentAgent',
-              'FamilyMember',
-            ]),
+            member('reference', 40, 'male', 'self', ['BusinessAgent', 'FamilyMan']),
+            member('spouse', 39, 'female', 'spouse', ['WorkerAgent', 'FamilyMan']),
+            member('child-four', 4, 'female', 'child', ['StudentAgent', 'FamilyMember']),
+            member('child-six', 6, 'male', 'child', ['StudentAgent', 'FamilyMember']),
           ],
         },
       ],
@@ -77,12 +61,7 @@ const mountEditor = async (page: Parameters<typeof test>[0]['page']) => {
           licence: 'Statistics Canada Open Licence',
           place: 'CA',
           status: 'measured_joint',
-          fields: [
-            'age',
-            'sex',
-            'household_composition',
-            'family_relationships',
-          ],
+          fields: ['age', 'sex', 'household_composition', 'family_relationships'],
           uncertainty: 'Weighted public-use microdata sample',
           url: null,
         },
@@ -94,38 +73,35 @@ const mountEditor = async (page: Parameters<typeof test>[0]['page']) => {
       savedPopulation: null,
     });
     document.body.innerHTML = '<main id="population-editor-test"></main>';
-    const editor = new InitialPopulationEditor(
-      document.querySelector('#population-editor-test')!,
-      {
-        draft,
-        client: {
-          async validate() {
-            (window as unknown as { populationValidations: number }).populationValidations += 1;
-            return { valid: true, issues: [] };
-          },
-          async materialize(request) {
-            (window as unknown as { populationSaves: number }).populationSaves += 1;
-            return {
-              input_hash: `seed-${request.seed}`,
-              validation: { valid: true, issues: [] },
-              population: {
-                population_id: request.population_id,
-                version: request.version,
-                seed: request.seed,
-                agents: request.household_templates[0].members.map((value) => ({
-                  agent_id: value.member_id,
-                  traits: { name: value.name, age: value.age },
-                })),
-              },
-              provenance: {},
-            };
-          },
+    const editor = new InitialPopulationEditor(document.querySelector('#population-editor-test')!, {
+      draft,
+      client: {
+        async validate() {
+          (window as unknown as { populationValidations: number }).populationValidations += 1;
+          return { valid: true, issues: [] };
         },
-        onSaved(result) {
-          (window as unknown as { savedPopulation: unknown }).savedPopulation = result;
+        async materialize(request) {
+          (window as unknown as { populationSaves: number }).populationSaves += 1;
+          return {
+            input_hash: `seed-${request.seed}`,
+            validation: { valid: true, issues: [] },
+            population: {
+              population_id: request.population_id,
+              version: request.version,
+              seed: request.seed,
+              agents: request.household_templates[0].members.map((value) => ({
+                agent_id: value.member_id,
+                traits: { age: value.age },
+              })),
+            },
+            provenance: {},
+          };
         },
       },
-    );
+      onSaved(result) {
+        (window as unknown as { savedPopulation: unknown }).savedPopulation = result;
+      },
+    });
     editor.mount();
   });
 };
@@ -138,7 +114,7 @@ test('joint family editor shows four separate members and saves only after valid
   const editor = page.getByRole('region', { name: 'Initial population setup' });
   await expect(editor.getByRole('heading', { name: 'Initial population' })).toBeVisible();
   await expect(editor.locator('[data-household-member]')).toHaveCount(4);
-  await expect(editor.getByLabel('Name for reference')).toHaveValue('Avery');
+  await expect(editor.getByLabel('Name for reference')).toHaveCount(0);
   await expect(editor.getByLabel('Age for reference')).toHaveValue('40');
   await expect(editor.getByLabel('Age for child-four')).toHaveValue('4');
   await expect(editor.getByLabel('Age for child-six')).toHaveValue('6');
@@ -153,9 +129,7 @@ test('joint family editor shows four separate members and saves only after valid
     ),
   ).toBe(1);
   expect(
-    await page.evaluate(
-      () => (window as unknown as { populationSaves: number }).populationSaves,
-    ),
+    await page.evaluate(() => (window as unknown as { populationSaves: number }).populationSaves),
   ).toBe(1);
 });
 
@@ -166,15 +140,13 @@ test('impossible household errors block save before the run can use it', async (
   await editor.getByLabel('Age for reference').fill('5');
   await editor.getByRole('button', { name: 'Save initial population' }).click();
 
-  await expect(editor.getByRole('alert')).toContainText('Parent Avery is younger than 16');
+  await expect(editor.getByRole('alert')).toContainText('Parent reference is younger than 16');
   expect(
     await page.evaluate(
       () => (window as unknown as { populationValidations: number }).populationValidations,
     ),
   ).toBe(0);
   expect(
-    await page.evaluate(
-      () => (window as unknown as { populationSaves: number }).populationSaves,
-    ),
+    await page.evaluate(() => (window as unknown as { populationSaves: number }).populationSaves),
   ).toBe(0);
 });

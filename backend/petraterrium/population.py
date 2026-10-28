@@ -1,4 +1,5 @@
 import hashlib
+from bisect import bisect_left
 from collections import defaultdict, deque
 from typing import Any, Literal
 
@@ -31,6 +32,7 @@ class Relationship(PopulationModel):
     evidence_status: Literal[
         "measured_joint",
         "fitted_model",
+        "default_estimated",
         "approved_estimate",
         "user_defined",
         "imputed",
@@ -210,6 +212,45 @@ def sample_feature_traits(
     return traits
 
 
+def nearest_friend_targets(
+    drafts: list[dict[str, Any]],
+    indexes_by_place: dict[str, list[int]],
+) -> dict[int, int]:
+    targets = {}
+    for indexes in indexes_by_place.values():
+        indexes_by_age = defaultdict(list)
+        for index in indexes:
+            age = float(drafts[index]["traits"].get("age", 0))
+            indexes_by_age[age].append(index)
+        ages = sorted(indexes_by_age)
+        for members in indexes_by_age.values():
+            members.sort(key=lambda index: drafts[index]["agent_id"])
+        for index in indexes:
+            age = float(drafts[index]["traits"].get("age", 0))
+            age_position = bisect_left(ages, age)
+            same_age = indexes_by_age[age]
+            candidates = []
+            if len(same_age) > 1:
+                candidates.append(same_age[1] if same_age[0] == index else same_age[0])
+            else:
+                if age_position > 0:
+                    candidates.append(indexes_by_age[ages[age_position - 1]][0])
+                if age_position + 1 < len(ages):
+                    candidates.append(indexes_by_age[ages[age_position + 1]][0])
+            if candidates:
+                targets[index] = min(
+                    candidates,
+                    key=lambda candidate: (
+                        abs(
+                            float(drafts[candidate]["traits"].get("age", 0))
+                            - age
+                        ),
+                        drafts[candidate]["agent_id"],
+                    ),
+                )
+    return targets
+
+
 def generate_population(dsl: DSLConfig, data_atlas, seed: int) -> PopulationTable:
     rng = np.random.default_rng(seed)
     feature_rng = np.random.default_rng(np.random.SeedSequence([seed, 2]))
@@ -261,20 +302,13 @@ def generate_population(dsl: DSLConfig, data_atlas, seed: int) -> PopulationTabl
         weight = represented / len(indexes)
         for index in indexes:
             drafts[index]["weight"] = weight
+    friend_targets = nearest_friend_targets(drafts, by_place)
     for index, agent in enumerate(drafts):
         if agent["traits"].get("has_friend") != "yes":
             continue
-        age = float(agent["traits"].get("age", 0))
-        candidates = [candidate for candidate in by_place[agent["place"]] if candidate != index]
-        if not candidates:
+        friend_index = friend_targets.get(index)
+        if friend_index is None:
             continue
-        friend_index = min(
-            candidates,
-            key=lambda candidate: (
-                abs(float(drafts[candidate]["traits"].get("age", 0)) - age),
-                drafts[candidate]["agent_id"],
-            ),
-        )
         agent["relationships"].append(
             Relationship(
                 target_id=drafts[friend_index]["agent_id"],

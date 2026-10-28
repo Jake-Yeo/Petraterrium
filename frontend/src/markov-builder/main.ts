@@ -1,6 +1,7 @@
 import './styles.css';
 import { escapeHtml as e } from '../views';
 import { markovBuilderApi } from './api';
+import { ProbabilityResearchPanel } from './probability-research';
 import type {
   ChainDraft,
   ChainNodeDraft,
@@ -58,6 +59,7 @@ export class MarkovChainBuilder {
   private message = '';
   private error = '';
   private validationSequence = 0;
+  private readonly researchPanel: ProbabilityResearchPanel;
 
   constructor(
     private readonly host: HTMLElement,
@@ -66,6 +68,14 @@ export class MarkovChainBuilder {
     this.api = options.api ?? markovBuilderApi;
     this.prompt = options.initialText ?? '';
     this.markerId = `markov-arrow-${++builderSequence}`;
+    this.researchPanel = new ProbabilityResearchPanel(this.api, {
+      changed: () => this.changed(),
+      render: () => this.render(),
+      setFeedback: (message, error) => {
+        this.message = message;
+        this.error = error;
+      },
+    });
     this.host.addEventListener('click', this.onClick);
     this.host.addEventListener('change', this.onChange);
     this.host.addEventListener('input', this.onInput);
@@ -152,9 +162,10 @@ export class MarkovChainBuilder {
         </div>
         ${this.nodeEditor()}
         ${this.transitionEditor()}
+        ${this.researchPanel.render(draft)}
         <footer class="markov-confirm">
           <div><strong>Explicit confirmation required</strong><p>Saving is blocked until every transition has a probability and condition, each outgoing total is 100%, and every path terminates.</p></div>
-          <button class="button primary" data-markov-action="confirm" ${!validation?.can_confirm || this.busy ? 'disabled' : ''}>Confirm and save decision tree</button>
+          <button class="button primary" data-markov-action="confirm" ${!validation?.can_confirm || this.busy || this.researchPanel.busy ? 'disabled' : ''}>Confirm and save decision tree</button>
         </footer>
       </section>`;
   }
@@ -283,14 +294,26 @@ export class MarkovChainBuilder {
   }
 
   private onInput = (event: Event): void => {
-    const target = event.target as HTMLTextAreaElement;
+    const target = event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
     if (target.id === 'markov-prompt') this.prompt = target.value;
+    if (target.dataset.researchField && this.draft) {
+      this.researchPanel.captureContext(
+        target.dataset.researchField,
+        target.value,
+        this.draft,
+        this.host,
+      );
+    }
   };
 
   private onClick = (event: MouseEvent): void => {
     const target = (event.target as Element).closest<HTMLElement>('[data-markov-action]');
     const action = target?.dataset.markovAction;
     if (!action) return;
+    if (this.researchPanel.busy) return;
+    if (this.draft && this.researchPanel.handleAction(action, target.dataset.edgeId ?? '', this.draft)) {
+      return;
+    }
     if (action === 'propose') void this.propose();
     if (action === 'reset') this.reset();
     if (action === 'add-node') this.addNode();
@@ -303,6 +326,15 @@ export class MarkovChainBuilder {
   private onChange = (event: Event): void => {
     if (!this.draft) return;
     const target = event.target as HTMLInputElement | HTMLSelectElement;
+    if (target.dataset.researchField) {
+      this.researchPanel.captureContext(
+        target.dataset.researchField,
+        target.value,
+        this.draft,
+        this.host,
+      );
+      return;
+    }
     const meta = target.dataset.markovMeta;
     if (meta) {
       if (meta === 'id') this.draft.id = slug(target.value, 'chain');
@@ -339,6 +371,7 @@ export class MarkovChainBuilder {
       this.draft = result.draft;
       this.validation = result.validation;
       this.audit = result.audit;
+      this.researchPanel.clearResults();
     } catch (error) {
       this.error = error instanceof Error ? error.message : String(error);
     } finally {
@@ -353,6 +386,7 @@ export class MarkovChainBuilder {
     this.audit = undefined;
     this.error = '';
     this.message = '';
+    this.researchPanel.clearResults();
     this.render();
   }
 
@@ -393,6 +427,9 @@ export class MarkovChainBuilder {
   private removeNode(index: number): void {
     if (!this.draft || !this.draft.nodes[index]) return;
     const [removed] = this.draft.nodes.splice(index, 1);
+    this.draft.transitions
+      .filter((edge) => edge.from_node === removed!.id || edge.to_node === removed!.id)
+      .forEach((edge) => this.researchPanel.invalidate(edge.id));
     this.draft.transitions = this.draft.transitions.filter(
       (edge) => edge.from_node !== removed!.id && edge.to_node !== removed!.id,
     );
@@ -404,7 +441,8 @@ export class MarkovChainBuilder {
 
   private removeEdge(index: number): void {
     if (!this.draft || !this.draft.transitions[index]) return;
-    this.draft.transitions.splice(index, 1);
+    const [removed] = this.draft.transitions.splice(index, 1);
+    this.researchPanel.invalidate(removed!.id);
     this.changed();
   }
 
@@ -426,6 +464,9 @@ export class MarkovChainBuilder {
     }
     if (field === 'label') node.label = target.value.trim() || `State ${index + 1}`;
     if (field === 'terminal' && target instanceof HTMLInputElement) node.terminal = target.checked;
+    if (field === 'id' || field === 'label') {
+      this.researchPanel.invalidateAll();
+    }
     node.origin = 'manual_edit';
     this.changed();
   }
@@ -437,6 +478,7 @@ export class MarkovChainBuilder {
   ): void {
     const edge = this.draft?.transitions[index];
     if (!edge) return;
+    const previousId = edge.id;
     if (field === 'id') edge.id = slug(target.value, `transition_${index + 1}`);
     if (field === 'from_node') edge.from_node = target.value;
     if (field === 'to_node') edge.to_node = target.value;
@@ -445,6 +487,13 @@ export class MarkovChainBuilder {
       edge.probability = value === '' ? null : Number(value);
     }
     if (field === 'condition') edge.condition = target.value.trim() || null;
+    if (field === 'id' || field === 'from_node' || field === 'to_node' || field === 'condition') {
+      this.researchPanel.invalidate(previousId);
+      this.researchPanel.invalidate(edge.id);
+    }
+    if (field === 'probability') {
+      this.researchPanel.updateAppliedState(edge.id, edge.probability);
+    }
     edge.origin = 'manual_edit';
     this.changed();
   }

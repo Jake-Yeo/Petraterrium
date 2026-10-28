@@ -1,0 +1,1217 @@
+{
+  "attempt_id": "dcc263cf27cf45e996bca7c7004a7f3c",
+  "target": {
+    "level": "country",
+    "place_id": "CA",
+    "place_label": "Canada",
+    "feature_id": "specialization",
+    "population": 39299104,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "CA",
+    "local_names": {},
+    "dominant_languages": [
+      "en",
+      "fr",
+      "iu"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "Northern America",
+        "place_label": "Northern America",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "promoted",
+  "result_kind": "measured",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_DIST_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "locator": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_DIST_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "content": null,
+      "language": null
+    },
+    {
+      "kind": "url",
+      "name": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_RAW_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "locator": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_RAW_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "content": null,
+      "language": null
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "en",
+      "fr",
+      "iu"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 3,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 4,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 5,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 6,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 7,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 8,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 9,
+        "language": "en",
+        "language_name": "English",
+        "query": "Canada field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 10,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F official statistics",
+        "engine": "Bing local-language search",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 11,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F census",
+        "engine": "Bing local-language search",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 12,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F representative survey",
+        "engine": "Bing local-language search",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 13,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F research article",
+        "engine": "Bing local-language search",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 14,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F government report",
+        "engine": "Bing local-language search",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 15,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F university report",
+        "engine": "Bing local-language search",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 16,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F local news",
+        "engine": "Bing local-language search",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 17,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F public opinion forum",
+        "engine": "Bing local-language search",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 18,
+        "language": "fr",
+        "language_name": "French",
+        "query": "Canada répartition des diplômés par domaine d'études CITE-F expert commentary",
+        "engine": "Bing local-language search",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 19,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students official statistics",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 20,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 21,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students census",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 22,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students census",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 23,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students representative survey",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 24,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 25,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students research article",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 26,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 27,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students government report",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 28,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 29,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students university report",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 30,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 31,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students local news",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 32,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 33,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 34,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 35,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "iu local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 36,
+        "language": "iu",
+        "language_name": "iu",
+        "query": "Canada field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_DIST_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "349423f9d36943219e01832c3dddb514"
+      ],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_RAW_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "c193165df8884d4091f50067e7485795"
+      ],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 11,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 12,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 13,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 14,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 15,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 16,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 17,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 18,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 19,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 20,
+      "origin": "automatic",
+      "language": "fr",
+      "engine": "Bing local-language search",
+      "query_or_source": "Canada répartition des diplômés par domaine d'études CITE-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 21,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 22,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 23,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 24,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 25,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 26,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 27,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 28,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 29,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 30,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 31,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 32,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 33,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 34,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 35,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 36,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 37,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 38,
+      "origin": "automatic",
+      "language": "iu",
+      "engine": "Bing local-language fallback after iu local web and statistics catalogs",
+      "query_or_source": "Canada field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "349423f9d36943219e01832c3dddb514",
+      "title": "OECD UOE tertiary graduates by field · Canada",
+      "url": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_DIST_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Canada",
+      "place_level": "country",
+      "denominator": "tertiary graduates",
+      "population": null,
+      "observation_date": "2023-12-31",
+      "published_date": "2026-10-27",
+      "time_unit": "graduation year",
+      "unit": "percent",
+      "distribution": {
+        "02": 7.727395953000004,
+        "10": 5.656463267,
+        "09": 15.773623602,
+        "01": 5.437229641,
+        "08": 1.0566825,
+        "05": 8.327931071,
+        "03": 10.972289341,
+        "07": 11.127285157,
+        "04": 26.371683502,
+        "00": 1.039002369,
+        "06": 6.510413597
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "National UOE graduate records published by the OECD Data Explorer",
+      "language": "en",
+      "original_excerpt": "11 ISCED-F broad-field rows for 2023; source unit PT_ST",
+      "translated_excerpt": null,
+      "sample_size": null,
+      "source_version": "OECD UOE 2023",
+      "license": "OECD Terms and Conditions",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    },
+    {
+      "candidate_id": "c193165df8884d4091f50067e7485795",
+      "title": "OECD UOE tertiary graduates by field · Canada",
+      "url": "https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_NON_FIN_STUD@DF_UOE_NF_RAW_FIELD,1.0/CAN.ISCED11_5T8.GRAD...F00+F01+F02+F03+F04+F05+F06+F07+F08+F09+F10..A...._T.._T.?startPeriod=2023&endPeriod=2023&dimensionAtObservation=AllDimensions",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Canada",
+      "place_level": "country",
+      "denominator": "tertiary graduates",
+      "population": 509046,
+      "observation_date": "2023-12-31",
+      "published_date": "2026-10-27",
+      "time_unit": "graduation year",
+      "unit": "percent",
+      "distribution": {
+        "08": 1.0566825010000036,
+        "01": 5.437229641,
+        "07": 11.127285157,
+        "09": 15.773623602,
+        "02": 7.727395952,
+        "04": 26.371683502,
+        "00": 1.039002369,
+        "06": 6.510413597,
+        "05": 8.327931071,
+        "03": 10.972289341,
+        "10": 5.656463267
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "National UOE graduate records published by the OECD Data Explorer",
+      "language": "en",
+      "original_excerpt": "11 ISCED-F broad-field rows for 2023; source unit PS",
+      "translated_excerpt": null,
+      "sample_size": 509046,
+      "source_version": "OECD UOE 2023",
+      "license": "OECD Terms and Conditions",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "349423f9d36943219e01832c3dddb514"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "349423f9d36943219e01832c3dddb514",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "National UOE graduate records published by the OECD Data Explorer",
+          "reason": "National UOE graduate records published by the OECD Data Explorer"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Canada",
+          "actual": "country: Canada",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary graduates",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "not stated",
+          "reason": "National official percentage table defines its denominator"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2023-12-31; published 2026-10-27",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "graduation year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    },
+    {
+      "candidate_id": "c193165df8884d4091f50067e7485795",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "National UOE graduate records published by the OECD Data Explorer",
+          "reason": "National UOE graduate records published by the OECD Data Explorer"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Canada",
+          "actual": "country: Canada",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary graduates",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "509046",
+          "reason": "Population is stated"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2023-12-31; published 2026-10-27",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "graduation year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "02": 7.727395953000004,
+    "10": 5.656463267,
+    "09": 15.773623602,
+    "01": 5.437229641,
+    "08": 1.0566825,
+    "05": 8.327931071,
+    "03": 10.972289341,
+    "07": 11.127285157,
+    "04": 26.371683502,
+    "00": 1.039002369,
+    "06": 6.510413597
+  },
+  "mapped_distribution": {
+    "02": 7.727396,
+    "10": 5.656463,
+    "09": 15.773624,
+    "01": 5.43723,
+    "08": 1.056682,
+    "05": 8.327931,
+    "03": 10.972289,
+    "07": 11.127285,
+    "04": 26.371684,
+    "00": 1.039002,
+    "06": 6.510414
+  },
+  "estimate_trace": null,
+  "languages_searched": [
+    "en",
+    "fr",
+    "iu"
+  ],
+  "failure_reason": null,
+  "promotion_id": "27b690de4f395bfb9e33ae8b02793669",
+  "created_at": "2026-10-27T14:49:23.302142Z",
+  "updated_at": "2026-10-27T15:23:14.551762Z"
+}

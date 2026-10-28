@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "built_at": "2026-10-27T06:50:22.738395+00:00",
+  "built_at": "2026-10-27T16:12:21.717590+00:00",
   "level_order": [
     "region",
     "country",
@@ -107,8 +107,8 @@
       "Oceania",
       "Rest / unassigned"
     ],
-    "country_feature_pairs": 180,
-    "region_feature_pairs": 162,
+    "country_feature_pairs": 190,
+    "region_feature_pairs": 171,
     "sources": [
       "World Bank World Development Indicators",
       "UN DESA Database on Household Size and Composition",
@@ -116,7 +116,8 @@
       "World Values Survey",
       "Global Preferences Survey via Our World in Data",
       "OpenPsychometrics",
-      "Schwartz cultural value orientations"
+      "Schwartz cultural value orientations",
+      "Petraterrium in-app specialization research pipeline"
     ],
     "semantics": {
       "direct": "Country rows retain source evidence status and uncertainty.",
@@ -525,8 +526,8 @@
         {
           "path": "registry_feature_dump/priority_feature_distributions.parquet",
           "present": true,
-          "bytes": 25094,
-          "sha256": "af221e0dee71b85cefada46f6954945ec5fa4008548fc9e8b8111b5dd30f04fa"
+          "bytes": 27756,
+          "sha256": "209608d56a538a85ee667a20951dc983be68e9dde3aeab7ca7b38c4a9f8457e7"
         }
       ]
     },
@@ -659,18 +660,18 @@
   "files": [
     {
       "path": "priority_feature_distributions.parquet",
-      "bytes": 25094,
-      "sha256": "af221e0dee71b85cefada46f6954945ec5fa4008548fc9e8b8111b5dd30f04fa"
+      "bytes": 27756,
+      "sha256": "209608d56a538a85ee667a20951dc983be68e9dde3aeab7ca7b38c4a9f8457e7"
     },
     {
       "path": "source_inventory.json",
       "bytes": 19541,
-      "sha256": "983035bb53215ca880d6e2aae96a37e8e1c1734091041a9dc88e92b3b505384d"
+      "sha256": "ca06d662f4d6c55630ef5fe994038ba60ace8e40f4e21baf0cec72d0cb9610ff"
     },
     {
       "path": "source_inventory.parquet",
       "bytes": 13683,
-      "sha256": "fed73e9c373359beba9e7248c6f2eae448c61c4c93a06ac301100e3fcf294180"
+      "sha256": "32ffef6bb5daec321f4a00cb5106a3ec6e3ac62474c0b70ea365cf5e8123946b"
     },
     {
       "path": "wpp_country_age_sex.parquet",

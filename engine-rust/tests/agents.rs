@@ -157,6 +157,7 @@ fn request(seed: u64) -> AgentProgramRequest {
         }],
         meaningful_actions: vec![MeaningfulAction {
             id: "call-friend".to_owned(),
+            exclusive_choice_group: None,
             rules: vec![rule(0.25)],
         }],
         interactions: InteractionProgram::default(),
@@ -168,6 +169,7 @@ fn request(seed: u64) -> AgentProgramRequest {
             media_payloads: vec![json!({"topic": "sports"})],
             weekly_leader_payloads: vec![json!({"decision_log_id": "outside-core"})],
         },
+        state_dynamics: StateDynamicsProgram::default(),
     }
 }
 

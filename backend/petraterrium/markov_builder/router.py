@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import APIRouter, HTTPException
 
 from ..llm_gateway import AIProviderError, SelectedAIProvider
+from ..markov.pipeline_evidence import PipelineTransitionEstimate
 from .confirmation import ChainConfirmationError, confirmed_chain_from_draft
 from .models import (
     ChainDraft,
@@ -12,6 +13,10 @@ from .models import (
     ConfirmationResult,
     ConfirmChainRequest,
     ConfirmedChainGraph,
+)
+from .probability_research import (
+    MarkovProbabilityResearchService,
+    TransitionProbabilityResearchRequest,
 )
 from .proposal import propose_chain
 from .validation import validate_chain_draft
@@ -24,6 +29,7 @@ PersistenceCallback = Callable[
 def create_markov_builder_router(
     persist_chain: PersistenceCallback | None = None,
     ai_provider: SelectedAIProvider | None = None,
+    probability_research: MarkovProbabilityResearchService | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/markov-builder", tags=["Markov chain builder"])
 
@@ -37,6 +43,17 @@ def create_markov_builder_router(
     @router.post("/validation")
     def validate_proposal(draft: ChainDraft):
         return validate_chain_draft(draft)
+
+    @router.post("/probability-research")
+    def research_probability(
+        request: TransitionProbabilityResearchRequest,
+    ) -> PipelineTransitionEstimate:
+        if probability_research is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Markov probability research is not configured",
+            )
+        return probability_research.research(request)
 
     @router.post("/confirm", response_model=ConfirmationResult)
     async def confirm_proposal(request: ConfirmChainRequest) -> ConfirmationResult:

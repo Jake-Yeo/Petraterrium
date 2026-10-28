@@ -280,10 +280,13 @@ pub fn run_interactions(
                 continue;
             }
             let mut winners = Vec::new();
-            for target in 0..request.agents.agent_ids.len() {
-                if initiator == target {
-                    continue;
-                }
+            let candidate_targets = interaction_candidate_targets(
+                initiator,
+                request.agents.agent_ids.len(),
+                rule,
+                &relationships,
+            );
+            for target in candidate_targets {
                 match evaluate_candidate(&request, rule, initiator, target, &relationships) {
                     Ok(candidate) => {
                         if rng.r#gen::<f64>() < candidate.probability {
@@ -332,6 +335,34 @@ pub fn run_interactions(
         events,
         blocked,
     })
+}
+
+fn interaction_candidate_targets(
+    initiator: usize,
+    agent_count: usize,
+    rule: &InteractionRule,
+    relationships: &[InteractionRelationship],
+) -> Vec<usize> {
+    if rule.unrelated_relationship.is_some() {
+        return (0..agent_count)
+            .filter(|target| *target != initiator)
+            .collect();
+    }
+    let mut targets = relationships
+        .iter()
+        .filter(|relationship| relationship.source_index == initiator)
+        .filter(|relationship| {
+            rule.allowed_relationships.is_empty()
+                || rule
+                    .allowed_relationships
+                    .iter()
+                    .any(|kind| kind == &relationship.kind)
+        })
+        .map(|relationship| relationship.target_index)
+        .collect::<Vec<_>>();
+    targets.sort_unstable();
+    targets.dedup();
+    targets
 }
 
 fn validate_request(request: &InteractionRequest) -> Result<(), InteractionError> {
@@ -799,7 +830,7 @@ fn evaluated(kind: &str, factor: &InteractionFactor) -> EvaluatedInteractionFact
 fn factor_is_predictive(factor: &InteractionFactor) -> bool {
     matches!(
         factor.provenance.status.as_str(),
-        "measured_joint" | "fitted_model" | "approved_estimate"
+        "measured_joint" | "fitted_model" | "default_estimated" | "approved_estimate"
     )
 }
 

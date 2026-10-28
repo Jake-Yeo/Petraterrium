@@ -18,6 +18,7 @@ from .auto_import_contracts import (
     AutoImportMappingReview,
     AutoImportPromotionRequest,
     AutoImportQueuePageView,
+    AutoImportRerunRequest,
     AutoImportTargetView,
 )
 from .auto_import_persistence import SQLiteAttemptRepository, SQLiteBulkImportRepository
@@ -121,13 +122,14 @@ def _queue_item_view(
 
 
 def _attempt_view(attempt) -> dict[str, Any]:
+    legacy_retry = attempt.status in {"not_found", "rejected"}
     stage = {
         "draft": "collecting",
         "researching": "collecting",
         "awaiting_mapping_confirmation": "mapping",
         "ready": "ready",
-        "not_found": "failed",
-        "rejected": "failed",
+        "not_found": "collecting",
+        "rejected": "collecting",
         "promoted": "promoted",
     }[attempt.status]
     options = [
@@ -196,7 +198,7 @@ def _attempt_view(attempt) -> dict[str, Any]:
             "engine": entry.engine,
             "language": entry.language,
             "query": entry.query_or_source,
-            "searched_at": attempt.updated_at.isoformat(),
+            "searched_at": entry.searched_at.isoformat() if entry.searched_at else None,
             "result_count": len(entry.candidate_ids),
             "outcome": entry.outcome,
             "rejection_reasons": list(entry.rejection_reasons),
@@ -223,9 +225,30 @@ def _attempt_view(attempt) -> dict[str, Any]:
                 f"{label}: {interval.lower:g}–{interval.upper:g}%"
                 for label, interval in trace.confidence_intervals.items()
             ),
+            "source_ids_used": list(trace.source_ids_used),
             "limitations": [trace.better_data_needed],
         }
     target = attempt.target
+    distribution_changes = []
+    if (
+        attempt.mapping_confirmed
+        and attempt.mapping_preview
+        and attempt.proposed_distribution
+        and attempt.mapped_distribution
+    ):
+        for row in attempt.mapping_preview.rows:
+            target_label = row.proposed_label or ""
+            before = attempt.proposed_distribution[row.source_label]
+            after = attempt.mapped_distribution.get(target_label, before)
+            if target_label != row.source_label or before != after:
+                distribution_changes.append(
+                    {
+                        "source_label": row.source_label,
+                        "target_label": target_label,
+                        "before": before,
+                        "after": after,
+                    }
+                )
     target_view = {
         "place_id": target.place_id,
         "place_label": target.place_label,
@@ -254,11 +277,28 @@ def _attempt_view(attempt) -> dict[str, Any]:
         "candidate_values": attempt.mapped_distribution
         or attempt.proposed_distribution
         or {},
+        "distribution_changes": distribution_changes,
+        "draft_status": (
+            "promoted"
+            if attempt.status == "promoted"
+            else "confirmed"
+            if attempt.mapping_confirmed
+            else "editable_draft"
+        ),
+        "usable_in_demo": bool(
+            attempt.result_kind in {"measured", "estimated"}
+            and (attempt.mapped_distribution or attempt.proposed_distribution)
+        ),
         "can_promote": attempt.status == "ready" and attempt.mapping_confirmed,
-        "error": attempt.failure_reason,
+        "error": (
+            "Retry this earlier research attempt with another source or engine"
+            if legacy_retry
+            else attempt.failure_reason
+        ),
         "promoted_at": attempt.updated_at.isoformat()
         if attempt.status == "promoted"
         else None,
+        "promotion_id": attempt.promotion_id,
     }
 
 
@@ -407,17 +447,20 @@ async def _user_sources(
         filename = Path(upload.filename or "upload").name
         if filename.casefold().endswith(".pdf"):
             raise ValueError("PDF sources are not supported; upload CSV, JSON, Parquet, or text")
-        if filename.casefold().endswith(".parquet"):
-            import io
-
-            import pyarrow.parquet as parquet
-
-            rows = parquet.read_table(io.BytesIO(content)).to_pylist()
-            decoded = json.dumps(rows, default=str)
-        else:
-            decoded = content.decode("utf-8", errors="replace")
+        decoded = await asyncio.to_thread(_decode_user_source, filename, content)
         values.append(UserSourceInput(kind="upload", name=filename, content=decoded))
     return values
+
+
+def _decode_user_source(filename: str, content: bytes) -> str:
+    if filename.casefold().endswith(".parquet"):
+        import io
+
+        import pyarrow.parquet as parquet
+
+        rows = parquet.read_table(io.BytesIO(content)).to_pylist()
+        return json.dumps(rows, default=str)
+    return content.decode("utf-8", errors="replace")
 
 
 def _queue_query(
@@ -518,9 +561,7 @@ def _batch_view(review, service: AutoImportResearchService) -> dict[str, Any]:
             item_status = "queued"
         elif item.execution_state == "running":
             item_status = "running"
-        elif item.execution_state == "failed" or (
-            outcome is not None and outcome.evidence_status == "unresolved"
-        ):
+        elif item.execution_state == "failed":
             item_status = "failed"
         else:
             item_status = "ready"
@@ -547,14 +588,14 @@ def _batch_view(review, service: AutoImportResearchService) -> dict[str, Any]:
                 ),
                 "error": item.error
                 or (
-                    outcome.summary
+                    "Retry with another source or engine to produce an estimated draft"
                     if outcome and outcome.evidence_status == "unresolved"
                     else None
                 )
                 or item.promotion_error,
             }
         )
-    failed = review.progress.failed + review.progress.unresolved
+    failed = review.progress.failed
     ready = sum(
         bool(
             item.execution_state == "review"
@@ -575,7 +616,7 @@ def _batch_view(review, service: AutoImportResearchService) -> dict[str, Any]:
             "measured": review.progress.measured,
             "estimated": review.progress.estimated,
             "failed": failed,
-            "retryable_failed": review.progress.failed,
+            "retryable_failed": review.progress.failed + review.progress.unresolved,
             "promoted": review.progress.promoted,
             "completed": review.progress.completed,
         },
@@ -600,24 +641,33 @@ def create_auto_import_router(
         writer,
     )
 
+    def complete_research(operation, *args):
+        attempt = operation(*args)
+        sync_missing_document(store, missing_path)
+        return attempt
+
+    def create_and_research(target_data, scope, sources=()):
+        target = _place_target(store, target_data, scope)
+        attempt = service.create_attempt(target, sources)
+        return complete_research(service.research, attempt.attempt_id)
+
+    def create_research_view(target_data, scope, sources=()):
+        return _attempt_view(create_and_research(target_data, scope, sources))
+
+    def research_view(operation, *args):
+        return _attempt_view(complete_research(operation, *args))
+
     async def execute_bulk(request: BulkExecutionRequest) -> BulkImportOutcome:
         target_data = json.loads(request.target.attributes["target_json"])
-        target = _place_target(
-            store,
+        attempt = await asyncio.to_thread(
+            create_and_research,
             target_data,
             request.target.attributes.get("scope", "shared"),
         )
-        attempt = service.create_attempt(target)
-        attempt = await asyncio.to_thread(service.research, attempt.attempt_id)
-        await asyncio.to_thread(sync_missing_document, store, missing_path)
-        if attempt.status == "not_found" or attempt.result_kind is None:
-            return BulkImportOutcome(
-                attempt_id=attempt.attempt_id,
-                evidence_status="unresolved",
-                summary=attempt.failure_reason or "No credible distribution found",
-                promotion_eligible=False,
-                predictor_eligible=False,
-                trace_reference=attempt.attempt_id,
+        if attempt.result_kind is None or attempt.proposed_distribution is None:
+            attempt = await asyncio.to_thread(
+                service.ensure_estimated_draft,
+                attempt.attempt_id,
             )
         preview = attempt.mapping_preview
         unambiguous = bool(preview) and all(row.proposed_label for row in preview.rows)
@@ -760,12 +810,13 @@ def create_auto_import_router(
     ):
         try:
             target_data = json.loads(target)
-            place_target = _place_target(store, target_data, scope)
             sources = await _user_sources(urls, pasted_text, files or [])
-            attempt = service.create_attempt(place_target, sources)
-            attempt = await asyncio.to_thread(service.research, attempt.attempt_id)
-            await asyncio.to_thread(sync_missing_document, store, missing_path)
-            return _attempt_view(attempt)
+            return await asyncio.to_thread(
+                create_research_view,
+                target_data,
+                scope,
+                sources,
+            )
         except KeyError as error:
             raise HTTPException(404, str(error)) from error
         except (ValueError, ValidationError, json.JSONDecodeError) as error:
@@ -809,9 +860,21 @@ def create_auto_import_router(
     @router.post("/attempts/{attempt_id}/research", response_model=AutoImportAttemptView)
     async def research(attempt_id: str):
         try:
-            result = await asyncio.to_thread(service.research, attempt_id)
-            await asyncio.to_thread(sync_missing_document, store, missing_path)
-            return _attempt_view(result)
+            return await asyncio.to_thread(research_view, service.research, attempt_id)
+        except KeyError as error:
+            raise HTTPException(404, str(error)) from error
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
+
+    @router.post("/attempts/{attempt_id}/rerun", response_model=AutoImportAttemptView)
+    async def rerun(attempt_id: str, request: AutoImportRerunRequest):
+        try:
+            return await asyncio.to_thread(
+                research_view,
+                service.rerun,
+                attempt_id,
+                tuple(request.source_tiers),
+            )
         except KeyError as error:
             raise HTTPException(404, str(error)) from error
         except ValueError as error:
@@ -828,6 +891,7 @@ def create_auto_import_router(
                 )
                 for mapping in request.mappings
             ),
+            distribution=request.distribution,
         )
         return _attempt_view(checked(service.confirm_mapping, attempt_id, confirmation))
 
@@ -943,7 +1007,7 @@ def create_auto_import_router(
     @router.post("/batches/{batch_id}/retry", response_model=AutoImportBatchView)
     async def retry_batch(batch_id: str):
         try:
-            launch(bulk.resume(batch_id))
+            launch(bulk.resume(batch_id, retry_unresolved=True))
             await asyncio.sleep(0)
             return _batch_view(await bulk.review(batch_id), service)
         except LookupError as error:

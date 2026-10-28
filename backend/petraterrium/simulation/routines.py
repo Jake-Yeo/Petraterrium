@@ -22,7 +22,13 @@ DayOfWeek = Literal[
     "saturday",
     "sunday",
 ]
-RoutineEvidenceStatus = Literal["measured", "user_defined", "illustrative", "unknown"]
+RoutineEvidenceStatus = Literal[
+    "measured",
+    "user_defined",
+    "default_estimated",
+    "illustrative",
+    "unknown",
+]
 
 
 class RoutineModel(BaseModel):

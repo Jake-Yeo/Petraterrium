@@ -174,20 +174,17 @@ def test_catalog_filters_both_directions_and_reports_agent_breakdowns():
             rust_event(4, initiator="friend", target="parent", relationship="friend"),
         ]
     }
-    catalog = InteractionCatalog.from_rust_output(
-        output,
-        {"parent": "Mara", "child": "Noah", "friend": "Avery"},
-    )
+    catalog = InteractionCatalog.from_rust_output(output)
     page = catalog.query(InteractionQuery(agent_id="parent"))
     assert page.total == 2
     assert page.breakdown.by_relationship == {"friend": 1, "family": 1}
-    assert page.breakdown.by_counterparty == {"Avery": 1, "Noah": 1}
+    assert page.breakdown.by_counterparty == {"child": 1, "friend": 1}
     received = catalog.query(InteractionQuery(agent_id="parent", direction="target"))
     assert received.total == 1
-    assert received.items[0].initiator_name == "Avery"
+    assert received.items[0].initiator_id == "friend"
     detail = catalog.detail(page.items[-1].event_id)
-    assert detail.initiator_name == "Mara"
-    assert detail.target_name == "Noah"
+    assert detail.initiator_id == "parent"
+    assert detail.target_id == "child"
     assert detail.effect_count == 2
     assert detail.factors[1].factor.provenance.source == "Imported time-use panel"
 
@@ -233,14 +230,13 @@ def test_router_exposes_run_scoped_interactions_and_exact_detail():
     catalog = registry.record(
         "run-1",
         {"events": [rust_event()]},
-        {"parent": "Mara", "child": "Noah"},
     )
     application = FastAPI()
     application.include_router(create_interaction_router(registry), prefix="/api")
     client = TestClient(application)
     response = client.get("/api/simulation/runs/run-1/interactions?agent_id=parent")
     assert response.status_code == 200
-    assert response.json()["items"][0]["initiator_name"] == "Mara"
+    assert response.json()["items"][0]["initiator_id"] == "parent"
     event_id = catalog.query(InteractionQuery()).items[0].event_id
     detail = client.get(f"/api/simulation/runs/run-1/interactions/{event_id}")
     assert detail.status_code == 200
@@ -250,14 +246,34 @@ def test_router_exposes_run_scoped_interactions_and_exact_detail():
 
 def test_registry_accumulates_chunks_idempotently():
     registry = InteractionRunRegistry()
-    names = {"parent": "Mara", "child": "Noah"}
     first = rust_event(tick=3)
     second = rust_event(tick=4)
 
-    registry.record("run-1", {"events": [first]}, names)
-    registry.record("run-1", {"events": [second]}, names)
-    registry.record("run-1", {"events": [first]}, names)
+    registry.record("run-1", {"events": [first]})
+    registry.record("run-1", {"events": [second]})
+    registry.record("run-1", {"events": [first]})
 
     page = registry.catalog("run-1").query(InteractionQuery())
     assert page.total == 2
     assert [event.tick for event in page.items] == [4, 3]
+
+
+def test_registry_streams_restored_interactions_with_exact_sort_and_detail():
+    registry = InteractionRunRegistry()
+    reads = []
+
+    def events():
+        reads.append("read")
+        yield rust_event(tick=3)
+        yield rust_event(tick=5, initiator="friend", target="parent")
+        yield rust_event(tick=4, initiator="parent", target="friend")
+
+    registry.register_event_loader("run-1", events)
+
+    page = registry.catalog("run-1").query(InteractionQuery(page_size=2))
+    assert page.total == 3
+    assert [event.tick for event in page.items] == [5, 4]
+    assert page.facets.agents == ("child", "friend", "parent")
+    detail = registry.catalog("run-1").detail(page.items[0].event_id)
+    assert detail.tick == 5
+    assert reads == ["read", "read"]

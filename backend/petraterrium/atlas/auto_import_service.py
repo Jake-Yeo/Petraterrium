@@ -20,12 +20,15 @@ from .auto_import_research import (
     ResearchLogEntry,
     ResearchModel,
     ResearchProvider,
+    SearchPlan,
     SourceCandidate,
+    SourceKind,
     SourceVerification,
     UserSourceInput,
     apply_confirmed_mapping,
     build_search_plan,
     derive_estimate,
+    pipeline_fallback_candidate,
     propose_label_mapping,
     verify_candidate,
 )
@@ -132,7 +135,6 @@ class AutoImportResearchService:
     ) -> AutoImportAttempt:
         requirement = canonical_requirement(target.feature_id)
         now = self.clock()
-        previous = self._latest_attempt(target)
         attempt = AutoImportAttempt(
             attempt_id=self.identity(),
             target=target,
@@ -140,13 +142,40 @@ class AutoImportResearchService:
             status="draft",
             user_sources=tuple(user_sources),
             search_plan=build_search_plan(target),
-            search_log=previous.search_log if previous else (),
-            languages_searched=previous.languages_searched if previous else (),
             created_at=now,
             updated_at=now,
         )
         self.repository.save(attempt)
         return attempt
+
+    def rerun(
+        self,
+        attempt_id: str,
+        source_kinds: tuple[SourceKind, ...] = (),
+    ) -> AutoImportAttempt:
+        previous = self.repository.get(attempt_id)
+        repeated = self.create_attempt(previous.target, previous.user_sources)
+        if source_kinds:
+            selected = [
+                step
+                for step in repeated.search_plan.steps
+                if step.source_kind in source_kinds
+            ]
+            repeated = repeated.model_copy(
+                update={
+                    "search_plan": SearchPlan(
+                        languages=tuple(
+                            dict.fromkeys(step.language for step in selected)
+                        ),
+                        steps=tuple(
+                            step.model_copy(update={"sequence": index})
+                            for index, step in enumerate(selected, start=1)
+                        ),
+                    )
+                }
+            )
+            self.repository.save(repeated)
+        return self.research(repeated.attempt_id)
 
     def get_attempt(self, attempt_id: str) -> AutoImportAttempt:
         return self.repository.get(attempt_id)
@@ -167,6 +196,7 @@ class AutoImportResearchService:
         hints: list[SourceCandidate] = []
         ai_failures: list[str] = []
         seen_candidates = {candidate.candidate_id for candidate in attempt.sources}
+        researched_candidates: list[SourceCandidate] = []
         completed_automatic = {
             (entry.language, entry.engine, entry.query_or_source, entry.source_kind)
             for entry in logs
@@ -179,6 +209,7 @@ class AutoImportResearchService:
             rejection_reasons = []
             accepted_count = 0
             for candidate in candidates:
+                researched_candidates.append(candidate)
                 if candidate.candidate_id in seen_candidates:
                     continue
                 seen_candidates.add(candidate.candidate_id)
@@ -199,6 +230,42 @@ class AutoImportResearchService:
                     )
             return tuple(candidate_ids), tuple(rejection_reasons), accepted_count
 
+        for step in attempt.search_plan.steps:
+            key = (step.language, step.engine, step.query, step.source_kind)
+            if key in completed_automatic:
+                continue
+            sequence += 1
+            if step.language not in languages:
+                languages.append(step.language)
+            try:
+                candidates = self.provider.search(step, attempt.target, attempt.requirement)
+                candidate_ids, rejection_reasons, accepted_count = evaluate(candidates)
+                outcome = self._outcome(candidates, accepted_count)
+            except AIProviderError as error:
+                candidate_ids = ()
+                rejection_reasons = (str(error),)
+                outcome = "error"
+                ai_failures.append(str(error))
+            except Exception as error:
+                candidate_ids = ()
+                rejection_reasons = (str(error),)
+                outcome = "error"
+                ai_failures.append(str(error))
+            logs.append(
+                ResearchLogEntry(
+                    sequence=sequence,
+                    origin="automatic",
+                    language=step.language,
+                    engine=step.engine,
+                    query_or_source=step.query,
+                    source_kind=step.source_kind,
+                    outcome=outcome,
+                    candidate_ids=candidate_ids,
+                    rejection_reasons=rejection_reasons,
+                    searched_at=self.clock(),
+                )
+            )
+
         for source in attempt.user_sources:
             sequence += 1
             try:
@@ -218,6 +285,7 @@ class AutoImportResearchService:
                 candidate_ids = ()
                 rejection_reasons = (str(error),)
                 outcome = "error"
+                ai_failures.append(str(error))
             source_kind = {
                 "url": "user_url",
                 "upload": "user_upload",
@@ -241,76 +309,121 @@ class AutoImportResearchService:
                     outcome=outcome,
                     candidate_ids=candidate_ids,
                     rejection_reasons=rejection_reasons,
+                    searched_at=self.clock(),
                 )
             )
-
-        if not direct:
-            for step in attempt.search_plan.steps:
-                key = (step.language, step.engine, step.query, step.source_kind)
-                if key in completed_automatic:
-                    continue
-                sequence += 1
-                if step.language not in languages:
-                    languages.append(step.language)
-                try:
-                    candidates = self.provider.search(step, attempt.target, attempt.requirement)
-                    candidate_ids, rejection_reasons, accepted_count = evaluate(candidates)
-                    outcome = self._outcome(candidates, accepted_count)
-                except AIProviderError as error:
-                    candidate_ids = ()
-                    rejection_reasons = (str(error),)
-                    outcome = "error"
-                    ai_failures.append(str(error))
-                except Exception as error:
-                    candidate_ids = ()
-                    rejection_reasons = (str(error),)
-                    outcome = "error"
-                logs.append(
-                    ResearchLogEntry(
-                        sequence=sequence,
-                        origin="automatic",
-                        language=step.language,
-                        engine=step.engine,
-                        query_or_source=step.query,
-                        source_kind=step.source_kind,
-                        outcome=outcome,
-                        candidate_ids=candidate_ids,
-                        rejection_reasons=rejection_reasons,
-                    )
-                )
 
         result_kind: EvidenceKind | None = None
         selected_source_ids: tuple[str, ...] = ()
         proposed_distribution = None
         estimate_trace = None
         mapping_preview = None
-        status = "not_found"
-        failure_reason = (
-            ai_failures[-1]
-            if ai_failures
-            else "No credible source met the feature, place, denominator, date, and unit checks"
-        )
-        if direct:
-            chosen = direct[0]
+        status = "awaiting_mapping_confirmation"
+        failure_reason = None
+        complete_direct = [
+            candidate
+            for candidate in direct
+            if self._direct_mapping_complete(candidate, attempt.requirement)
+        ]
+        if complete_direct:
+            chosen = complete_direct[0]
             result_kind = "measured"
             selected_source_ids = (chosen.candidate_id,)
             proposed_distribution = chosen.distribution
             mapping_preview = propose_label_mapping(chosen.distribution, attempt.requirement)
             status = "awaiting_mapping_confirmation"
             failure_reason = None
-        elif hints:
-            proposed_distribution, estimate_trace, excluded = derive_estimate(
-                hints, attempt.requirement
-            )
+        else:
+            synthesis = getattr(self.provider, "synthesize_estimate", None)
+            if callable(synthesis):
+                sequence += 1
+                try:
+                    synthesized = synthesis(
+                        attempt.target,
+                        attempt.requirement,
+                        tuple(logs),
+                        tuple(researched_candidates),
+                    )
+                    synthesis_ids, synthesis_reasons, accepted_count = evaluate(
+                        [synthesized]
+                    )
+                    synthesis_outcome = self._outcome([synthesized], accepted_count)
+                    if accepted_count == 0:
+                        ai_failures.append("Research synthesis did not pass validation")
+                except Exception as error:
+                    ai_failures.append(str(error))
+                    synthesis_ids = ()
+                    synthesis_reasons = (str(error),)
+                    synthesis_outcome = "error"
+                logs.append(
+                    ResearchLogEntry(
+                        sequence=sequence,
+                        origin="automatic",
+                        language="en",
+                        engine="Configured AI synthesis",
+                        query_or_source=(
+                            f"Canonical estimate synthesis for "
+                            f"{attempt.target.place_label} {attempt.requirement.name}"
+                        ),
+                        source_kind="expert_commentary",
+                        outcome=synthesis_outcome,
+                        candidate_ids=synthesis_ids,
+                        rejection_reasons=synthesis_reasons,
+                        searched_at=self.clock(),
+                    )
+                )
+
+            def fallback_estimate() -> SourceCandidate:
+                nonlocal sequence
+                fallback = pipeline_fallback_candidate(
+                    attempt.target,
+                    attempt.requirement,
+                    logs,
+                    ai_failures,
+                )
+                _candidate_ids, _reasons, accepted_count = evaluate([fallback])
+                if accepted_count == 0:
+                    raise RuntimeError("Pipeline fallback estimate failed validation")
+                sequence += 1
+                logs.append(
+                    ResearchLogEntry(
+                        sequence=sequence,
+                        origin="automatic",
+                        language="en",
+                        engine="Petraterrium deterministic estimator",
+                        query_or_source=(
+                            f"Maximum-uncertainty estimate for "
+                            f"{attempt.target.place_label} {attempt.requirement.name}"
+                        ),
+                        source_kind="expert_commentary",
+                        outcome="candidate",
+                        candidate_ids=(fallback.candidate_id,),
+                        searched_at=self.clock(),
+                    )
+                )
+                return fallback
+
+            estimate_candidates = list(hints)
+            if not estimate_candidates:
+                estimate_candidates = [fallback_estimate()]
+            try:
+                proposed_distribution, estimate_trace, excluded = derive_estimate(
+                    estimate_candidates, attempt.requirement
+                )
+            except Exception as error:
+                ai_failures.append(str(error))
+                fallback = fallback_estimate()
+                estimate_candidates = [fallback]
+                proposed_distribution, estimate_trace, excluded = derive_estimate(
+                    estimate_candidates, attempt.requirement
+                )
             result_kind = "estimated"
             selected_source_ids = tuple(
                 candidate.candidate_id
-                for candidate in hints
+                for candidate in estimate_candidates
                 if candidate.candidate_id not in excluded
             )
             mapping_preview = propose_label_mapping(proposed_distribution, attempt.requirement)
-            status = "awaiting_mapping_confirmation"
-            failure_reason = None
         return self._save(
             attempt,
             status=status,
@@ -329,6 +442,63 @@ class AutoImportResearchService:
             failure_reason=failure_reason,
         )
 
+    def ensure_estimated_draft(self, attempt_id: str) -> AutoImportAttempt:
+        attempt = self.repository.get(attempt_id)
+        if (
+            attempt.result_kind in {"measured", "estimated"}
+            and attempt.proposed_distribution
+            and attempt.mapping_preview
+        ):
+            return attempt
+        if attempt.status == "promoted":
+            raise ValueError("A promoted attempt is immutable")
+        errors = (attempt.failure_reason,) if attempt.failure_reason else ()
+        fallback = pipeline_fallback_candidate(
+            attempt.target,
+            attempt.requirement,
+            attempt.search_log,
+            errors,
+        )
+        verification = verify_candidate(fallback, attempt.target, attempt.requirement)
+        if not verification.accepted:
+            raise RuntimeError("Pipeline fallback estimate failed validation")
+        distribution, trace, _excluded = derive_estimate(
+            [fallback], attempt.requirement
+        )
+        sequence = max((entry.sequence for entry in attempt.search_log), default=0) + 1
+        log = ResearchLogEntry(
+            sequence=sequence,
+            origin="automatic",
+            language="en",
+            engine="Petraterrium deterministic estimator",
+            query_or_source=(
+                f"Maximum-uncertainty estimate for "
+                f"{attempt.target.place_label} {attempt.requirement.name}"
+            ),
+            source_kind="expert_commentary",
+            outcome="candidate",
+            candidate_ids=(fallback.candidate_id,),
+            searched_at=self.clock(),
+        )
+        return self._save(
+            attempt,
+            status="awaiting_mapping_confirmation",
+            result_kind="estimated",
+            search_log=(*attempt.search_log, log),
+            sources=(*attempt.sources, fallback),
+            selected_source_ids=(fallback.candidate_id,),
+            verifications=(*attempt.verifications, verification),
+            mapping_preview=propose_label_mapping(distribution, attempt.requirement),
+            mapping_confirmed=False,
+            proposed_distribution=distribution,
+            mapped_distribution=None,
+            estimate_trace=trace,
+            languages_searched=tuple(
+                dict.fromkeys((*attempt.languages_searched, "en"))
+            ),
+            failure_reason=None,
+        )
+
     def confirm_mapping(
         self, attempt_id: str, confirmation: MappingConfirmation
     ) -> AutoImportAttempt:
@@ -343,9 +513,31 @@ class AutoImportResearchService:
             confirmation,
             attempt.requirement,
         )
+        confirmed_targets = {
+            row.source_label: row.target_label for row in confirmation.mappings
+        }
+        confirmed_preview = attempt.mapping_preview.model_copy(
+            update={
+                "rows": tuple(
+                    row.model_copy(
+                        update={
+                            "proposed_label": confirmed_targets[row.source_label],
+                            "confidence": (
+                                "exact"
+                                if confirmed_targets[row.source_label] == row.source_label
+                                else "alias"
+                            ),
+                            "reason": "Human-confirmed mapping",
+                        }
+                    )
+                    for row in attempt.mapping_preview.rows
+                )
+            }
+        )
         return self._save(
             attempt,
             status="ready",
+            mapping_preview=confirmed_preview,
             mapping_confirmed=True,
             mapped_distribution=mapped,
         )
@@ -419,22 +611,21 @@ class AutoImportResearchService:
         attempt = self.repository.get(attempt_id)
         return self._save(attempt, status="promoted", promotion_id=promotion_id)
 
-    def _latest_attempt(self, target: PlaceFeatureTarget) -> AutoImportAttempt | None:
-        matches = [
-            attempt
-            for attempt in self.repository.list()
-            if attempt.target.level == target.level
-            and attempt.target.place_id == target.place_id
-            and attempt.target.feature_id == target.feature_id
-            and attempt.target.scope == target.scope
-        ]
-        return max(matches, key=lambda attempt: attempt.updated_at) if matches else None
-
     @staticmethod
     def _outcome(candidates, accepted_count):
         if not candidates:
             return "no_result"
         return "candidate" if accepted_count else "rejected"
+
+    @staticmethod
+    def _direct_mapping_complete(candidate, requirement) -> bool:
+        preview = propose_label_mapping(candidate.distribution, requirement)
+        if any(row.confidence == "unknown" for row in preview.rows):
+            return False
+        if requirement.feature_id != "specialization":
+            return True
+        mapped = {row.proposed_label for row in preview.rows}
+        return set(requirement.canonical_values) <= mapped
 
     def _save(self, attempt: AutoImportAttempt, **changes) -> AutoImportAttempt:
         updated = attempt.model_copy(update={**changes, "updated_at": self.clock()})

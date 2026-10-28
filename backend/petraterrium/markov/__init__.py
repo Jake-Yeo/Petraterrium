@@ -27,6 +27,11 @@ from .models import (
     TransitionEvidence,
     ValidationIssue,
 )
+from .pipeline_evidence import (
+    PipelineEstimateSource,
+    PipelineResearchLog,
+    PipelineTransitionEstimate,
+)
 from .validation import validate_module, validate_program
 
 __all__ = [
@@ -48,6 +53,9 @@ __all__ = [
     "ModuleTransition",
     "ModuleValidationResult",
     "OutgoingProbabilityTotal",
+    "PipelineEstimateSource",
+    "PipelineResearchLog",
+    "PipelineTransitionEstimate",
     "ProbabilityQuery",
     "ProgramExit",
     "ProgramValidationResult",

@@ -41,7 +41,6 @@ export interface LocationPlaceSummary {
 
 export interface LocationAgentSummary {
   agent_id: string;
-  display_name: string;
   current_location_id: string;
 }
 
@@ -63,7 +62,6 @@ export interface LocationRunSnapshot {
 
 export interface LocationAgentDetail {
   agent_id: string;
-  display_name: string;
   current_location: LocationPlaceSummary;
   ancestry: LocationPlaceSummary[];
   history: LocationHistoryRecord[];
@@ -157,7 +155,6 @@ function isAgentSummary(value: unknown): value is LocationAgentSummary {
   if (!isRecord(value)) return false;
   return (
     typeof value.agent_id === 'string' &&
-    typeof value.display_name === 'string' &&
     typeof value.current_location_id === 'string'
   );
 }
@@ -192,7 +189,6 @@ function isAgentDetail(value: unknown): value is LocationAgentDetail {
   if (!isRecord(value)) return false;
   return (
     typeof value.agent_id === 'string' &&
-    typeof value.display_name === 'string' &&
     isPlace(value.current_location) &&
     Array.isArray(value.ancestry) &&
     value.ancestry.every(isPlace) &&
@@ -416,7 +412,7 @@ export class LocationsView {
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Place profile evidence</h4><span>${place.evidence ? escapeHtml(place.evidence.status) : 'unknown'}</span></div>${evidenceMarkup(place.evidence)}</section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Decision trees here</h4><span>${place.decision_trees.filter((item) => item.available).length} available</span></div>${decisionTreeMarkup(place.decision_trees)}</section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Agents here</h4><span>${occupants.length}</span></div>
-          ${occupants.length ? `<div class="locations-agent-list">${occupants.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(agent.agent_id)}</small></span><b>Open</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">No agent currently occupies this exact location.</p>'}
+          ${occupants.length ? `<div class="locations-agent-list">${occupants.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.agent_id)}</strong><small>Synthetic agent ID</small></span><b>Open</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">No agent currently occupies this exact location.</p>'}
         </section>
       </div>
     </section>`;
@@ -432,18 +428,18 @@ export class LocationsView {
       detail.current_location.state_source === 'rust_numeric_core'
         ? 'Live Rust state at current place'
         : 'Effective place state';
-    return `<section class="locations-panel locations-detail-panel" aria-label="${escapeHtml(detail.display_name)} location detail">
+    return `<section class="locations-panel locations-detail-panel" aria-label="${escapeHtml(detail.agent_id)} location detail">
       <button type="button" class="locations-back" data-location-action="back-to-place">← Back to ${escapeHtml(detail.current_location.name)}</button>
-      <div class="locations-panel-heading"><div><span class="small-label">AGENT LOCATION</span><h3>${escapeHtml(detail.display_name)}</h3></div><span class="locations-status-pill is-open">${escapeHtml(titleCase(detail.current_location.level))}</span></div>
+      <div class="locations-panel-heading"><div><span class="small-label">SYNTHETIC AGENT ID</span><h3>${escapeHtml(detail.agent_id)}</h3></div><span class="locations-status-pill is-open">${escapeHtml(titleCase(detail.current_location.level))}</span></div>
       <nav class="locations-breadcrumbs" aria-label="Current location path">${detail.ancestry.map((place, index) => `${index ? '<i>›</i>' : ''}<button type="button" data-location-place="${escapeHtml(place.id)}">${escapeHtml(place.name)}</button>`).join('')}</nav>
       <div class="locations-detail-scroll">
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>${stateTitle}</h4><span>Most specific recorded value wins</span></div>${stateRows(detail.effective_place_state, 'No place state is recorded for this location path.')}</section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Decision availability</h4><span>${detail.current_location.decision_trees.filter((item) => item.available).length} available here</span></div>${decisionTreeMarkup(detail.current_location.decision_trees)}</section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Co-located agents</h4><span>${detail.co_located_agents.length}</span></div>
-          ${detail.co_located_agents.length ? `<div class="locations-agent-list">${detail.co_located_agents.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(agent.current_location_id)}</small></span><b>Open</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">No other agents are available for face-to-face interaction here.</p>'}
+          ${detail.co_located_agents.length ? `<div class="locations-agent-list">${detail.co_located_agents.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.agent_id)}</strong><small>${escapeHtml(agent.current_location_id)}</small></span><b>Open</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">No other agents are available for face-to-face interaction here.</p>'}
         </section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Elsewhere</h4><span>${detail.elsewhere_agents.length} unavailable in person</span></div>
-          ${detail.elsewhere_agents.length ? `<div class="locations-agent-list locations-elsewhere-list">${detail.elsewhere_agents.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(placeName(agent.current_location_id))}</small></span><b>Elsewhere</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">Every other recorded agent is currently co-located.</p>'}
+          ${detail.elsewhere_agents.length ? `<div class="locations-agent-list locations-elsewhere-list">${detail.elsewhere_agents.map((agent) => `<button type="button" data-location-agent="${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.agent_id)}</strong><small>${escapeHtml(placeName(agent.current_location_id))}</small></span><b>Elsewhere</b></button>`).join('')}</div>` : '<p class="locations-empty-copy">Every other recorded agent is currently co-located.</p>'}
         </section>
         <section class="locations-subsection"><div class="locations-subsection-heading"><h4>Location history</h4><span>${history.length} moves</span></div>
           ${history.length ? `<ol class="locations-history">${history.map((record) => `<li><time>Tick ${record.tick.toLocaleString('en')}</time><div><strong>${escapeHtml(placeName(record.from_location_id))} → ${escapeHtml(placeName(record.to_location_id))}</strong><small>${record.route_location_ids.map(placeName).map(escapeHtml).join(' › ')}</small></div></li>`).join('')}</ol>` : '<p class="locations-empty-copy">No movement has been recorded for this agent.</p>'}

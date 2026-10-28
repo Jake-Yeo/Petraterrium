@@ -76,8 +76,96 @@ const mountGraph = async (page: Parameters<typeof test>[0]['page']) => {
       decisions: [overridden],
     };
     document.body.innerHTML = '<main id="agent-type-test"></main>';
+    const evidence = {
+      status: 'default_estimated',
+      source: 'Default state rule',
+      source_version: 'v1',
+      source_date: null,
+      url: null,
+      place: 'global',
+      population: 'Synthetic default population',
+      language: null,
+      original_title: null,
+      english_title: null,
+      search_source: null,
+      uncertainty: 1,
+      default_reason: 'Awaiting linked state and outcome data',
+    };
     mountAgentTypeGraph(document.querySelector('#agent-type-test')!, {
       types: [family, business, worker],
+      stateSystem: {
+        agent_states: {
+          version: 'agent-state-core-v1',
+          status: 'draft',
+          definitions: [
+            {
+              id: 'stress',
+              name: 'Stress',
+              group: 'emotion',
+              description: 'Current stress load',
+              value_range: { minimum: 0, maximum: 1, unit: 'normalized index' },
+              initial_feature_ids: ['stress'],
+              initial_evidence: evidence,
+              event_effects: [
+                {
+                  event_id: 'exercise',
+                  direction: 'decreases',
+                  parameter_id: 'exercise_stress_effect',
+                  formula: 'stress[t+1] = stress[t] - exercise_stress_effect',
+                  evidence,
+                },
+              ],
+              recovery: {
+                mode: 'decay',
+                parameter_id: 'stress_decay',
+                formula: 'stress[t+1] = stress[t] × (1 - stress_decay)',
+                evidence,
+              },
+              decision_modifiers: [
+                {
+                  decision_id: 'skip_lunch',
+                  state_id: 'stress',
+                  formula: 'P(skip_lunch) = base × f(stress)',
+                  coefficient: null,
+                  center: 0.5,
+                  minimum_factor: 0,
+                  maximum_factor: 2,
+                  direction: 'increases',
+                  evidence,
+                },
+              ],
+              propagation: [
+                {
+                  target_state_id: 'health',
+                  direction: 'decreases',
+                  parameter_id: 'stress_health_effect',
+                  formula: 'health[t+1] = health[t] - stress_health_effect × stress[t]',
+                  evidence,
+                },
+              ],
+            },
+          ],
+        },
+        relationship_states: {
+          version: 'relationship-state-v1',
+          definitions: [
+            {
+              id: 'love',
+              name: 'Love',
+              description: 'Directed attachment toward one specific other agent',
+              value_range: { minimum: 0, maximum: 1, unit: 'normalized index' },
+              direction: 'source_to_target',
+              event_effects: [],
+              recovery: {
+                mode: 'event_driven',
+                parameter_id: null,
+                formula: 'love[source,target,t+1] = interaction update',
+                evidence,
+              },
+            },
+          ],
+        },
+      },
       audit: {
         provider: 'openai_cli',
         model: 'gpt-5',
@@ -114,6 +202,10 @@ test('inheritance graph exposes parent to child edges and sourced inherited memb
   await expect(detail).toContainText('OpenAI CLI');
   await expect(detail).toContainText('gpt-5');
   await expect(detail).toContainText('agent-behavior-proposal-v2');
+  await detail.getByText('State definitions, formulas, and loops').click();
+  await expect(detail).toContainText('Stress');
+  await expect(detail).toContainText('P(skip_lunch) = base × f(stress)');
+  await expect(detail).toContainText('Directed: source → target');
   await expect(businessNode).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByRole('button', { name: 'WorkerAgent agent type' }).click();

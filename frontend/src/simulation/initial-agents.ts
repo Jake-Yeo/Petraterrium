@@ -1,4 +1,18 @@
 import './initial-agents.css';
+import {
+  educationProfileMarkup,
+  financeStateMarkup,
+  stateVectorMarkup,
+  type AgentStateCatalog,
+  type AgentStateVector,
+  type EducationProfile,
+  type FinanceState,
+} from './agent-state-view';
+import {
+  GlobalDemoSummaryView,
+  isGlobalDemoSummaryData,
+  type GlobalDemoSummaryData,
+} from './global-demo-summary';
 
 export interface InitialAgentLocation {
   country: string;
@@ -24,7 +38,6 @@ export interface InitialAgentDecisionTreeLink {
 
 export interface InitialAgentFamilyRelationship {
   target_agent_id: string;
-  display_name: string;
   relationship: string;
   age: number | null;
   weight: number;
@@ -42,7 +55,6 @@ export interface InitialInteractionEvidence {
 
 export interface InitialInteractionCounterpart {
   target_agent_id: string;
-  display_name: string;
   relationship: string;
   relationship_kind: string;
   weight: number;
@@ -87,7 +99,6 @@ export interface InitialInteractionContext {
 
 export interface InitialAgentHouseholdMember {
   agent_id: string;
-  display_name: string;
   age: number | null;
   relationship: string;
   agent_types: string[];
@@ -100,7 +111,6 @@ export interface InitialAgentHousehold {
 
 export interface InitialAgentListItem {
   agent_id: string;
-  display_name: string;
   agent_types: string[];
   age: number | null;
   sex: string;
@@ -118,9 +128,10 @@ export interface InitialAgentDetail extends InitialAgentListItem {
   family_relationships: InitialAgentFamilyRelationship[];
   traits: Record<string, unknown>;
   initial_states: Record<string, string>;
+  education_profile: EducationProfile;
+  state_vector: AgentStateVector;
+  finances: FinanceState;
   occupation: string | null;
-  income: string | number | null;
-  education: string | null;
   health: string | null;
   routines: InitialAgentRoutineLink[];
   decision_trees: InitialAgentDecisionTreeLink[];
@@ -155,6 +166,21 @@ export interface InitialAgentPage {
   page_size: number;
   pages: number;
   facets: InitialAgentFacets;
+  evidence_summary?: InitialPopulationEvidenceSummary | GlobalDemoSummaryData;
+  global_demo_summary?: GlobalDemoSummaryData;
+}
+
+export interface InitialAgentFieldCoverage {
+  measured: string[];
+  own_country_inherited: string[];
+  regional_imputed: string[];
+  estimated: string[];
+}
+
+export interface InitialPopulationEvidenceSummary {
+  country_agent_counts: Record<string, number>;
+  region_agent_counts: Record<string, number>;
+  fields: Record<string, InitialAgentFieldCoverage>;
 }
 
 export interface InitialAgentsClient {
@@ -165,6 +191,7 @@ export interface InitialAgentsClient {
 export interface InitialAgentsViewOptions {
   onOpenRoutine?: (routine: InitialAgentRoutineLink, agent: InitialAgentDetail) => void;
   onOpenDecisionTree?: (tree: InitialAgentDecisionTreeLink, agent: InitialAgentDetail) => void;
+  stateCatalog?: () => AgentStateCatalog | undefined;
 }
 
 const emptyQuery = (): InitialAgentQuery => ({
@@ -215,7 +242,6 @@ const isStringArray = (value: unknown): value is string[] =>
 const isListItem = (value: unknown): value is InitialAgentListItem =>
   isRecord(value) &&
   typeof value.agent_id === 'string' &&
-  typeof value.display_name === 'string' &&
   isStringArray(value.agent_types) &&
   (value.age === null || typeof value.age === 'number') &&
   typeof value.sex === 'string' &&
@@ -231,6 +257,23 @@ const isFacets = (value: unknown): value is InitialAgentFacets =>
   isStringArray(value.cities) &&
   isStringArray(value.family_statuses);
 
+const isCountRecord = (value: unknown): value is Record<string, number> =>
+  isRecord(value) && Object.values(value).every((count) => typeof count === 'number');
+
+const isFieldCoverage = (value: unknown): value is InitialAgentFieldCoverage =>
+  isRecord(value) &&
+  isStringArray(value.measured) &&
+  isStringArray(value.own_country_inherited) &&
+  isStringArray(value.regional_imputed) &&
+  isStringArray(value.estimated);
+
+const isEvidenceSummary = (value: unknown): value is InitialPopulationEvidenceSummary =>
+  isRecord(value) &&
+  isCountRecord(value.country_agent_counts) &&
+  isCountRecord(value.region_agent_counts) &&
+  isRecord(value.fields) &&
+  Object.values(value.fields).every(isFieldCoverage);
+
 const isPage = (value: unknown): value is InitialAgentPage =>
   isRecord(value) &&
   Array.isArray(value.items) &&
@@ -239,7 +282,11 @@ const isPage = (value: unknown): value is InitialAgentPage =>
   typeof value.page === 'number' &&
   typeof value.page_size === 'number' &&
   typeof value.pages === 'number' &&
-  isFacets(value.facets);
+  isFacets(value.facets) &&
+  (value.evidence_summary === undefined ||
+    isEvidenceSummary(value.evidence_summary) ||
+    isGlobalDemoSummaryData(value.evidence_summary)) &&
+  (value.global_demo_summary === undefined || isGlobalDemoSummaryData(value.global_demo_summary));
 
 const nullable = (value: unknown, kind: 'string' | 'number'): boolean =>
   value === null || typeof value === kind;
@@ -266,7 +313,6 @@ const isInteractionFactor = (value: unknown): value is InitialInteractionFactor 
 const isInteractionCounterpart = (value: unknown): value is InitialInteractionCounterpart =>
   isRecord(value) &&
   typeof value.target_agent_id === 'string' &&
-  typeof value.display_name === 'string' &&
   typeof value.relationship === 'string' &&
   typeof value.relationship_kind === 'string' &&
   typeof value.weight === 'number' &&
@@ -310,6 +356,9 @@ const isDetail = (value: unknown): value is InitialAgentDetail => {
     Array.isArray(fields.family_relationships) &&
     isRecord(fields.traits) &&
     isRecord(fields.initial_states) &&
+    isRecord(fields.education_profile) &&
+    isRecord(fields.state_vector) &&
+    isRecord(fields.finances) &&
     Array.isArray(fields.routines) &&
     Array.isArray(fields.decision_trees) &&
     (fields.interaction_context === undefined ||
@@ -355,6 +404,7 @@ export class InitialAgentsView {
   private detail: InitialAgentDetail | null = null;
   private requestVersion = 0;
   private disposed = false;
+  private globalDemoSummary?: GlobalDemoSummaryView;
 
   constructor(
     private readonly host: HTMLElement,
@@ -375,6 +425,7 @@ export class InitialAgentsView {
     this.host.removeEventListener('click', this.onClick);
     this.host.removeEventListener('submit', this.onSubmit);
     this.host.removeEventListener('change', this.onChange);
+    this.destroyGlobalDemoSummary();
   }
 
   refresh(): Promise<void> {
@@ -411,24 +462,30 @@ export class InitialAgentsView {
   }
 
   private renderLoading(message: string): void {
-    this.host.innerHTML = `<div class="initial-agents-state" role="status">${escapeHtml(message)}</div>`;
+    this.replaceContent(
+      `<div class="initial-agents-state" role="status">${escapeHtml(message)}</div>`,
+    );
   }
 
   private renderError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    this.host.innerHTML = `<div class="initial-agents-state initial-agents-error" role="alert"><strong>Initial agents unavailable</strong><span>${escapeHtml(message)}</span><button type="button" class="button secondary" data-initial-action="retry">Retry</button></div>`;
+    this.replaceContent(
+      `<div class="initial-agents-state initial-agents-error" role="alert"><strong>Initial agents unavailable</strong><span>${escapeHtml(message)}</span><button type="button" class="button secondary" data-initial-action="retry">Retry</button></div>`,
+    );
   }
 
   private renderList(): void {
     if (!this.page) return;
     const facets = this.page.facets;
-    this.host.innerHTML = `
+    const globalSummary = this.currentGlobalDemoSummary();
+    this.replaceContent(`
       <div class="initial-agents-heading">
         <div><span class="small-label">POPULATION BEFORE TICK ZERO</span><h2>Initial agents</h2><p>Inspect sampled people, linked households, routines, and decision trees.</p></div>
         <strong>${this.page.total.toLocaleString('en')} agents</strong>
       </div>
+      ${globalSummary ? '<div data-global-demo-summary></div>' : this.populationEvidenceSummary()}
       <form class="initial-agents-filters" data-initial-filters>
-        <label class="initial-agents-search">Search<input type="search" name="search" value="${escapeHtml(this.query.search)}" placeholder="Name, ID, occupation, or type" /></label>
+        <label class="initial-agents-search">Search<input type="search" name="search" value="${escapeHtml(this.query.search)}" placeholder="Agent ID, occupation, or type" /></label>
         <label>Agent type<select name="agent_type">${optionList(facets.agent_types, this.query.agent_type, 'All types')}</select></label>
         <label>Country<select name="country">${optionList(facets.countries, this.query.country, 'All countries')}</select></label>
         <label>City<select name="city">${optionList(facets.cities, this.query.city, 'All cities')}</select></label>
@@ -440,7 +497,59 @@ export class InitialAgentsView {
       </form>
       <div class="initial-agents-column-labels" aria-hidden="true"><span>Agent</span><span>Type</span><span>Demographics</span><span>Place</span><span>Household</span><span></span></div>
       <div class="initial-agents-list">${this.agentRows()}</div>
-      ${this.pagination()}`;
+      ${this.pagination()}`);
+    const summaryHost = this.host.querySelector<HTMLElement>('[data-global-demo-summary]');
+    if (globalSummary && summaryHost) {
+      this.globalDemoSummary = new GlobalDemoSummaryView(summaryHost, globalSummary);
+    }
+  }
+
+  private currentGlobalDemoSummary(): GlobalDemoSummaryData | null {
+    const direct = this.page?.global_demo_summary;
+    if (direct) return direct;
+    const evidence = this.page?.evidence_summary;
+    return evidence && isGlobalDemoSummaryData(evidence) ? evidence : null;
+  }
+
+  private destroyGlobalDemoSummary(): void {
+    this.globalDemoSummary?.destroy();
+    this.globalDemoSummary = undefined;
+  }
+
+  private replaceContent(markup: string): void {
+    this.destroyGlobalDemoSummary();
+    this.host.innerHTML = markup;
+  }
+
+  private populationEvidenceSummary(): string {
+    const summary = this.page?.evidence_summary;
+    if (!summary || isGlobalDemoSummaryData(summary)) return '';
+    const counts = (values: Record<string, number>) =>
+      Object.entries(values)
+        .map(
+          ([place, count]) =>
+            `<span><strong>${escapeHtml(place)}</strong><b>${count.toLocaleString('en')}</b></span>`,
+        )
+        .join('');
+    const places = (values: string[]) =>
+      values.length ? values.map(escapeHtml).join(', ') : 'None';
+    const fields = Object.entries(summary.fields)
+      .map(
+        ([
+          field,
+          coverage,
+        ]) => `<tr><th scope="row">${escapeHtml(displayValue(field).replace(/\b\w/g, (character) => character.toUpperCase()))}</th>
+          <td><small>Measured</small><span>${places(coverage.measured)}</span></td>
+          <td><small>Own-country inherited</small><span>${places(coverage.own_country_inherited)}</span></td>
+          <td><small>Regional imputed</small><span>${places(coverage.regional_imputed)}</span></td>
+          <td><small>Estimated</small><span>${places(coverage.estimated)}</span></td></tr>`,
+      )
+      .join('');
+    return `<section class="initial-population-evidence" role="region" aria-label="Global population evidence">
+      <header><div><span class="small-label">GLOBAL DEMO MIX</span><h3>Population evidence</h3></div><span>${Object.keys(summary.country_agent_counts).length} countries · ${Object.keys(summary.region_agent_counts).length} regions</span></header>
+      <div class="initial-population-place-counts"><div><small>Countries</small><p>${counts(summary.country_agent_counts)}</p></div><div><small>Regions</small><p>${counts(summary.region_agent_counts)}</p></div></div>
+      <div class="initial-population-evidence-table"><table><thead><tr><th scope="col">Field</th><th scope="col">Measured</th><th scope="col">Own-country inherited</th><th scope="col">Regional imputed</th><th scope="col">Estimated</th></tr></thead><tbody>${fields}</tbody></table></div>
+    </section>`;
   }
 
   private agentRows(): string {
@@ -451,8 +560,8 @@ export class InitialAgentsView {
       .map(
         (
           agent,
-        ) => `<button type="button" class="initial-agent-row" data-agent-id="${escapeHtml(agent.agent_id)}" aria-label="Open ${escapeHtml(agent.display_name)} initial state">
-          <span class="initial-agent-identity"><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(agent.agent_id)}</small></span>
+        ) => `<button type="button" class="initial-agent-row" data-agent-id="${escapeHtml(agent.agent_id)}" aria-label="Open ${escapeHtml(agent.agent_id)} initial state">
+          <span class="initial-agent-identity"><strong>${escapeHtml(agent.agent_id)}</strong><small>Synthetic agent ID</small></span>
           <span class="initial-agent-types">${agent.agent_types.map((value) => `<i>${escapeHtml(value)}</i>`).join('')}</span>
           <span><strong>${escapeHtml(ageLabel(agent.age))}</strong><small>${escapeHtml(displayValue(agent.sex))}</small></span>
           <span><strong>${escapeHtml(agent.city)}</strong><small>${escapeHtml(agent.country)} · ${escapeHtml(agent.current_location ?? 'Location unknown')}</small></span>
@@ -469,24 +578,28 @@ export class InitialAgentsView {
   }
 
   private renderDetail(agent: InitialAgentDetail): void {
-    this.host.innerHTML = `
+    this.replaceContent(`
       <button type="button" class="initial-agent-back" data-initial-action="back">← Back to initial agents</button>
       <div class="initial-agent-detail-heading">
-        <div><span class="small-label">INITIAL STATE · ${escapeHtml(agent.agent_id)}</span><h2>${escapeHtml(agent.display_name)}</h2><div class="initial-agent-type-pills">${agent.agent_types.map((value) => `<span>${escapeHtml(value)}</span>`).join('')}</div></div>
+        <div><span class="small-label">INITIAL STATE</span><h2>${escapeHtml(agent.agent_id)}</h2><div class="initial-agent-type-pills">${agent.agent_types.map((value) => `<span>${escapeHtml(value)}</span>`).join('')}</div></div>
         <div><span>${escapeHtml(ageLabel(agent.age))}</span><span>${escapeHtml(displayValue(agent.sex))}</span><span>${escapeHtml(displayValue(agent.family_status))}</span></div>
       </div>
       <section class="initial-agent-facts" aria-label="Core initial state">
-        ${this.fact('Country', agent.country)}${this.fact('City', agent.city)}${this.fact('Current location', agent.current_location)}${this.fact('Occupation', agent.occupation)}${this.fact('Income', agent.income)}${this.fact('Education', agent.education)}${this.fact('Health', agent.health)}${this.fact('Representative weight', agent.representative_weight)}
+        ${this.fact('Country', agent.country)}${this.fact('City', agent.city)}${this.fact('Current location', agent.current_location)}${this.fact('Occupation', agent.occupation)}${this.fact('Health', agent.health)}${this.fact('Representative weight', agent.representative_weight)}
       </section>
+      <div class="initial-agent-foundation-grid">
+        ${educationProfileMarkup(agent.education_profile)}
+        ${financeStateMarkup(agent.finances)}
+        ${stateVectorMarkup(agent.state_vector, this.options.stateCatalog?.())}
+      </div>
       ${this.interactions(agent)}
       <div class="initial-agent-detail-grid">
         ${this.household(agent)}
         ${this.family(agent)}
         ${this.links(agent)}
-        ${this.recordSection('Traits', agent.traits)}
-        ${this.recordSection('Initial states', agent.initial_states)}
+        ${this.recordSection('Decision traits', this.decisionTraits(agent.traits))}
         ${this.location(agent.location)}
-      </div>`;
+      </div>`);
   }
 
   private fact(label: string, value: unknown): string {
@@ -543,8 +656,8 @@ export class InitialAgentsView {
     const rules = counterpart.applicable_rule_ids.length
       ? `Current rules: ${counterpart.applicable_rule_ids.map(displayValue).join(', ')}`
       : 'No confirmed rule is currently applicable';
-    return `<button type="button" class="initial-interaction-counterpart" data-agent-id="${escapeHtml(counterpart.target_agent_id)}" aria-label="Open ${escapeHtml(counterpart.display_name)} interaction counterpart">
-      <span class="initial-interaction-counterpart-heading"><span><strong>${escapeHtml(counterpart.display_name)}</strong><small>${escapeHtml(displayValue(counterpart.relationship))} · ${escapeHtml(displayValue(counterpart.relationship_kind))}</small></span><i class="is-${escapeHtml(counterpart.in_person_eligibility)}">${escapeHtml(eligibility)}</i></span>
+    return `<button type="button" class="initial-interaction-counterpart" data-agent-id="${escapeHtml(counterpart.target_agent_id)}" aria-label="Open ${escapeHtml(counterpart.target_agent_id)} interaction counterpart">
+      <span class="initial-interaction-counterpart-heading"><span><strong>${escapeHtml(counterpart.target_agent_id)}</strong><small>${escapeHtml(displayValue(counterpart.relationship))} · ${escapeHtml(displayValue(counterpart.relationship_kind))}</small></span><i class="is-${escapeHtml(counterpart.in_person_eligibility)}">${escapeHtml(eligibility)}</i></span>
       <span class="initial-interaction-gates"><b>${escapeHtml(colocation)}</b><small>${escapeHtml(counterpart.specific_place ?? 'Actor place unknown')} ↔ ${escapeHtml(counterpart.target_specific_place ?? 'Counterpart place unknown')}</small></span>
       <span class="initial-interaction-measures"><small>Weight <b>${counterpart.weight.toFixed(2)}</b></small><small>Trust <b>${counterpart.trust === null ? 'Unknown' : counterpart.trust.toFixed(2)}</b></small><small>Similarity <b>${counterpart.similarity === null ? 'Unknown' : counterpart.similarity.toFixed(2)}</b></small></span>
       <span class="initial-interaction-evidence"><b>${escapeHtml(displayValue(counterpart.evidence.status))}</b><small>${provenance}</small><small>${escapeHtml(rules)}</small><small>${escapeHtml(counterpart.eligibility_reason)}</small></span>
@@ -568,7 +681,7 @@ export class InitialAgentsView {
     return `<section class="initial-agent-card initial-agent-household" aria-label="Household ${escapeHtml(agent.household.household_id)}"><div class="initial-agent-card-heading"><span class="small-label">HOUSEHOLD</span><strong>${escapeHtml(agent.household.household_id)}</strong></div><div>${agent.household.members
       .map(
         (member) =>
-          `<button type="button" data-agent-id="${escapeHtml(member.agent_id)}"${member.agent_id === agent.agent_id ? ' disabled' : ''}><span><strong>${escapeHtml(member.display_name)}</strong><small>${escapeHtml(member.relationship)} · ${escapeHtml(ageLabel(member.age))}</small></span><i>${escapeHtml(member.agent_types.join(' · '))}</i></button>`,
+          `<button type="button" data-agent-id="${escapeHtml(member.agent_id)}"${member.agent_id === agent.agent_id ? ' disabled' : ''}><span><strong>${escapeHtml(member.agent_id)}</strong><small>${escapeHtml(member.relationship)} · ${escapeHtml(ageLabel(member.age))}</small></span><i>${escapeHtml(member.agent_types.join(' · '))}</i></button>`,
       )
       .join('')}</div></section>`;
   }
@@ -578,7 +691,7 @@ export class InitialAgentsView {
       ? agent.family_relationships
           .map(
             (relationship) =>
-              `<button type="button" data-agent-id="${escapeHtml(relationship.target_agent_id)}"><span><strong>${escapeHtml(relationship.display_name)}</strong><small>${escapeHtml(relationship.relationship)} · ${escapeHtml(ageLabel(relationship.age))}</small></span><i>Weight ${relationship.weight.toFixed(2)}</i></button>`,
+              `<button type="button" data-agent-id="${escapeHtml(relationship.target_agent_id)}"><span><strong>${escapeHtml(relationship.target_agent_id)}</strong><small>${escapeHtml(relationship.relationship)} · ${escapeHtml(ageLabel(relationship.age))}</small></span><i>Weight ${relationship.weight.toFixed(2)}</i></button>`,
           )
           .join('')
       : '<p>No family relationships linked.</p>';
@@ -614,6 +727,36 @@ export class InitialAgentsView {
       )
       .join('');
     return `<section class="initial-agent-card initial-agent-record"><span class="small-label">${escapeHtml(title.toUpperCase())}</span><dl>${rows || '<div><dt>None recorded</dt><dd>—</dd></div>'}</dl></section>`;
+  }
+
+  private decisionTraits(traits: Record<string, unknown>): Record<string, unknown> {
+    const reservedKeys = new Set([
+      'name',
+      'years_of_education',
+      'education_isced',
+      'education_country_label',
+      'education_mapping_version',
+      'specialization_threshold_years',
+      'specialization',
+      'education_status',
+      'education_source',
+      'education_source_date',
+      'education_source_population',
+      'education_uncertainty',
+      'education_default_reason',
+      'finance_currency',
+      'finance_status',
+      'finance_source',
+      'finance_source_version',
+      'finance_source_date',
+      'finance_source_place',
+      'finance_source_population',
+      'finance_uncertainty',
+      'finance_default_reason',
+      'finance_distribution_id',
+      'finance_cell_id',
+    ]);
+    return Object.fromEntries(Object.entries(traits).filter(([key]) => !reservedKeys.has(key)));
   }
 
   private location(location: InitialAgentLocation): string {

@@ -118,6 +118,16 @@ def canonical_feature_registry() -> FeatureRegistry:
             ["0", "1", "2", "3", "4", "5", "6", "7", "8", "unknown"],
             "UNESCO ISCED 2011 levels",
         ),
+        categorical(
+            "specialization",
+            [f"{code:02d}" for code in range(11)],
+            "UNESCO ISCED-F 2013 broad fields",
+            name="Field-of-study specialization",
+            description=(
+                "Field of education or vocational specialization for people who meet the "
+                "recorded education threshold, mapped to ISCED-F 2013 broad fields."
+            ),
+        ),
         *[axis.definition for axis in canonical_ideology_axes()],
         categorical(
             "occupation_isco",

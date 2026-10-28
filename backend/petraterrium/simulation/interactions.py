@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import date
 from math import ceil
 from threading import RLock
@@ -19,6 +20,7 @@ InteractionDirection = Literal["either", "initiator", "target"]
 FactorStatus = Literal[
     "measured_joint",
     "fitted_model",
+    "default_estimated",
     "approved_estimate",
     "unknown",
     "label_only",
@@ -45,6 +47,8 @@ class InteractionFactorProvenance(InteractionModel):
     def executable(self) -> bool:
         if self.status in {"measured_joint", "fitted_model"}:
             return self.source_date is not None and self.evidence_id is not None
+        if self.status == "default_estimated":
+            return self.evidence_id is not None
         return (
             self.status == "approved_estimate"
             and self.user_approved
@@ -354,7 +358,12 @@ class InteractionRequest(InteractionModel):
             raise ValueError(
                 f"Interaction rules reference missing trees: {', '.join(missing_trees)}"
             )
-        predictive_statuses = {"measured_joint", "fitted_model", "approved_estimate"}
+        predictive_statuses = {
+            "measured_joint",
+            "fitted_model",
+            "default_estimated",
+            "approved_estimate",
+        }
         incomplete_factors = sorted(
             factor.id
             for rule in self.rules
@@ -407,9 +416,7 @@ class InteractionListItem(InteractionModel):
     interaction_type: str
     channel: InteractionChannel
     initiator_id: str
-    initiator_name: str
     target_id: str
-    target_name: str
     place_id: str
     relationship_type: str
     probability: float = Field(ge=0, le=1)
@@ -435,7 +442,7 @@ class InteractionEventDetail(InteractionListItem):
 
 
 class InteractionFacets(InteractionModel):
-    agents: dict[str, str]
+    agents: tuple[str, ...]
     interaction_types: tuple[str, ...]
     channels: tuple[InteractionChannel, ...]
     relationships: tuple[str, ...]
@@ -480,11 +487,13 @@ class InteractionCatalog:
             sorted(events, key=lambda event: (event.tick, event.event_id), reverse=True)
         )
         self._by_id = by_id
-        self._names = {event.initiator_id: event.initiator_name for event in self._events} | {
-            event.target_id: event.target_name for event in self._events
+        agent_ids = {
+            agent_id
+            for event in self._events
+            for agent_id in (event.initiator_id, event.target_id)
         }
         self._facets = InteractionFacets(
-            agents=dict(sorted(self._names.items(), key=lambda item: item[1].casefold())),
+            agents=tuple(sorted(agent_ids)),
             interaction_types=tuple(sorted({event.interaction_type for event in self._events})),
             channels=tuple(sorted({event.channel for event in self._events})),
             relationships=tuple(sorted({event.relationship_type for event in self._events})),
@@ -499,25 +508,20 @@ class InteractionCatalog:
     def from_rust_output(
         cls,
         output: Mapping[str, Any],
-        agent_names: Mapping[str, str] | None = None,
     ) -> InteractionCatalog:
-        names = agent_names or {}
         raw_events = output.get("events", [])
         if not isinstance(raw_events, Sequence) or isinstance(raw_events, (str, bytes)):
             raise ValueError("Rust interaction output events must be a list")
-        events = [cls._parse_event(raw, index, names) for index, raw in enumerate(raw_events)]
+        events = [cls._parse_event(raw, index) for index, raw in enumerate(raw_events)]
         return cls(events)
 
     @staticmethod
     def _parse_event(
         raw: Any,
         index: int,
-        names: Mapping[str, str],
     ) -> InteractionEventDetail:
         if not isinstance(raw, Mapping):
             raise ValueError(f"Rust interaction event {index} must be an object")
-        initiator_id = str(raw.get("initiator_id", ""))
-        target_id = str(raw.get("target_id", ""))
         identity = hashlib.sha256(
             json.dumps(
                 raw,
@@ -532,8 +536,6 @@ class InteractionCatalog:
         payload.update(
             {
                 "event_id": identity,
-                "initiator_name": names.get(initiator_id, initiator_id),
-                "target_name": names.get(target_id, target_id),
                 "effect_count": len(state_deltas) + len(relationship_deltas),
             }
         )
@@ -592,8 +594,8 @@ class InteractionCatalog:
         if search and not any(
             search in value.casefold()
             for value in (
-                event.initiator_name,
-                event.target_name,
+                event.initiator_id,
+                event.target_id,
                 event.interaction_type,
                 event.place_id,
                 event.relationship_type,
@@ -613,7 +615,7 @@ class InteractionCatalog:
                 other_id = (
                     event.target_id if event.initiator_id == selected_agent else event.initiator_id
                 )
-                counterparties[self._names.get(other_id, other_id)] += 1
+                counterparties[other_id] += 1
         return InteractionBreakdown(
             by_relationship=dict(Counter(event.relationship_type for event in events)),
             by_channel=dict(Counter(event.channel for event in events)),
@@ -622,33 +624,152 @@ class InteractionCatalog:
         )
 
 
+class StreamingInteractionCatalog:
+    def __init__(self, events: Callable[[], Iterable[Mapping[str, Any]]]):
+        self._events = events
+
+    def query(self, query: InteractionQuery) -> InteractionPage:
+        agents = set()
+        interaction_types = set()
+        channels = set()
+        relationships = set()
+        places = set()
+        relationship_counts = Counter()
+        channel_counts = Counter()
+        place_counts = Counter()
+        counterparty_counts = Counter()
+        total = 0
+        end = query.page * query.page_size
+        retained: list[tuple[tuple[int, str], int, InteractionEventDetail]] = []
+        for index, raw in enumerate(self._events()):
+            event = InteractionCatalog._parse_event(raw, index)
+            agents.update((event.initiator_id, event.target_id))
+            interaction_types.add(event.interaction_type)
+            channels.add(event.channel)
+            relationships.add(event.relationship_type)
+            places.add(event.place_id)
+            if not InteractionCatalog._matches(event, query):
+                continue
+            total += 1
+            relationship_counts[event.relationship_type] += 1
+            channel_counts[event.channel] += 1
+            place_counts[event.place_id] += 1
+            if query.agent_id:
+                other_id = (
+                    event.target_id
+                    if event.initiator_id == query.agent_id
+                    else event.initiator_id
+                )
+                counterparty_counts[other_id] += 1
+            retained_event = ((event.tick, event.event_id), index, event)
+            if len(retained) < end:
+                heapq.heappush(retained, retained_event)
+            elif retained_event[:2] > retained[0][:2]:
+                heapq.heapreplace(retained, retained_event)
+        start = (query.page - 1) * query.page_size
+        selected = [
+            entry[2]
+            for entry in sorted(retained, key=lambda entry: entry[:2], reverse=True)[
+                start:end
+            ]
+        ]
+        fields = InteractionListItem.model_fields
+        return InteractionPage(
+            items=tuple(
+                InteractionListItem(
+                    **{field: getattr(event, field) for field in fields}
+                )
+                for event in selected
+            ),
+            total=total,
+            page=query.page,
+            page_size=query.page_size,
+            pages=ceil(total / query.page_size) if total else 0,
+            facets=InteractionFacets(
+                agents=tuple(sorted(agents)),
+                interaction_types=tuple(sorted(interaction_types)),
+                channels=tuple(sorted(channels)),
+                relationships=tuple(sorted(relationships)),
+                places=tuple(sorted(places)),
+            ),
+            breakdown=InteractionBreakdown(
+                by_relationship=dict(relationship_counts),
+                by_channel=dict(channel_counts),
+                by_place=dict(place_counts),
+                by_counterparty=dict(counterparty_counts),
+            ),
+        )
+
+    def detail(self, event_id: str) -> InteractionEventDetail:
+        for index, raw in enumerate(self._events()):
+            event = InteractionCatalog._parse_event(raw, index)
+            if event.event_id == event_id:
+                return event
+        raise KeyError(f"Unknown interaction event {event_id}")
+
+
 class InteractionRunRegistry:
     def __init__(self):
-        self._catalogs: dict[str, InteractionCatalog] = {}
+        self._catalogs: dict[
+            str, InteractionCatalog | StreamingInteractionCatalog
+        ] = {}
+        self._loaders: dict[str, Callable[[], Mapping[str, Any]]] = {}
         self._lock = RLock()
 
     def record(
         self,
         run_id: str,
         rust_output: Mapping[str, Any],
-        agent_names: Mapping[str, str] | None = None,
     ) -> InteractionCatalog:
-        catalog = InteractionCatalog.from_rust_output(rust_output, agent_names)
+        catalog = InteractionCatalog.from_rust_output(rust_output)
         with self._lock:
             existing = self._catalogs.get(run_id)
-            if existing is not None:
+            if isinstance(existing, InteractionCatalog):
                 events = {event.event_id: event for event in existing.events}
                 events.update({event.event_id: event for event in catalog.events})
                 catalog = InteractionCatalog(tuple(events.values()))
             self._catalogs[run_id] = catalog
+            self._loaders.pop(run_id, None)
         return catalog
 
-    def catalog(self, run_id: str) -> InteractionCatalog:
+    def register_loader(
+        self,
+        run_id: str,
+        loader: Callable[[], Mapping[str, Any]],
+    ) -> None:
         with self._lock:
-            try:
-                return self._catalogs[run_id]
-            except KeyError as error:
-                raise KeyError(f"No interactions recorded for run {run_id}") from error
+            if run_id not in self._catalogs:
+                self._loaders[run_id] = loader
+
+    def register_event_loader(
+        self,
+        run_id: str,
+        loader: Callable[[], Iterable[Mapping[str, Any]]],
+    ) -> None:
+        with self._lock:
+            if run_id not in self._catalogs:
+                self._catalogs[run_id] = StreamingInteractionCatalog(loader)
+                self._loaders.pop(run_id, None)
+
+    def catalog(
+        self, run_id: str
+    ) -> InteractionCatalog | StreamingInteractionCatalog:
+        with self._lock:
+            catalog = self._catalogs.get(run_id)
+            loader = self._loaders.get(run_id)
+            if catalog is not None:
+                return catalog
+            if loader is not None:
+                loader()
+                catalog = self._catalogs.get(run_id)
+                if catalog is not None:
+                    return catalog
+        raise KeyError(f"No interactions recorded for run {run_id}")
+
+    def discard(self, run_id: str) -> None:
+        with self._lock:
+            self._catalogs.pop(run_id, None)
+            self._loaders.pop(run_id, None)
 
 
 def create_interaction_router(registry: InteractionRunRegistry) -> APIRouter:

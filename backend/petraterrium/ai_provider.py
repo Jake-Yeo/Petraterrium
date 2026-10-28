@@ -23,6 +23,22 @@ OutputT = TypeVar("OutputT")
 TEST_SENTINEL = "PETRATERRIUM_AI_TEST_OK"
 
 
+def _strict_output_schema(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_strict_output_schema(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    schema = {key: _strict_output_schema(item) for key, item in value.items()}
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        schema["required"] = list(properties)
+    if schema.get("type") == "object":
+        schema.setdefault("additionalProperties", False)
+    if schema.get("default", ...) is None:
+        schema.pop("default")
+    return schema
+
+
 class AIProviderError(RuntimeError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -81,7 +97,7 @@ class SelectedAIProvider:
                 settings,
                 system_prompt,
                 user_prompt,
-                response_schema=response_format.model_json_schema(),
+                response_schema=_strict_output_schema(response_format.model_json_schema()),
             )
             try:
                 parsed = response_format.model_validate_json(raw)
@@ -149,8 +165,6 @@ class SelectedAIProvider:
                     "--skip-git-repo-check",
                     "--sandbox",
                     "read-only",
-                    "--ask-for-approval",
-                    "never",
                     "--color",
                     "never",
                     "--model",

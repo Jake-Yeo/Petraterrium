@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import threading
+from copy import deepcopy
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -124,6 +125,60 @@ class SimulationRegistryStore:
     def resolved_agent_types(self) -> ResolvedAgentTypeRegistry:
         registry = self.agent_types()
         return registry.resolved if registry else ResolvedAgentTypeRegistry(types=[])
+
+    def payload_snapshot(self) -> dict:
+        with self._lock:
+            return deepcopy(self._payload())
+
+    def default_dsl_receipt(self):
+        from .default_dsl import DefaultDslReceipt
+
+        with self._lock:
+            value = self._payload().get("default_dsl")
+            return (
+                DefaultDslReceipt.model_validate_json(json.dumps(value))
+                if value
+                else None
+            )
+
+    def install_default_dsl_if_fresh(
+        self,
+        sections: dict,
+        receipt: dict,
+    ) -> bool:
+        with self._lock:
+            payload = self._payload()
+            managed_sections = tuple(receipt["managed_sections"])
+            if payload.get("default_dsl") is not None:
+                return False
+            if any(section in payload for section in managed_sections):
+                return False
+            for section in managed_sections:
+                payload[section] = deepcopy(sections[section])
+            payload["default_dsl"] = deepcopy(receipt)
+            self._write(payload)
+            return True
+
+    def replace_default_dsl(
+        self,
+        sections: dict,
+        receipt: dict,
+    ) -> None:
+        with self._lock:
+            payload = self._payload()
+            prior = payload.get("default_dsl")
+            prior_sections = (
+                tuple(prior.get("managed_sections", ()))
+                if isinstance(prior, dict)
+                else ()
+            )
+            managed_sections = tuple(receipt["managed_sections"])
+            for section in set(prior_sections) - set(managed_sections):
+                payload.pop(section, None)
+            for section in managed_sections:
+                payload[section] = deepcopy(sections[section])
+            payload["default_dsl"] = deepcopy(receipt)
+            self._write(payload)
 
     def save_agent_types(self, registry: ConfirmedAgentTypeRegistry) -> ConfirmedAgentTypeRegistry:
         with self._lock:

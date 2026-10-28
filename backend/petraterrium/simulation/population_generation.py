@@ -29,7 +29,6 @@ class EvidenceReference(InitialPopulationModel):
 
 class HouseholdMemberSeed(InitialPopulationModel):
     member_id: str = Field(min_length=1)
-    name: str | None = Field(default=None, min_length=1)
     age: int = Field(ge=0, le=125)
     sex: str = Field(min_length=1)
     relationship_to_reference: Literal[
@@ -245,7 +244,7 @@ def _validate_template(
                 issue(
                     "parent_too_young",
                     f"{member_path}.age",
-                    f"Parent {member.name or member.member_id!r} is younger than 16",
+                    f"Parent {member.member_id!r} is younger than 16",
                 )
             )
         if role == "partner" and member.age < 16:
@@ -253,15 +252,15 @@ def _validate_template(
                 issue(
                     "spouse_too_young",
                     f"{member_path}.age",
-                    f"Spouse {member.name or member.member_id!r} is younger than 16",
+                    f"Spouse {member.member_id!r} is younger than 16",
                 )
             )
     for child in children:
         for parent in parents:
             if child.age >= parent.age:
                 message = (
-                    f"Child {child.name or child.member_id!r} is not younger than "
-                    f"parent {parent.name or parent.member_id!r}"
+                    f"Child {child.member_id!r} is not younger than "
+                    f"parent {parent.member_id!r}"
                 )
                 issues.append(
                     issue(
@@ -272,8 +271,8 @@ def _validate_template(
                 )
             elif parent.age - child.age < 12:
                 message = (
-                    f"Parent {parent.name or parent.member_id!r} is less than 12 years "
-                    f"older than child {child.name or child.member_id!r}"
+                    f"Parent {parent.member_id!r} is less than 12 years "
+                    f"older than child {child.member_id!r}"
                 )
                 issues.append(
                     issue(
@@ -468,11 +467,6 @@ def _select_households(
     return selected
 
 
-def _unique_name(base: str, used: Counter[str]) -> str:
-    used[base] += 1
-    return base if used[base] == 1 else f"{base} {used[base]}"
-
-
 def _provenance(
     member: HouseholdMemberSeed,
     template: HouseholdSeed,
@@ -505,7 +499,6 @@ def _household_agents(
     input_hash: str,
     household_index: int,
     first_agent_index: int,
-    used_names: Counter[str],
     evidence_by_id: dict[str, EvidenceReference],
     relationship_evidence_by_kind: dict[str, RelationshipKindEvidence],
 ) -> tuple[list[AgentRecord], dict[str, AgentInitialStateProvenance]]:
@@ -531,13 +524,9 @@ def _household_agents(
             for target in members
             if target.member_id != member.member_id
         }
-        name = _unique_name(
-            member.name or f"Agent {first_agent_index + offset + 1}", used_names
-        )
         specific_place = f"home:{household_id}"
         traits = {
             **member.traits,
-            "name": name,
             "age": member.age,
             "sex": member.sex,
             "agent_type": member.agent_types[0],
@@ -698,6 +687,14 @@ def validate_initial_population(population: PopulationTable) -> InitialPopulatio
     signatures: dict[str, str] = {}
     for index, agent in enumerate(population.agents):
         path = f"agents.{index}"
+        if "name" in agent.traits:
+            issues.append(
+                issue(
+                    "agent_name_not_allowed",
+                    f"{path}.traits.name",
+                    "Population agents use agent_id only and cannot carry a name",
+                )
+            )
         age = agent.traits.get("age")
         if isinstance(age, bool) or not isinstance(age, int):
             issues.append(
@@ -917,14 +914,12 @@ def materialize_initial_population(
     }
     agents: list[AgentRecord] = []
     provenance: dict[str, AgentInitialStateProvenance] = {}
-    used_names: Counter[str] = Counter()
     for household_index, template in enumerate(selected):
         household_agents, household_provenance = _household_agents(
             template,
             input_hash,
             household_index,
             len(agents),
-            used_names,
             evidence_by_id,
             relationship_evidence_by_kind,
         )

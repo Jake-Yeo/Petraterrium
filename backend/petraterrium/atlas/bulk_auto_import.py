@@ -117,6 +117,21 @@ class BulkImportOutcome(Contract):
     payload_reference: str | None = None
     trace_reference: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def readable_legacy_unresolved(cls, value):
+        if not isinstance(value, dict) or value.get("evidence_status") != "unresolved":
+            return value
+        normalized = dict(value)
+        if normalized.get("summary") in {
+            "No credible distribution found",
+            "No data found",
+        }:
+            normalized["summary"] = (
+                "Retry with another source or engine to produce an estimated draft"
+            )
+        return normalized
+
     @model_validator(mode="after")
     def honest_evidence(self) -> "BulkImportOutcome":
         if self.confidence_interval is not None:

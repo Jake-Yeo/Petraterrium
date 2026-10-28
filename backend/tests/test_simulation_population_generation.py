@@ -69,7 +69,6 @@ def family_household() -> HouseholdSeed:
         members=[
             HouseholdMemberSeed(
                 member_id="reference",
-                name="Avery",
                 age=40,
                 sex="male",
                 relationship_to_reference="self",
@@ -86,7 +85,6 @@ def family_household() -> HouseholdSeed:
             ),
             HouseholdMemberSeed(
                 member_id="spouse",
-                name="Morgan",
                 age=39,
                 sex="female",
                 relationship_to_reference="spouse",
@@ -102,7 +100,6 @@ def family_household() -> HouseholdSeed:
             ),
             HouseholdMemberSeed(
                 member_id="child-four",
-                name="Mira",
                 age=4,
                 sex="female",
                 relationship_to_reference="child",
@@ -118,7 +115,6 @@ def family_household() -> HouseholdSeed:
             ),
             HouseholdMemberSeed(
                 member_id="child-six",
-                name="Noah",
                 age=6,
                 sex="male",
                 relationship_to_reference="child",
@@ -150,9 +146,8 @@ def request(seed: int = 23, target_agents: int = 4) -> InitialPopulationRequest:
 def alternate_family_household() -> HouseholdSeed:
     original = family_household()
     ages = [55, 52, 14, 16]
-    names = ["Jordan", "Robin", "Casey", "Riley"]
     members = [
-        member.model_copy(update={"age": ages[index], "name": names[index]})
+        member.model_copy(update={"age": ages[index]})
         for index, member in enumerate(original.members)
     ]
     return original.model_copy(
@@ -183,18 +178,10 @@ def test_joint_household_materializes_four_linked_agents_instead_of_clones() -> 
     assert len(result.population.agents) == 4
     assert len({agent.agent_id for agent in result.population.agents}) == 4
     assert {agent.traits["age"] for agent in result.population.agents} == {4, 6, 39, 40}
-    assert {agent.traits["name"] for agent in result.population.agents} == {
-        "Avery",
-        "Mira",
-        "Morgan",
-        "Noah",
-    }
+    assert all("name" not in agent.traits for agent in result.population.agents)
     assert len({agent.traits["initial_state_key"] for agent in result.population.agents}) == 4
 
-    by_name = {agent.traits["name"]: agent for agent in result.population.agents}
-    reference = by_name["Avery"]
-    spouse = by_name["Morgan"]
-    children = [by_name["Mira"], by_name["Noah"]]
+    reference, spouse, *children = result.population.agents
     assert reference.traits["family_status"] == "parent"
     assert spouse.traits["family_status"] == "parent"
     assert {child.traits["family_status"] for child in children} == {"child"}
@@ -317,7 +304,6 @@ def base_agent(
         role="FamilyMember",
         log_tier="spotlight",
         traits={
-            "name": agent_id,
             "age": age,
             "sex": "unknown",
             "household_id": household_id,

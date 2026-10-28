@@ -1,6 +1,10 @@
 import './agent-type-graph.css';
 
 import type { AgentTypeProposalAudit } from './agent-type-proposal';
+import {
+  agentStateDefinitionsMarkup,
+  type AgentStateSystem,
+} from './agent-state-view';
 
 export interface AgentTypeGraphMemberDefinition {
   id: string;
@@ -31,6 +35,7 @@ export interface AgentTypeGraphNode {
 export interface AgentTypeGraphOptions {
   types: AgentTypeGraphNode[];
   audit?: AgentTypeProposalAudit;
+  stateSystem?: AgentStateSystem;
   selectedTypeId?: string;
   onSelectionChange?: (agentType: AgentTypeGraphNode) => void;
   onModeChange?: (mode: AgentTypeGraphMode, agentType: AgentTypeGraphNode) => void;
@@ -237,6 +242,7 @@ function detailMarkup(
   agentType: AgentTypeGraphNode | null,
   byId: Map<string, AgentTypeGraphNode>,
   audit?: AgentTypeProposalAudit,
+  stateSystem?: AgentStateSystem,
 ): string {
   if (!agentType) {
     return '<div class="agent-type-detail-empty">Select an agent type to inspect its definitions.</div>';
@@ -267,6 +273,11 @@ function detailMarkup(
     ${membersMarkup('Traits', agentType.traits, byId)}
     ${membersMarkup('Routines', agentType.routines, byId)}
     ${membersMarkup('Decisions', agentType.decisions, byId)}
+    ${
+      stateSystem
+        ? `<details class="agent-type-state-system"><summary>State definitions, formulas, and loops</summary>${agentStateDefinitionsMarkup(stateSystem)}</details>`
+        : ''
+    }
   `;
 }
 
@@ -309,7 +320,7 @@ export function mountAgentTypeGraph(
           .map((issue) => `<li>${escapeHtml(issue)}</li>`)
           .join('')}</ul></div>`
       : mode === 'inheritance'
-        ? `<div class="agent-type-graph-layout">${graphMarkup(types, selectedTypeId)}<aside data-agent-type-detail>${detailMarkup(current, byId, options.audit)}</aside></div>`
+        ? `<div class="agent-type-graph-layout">${graphMarkup(types, selectedTypeId)}<aside data-agent-type-detail>${detailMarkup(current, byId, options.audit, options.stateSystem)}</aside></div>`
         : `<div class="agent-type-decision-view"><div class="agent-type-decision-heading"><span>Selected type</span><strong>${escapeHtml(current?.name ?? 'None')}</strong></div><div data-agent-type-decision-host></div></div>`;
     root.innerHTML = `
       <header class="agent-type-graph-header">

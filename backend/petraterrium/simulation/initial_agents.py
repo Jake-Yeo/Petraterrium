@@ -7,12 +7,32 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..population import AgentRecord, PopulationTable
+from . import initial_agent_summary
+from .agent_state import (
+    AgentStateVector,
+    EducationProfile,
+    FinanceState,
+    education_profile_from_values,
+    finance_state_from_values,
+    state_vector_from_values,
+)
 from .interactions import (
     InteractionFactor,
     InteractionFactorProvenance,
     InteractionProgramDefinition,
     InteractionRule,
 )
+
+InitialAgentDeviation = initial_agent_summary.InitialAgentDeviation
+InitialAgentDistribution = initial_agent_summary.InitialAgentDistribution
+InitialAgentDistributionBin = initial_agent_summary.InitialAgentDistributionBin
+InitialAgentFieldCoverage = initial_agent_summary.InitialAgentFieldCoverage
+InitialAgentFieldPlaceEvidence = initial_agent_summary.InitialAgentFieldPlaceEvidence
+InitialAgentGlobalInteractionSummary = (
+    initial_agent_summary.InitialAgentGlobalInteractionSummary
+)
+InitialAgentPlaceComparison = initial_agent_summary.InitialAgentPlaceComparison
+InitialPopulationEvidenceSummary = initial_agent_summary.InitialPopulationEvidenceSummary
 
 
 class InitialAgentModel(BaseModel):
@@ -43,7 +63,6 @@ class DecisionTreeLink(InitialAgentModel):
 
 class FamilyRelationship(InitialAgentModel):
     target_agent_id: str
-    display_name: str
     relationship: str
     age: float | None = Field(default=None, ge=0)
     weight: float = Field(ge=-1, le=1)
@@ -61,7 +80,6 @@ class InitialInteractionEvidence(InitialAgentModel):
 
 class InitialInteractionCounterpart(InitialAgentModel):
     target_agent_id: str
-    display_name: str
     relationship: str
     relationship_kind: str
     weight: float = Field(ge=-1, le=1)
@@ -106,7 +124,6 @@ class InitialInteractionContext(InitialAgentModel):
 
 class HouseholdMember(InitialAgentModel):
     agent_id: str
-    display_name: str
     age: float | None = Field(default=None, ge=0)
     relationship: str
     agent_types: list[str]
@@ -119,7 +136,6 @@ class AgentHousehold(InitialAgentModel):
 
 class InitialAgentListItem(InitialAgentModel):
     agent_id: str
-    display_name: str
     agent_types: list[str] = Field(min_length=1)
     age: float | None = Field(default=None, ge=0)
     sex: str
@@ -137,9 +153,10 @@ class InitialAgentDetail(InitialAgentListItem):
     family_relationships: list[FamilyRelationship]
     traits: dict[str, Any]
     initial_states: dict[str, str]
+    education_profile: EducationProfile
+    state_vector: AgentStateVector
+    finances: FinanceState
     occupation: str | None = None
-    income: str | int | float | None = None
-    education: str | None = None
     health: str | None = None
     routines: list[RoutineLink]
     decision_trees: list[DecisionTreeLink]
@@ -180,6 +197,7 @@ class InitialAgentPage(InitialAgentModel):
     page_size: int = Field(ge=1)
     pages: int = Field(ge=0)
     facets: InitialAgentFacets
+    evidence_summary: InitialPopulationEvidenceSummary
 
 
 def text_trait(agent: AgentRecord, key: str) -> str | None:
@@ -471,8 +489,6 @@ def _interaction_context(
         counterparts.append(
             InitialInteractionCounterpart(
                 target_agent_id=relationship.target_id,
-                display_name=(text_trait(target, "name") if target else None)
-                or f"Agent {relationship.target_id[:8]}",
                 relationship=str(labels.get(relationship.target_id, relationship.kind)),
                 relationship_kind=relationship.kind,
                 weight=relationship.weight,
@@ -505,7 +521,7 @@ def _interaction_context(
         ),
         counterparts=sorted(
             counterparts,
-            key=lambda counterpart: (counterpart.display_name, counterpart.target_agent_id),
+            key=lambda counterpart: counterpart.target_agent_id,
         ),
         rules=[
             _rule_view(rule, relationship_kinds, colocation_keys, place_kind)
@@ -515,12 +531,16 @@ def _interaction_context(
 
 
 class InitialAgentCatalog:
-    def __init__(self, records: Sequence[InitialAgentDetail]):
+    def __init__(
+        self,
+        records: Sequence[InitialAgentDetail],
+        evidence_summary: InitialPopulationEvidenceSummary | None = None,
+    ):
         by_id = {record.agent_id: record for record in records}
         if len(by_id) != len(records):
             raise ValueError("Initial agent IDs must be unique")
         self._records = tuple(
-            sorted(records, key=lambda record: (record.display_name, record.agent_id))
+            sorted(records, key=lambda record: record.agent_id)
         )
         self._by_id = by_id
         self._facets = InitialAgentFacets(
@@ -528,6 +548,10 @@ class InitialAgentCatalog:
             countries=sorted({record.country for record in records}),
             cities=sorted({record.city for record in records}),
             family_statuses=sorted({record.family_status for record in records}),
+        )
+        self._evidence_summary = (
+            evidence_summary
+            or initial_agent_summary.population_evidence_summary(self._records)
         )
 
     @classmethod
@@ -557,7 +581,14 @@ class InitialAgentCatalog:
             )
             for agent in population.agents
         ]
-        return cls(records)
+        evidence_summary = (
+            initial_agent_summary.global_population_evidence_summary(
+                population, interaction_program
+            )
+            if initial_agent_summary.is_global_demo_population(population)
+            else initial_agent_summary.population_evidence_summary(records)
+        )
+        return cls(records, evidence_summary)
 
     @staticmethod
     def _record(
@@ -571,7 +602,6 @@ class InitialAgentCatalog:
         types = agent_types(agent)
         country = text_trait(agent, "country") or agent.place
         city = text_trait(agent, "city") or agent.place
-        display_name = text_trait(agent, "name") or f"Agent {agent.agent_id[:8]}"
         household_id = text_trait(agent, "household_id")
         relationship_labels = agent.traits.get("family_relationships")
         labels = relationship_labels if isinstance(relationship_labels, dict) else {}
@@ -583,9 +613,6 @@ class InitialAgentCatalog:
             relationships.append(
                 FamilyRelationship(
                     target_agent_id=relationship.target_id,
-                    display_name=(
-                        text_trait(target, "name") if target else None
-                    ) or f"Agent {relationship.target_id[:8]}",
                     relationship=str(labels.get(relationship.target_id, relationship.kind)),
                     age=numeric_age(target) if target else None,
                     weight=relationship.weight,
@@ -593,14 +620,12 @@ class InitialAgentCatalog:
             )
         members = []
         for member in household_agents.get(household_id or "", []):
-            member_name = text_trait(member, "name") or f"Agent {member.agent_id[:8]}"
             relationship = "self" if member.agent_id == agent.agent_id else str(
                 labels.get(member.agent_id, "household member")
             )
             members.append(
                 HouseholdMember(
                     agent_id=member.agent_id,
-                    display_name=member_name,
                     age=numeric_age(member),
                     relationship=relationship,
                     agent_types=agent_types(member),
@@ -610,12 +635,12 @@ class InitialAgentCatalog:
         if household_id:
             household = AgentHousehold(
                 household_id=household_id,
-                members=sorted(members, key=lambda member: (member.display_name, member.agent_id)),
+                members=sorted(members, key=lambda member: member.agent_id),
             )
         current_location = agent.states.get("location") or text_trait(agent, "current_location")
+        country_code = text_trait(agent, "country_id") or country
         return InitialAgentDetail(
             agent_id=agent.agent_id,
-            display_name=display_name,
             agent_types=types,
             age=numeric_age(agent),
             sex=text_trait(agent, "sex") or "unknown",
@@ -635,13 +660,20 @@ class InitialAgentCatalog:
             household=household,
             family_relationships=sorted(
                 relationships,
-                key=lambda relationship: (relationship.display_name, relationship.target_agent_id),
+                key=lambda relationship: relationship.target_agent_id,
             ),
             traits=dict(agent.traits),
             initial_states=dict(agent.states),
+            education_profile=education_profile_from_values(
+                country_code, dict(agent.traits)
+            ),
+            state_vector=state_vector_from_values(
+                agent.place, dict(agent.traits), agent.states
+            ),
+            finances=finance_state_from_values(
+                agent.place, dict(agent.traits), agent.states
+            ),
             occupation=text_trait(agent, "occupation"),
-            income=agent.traits.get("income"),
-            education=text_trait(agent, "education"),
             health=agent.states.get("health") or text_trait(agent, "health"),
             routines=links_for_types(types, routines_by_type, lambda link: link.routine_id),
             decision_trees=links_for_types(
@@ -657,7 +689,7 @@ class InitialAgentCatalog:
         matches = []
         for record in self._records:
             searchable = " ".join(
-                [record.agent_id, record.display_name, record.occupation or "", *record.agent_types]
+                [record.agent_id, record.occupation or "", *record.agent_types]
             ).casefold()
             if search and search not in searchable:
                 continue
@@ -697,6 +729,7 @@ class InitialAgentCatalog:
             page_size=selected.page_size,
             pages=ceil(total / selected.page_size) if total else 0,
             facets=self._facets,
+            evidence_summary=self._evidence_summary,
         )
 
     def detail(self, agent_id: str) -> InitialAgentDetail:

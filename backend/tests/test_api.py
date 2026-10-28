@@ -1,10 +1,13 @@
 import asyncio
 import json
+import threading
 
 import pytest
 
 from petraterrium import engine
+from petraterrium import service as service_module
 from petraterrium.contracts import RunConfig, RunError
+from petraterrium.population import PopulationTable
 from petraterrium.recorder import RunRecord, RunStore
 from petraterrium.service import RunService
 
@@ -167,6 +170,41 @@ def test_active_recorder_replays_and_follows_one_computation():
         assert [event.data for event in received[:-2]] == record.snapshots
         assert received[-2].kind == "ensemble_update"
         assert [event.sequence for event in received] == list(range(1, 34))
+
+    asyncio.run(exercise())
+
+
+def test_run_preparation_does_not_block_the_event_loop(monkeypatch):
+    preparation_started = threading.Event()
+    preparation_release = threading.Event()
+
+    def blocking_population(_dsl, _atlas, seed):
+        preparation_started.set()
+        if not preparation_release.wait(timeout=0.5):
+            raise RuntimeError("Run preparation blocked the event loop")
+        return PopulationTable(
+            population_id="test-population",
+            version="test-v1",
+            seed=seed,
+            agents=[],
+        )
+
+    monkeypatch.setattr(service_module, "generate_population", blocking_population)
+    monkeypatch.setattr(service_module, "record_action_logs", lambda *_args: [])
+
+    async def exercise():
+        store = RunStore()
+        service = RunService(store)
+        record, _ = service.create(RunConfig(**{**CONFIG, "end_day": 1}))
+        worker = asyncio.create_task(service.execute(record))
+        for _ in range(100):
+            if preparation_started.is_set():
+                break
+            await asyncio.sleep(0.001)
+        assert preparation_started.is_set()
+        preparation_release.set()
+        await asyncio.wait_for(worker, timeout=2)
+        assert record.status == "done"
 
     asyncio.run(exercise())
 

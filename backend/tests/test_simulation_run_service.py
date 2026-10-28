@@ -96,9 +96,10 @@ def prepared_run(config: SimulationRunConfig) -> PreparedRustRun:
             "synchronization": {},
         },
         agent_ids=[f"agent-{index + 1}" for index in range(population)],
-        agent_names=[f"Person {index + 1}" for index in range(population)],
         data_version="fixture-data-v1",
         program_version="fixture-program-v1",
+        default_dsl_version="fixture-default-v1",
+        default_dsl_hash=f"sha256:{'a' * 64}",
     )
 
 
@@ -150,6 +151,83 @@ def wait_for_terminal(service: SimulationRunService, run_id: str):
             return run
         time.sleep(0.02)
     raise AssertionError("Simulation run did not finish")
+
+
+def test_agent_timeline_contains_only_its_causal_receipts():
+    service = SimulationRunService(prepared_run, CausalReceiptRustClient())
+    launched = service.launch(
+        run_config(population_size=2, days=1, tick_interval_hours=24)
+    )
+    completed = wait_for_terminal(service, launched.run_id)
+
+    assert completed.status == "completed"
+    first = service.agent(launched.run_id, "agent-1").timeline[0]
+    second = service.agent(launched.run_id, "agent-2").timeline[0]
+
+    assert first.action_receipts == [
+        {
+            "tick": 1,
+            "action": "bad_work",
+            "rule_index": 1,
+            "probability": 0.42,
+            "draw": 0.17,
+            "provenance": {
+                "source": "FAKE causal receipt fixture",
+                "version": "fixture-v1",
+                "status": "default_estimated",
+                "uncertainty": 0.4,
+            },
+        }
+    ]
+    assert first.state_receipts[0]["event_effects"][0]["agent_index"] == 0
+    assert first.state_receipts[0]["agent_state_changes"][0] == {
+        "agent_index": 0,
+        "target_state_id": "stress",
+        "rule_index": 0,
+        "before": 0.3,
+        "event_delta": 0.2,
+        "equation_delta": -0.01,
+        "after": 0.49,
+    }
+    assert first.state_receipts[0]["finance_changes"] == [
+        {
+            "agent_index": 0,
+            "currency": "CAD",
+            "provenance": {
+                "status": "imputed",
+                "source": "Statistics Canada finance cells",
+            },
+            "flows": {
+                "wages": 160.0,
+                "business_income": 0.0,
+                "transfers": 0.0,
+                "housing": 0.0,
+                "food": 0.0,
+                "transport": 8.0,
+                "other_expenses": 0.0,
+                "taxes": 32.0,
+                "savings_contribution": 0.0,
+                "savings_withdrawal": 0.0,
+                "debt_draw": 0.0,
+                "debt_repayment": 0.0,
+            },
+            "ledger_changes": [
+                {
+                    "ledger": "money",
+                    "before": 1000.0,
+                    "flow_delta": 120.0,
+                    "after": 1120.0,
+                }
+            ],
+        }
+    ]
+    assert first.state_receipts[0]["finance_formula"] == "money[t+1] = money[t]"
+    assert second.action_receipts == []
+    assert second.state_receipts[0]["event_effects"] == []
+    assert second.state_receipts[0]["agent_state_changes"][0]["agent_index"] == 1
+    assert second.state_receipts[0]["finance_changes"] == []
+    assert "finance_formula" not in second.state_receipts[0]
+    service.shutdown()
 
 
 class LinearCheckpointRustClient:
@@ -319,6 +397,109 @@ class DailyInteractionRustClient(LinearCheckpointRustClient):
         return output
 
 
+class CausalReceiptRustClient(LinearCheckpointRustClient):
+    def run_agents(self, request: dict) -> dict:
+        output = super().run_agents(request)
+        tick = output["ticks"]
+        provenance = {
+            "source": "FAKE causal receipt fixture",
+            "version": "fixture-v1",
+            "status": "default_estimated",
+            "uncertainty": 0.4,
+        }
+        output["events"] = [
+            {
+                "tick": tick,
+                "agent_index": 0,
+                "place_index": 0,
+                "action": "bad_work",
+                "rule_index": 1,
+                "probability": 0.42,
+                "draw": 0.17,
+                "provenance": provenance,
+            }
+        ]
+        output["state_ticks"] = [
+            {
+                "tick": tick,
+                "event_counts": {"bad_work": 1},
+                "event_effects": [
+                    {
+                        "event": "bad_work",
+                        "agent_index": 0,
+                        "target_state_id": "stress",
+                        "operation": "add",
+                        "configured_value": 0.2,
+                        "delta": 0.2,
+                        "evidence": provenance,
+                    }
+                ],
+                "state_rules": [
+                    {
+                        "target_state_id": "stress",
+                        "input_state_ids": ["stress"],
+                        "formula": "stress[t+1] = stress[t] + event_delta",
+                        "evidence": provenance,
+                    }
+                ],
+                "agent_state_changes": [
+                    {
+                        "agent_index": 0,
+                        "target_state_id": "stress",
+                        "rule_index": 0,
+                        "before": 0.3,
+                        "event_delta": 0.2,
+                        "equation_delta": -0.01,
+                        "after": 0.49,
+                    },
+                    {
+                        "agent_index": 1,
+                        "target_state_id": "stress",
+                        "rule_index": 0,
+                        "before": 0.1,
+                        "event_delta": 0.0,
+                        "equation_delta": -0.01,
+                        "after": 0.09,
+                    },
+                ],
+                "finance_changes": [
+                    {
+                        "agent_index": 0,
+                        "currency": "CAD",
+                        "provenance": {
+                            "status": "imputed",
+                            "source": "Statistics Canada finance cells",
+                        },
+                        "flows": {
+                            "wages": 160.0,
+                            "business_income": 0.0,
+                            "transfers": 0.0,
+                            "housing": 0.0,
+                            "food": 0.0,
+                            "transport": 8.0,
+                            "other_expenses": 0.0,
+                            "taxes": 32.0,
+                            "savings_contribution": 0.0,
+                            "savings_withdrawal": 0.0,
+                            "debt_draw": 0.0,
+                            "debt_repayment": 0.0,
+                        },
+                        "ledger_changes": [
+                            {
+                                "ledger": "money",
+                                "before": 1000.0,
+                                "flow_delta": 120.0,
+                                "after": 1120.0,
+                            }
+                        ],
+                    }
+                ],
+                "finance_formula": "money[t+1] = money[t]",
+            }
+        ]
+        return output
+
+
 def test_rust_tick_work_is_linear_and_each_chunk_becomes_one_daily_snapshot():
     rust = LinearCheckpointRustClient()
     service = SimulationRunService(prepared_run, rust)
@@ -340,6 +521,91 @@ def test_rust_tick_work_is_linear_and_each_chunk_becomes_one_daily_snapshot():
         ["day / checkpoint-12"],
     ]
     service.shutdown()
+
+
+class CountingRunRecorder:
+    def __init__(self):
+        self.metadata_writes = 0
+        self.checkpoints = 0
+
+    def load(self):
+        return []
+
+    def save_metadata(self, run_id, metadata):
+        self.metadata_writes += 1
+
+    def append_checkpoint(
+        self,
+        run_id,
+        metadata,
+        frame_index,
+        frame,
+        first_event_index,
+        events,
+    ):
+        self.checkpoints += 1
+
+    def delete(self, run_id):
+        return True
+
+
+def test_progress_updates_do_not_rewrite_durable_metadata_between_checkpoints():
+    recorder = CountingRunRecorder()
+    service = SimulationRunService(
+        prepared_run,
+        LinearCheckpointRustClient(),
+        persistence=recorder,
+    )
+    launched = service.launch(run_config(population_size=2, days=3, tick_interval_hours=6))
+
+    completed = wait_for_terminal(service, launched.run_id)
+    service.shutdown()
+
+    assert completed.status == "completed"
+    assert recorder.metadata_writes == 3
+    assert recorder.checkpoints == 3
+
+
+def test_persisted_final_output_omits_history_already_stored_in_checkpoints(tmp_path):
+    recorder = SimulationRunRecorder(tmp_path / "simulation-runs.sqlite3")
+    service = SimulationRunService(
+        prepared_run,
+        DailyInteractionRustClient(),
+        persistence=recorder,
+    )
+    config = run_config(population_size=2, days=3, tick_interval_hours=24)
+
+    launched = service.launch(config)
+    completed = wait_for_terminal(service, launched.run_id)
+    service.shutdown()
+
+    assert completed.status == "completed"
+    stored = recorder.load()[0]
+    final_output = stored.metadata["final_output"]
+    assert final_output["agents"]["state"] == ["checkpoint-3", "checkpoint-3"]
+    assert final_output["transition_counts"] == []
+    assert final_output["interactions"] == []
+    assert len(stored.frames) == 3
+
+
+def test_final_output_keeps_latest_state_without_accumulating_event_history():
+    first = {
+        "agents": {"state": ["first"]},
+        "interactions": [{"tick": 1}],
+        "events": [{"tick": 1}],
+    }
+    second = {
+        "agents": {"state": ["second"]},
+        "interactions": [{"tick": 2}],
+        "events": [{"tick": 2}],
+    }
+
+    accumulated = SimulationRunService._merge_final_output(None, first)
+    accumulated = SimulationRunService._merge_final_output(accumulated, second)
+
+    assert accumulated["agents"] == {"state": ["second"]}
+    assert accumulated["interactions"] == []
+    assert accumulated["events"] == []
 
 
 def test_chunked_interaction_catalog_matches_durable_restart(tmp_path):
@@ -382,7 +648,6 @@ def test_chunked_interaction_catalog_matches_durable_restart(tmp_path):
     assert second_agent.timeline[0].interactions == ["talk"]
     assert first_interaction["role"] == "initiator"
     assert first_interaction["other_agent_id"] == "agent-2"
-    assert first_interaction["other_agent_name"] == "Person 2"
     assert first_interaction["place"] == "Vancouver"
     assert first_interaction["interaction_tree"]["outcome"] == "became_friends"
     assert [step["tree_id"] for step in first_interaction["interaction_tree"]["path"]] == [
@@ -400,7 +665,6 @@ def test_chunked_interaction_catalog_matches_durable_restart(tmp_path):
     ]
     assert second_interaction["role"] == "target"
     assert second_interaction["other_agent_id"] == "agent-1"
-    assert second_interaction["other_agent_name"] == "Person 1"
     assert second_interaction["state_deltas"] == [
         {
             "agent_id": "agent-2",
@@ -470,11 +734,15 @@ def test_same_config_and_seed_produce_identical_rust_timelines():
     assert first_complete.result.snapshots == second_complete.result.snapshots
     assert first_complete.result.engine_version == "0.1.0"
     assert first_complete.result.source == "rust"
+    assert first_complete.default_dsl_version == "fixture-default-v1"
+    assert first_complete.default_dsl_hash == f"sha256:{'a' * 64}"
+    assert first_complete.result.default_dsl_version == "fixture-default-v1"
+    assert first_complete.result.default_dsl_hash == f"sha256:{'a' * 64}"
     assert [snapshot.day for snapshot in first_complete.result.snapshots] == [1, 2, 3]
     assert [snapshot.tick for snapshot in first_complete.result.snapshots] == [4, 8, 12]
     assert sum(first_complete.result.snapshots[-1].state_counts.values()) == 8
 
-    agents = service.agents(first.run_id, search="Person 1")
+    agents = service.agents(first.run_id, search="agent-1")
     assert agents.total == 1
     detail = service.agent(first.run_id, "agent-1")
     assert [point.day for point in detail.timeline] == [1, 2, 3]
@@ -969,6 +1237,7 @@ def test_router_exposes_launch_progress_results_agents_and_cancel():
     run_response = client.get(f"/api/simulation/runs/{run_id}")
     assert run_response.status_code == 200
     assert run_response.json()["result"]["source"] == "rust"
+    assert run_response.json()["global_demo_summary"] is None
     assert client.get(f"/api/simulation/runs/{run_id}/agents").json()["total"] == 4
     assert client.get(f"/api/simulation/runs/{run_id}/agents/agent-1").status_code == 200
     assert client.get(f"/api/simulation/runs/{run_id}/events").status_code == 200
@@ -991,6 +1260,10 @@ def test_completed_run_reopens_from_durable_recorder_after_service_restart(tmp_p
     first_events = first_service.events(launched.run_id)
     first_service.shutdown()
 
+    legacy_metadata = recorder.load()[0].metadata
+    legacy_metadata["prepared"].pop("global_demo_summary", None)
+    recorder.save_metadata(launched.run_id, legacy_metadata)
+
     restored_service = SimulationRunService(
         prepared_run,
         RustCoreClient(),
@@ -998,10 +1271,50 @@ def test_completed_run_reopens_from_durable_recorder_after_service_restart(tmp_p
     )
     restored = restored_service.get(launched.run_id)
 
+    assert restored.global_demo_summary is None
     assert restored == completed
-    assert restored_service.list() == [completed]
+    listed = restored_service.list()
+    assert len(listed) == 1
+    assert listed[0].result is None
+    assert listed[0].run_id == completed.run_id
+    assert listed[0].config == completed.config
+    assert listed[0].status == completed.status
+    assert listed[0].progress == completed.progress
     assert restored_service.agent(launched.run_id, "agent-1") == first_detail
     assert restored_service.events(launched.run_id) == first_events
+    restored_service.shutdown()
+
+
+class MetadataOnlyStartupRecorder(SimulationRunRecorder):
+    def load(self):
+        raise AssertionError("Startup must not load complete checkpoint history")
+
+    def load_frames(self, run_id):
+        raise AssertionError(f"Agent detail must project frames for {run_id}")
+
+
+def test_restart_loads_checkpoint_history_only_when_detail_is_requested(tmp_path):
+    path = tmp_path / "simulation-runs.sqlite3"
+    first_service = SimulationRunService(
+        prepared_run,
+        RustCoreClient(),
+        persistence=SimulationRunRecorder(path),
+    )
+    launched = first_service.launch(run_config(population_size=4, days=2))
+    completed = wait_for_terminal(first_service, launched.run_id)
+    expected_agent = first_service.agent(launched.run_id, "agent-1")
+    expected_events = first_service.events(launched.run_id)
+    first_service.shutdown()
+
+    restored_service = SimulationRunService(
+        prepared_run,
+        RustCoreClient(),
+        persistence=MetadataOnlyStartupRecorder(path),
+    )
+
+    assert restored_service.get(launched.run_id) == completed
+    assert restored_service.agent(launched.run_id, "agent-1") == expected_agent
+    assert restored_service.events(launched.run_id) == expected_events
     restored_service.shutdown()
 
 

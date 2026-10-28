@@ -1,0 +1,1648 @@
+{
+  "attempt_id": "4cd9c3263559469299eeac09fbd4f209",
+  "target": {
+    "level": "country",
+    "place_id": "IN",
+    "place_label": "India",
+    "feature_id": "specialization",
+    "population": 1438069596,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "IN",
+    "local_names": {},
+    "dominant_languages": [
+      "en",
+      "hi",
+      "bn",
+      "te",
+      "mr",
+      "ta",
+      "ur",
+      "gu",
+      "kn",
+      "ml",
+      "or",
+      "pa",
+      "as",
+      "bh",
+      "sat",
+      "ks",
+      "ne",
+      "sd",
+      "kok",
+      "doi",
+      "mni",
+      "sit",
+      "sa",
+      "fr",
+      "lus",
+      "inc"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "India",
+        "place_label": "India",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "ready",
+  "result_kind": "measured",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://aishe.gov.in/hi/document/%E0%A4%8F%E0%A4%86%E0%A4%88%E0%A4%8F%E0%A4%B8%E0%A4%8F%E0%A4%9A%E0%A4%88-%E0%A4%85%E0%A4%82%E0%A4%A4%E0%A4%BF%E0%A4%AE-%E0%A4%B0%E0%A4%BF%E0%A4%AA%E0%A5%8B%E0%A4%B0%E0%A5%8D%E0%A4%9F-2021-22/",
+      "locator": "https://aishe.gov.in/hi/document/%E0%A4%8F%E0%A4%86%E0%A4%88%E0%A4%8F%E0%A4%B8%E0%A4%8F%E0%A4%9A%E0%A4%88-%E0%A4%85%E0%A4%82%E0%A4%A4%E0%A4%BF%E0%A4%AE-%E0%A4%B0%E0%A4%BF%E0%A4%AA%E0%A5%8B%E0%A4%B0%E0%A5%8D%E0%A4%9F-2021-22/",
+      "content": null,
+      "language": "hi"
+    },
+    {
+      "kind": "url",
+      "name": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1999713&lang=2&reg=48",
+      "locator": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1999713&lang=2&reg=48",
+      "content": null,
+      "language": "hi"
+    },
+    {
+      "kind": "url",
+      "name": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=IND&start=2023&end=2023&footnotes=true&indicatorMetadata=true",
+      "locator": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=IND&start=2023&end=2023&footnotes=true&indicatorMetadata=true",
+      "content": null,
+      "language": "en"
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "hi",
+      "en",
+      "bn",
+      "te"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F official statistics",
+        "engine": "MoSPI India",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F official statistics",
+        "engine": "Bing local-language fallback after MoSPI India",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 3,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F census",
+        "engine": "Census of India",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 4,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F census",
+        "engine": "Bing local-language fallback after Census of India",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 5,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F representative survey",
+        "engine": "Google India",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 6,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F representative survey",
+        "engine": "Bing local-language fallback after Google India",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 7,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F research article",
+        "engine": "Google Scholar India",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 8,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F research article",
+        "engine": "Bing local-language fallback after Google Scholar India",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 9,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F government report",
+        "engine": "Google India",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 10,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F government report",
+        "engine": "Bing local-language fallback after Google India",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 11,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F university report",
+        "engine": "Google Scholar India",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 12,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F university report",
+        "engine": "Bing local-language fallback after Google Scholar India",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 13,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F local news",
+        "engine": "Google News India",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 14,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F local news",
+        "engine": "Bing local-language fallback after Google News India",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 15,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F public opinion forum",
+        "engine": "Google India",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 16,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F public opinion forum",
+        "engine": "Bing local-language fallback after Google India",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 17,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F expert commentary",
+        "engine": "Google India",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 18,
+        "language": "hi",
+        "language_name": "Hindi",
+        "query": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F expert commentary",
+        "engine": "Bing local-language fallback after Google India",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 19,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 20,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 21,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 22,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 23,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 24,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 25,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 26,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 27,
+        "language": "en",
+        "language_name": "English",
+        "query": "India field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 28,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+        "engine": "Bangladesh Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 29,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+        "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 30,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+        "engine": "Bangladesh Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 31,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+        "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 32,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+        "engine": "Google Bangladesh",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 33,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 34,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+        "engine": "BanglaJOL",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 35,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+        "engine": "Bing local-language fallback after BanglaJOL",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 36,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+        "engine": "Google Bangladesh",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 37,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 38,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+        "engine": "BanglaJOL",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 39,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+        "engine": "Bing local-language fallback after BanglaJOL",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 40,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+        "engine": "Google News Bangladesh",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 41,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+        "engine": "Bing local-language fallback after Google News Bangladesh",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 42,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+        "engine": "Google Bangladesh",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 43,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 44,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+        "engine": "Google Bangladesh",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 45,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 46,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students official statistics",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 47,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 48,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students census",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 49,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students census",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 50,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students representative survey",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 51,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 52,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students research article",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 53,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 54,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students government report",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 55,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 56,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students university report",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 57,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 58,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students local news",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 59,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 60,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 61,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 62,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "te local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 63,
+        "language": "te",
+        "language_name": "te",
+        "query": "India field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing local-language fallback after te local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "MoSPI India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after MoSPI India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Census of India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Census of India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google Scholar India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google Scholar India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 11,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google Scholar India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 12,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google Scholar India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 13,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google News India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 14,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google News India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 15,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 16,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 17,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 18,
+      "origin": "automatic",
+      "language": "hi",
+      "engine": "Bing local-language fallback after Google India",
+      "query_or_source": "India अध्ययन क्षेत्र स्नातक वितरण ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 19,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 20,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 21,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "India field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 22,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "India field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DIndia%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Bresearch%2Barticle&q=EgTPPF3VGJCBg9cGIixrfq_GWRiitQMbhXqmJYAB_Jrl0ziS6IiG0rl6whk2eiWPdc7FMWxl6LKkLzICclJaAUNgo8m0zo_-55_jAQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 23,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "India field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 24,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "India field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DIndia%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGJqBg9cGIizUAR_s198hFHfEOyqxBQkNJHF0tv9KPYDDUbqd8bc2rbi25X6D_FpUMRGgnDICclJaAUNguKTPwvvHmLUI'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 25,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "India field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 26,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "India field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 27,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "India field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 28,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bangladesh Bureau of Statistics",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 29,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 30,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bangladesh Bureau of Statistics",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 31,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 32,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 33,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 34,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "BanglaJOL",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 35,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after BanglaJOL",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 36,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 37,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 38,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "BanglaJOL",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 39,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after BanglaJOL",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 40,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google News Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 41,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google News Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 42,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 43,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 44,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 45,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "India অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 46,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 47,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 48,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 49,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 50,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 51,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 52,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 53,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 54,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 55,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 56,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 57,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 58,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 59,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 60,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 61,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 62,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 63,
+      "origin": "automatic",
+      "language": "te",
+      "engine": "Bing local-language fallback after te local web and statistics catalogs",
+      "query_or_source": "India field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 64,
+      "origin": "user",
+      "language": "hi",
+      "engine": "User supplied",
+      "query_or_source": "https://aishe.gov.in/hi/document/%E0%A4%8F%E0%A4%86%E0%A4%88%E0%A4%8F%E0%A4%B8%E0%A4%8F%E0%A4%9A%E0%A4%88-%E0%A4%85%E0%A4%82%E0%A4%A4%E0%A4%BF%E0%A4%AE-%E0%A4%B0%E0%A4%BF%E0%A4%AA%E0%A5%8B%E0%A4%B0%E0%A5%8D%E0%A4%9F-2021-22/",
+      "source_kind": "user_url",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 65,
+      "origin": "user",
+      "language": "hi",
+      "engine": "User supplied",
+      "query_or_source": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1999713&lang=2&reg=48",
+      "source_kind": "user_url",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 66,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=IND&start=2023&end=2023&footnotes=true&indicatorMetadata=true",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "ea681cc80f784a14bef78658b95847f5"
+      ],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "ea681cc80f784a14bef78658b95847f5",
+      "title": "UNESCO UIS tertiary graduates by field · India",
+      "url": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=IND&start=2023&end=2023&footnotes=true&indicatorMetadata=true",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "India",
+      "place_level": "country",
+      "denominator": "tertiary graduates",
+      "population": null,
+      "observation_date": "2023-12-31",
+      "published_date": "2026-02-09",
+      "time_unit": "graduation year",
+      "unit": "percent",
+      "distribution": {
+        "10": 0.10246126800000363,
+        "01": 9.560100458,
+        "02": 29.137780093,
+        "03": 8.013436027,
+        "04": 19.241567928,
+        "05": 13.722587031,
+        "06": 3.89585899,
+        "07": 9.467240739,
+        "08": 0.967204817,
+        "09": 5.891762649,
+        "00": 0.0
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "National administrative percentage distribution published by UNESCO UIS",
+      "language": "en",
+      "original_excerpt": "Source: UIS Dynamic template based on data provided by country; NA; Country's submission to UIS SFE Questionnaire C",
+      "translated_excerpt": null,
+      "sample_size": null,
+      "source_version": "February 2026 Data Release",
+      "license": "CC BY-SA 4.0",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "ea681cc80f784a14bef78658b95847f5"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "ea681cc80f784a14bef78658b95847f5",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "National administrative percentage distribution published by UNESCO UIS",
+          "reason": "National administrative percentage distribution published by UNESCO UIS"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: India",
+          "actual": "country: India",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary graduates",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "not stated",
+          "reason": "National official percentage table defines its denominator"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2023-12-31; published 2026-02-09",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "graduation year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "10": 0.10246126800000363,
+    "01": 9.560100458,
+    "02": 29.137780093,
+    "03": 8.013436027,
+    "04": 19.241567928,
+    "05": 13.722587031,
+    "06": 3.89585899,
+    "07": 9.467240739,
+    "08": 0.967204817,
+    "09": 5.891762649,
+    "00": 0.0
+  },
+  "mapped_distribution": {
+    "10": 0.102461,
+    "01": 9.5601,
+    "02": 29.13778,
+    "03": 8.013436,
+    "04": 19.241568,
+    "05": 13.722587,
+    "06": 3.895859,
+    "07": 9.467241,
+    "08": 0.967205,
+    "09": 5.891763,
+    "00": 0.0
+  },
+  "estimate_trace": null,
+  "languages_searched": [
+    "hi",
+    "en",
+    "bn",
+    "te"
+  ],
+  "failure_reason": null,
+  "promotion_id": null,
+  "created_at": "2026-10-27T15:11:44.144768Z",
+  "updated_at": "2026-10-27T15:27:08.678047Z"
+}

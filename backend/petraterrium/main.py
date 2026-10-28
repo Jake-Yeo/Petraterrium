@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 
 from .ai_feature_routes import create_ai_feature_router
 from .ai_settings import AISettingsStore, create_ai_settings_router, default_ai_settings_store
+from .atlas.auto_import_provider import PublicResearchProvider
 from .atlas.auto_import_routes import create_auto_import_router
 from .atlas.contracts import ImportMetadata, ImportPreview
 from .atlas.database import FIELDS, AtlasStore
@@ -49,7 +50,11 @@ from .contracts import (
 from .data import COUNTRIES, DATA_VERSION
 from .decision_graph import run_decision_graph
 from .llm_gateway import AIProviderError, SelectedAIProvider
-from .markov_builder import create_markov_builder_router
+from .markov_builder import (
+    MarkovProbabilityResearchService,
+    PublicTransitionResearchProvider,
+    create_markov_builder_router,
+)
 from .output_views import (
     agent_detail,
     agent_points,
@@ -61,7 +66,9 @@ from .recorder import RunRecord, RunStore
 from .runtime import resolve_runtime
 from .service import RunService
 from .simulation.agent_type_routes import create_agent_type_router
+from .simulation.coefficient_promotions import create_coefficient_promotion_router
 from .simulation.decision_evidence_routes import create_decision_evidence_router
+from .simulation.default_dsl import DefaultDslService, create_default_dsl_router
 from .simulation.evidence_guard import require_trusted_simulation_evidence
 from .simulation.interaction_program_routes import create_interaction_program_router
 from .simulation.interaction_trees import (
@@ -76,6 +83,10 @@ from .simulation.registry_store import SimulationRegistryStore
 from .simulation.routines_routes import create_routine_router
 from .simulation.run_persistence import SimulationRunRecorder
 from .simulation.run_preparation import LazyRustCoreClient, prepare_registry_run
+from .simulation.run_preview import (
+    SimulationRunPreviewService,
+    create_simulation_run_preview_router,
+)
 from .simulation.run_routes import create_simulation_run_router
 from .simulation.run_service import SimulationRunService
 from .simulation.tree_routes import create_decision_tree_router
@@ -88,6 +99,7 @@ def create_app(
     research_provider=None,
     ai_settings_store: AISettingsStore | None = None,
     ai_provider=None,
+    markov_research_provider=None,
     simulation_registry_store: SimulationRegistryStore | None = None,
     simulation_run_service: SimulationRunService | None = None,
 ) -> FastAPI:
@@ -100,13 +112,29 @@ def create_app(
     evidence_receipts = AtlasEvidenceReceiptRegistry(atlas_store)
     settings_store = ai_settings_store or default_ai_settings_store()
     selected_ai = ai_provider or SelectedAIProvider(settings_store)
+    configured_research_provider = research_provider or PublicResearchProvider(
+        ai_provider=selected_ai
+    )
+    transition_research_provider = (
+        markov_research_provider
+        or PublicTransitionResearchProvider(configured_research_provider)
+    )
+    markov_probability_research = MarkovProbabilityResearchService(
+        transition_research_provider,
+        selected_ai,
+    )
     simulation_registry = simulation_registry_store or SimulationRegistryStore()
+    default_dsl = DefaultDslService(simulation_registry)
+    default_dsl.ensure()
     interaction_registry = InteractionRunRegistry()
     location_registry = LocationRunRegistry()
     interaction_tree_registry = InteractionTreeRegistry(
         simulation_registry.interaction_trees(),
         simulation_registry.save_interaction_tree,
         evidence_receipts,
+    )
+    default_dsl.add_reset_hook(
+        lambda: interaction_tree_registry.reload(simulation_registry.interaction_trees())
     )
     rust_core = LazyRustCoreClient()
 
@@ -116,7 +144,11 @@ def create_app(
             evidence_receipts,
             interaction_tree_registry,
         )
-        return prepare_registry_run(simulation_registry, config)
+        return prepare_registry_run(
+            simulation_registry,
+            config,
+            evidence_receipts=evidence_receipts,
+        )
 
     simulation_runs = simulation_run_service or SimulationRunService(
         prepare_simulation,
@@ -125,17 +157,25 @@ def create_app(
         record_locations=location_registry.record,
         persistence=SimulationRunRecorder(),
     )
+    simulation_run_previews = SimulationRunPreviewService(prepare_simulation)
     application.state.atlas = atlas_store
     application.state.ai_settings = settings_store
     application.state.ai_provider = selected_ai
+    application.state.markov_probability_research = markov_probability_research
     application.state.simulation_registry = simulation_registry
+    application.state.default_dsl = default_dsl
     application.state.simulation_runs = simulation_runs
+    application.state.simulation_run_previews = simulation_run_previews
     application.state.simulation_interactions = interaction_registry
     application.state.simulation_locations = location_registry
     application.state.simulation_interaction_trees = interaction_tree_registry
     application.include_router(create_atlas_router(atlas_store, run_store, selected_ai))
     application.include_router(
-        create_auto_import_router(atlas_store, research_provider, selected_ai)
+        create_auto_import_router(
+            atlas_store,
+            configured_research_provider,
+            selected_ai,
+        )
     )
     application.include_router(
         create_feature_catalog_router(atlas_store, canonical_feature_registry)
@@ -145,11 +185,13 @@ def create_app(
         create_markov_builder_router(
             persist_chain=simulation_registry.save_confirmed_chain,
             ai_provider=selected_ai,
+            probability_research=markov_probability_research,
         )
     )
     application.include_router(
         create_agent_type_router(simulation_registry, selected_ai, atlas_store)
     )
+    application.include_router(create_default_dsl_router(default_dsl))
     application.include_router(create_population_router(simulation_registry, atlas_store))
     application.include_router(create_decision_tree_router(simulation_registry))
     application.include_router(create_routine_router(simulation_registry))
@@ -158,9 +200,15 @@ def create_app(
         create_decision_evidence_router(simulation_registry, evidence_receipts)
     )
     application.include_router(
+        create_coefficient_promotion_router(simulation_registry, evidence_receipts)
+    )
+    application.include_router(
         create_interaction_program_router(simulation_registry, evidence_receipts)
     )
     application.include_router(create_simulation_run_router(simulation_runs))
+    application.include_router(
+        create_simulation_run_preview_router(simulation_run_previews)
+    )
     application.include_router(create_interaction_router(interaction_registry))
     application.include_router(create_location_router(location_registry))
     application.include_router(
@@ -169,9 +217,7 @@ def create_app(
             rust_core.run_interaction_tree,
         )
     )
-    application.include_router(
-        create_ai_settings_router(settings_store, lambda _: selected_ai)
-    )
+    application.include_router(create_ai_settings_router(settings_store, lambda _: selected_ai))
     application.include_router(create_ai_feature_router(selected_ai))
     application.add_middleware(
         CORSMiddleware,

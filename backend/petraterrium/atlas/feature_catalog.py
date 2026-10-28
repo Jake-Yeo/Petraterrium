@@ -337,6 +337,81 @@ class FeatureCatalogStore:
             ).fetchall()
         return [FeatureDistribution.model_validate_json(row["distribution_json"]) for row in rows]
 
+    def _promoted_distributions(self, feature_id: str) -> list[FeatureDistribution]:
+        with self.store.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM (
+                  SELECT observations.id,observations.geo_level,observations.geo_key,
+                    observations.value_json,observations.evidence_status,
+                    imports.source,imports.source_date,imports.version,
+                    imports.metadata_json,imports.created_at,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY observations.geo_level,observations.geo_key
+                      ORDER BY imports.created_at DESC,observations.id DESC
+                    ) AS version_rank
+                  FROM observations JOIN imports USING(import_id)
+                  WHERE observations.field=? AND imports.scope='shared'
+                    AND imports.status='committed' AND imports.uploader='auto-import'
+                ) WHERE version_rank=1
+                ORDER BY geo_level,geo_key
+                """,
+                (feature_id,),
+            ).fetchall()
+        distributions = []
+        for row in rows:
+            metadata = json.loads(row["metadata_json"])
+            percentages = json.loads(row["value_json"])
+            sources = metadata.get("sources", [])
+            primary = sources[0] if sources else {}
+            population = primary.get("denominator") or "Declared target population"
+            if primary.get("population") is not None:
+                population = f"{population}; N={int(primary['population']):,}"
+            trace = metadata.get("estimate_trace") or {}
+            intervals = trace.get("confidence_intervals", {}).values()
+            uncertainty = max(
+                (
+                    float(interval["upper"]) - float(interval["lower"])
+                    for interval in intervals
+                ),
+                default=0 if row["evidence_status"] == "measured" else 100,
+            ) / 100
+            distributions.append(
+                FeatureDistribution(
+                    feature_id=feature_id,
+                    level={
+                        "canonical_region": "region",
+                        "country": "country",
+                        "city": "city",
+                    }[row["geo_level"]],
+                    place=row["geo_key"],
+                    population=str(population),
+                    population_count=primary.get("population"),
+                    coverage_percent=float(metadata.get("coverage_percent", 100)),
+                    values={
+                        str(label): float(value) / 100
+                        for label, value in percentages.items()
+                    },
+                    provenance=Evidence(
+                        source=row["source"],
+                        version=row["version"],
+                        status=(
+                            "present"
+                            if row["evidence_status"] == "measured"
+                            else "imputed"
+                        ),
+                        uncertainty=min(1, max(0, uncertainty)),
+                        source_date=row["source_date"],
+                    ),
+                    method=(
+                        "measured"
+                        if row["evidence_status"] == "measured"
+                        else "compositional"
+                    ),
+                )
+            )
+        return distributions
+
     def _feature(self, registry: FeatureRegistry, feature_id: str) -> CatalogFeature:
         definition = next(
             (definition for definition in registry.definitions if definition.id == feature_id),
@@ -382,6 +457,13 @@ class FeatureCatalogStore:
             if distribution.feature_id == feature_id
         ]
         distributions.extend(self._stored_distributions(feature_id))
+        distributions.extend(self._promoted_distributions(feature_id))
+        distributions = list(
+            {
+                (distribution.level, distribution.place): distribution
+                for distribution in distributions
+            }.values()
+        )
         proofs = [proof for proof in registry.joint_data if proof.feature_id == feature_id]
         status: FeatureCatalogStatus = "ready" if distributions else requested_status
         predictor_ready = status == "ready" and predictive and bool(proofs)

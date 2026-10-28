@@ -1,0 +1,86 @@
+.simulation-run-launch-preview-host {
+  min-width: 0;
+}
+
+.simulation-run-launch-preview {
+  --launch-preview-surface: #0f1720;
+  --launch-preview-raised: #131e28;
+  --launch-preview-text: #dce5e8;
+  --launch-preview-muted: #7f929d;
+  background: var(--launch-preview-surface);
+  border: 1px solid var(--line, #ffffff18);
+  border-radius: 6px;
+  color: var(--launch-preview-text);
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+:root[data-theme='light'] .simulation-run-launch-preview,
+:root[data-color-scheme='light'] .simulation-run-launch-preview,
+:root.theme-light .simulation-run-launch-preview {
+  --launch-preview-surface: #f4f6f5;
+  --launch-preview-raised: #fff;
+  --launch-preview-text: #1d292e;
+  --launch-preview-muted: #60747c;
+}
+
+.simulation-run-launch-preview > header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.simulation-run-launch-preview h3 {
+  font:
+    500 14px 'Space Grotesk',
+    ui-monospace,
+    monospace;
+  margin: 3px 0 0;
+}
+
+.simulation-run-launch-preview-size,
+.simulation-run-launch-preview-identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.simulation-run-launch-preview-size {
+  align-items: flex-end;
+  flex-direction: column;
+}
+
+.simulation-run-launch-preview-size span,
+.simulation-run-launch-preview-identity span,
+.simulation-run-launch-preview.is-status,
+.simulation-run-launch-preview.is-alert {
+  color: var(--launch-preview-muted);
+  font-size: 10px;
+}
+
+.simulation-run-launch-preview-identity {
+  align-items: center;
+  background: var(--launch-preview-raised);
+  border: 1px solid var(--line, #ffffff18);
+  border-radius: 5px;
+  padding: 9px 10px;
+}
+
+.simulation-run-launch-preview > .run-evidence {
+  margin-bottom: 0;
+}
+
+.simulation-run-launch-preview.is-alert {
+  border-color: color-mix(in srgb, #ffad98 55%, transparent);
+  color: #ffad98;
+}
+
+@media (max-width: 700px) {
+  .simulation-run-launch-preview-size {
+    align-items: flex-start;
+  }
+}

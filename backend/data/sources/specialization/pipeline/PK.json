@@ -1,0 +1,1588 @@
+{
+  "attempt_id": "324a7b21c84c4b58996604cec7691378",
+  "target": {
+    "level": "country",
+    "place_id": "PK",
+    "place_label": "Pakistan",
+    "feature_id": "specialization",
+    "population": 247504495,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "PK",
+    "local_names": {},
+    "dominant_languages": [
+      "ur",
+      "en"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "Asia excluding China and India",
+        "place_label": "Asia excluding China and India",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "ready",
+  "result_kind": "measured",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://www.hec.gov.pk/english/services/universities/HEDP/PublishingImages/Pages/Component-4/Annex%203%20HEDR%20Annual%20Report%20%28C4%29.pdf",
+      "locator": "https://www.hec.gov.pk/english/services/universities/HEDP/PublishingImages/Pages/Component-4/Annex%203%20HEDR%20Annual%20Report%20%28C4%29.pdf",
+      "content": null,
+      "language": null
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "ur",
+      "en",
+      "pa",
+      "sd"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F official statistics",
+        "engine": "Pakistan Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F official statistics",
+        "engine": "Bing local-language fallback after Pakistan Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 3,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F census",
+        "engine": "Pakistan Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 4,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F census",
+        "engine": "Bing local-language fallback after Pakistan Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 5,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F representative survey",
+        "engine": "Google Pakistan",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 6,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F representative survey",
+        "engine": "Bing local-language fallback after Google Pakistan",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 7,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F research article",
+        "engine": "HEC Pakistan Research Repository",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 8,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F research article",
+        "engine": "Bing local-language fallback after HEC Pakistan Research Repository",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 9,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F government report",
+        "engine": "Google Pakistan",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 10,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F government report",
+        "engine": "Bing local-language fallback after Google Pakistan",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 11,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F university report",
+        "engine": "HEC Pakistan Research Repository",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 12,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F university report",
+        "engine": "Bing local-language fallback after HEC Pakistan Research Repository",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 13,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F local news",
+        "engine": "Google News Pakistan",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 14,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F local news",
+        "engine": "Bing local-language fallback after Google News Pakistan",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 15,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F public opinion forum",
+        "engine": "Google Pakistan",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 16,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F public opinion forum",
+        "engine": "Bing local-language fallback after Google Pakistan",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 17,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F expert commentary",
+        "engine": "Google Pakistan",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 18,
+        "language": "ur",
+        "language_name": "Urdu",
+        "query": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F expert commentary",
+        "engine": "Bing local-language fallback after Google Pakistan",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 19,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 20,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 21,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 22,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 23,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 24,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 25,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 26,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 27,
+        "language": "en",
+        "language_name": "English",
+        "query": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 28,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 29,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 30,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students census",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 31,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students census",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 32,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 33,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 34,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students research article",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 35,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 36,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students government report",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 37,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 38,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students university report",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 39,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 40,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students local news",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 41,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 42,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 43,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 44,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "pa local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 45,
+        "language": "pa",
+        "language_name": "pa",
+        "query": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 46,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 47,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 48,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students census",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 49,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students census",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 50,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 51,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 52,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students research article",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 53,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students research article",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 54,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students government report",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 55,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 56,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students university report",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 57,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students university report",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 58,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students local news",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 59,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 60,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 61,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 62,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "sd local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 63,
+        "language": "sd",
+        "language_name": "sd",
+        "query": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Pakistan Bureau of Statistics",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Pakistan Bureau of Statistics",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Pakistan Bureau of Statistics",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Pakistan Bureau of Statistics",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "HEC Pakistan Research Repository",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after HEC Pakistan Research Repository",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 11,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "HEC Pakistan Research Repository",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 12,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after HEC Pakistan Research Repository",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 13,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Google News Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 14,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Google News Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 15,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 16,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 17,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 18,
+      "origin": "automatic",
+      "language": "ur",
+      "engine": "Bing local-language fallback after Google Pakistan",
+      "query_or_source": "Pakistan تعلیم کے شعبے فارغ التحصیل تقسیم ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 19,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 20,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 21,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 22,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DPakistan%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Bresearch%2Barticle&q=EgTPPF3VGN2Kg9cGIiwKTntQ7AE4AeyQCCw2wkjUurIIJIKloi8aOQ8LPnoCwQDLsVRkz4SLCg_4WzICclJaAUNgnf6FhLrxibGUAQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 23,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 24,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DPakistan%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGN6Kg9cGIiyMVQ8ti9GA20tf3x_M4geUbYBLW3nD7txMs4XdWIP4jpbG6ka0-jrBQ4PfIDICclJaAUNgoJfogJ6jg_4Y'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 25,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 26,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 27,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 28,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 29,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 30,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 31,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 32,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 33,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 34,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 35,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 36,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 37,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 38,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 39,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 40,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 41,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 42,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 43,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 44,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 45,
+      "origin": "automatic",
+      "language": "pa",
+      "engine": "Bing local-language fallback after pa local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 46,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 47,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 48,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 49,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 50,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 51,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 52,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 53,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 54,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 55,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 56,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 57,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 58,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 59,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 60,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 61,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 62,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 63,
+      "origin": "automatic",
+      "language": "sd",
+      "engine": "Bing local-language fallback after sd local web and statistics catalogs",
+      "query_or_source": "Pakistan field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 64,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://www.hec.gov.pk/english/services/universities/HEDP/PublishingImages/Pages/Component-4/Annex%203%20HEDR%20Annual%20Report%20%28C4%29.pdf",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "d70b3a848c204fe38233bac8cf68130f"
+      ],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "d70b3a848c204fe38233bac8cf68130f",
+      "title": "Pakistan tertiary enrolment by ISCED-F field · Pakistan",
+      "url": "https://www.hec.gov.pk/english/services/universities/HEDP/PublishingImages/Pages/Component-4/Annex%203%20HEDR%20Annual%20Report%20%28C4%29.pdf",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Pakistan",
+      "place_level": "country",
+      "denominator": "tertiary students",
+      "population": 3034836,
+      "observation_date": "2021-06-30",
+      "published_date": "2023-07-19",
+      "time_unit": "academic year",
+      "unit": "percent",
+      "distribution": {
+        "00": 8.952641920999996,
+        "01": 9.878721618,
+        "02": 23.078545266,
+        "03": 8.187262837,
+        "04": 13.326749782,
+        "05": 13.674149114,
+        "06": 9.116110393,
+        "07": 5.484876283,
+        "08": 1.572144261,
+        "09": 5.893530985,
+        "10": 0.83526754
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "Official national HEC enrolment counts use the ISCED-F broad-field labels; 1073 students labelled Other were excluded before normalization",
+      "language": "en",
+      "original_excerpt": "HEC gender-wise enrolment in major disciplines, academic year 2020-21; 3034836 categorized students and 1073 labelled Other",
+      "translated_excerpt": null,
+      "sample_size": 3034836,
+      "source_version": "HEC HEDR Annual Report 2022-23",
+      "license": "not stated",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "d70b3a848c204fe38233bac8cf68130f"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "d70b3a848c204fe38233bac8cf68130f",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "Official national HEC enrolment counts use the ISCED-F broad-field labels; 1073 students labelled Other were excluded before normalization",
+          "reason": "Official national HEC enrolment counts use the ISCED-F broad-field labels; 1073 students labelled Other were excluded before normalization"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Pakistan",
+          "actual": "country: Pakistan",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary students",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "3034836",
+          "reason": "Population is stated"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2021-06-30; published 2023-07-19",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "academic year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "00": 8.952641920999996,
+    "01": 9.878721618,
+    "02": 23.078545266,
+    "03": 8.187262837,
+    "04": 13.326749782,
+    "05": 13.674149114,
+    "06": 9.116110393,
+    "07": 5.484876283,
+    "08": 1.572144261,
+    "09": 5.893530985,
+    "10": 0.83526754
+  },
+  "mapped_distribution": {
+    "00": 8.952642,
+    "01": 9.878722,
+    "02": 23.078545,
+    "03": 8.187263,
+    "04": 13.32675,
+    "05": 13.674149,
+    "06": 9.11611,
+    "07": 5.484876,
+    "08": 1.572144,
+    "09": 5.893531,
+    "10": 0.835268
+  },
+  "estimate_trace": null,
+  "languages_searched": [
+    "ur",
+    "en",
+    "pa",
+    "sd"
+  ],
+  "failure_reason": null,
+  "promotion_id": null,
+  "created_at": "2026-10-27T15:34:20.172741Z",
+  "updated_at": "2026-10-27T15:39:06.086846Z"
+}

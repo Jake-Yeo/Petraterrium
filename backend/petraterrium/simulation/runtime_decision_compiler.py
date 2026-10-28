@@ -9,6 +9,13 @@ from itertools import product
 from typing import Any
 
 from ..population import AgentRecord
+from .coefficient_evidence import (
+    ActionCoefficientRegistry,
+    CoefficientPlace,
+    DefaultDslEvidenceIdentity,
+    ResolvedActionCoefficients,
+    resolve_action_coefficients,
+)
 from .decision_evidence import (
     AgentDecisionContext,
     AgentPlace,
@@ -23,14 +30,15 @@ from .decision_evidence import (
     evaluate_decision_edge,
 )
 from .registry_store import DecisionEvidenceRegistryDefinition
+from .run_warnings import RunCoefficientReceipt
 from .tree_modules import (
     DecisionTreeDefinition,
     DecisionTreeModule,
     DecisionTreeRegistryDefinition,
 )
 
-BASELINE_PROGRAM_VERSION = "deterministic-baseline-no-confirmed-decision-program-v1"
 EXECUTABLE_EVIDENCE_BASES = {"measured_joint", "fitted_model"}
+RUNTIME_PROGRAM_VERSION = "generic-dsl-runtime-v1"
 WEEKDAY_INDEX = {
     "monday": 0,
     "tuesday": 1,
@@ -57,6 +65,7 @@ class RuntimeDecisionCompilation:
     module_ids_by_agent: list[tuple[str, ...]]
     tree_ids_by_agent: list[tuple[str, ...]]
     runtime_module_by_source_module_by_agent: list[dict[str, str]]
+    coefficient_receipts: list[RunCoefficientReceipt]
 
 
 def _text_trait(agent: AgentRecord, name: str) -> str:
@@ -88,40 +97,6 @@ def _runtime_identifier(prefix: str, value: str) -> str:
     normalized = re.sub(r"[^a-z0-9_-]+", "-", value.casefold()).strip("-")
     digest = hashlib.sha256(value.encode()).hexdigest()[:12]
     return f"{prefix}-{normalized or 'unknown'}-{digest}"
-
-
-def _baseline_module(module_id: str, agent_type: str) -> dict[str, Any]:
-    return {
-        "id": module_id,
-        "entry_state": "active",
-        "exit_states": [],
-        "inputs": [],
-        "outputs": [],
-        "states": ["active"],
-        "transitions": [
-            {
-                "id": "remain-active-without-confirmed-decision-program",
-                "from_state": "active",
-                "to_state": "active",
-                "rules": [
-                    {
-                        "conditions": [],
-                        "probability": 1,
-                        "provenance": {
-                            "source": (
-                                "Petraterrium deterministic baseline because no confirmed "
-                                f"executable decision program applies to agent type {agent_type}"
-                            ),
-                            "version": BASELINE_PROGRAM_VERSION,
-                            "status": "present",
-                            "uncertainty": 0,
-                        },
-                    }
-                ],
-                "effects": [],
-            }
-        ],
-    }
 
 
 def _idle_module(module_id: str) -> dict[str, Any]:
@@ -187,6 +162,31 @@ def _agent_context(agent: AgentRecord, start_date: date) -> AgentDecisionContext
         place_attributes=_scalar_mapping(agent.traits.get("place_attributes")),
         time=time,
         context=context,
+    )
+
+
+def _agent_coefficient_place(agent: AgentRecord) -> CoefficientPlace:
+    region = _text_trait(agent, "region") or "unknown-region"
+    country = (
+        _text_trait(agent, "country_id")
+        or agent.place.strip()
+        or _text_trait(agent, "country")
+        or "unknown-country"
+    )
+    city = _text_trait(agent, "city_id") or _text_trait(agent, "city") or None
+    if city is not None:
+        return CoefficientPlace(
+            level="city",
+            place_id=city,
+            region_id=region,
+            country_id=country,
+            city_id=city,
+        )
+    return CoefficientPlace(
+        level="country",
+        place_id=country,
+        region_id=region,
+        country_id=country,
     )
 
 
@@ -836,6 +836,113 @@ def _evaluate_module(
     return transitions, hashlib.sha256(signature.encode()).hexdigest()[:12], inputs
 
 
+def _coefficient_resolution_status(
+    requested: CoefficientPlace,
+    source: CoefficientPlace,
+) -> str:
+    specificity = {"global": 1, "region": 2, "country": 3, "city": 4}
+    difference = specificity[requested.level] - specificity[source.level]
+    if difference <= 0:
+        return "direct"
+    return "inherited" if difference == 1 else "imputed"
+
+
+def _coefficient_provenance(
+    resolution: ResolvedActionCoefficients,
+    edge_id: str,
+) -> dict[str, Any]:
+    value = resolution.coefficients[edge_id]
+    interval = resolution.intervals[edge_id]
+    uncertainty = max(value - interval.low, interval.high - value)
+    provenance = {
+        "source": resolution.source_label,
+        "version": resolution.source_version,
+        "status": resolution.evidence_state,
+        "resolution_status": _coefficient_resolution_status(
+            resolution.requested_place,
+            resolution.source_place,
+        ),
+        "source_places": [f"{resolution.source_place.level}:{resolution.source_place.place_id}"],
+        "uncertainty": uncertainty,
+        "evidence_id": resolution.source_id or resolution.coefficient_set_id,
+        "evidence_kind": resolution.evidence_state,
+        "ci_low": interval.low,
+        "ci_high": interval.high,
+    }
+    if resolution.fitted_provenance is not None:
+        provenance["source_date"] = resolution.fitted_provenance.source_date
+    return provenance
+
+
+def _evaluate_coefficient_module(
+    module: DecisionTreeModule,
+    agent: AgentRecord,
+    registry: ActionCoefficientRegistry,
+) -> tuple[list[dict[str, Any]], str, list[RunCoefficientReceipt]]:
+    requested_place = _agent_coefficient_place(agent)
+    resolution = resolve_action_coefficients(registry, module.id, requested_place)
+    edge_ids = {edge.id for edge in module.edges}
+    if set(resolution.coefficients) != edge_ids:
+        raise RuntimeDecisionCompilationError(
+            f"Action coefficient set {resolution.coefficient_set_id!r} outcomes do not match "
+            f"decision module {module.id!r} edges"
+        )
+    outgoing_sources = {edge.from_node for edge in module.edges}
+    if len(outgoing_sources) != 1:
+        raise RuntimeDecisionCompilationError(
+            f"Default/fitted coefficient action {module.id!r} must contain one decision node"
+        )
+    transitions = [
+        {
+            "id": edge.id,
+            "from_state": edge.from_node,
+            "to_state": edge.to_node,
+            "rules": [
+                {
+                    "conditions": [],
+                    "probability": resolution.coefficients[edge.id],
+                    "provenance": _coefficient_provenance(resolution, edge.id),
+                }
+            ],
+            "effects": [],
+        }
+        for edge in module.edges
+    ]
+    resolution_status = _coefficient_resolution_status(
+        resolution.requested_place,
+        resolution.source_place,
+    )
+    receipts = [
+        RunCoefficientReceipt(
+            action_id=module.id,
+            edge_id=edge.id,
+            place=resolution.requested_place,
+            source_place=resolution.source_place,
+            resolution_status=resolution_status,
+            evidence_state=resolution.evidence_state,
+            value=resolution.coefficients[edge.id],
+            interval=resolution.intervals[edge.id],
+            coefficient_set_id=resolution.coefficient_set_id,
+            default_coefficient_set_id=resolution.default_coefficient_set_id,
+            default_value=resolution.default_coefficients[edge.id],
+            fitted_delta=(
+                resolution.coefficients[edge.id] - resolution.default_coefficients[edge.id]
+                if resolution.evidence_state == "fitted"
+                else None
+            ),
+            promotion_id=resolution.promotion_id,
+            source_label=resolution.source_label,
+            source_version=resolution.source_version,
+            source_id=resolution.source_id,
+            default_reason=resolution.default_reason,
+            held_out=resolution.held_out,
+        )
+        for edge in module.edges
+    ]
+    signature = json.dumps(transitions, sort_keys=True, separators=(",", ":"))
+    return transitions, hashlib.sha256(signature.encode()).hexdigest()[:12], receipts
+
+
 def _compile_agent_program(
     agent: AgentRecord,
     trees: list[DecisionTreeDefinition],
@@ -843,9 +950,15 @@ def _compile_agent_program(
     root_trees_by_module: Mapping[str, list[DecisionTreeDefinition]],
     templates_by_id: Mapping[str, DecisionTreeTemplate],
     evidence: DecisionEvidenceRegistryDefinition,
+    coefficient_registry: ActionCoefficientRegistry | None,
     start_date: date,
     runtime_context_keys: set[str],
-) -> tuple[list[dict[str, Any]], list[dict[str, str]], dict[str, str]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, str]],
+    dict[str, str],
+    list[RunCoefficientReceipt],
+]:
     context = _agent_context(agent, start_date)
     source_modules: dict[str, tuple[DecisionTreeDefinition, DecisionTreeModule]] = {}
     for tree in sorted(trees, key=lambda item: item.id):
@@ -858,36 +971,51 @@ def _compile_agent_program(
             list[dict[str, Any]],
             str,
             list[str],
+            list[RunCoefficientReceipt],
         ]
     ] = []
     for module_id in sorted(source_modules):
         tree, module = source_modules[module_id]
-        template, evidence_edge_ids = _module_evidence_binding(
-            tree.id,
-            module,
-            root_trees_by_module,
-            templates_by_id,
+        coefficient_defaults = (
+            [item for item in coefficient_registry.defaults if item.action_id == module.id]
+            if coefficient_registry is not None
+            else []
         )
-        transitions, profile, inputs = _evaluate_module(
-            module,
-            template,
-            evidence_edge_ids,
-            context,
-            evidence,
-            runtime_context_keys,
-        )
-        compiled.append((tree, module, transitions, profile, inputs))
+        if coefficient_defaults:
+            transitions, profile, receipts = _evaluate_coefficient_module(
+                module,
+                agent,
+                coefficient_registry,
+            )
+            inputs: list[str] = []
+        else:
+            template, evidence_edge_ids = _module_evidence_binding(
+                tree.id,
+                module,
+                root_trees_by_module,
+                templates_by_id,
+            )
+            transitions, profile, inputs = _evaluate_module(
+                module,
+                template,
+                evidence_edge_ids,
+                context,
+                evidence,
+                runtime_context_keys,
+            )
+            receipts = []
+        compiled.append((tree, module, transitions, profile, inputs, receipts))
     program_signature = json.dumps(
         [
             _primary_agent_type(agent),
-            [(tree.id, module.id, profile) for tree, module, _, profile, _ in compiled],
+            [(tree.id, module.id, profile) for tree, module, _, profile, _, _ in compiled],
         ],
         separators=(",", ":"),
     )
     program_id = hashlib.sha256(program_signature.encode()).hexdigest()[:12]
     runtime_modules = []
     runtime_by_source: dict[str, str] = {}
-    for _tree, module, transitions, profile, inputs in compiled:
+    for _tree, module, transitions, profile, inputs, _receipts in compiled:
         module_id = _runtime_identifier(
             "decision",
             f"{program_id}:{module.id}:{profile}",
@@ -909,7 +1037,7 @@ def _compile_agent_program(
             }
         )
     routes = []
-    for _, module, _, _, _ in compiled:
+    for _, module, _, _, _, _ in compiled:
         for node in module.nodes:
             if node.kind != "module_reference" or node.target_module_id is None:
                 continue
@@ -926,7 +1054,8 @@ def _compile_agent_program(
                     "to_module": target,
                 }
             )
-    return runtime_modules, routes, runtime_by_source
+    receipts = [receipt for *_, values in compiled for receipt in values]
+    return runtime_modules, routes, runtime_by_source, receipts
 
 
 def compile_runtime_decisions(
@@ -937,6 +1066,8 @@ def compile_runtime_decisions(
     requested_tree_ids_by_agent: list[set[str]] | None = None,
     requested_module_ids_by_agent: list[set[str]] | None = None,
     runtime_context_keys: set[str] | None = None,
+    coefficient_registry: ActionCoefficientRegistry | None = None,
+    default_dsl_identity: DefaultDslEvidenceIdentity | None = None,
 ) -> RuntimeDecisionCompilation:
     ready_trees = sorted(
         (tree for tree in tree_registry.trees if tree.status == "ready"),
@@ -1023,17 +1154,41 @@ def compile_runtime_decisions(
         raise RuntimeDecisionCompilationError(
             f"Run blocked: {len(uncovered)} selected {noun} no applicable confirmed "
             f"executable decision tree: {preview}{suffix}. Confirm ready decision trees "
-            "with measured-joint or fitted-model evidence for every selected agent type in "
+            "with default/estimated or fitted evidence for every selected agent type in "
             "Simulation > Decision Trees, then run again."
         )
-    if any(applicable) and evidence_registry is None:
+    coefficient_action_ids = (
+        {item.action_id for item in coefficient_registry.defaults}
+        if coefficient_registry is not None
+        else set()
+    )
+    modules_without_coefficients = {
+        module_id
+        for trees in applicable
+        for tree in trees
+        for module_id in reachable_module_ids_by_tree[tree.id]
+        if module_id not in coefficient_action_ids
+    }
+    if any(applicable) and evidence_registry is None and modules_without_coefficients:
         tree_ids = sorted({tree.id for trees in applicable for tree in trees})
         raise RuntimeDecisionCompilationError(
             "Confirmed decision trees have no confirmed decision evidence registry: "
             + ", ".join(tree_ids)
-            + ". Attach measured-joint or fitted-model evidence in Simulation > Decision "
-            "Trees, then run again."
+            + ". Attach executable default/estimated or fitted evidence in Simulation > "
+            "Decision Trees, then run again."
         )
+    if coefficient_registry is not None:
+        for item in coefficient_registry.defaults:
+            source = item.source
+            if hasattr(source, "default_dsl_version") and (
+                default_dsl_identity is None
+                or source.default_dsl_version != default_dsl_identity.version
+                or source.default_dsl_hash != default_dsl_identity.hash
+            ):
+                raise RuntimeDecisionCompilationError(
+                    f"Default coefficient set {item.id!r} does not match the verified shipped "
+                    "Default DSL"
+                )
     modules: dict[str, dict[str, Any]] = {}
     routes: dict[tuple[str, str], dict[str, str]] = {}
     agent_modules: list[str] = []
@@ -1041,20 +1196,28 @@ def compile_runtime_decisions(
     module_ids_by_agent: list[tuple[str, ...]] = []
     tree_ids_by_agent: list[tuple[str, ...]] = []
     runtime_module_by_source_module_by_agent: list[dict[str, str]] = []
+    coefficient_receipts: list[RunCoefficientReceipt] = []
     live_context_keys = runtime_context_keys or set()
     for agent, trees in zip(agents, applicable, strict=True):
-        if evidence_registry is None:
-            raise AssertionError("Evidence registry was checked before compilation")
-        compiled_modules, compiled_routes, runtime_by_source = _compile_agent_program(
-            agent,
-            trees,
-            modules_by_id,
-            root_trees_by_module,
-            templates_by_id,
-            evidence_registry,
-            start_date,
-            live_context_keys,
+        compilation_evidence = evidence_registry or DecisionEvidenceRegistryDefinition(
+            version="coefficient-registry-only",
+            templates=[],
+            evidence=[],
         )
+        compiled_modules, compiled_routes, runtime_by_source, agent_receipts = (
+            _compile_agent_program(
+                agent,
+                trees,
+                modules_by_id,
+                root_trees_by_module,
+                templates_by_id,
+                compilation_evidence,
+                coefficient_registry,
+                start_date,
+                live_context_keys,
+            )
+        )
+        coefficient_receipts.extend(agent_receipts)
         for module in compiled_modules:
             existing = modules.get(module["id"])
             if existing is not None and existing != module:
@@ -1086,4 +1249,5 @@ def compile_runtime_decisions(
         module_ids_by_agent=module_ids_by_agent,
         tree_ids_by_agent=tree_ids_by_agent,
         runtime_module_by_source_module_by_agent=(runtime_module_by_source_module_by_agent),
+        coefficient_receipts=coefficient_receipts,
     )

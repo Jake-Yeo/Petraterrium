@@ -1,0 +1,555 @@
+{
+  "attempt_id": "97b90fe3a72844a0a7375a5dc2d36552",
+  "target": {
+    "level": "country",
+    "place_id": "AU",
+    "place_label": "Australia",
+    "feature_id": "specialization",
+    "population": 26451124,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "AU",
+    "local_names": {},
+    "dominant_languages": [
+      "en"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "Oceania",
+        "place_label": "Oceania",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "ready",
+  "result_kind": "measured",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=AUS&start=2023&end=2023&footnotes=true",
+      "locator": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=AUS&start=2023&end=2023&footnotes=true",
+      "content": null,
+      "language": null
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "en"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 3,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 4,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 5,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 6,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 7,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 8,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 9,
+        "language": "en",
+        "language_name": "English",
+        "query": "Australia field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DAustralia%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Bresearch%2Barticle&q=EgTPPF3VGNWLg9cGIiyIRmjn5iUiUqpaKiGPzr6-k2poryUP-iQYse-dpWYgQiT7clINW5rjwuqnTjICclJaAUNg1tzUp4e10O3jAQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DAustralia%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGOSLg9cGIixvNwB6SDaij-nyJHvLfKySyGOw8W8vFzn2gpvxjvdR1_6F4pT6WhXDBpMiDjICclJaAUNgxJ_Mt_Oq1dehAQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Australia field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=AUS&start=2023&end=2023&footnotes=true",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "319b7dc74c704d5a87b2e5a80921f39e"
+      ],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "319b7dc74c704d5a87b2e5a80921f39e",
+      "title": "UNESCO UIS tertiary graduates by field · Australia",
+      "url": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=AUS&start=2023&end=2023&footnotes=true",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Australia",
+      "place_level": "country",
+      "denominator": "tertiary graduates",
+      "population": null,
+      "observation_date": "2023-12-31",
+      "published_date": "2026-10-27",
+      "time_unit": "graduation year",
+      "unit": "percent",
+      "distribution": {
+        "10": 1.408919917,
+        "01": 10.111708643,
+        "02": 8.931109541,
+        "03": 5.99022952,
+        "04": 33.287365641,
+        "05": 4.84648945,
+        "06": 5.73997968,
+        "07": 8.296528989,
+        "08": 0.750349928,
+        "09": 20.629678692,
+        "00": 0.007639999
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "National administrative percentage distribution published by UNESCO UIS",
+      "language": "en",
+      "original_excerpt": "NA; Country's submission to UNESCO OECD Eurostat (UOE) joint data collection",
+      "translated_excerpt": null,
+      "sample_size": null,
+      "source_version": "UIS indicator release",
+      "license": "CC BY-SA 4.0",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "319b7dc74c704d5a87b2e5a80921f39e"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "319b7dc74c704d5a87b2e5a80921f39e",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "National administrative percentage distribution published by UNESCO UIS",
+          "reason": "National administrative percentage distribution published by UNESCO UIS"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Australia",
+          "actual": "country: Australia",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary graduates",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "not stated",
+          "reason": "National official percentage table defines its denominator"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2023-12-31; published 2026-10-27",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "graduation year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      },
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Human-confirmed mapping"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "10": 1.408919917,
+    "01": 10.111708643,
+    "02": 8.931109541,
+    "03": 5.99022952,
+    "04": 33.287365641,
+    "05": 4.84648945,
+    "06": 5.73997968,
+    "07": 8.296528989,
+    "08": 0.750349928,
+    "09": 20.629678692,
+    "00": 0.007639999
+  },
+  "mapped_distribution": {
+    "10": 1.408918,
+    "01": 10.111709,
+    "02": 8.93111,
+    "03": 5.99023,
+    "04": 33.287366,
+    "05": 4.846489,
+    "06": 5.73998,
+    "07": 8.296529,
+    "08": 0.75035,
+    "09": 20.629679,
+    "00": 0.00764
+  },
+  "estimate_trace": null,
+  "languages_searched": [
+    "en"
+  ],
+  "failure_reason": null,
+  "promotion_id": null,
+  "created_at": "2026-10-27T15:39:17.974890Z",
+  "updated_at": "2026-10-27T15:41:14.286326Z"
+}

@@ -4,12 +4,13 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 
 from ..contracts import Contract
-from ..dsl import ChoiceEvidence, FeatureRegistry
+from ..dsl import FeatureRegistry
 
 MarginalName = Literal[
     "age_sex",
     "income",
     "education",
+    "specialization",
     "ideology_economic",
     "ideology_state",
     "ideology_cultural",
@@ -364,8 +365,36 @@ class UniversalFeatureOverview(Contract):
     resolutions: list[FeatureResolutionRecord]
 
 
+class BehaviourEvidenceRow(Contract):
+    id: str
+    action_id: str
+    country_code: str
+    definition: str
+    model_status: Literal["active_fitted", "rejected_fit", "label_only"]
+    source_status: Literal["measured", "source_unclassified"]
+    source_type: str
+    source_tier: int | None = Field(default=None, ge=1, le=5)
+    outcome_rate: float | None = Field(default=None, ge=0, le=1)
+    ci_low: float | None = Field(default=None, ge=0, le=1)
+    ci_high: float | None = Field(default=None, ge=0, le=1)
+    uncertainty: float | None = Field(default=None, ge=0, le=1)
+    sample_size: int = Field(ge=0)
+    effective_sample_size: float | None = Field(default=None, ge=0)
+    ci_method: str | None = None
+    population: str
+    denominator: str
+    traits: list[str]
+    algorithm: str | None = None
+    reason: str | None = None
+    training_rows: int = Field(ge=0)
+    heldout_rows: int = Field(ge=0)
+    heldout_loss: float | None = None
+    baseline_loss: float | None = None
+    provenance: Provenance
+
+
 class ChoiceEvidenceCatalog(Contract):
-    rows: list[ChoiceEvidence]
+    rows: list[BehaviourEvidenceRow]
 
 
 class HierarchyRow(Contract):

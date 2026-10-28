@@ -89,6 +89,7 @@ export function shell(): string {
         <section id="simulation-trees-view" class="simulation-section" hidden></section>
         <div class="lab simulation-section" id="simulation-run-view" hidden>
         <div id="rust-run-panel" class="simulation-rust-run"></div>
+        <div id="coefficient-promotion-panel"></div>
         <details class="legacy-run-details" hidden aria-hidden="true">
           <summary>Recorded compatibility runs</summary>
           <div class="legacy-run-content">

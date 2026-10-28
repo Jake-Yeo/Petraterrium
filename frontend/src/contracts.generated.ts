@@ -76,6 +76,15 @@ export type ActionLogEntry = {
   role: string;
 };
 
+export type ActionPlaceEvidenceSummary = {
+  action_id: string;
+  place: CoefficientPlace;
+  fitted_count: number;
+  default_estimated_count: number;
+  blocked_count: number;
+  coefficients: Array<RunCoefficientReceipt>;
+};
+
 export type AgentBehaviorProposalDraft = {
   schema_version?: "2";
   id: string;
@@ -134,7 +143,6 @@ export type AgentInteractionDetail = {
   interaction_type: string;
   channel: string;
   other_agent_id: string;
-  other_agent_name: string;
   place: string;
   state_deltas: Array<AppliedStateDelta>;
   relationship_deltas: Array<AppliedRelationshipDelta>;
@@ -202,6 +210,18 @@ export type AgentRoutineEffect = {
   routine_id: string;
 };
 
+export type AgentStateValue = {
+  state_id: string;
+  value?: number | null;
+  status: "present" | "unknown";
+  evidence: StateEvidence;
+};
+
+export type AgentStateVector = {
+  catalog_version: string;
+  values: Array<AgentStateValue>;
+};
+
 export type AgentTimelineEntry = {
   tick: number;
   day: number;
@@ -229,6 +249,15 @@ export type AgentTimelinePoint = {
   module: string;
   state: string;
   location: string;
+  memory?: {
+  [key: string]: number;
+};
+  state_receipts?: Array<{
+  [key: string]: unknown;
+}>;
+  action_receipts?: Array<{
+  [key: string]: unknown;
+}>;
   actions: Array<string>;
   routine_actions: Array<string>;
   interactions: Array<string>;
@@ -473,9 +502,13 @@ export type AutoImportAttemptView = {
   candidate_values: {
   [key: string]: number | string | null;
 };
+  distribution_changes: Array<AutoImportDistributionChange>;
+  draft_status: "editable_draft" | "confirmed" | "promoted";
+  usable_in_demo: boolean;
   can_promote: boolean;
   error: string | null;
   promoted_at: string | null;
+  promotion_id: string | null;
 };
 
 export type AutoImportBatchItemView = {
@@ -531,6 +564,13 @@ export type AutoImportCanonicalValue = {
   label: string;
 };
 
+export type AutoImportDistributionChange = {
+  source_label: string;
+  target_label: string;
+  before: number;
+  after: number;
+};
+
 export type AutoImportDistributionRequirement = {
   values: Array<AutoImportCanonicalValue>;
   denominator: string;
@@ -552,6 +592,7 @@ export type AutoImportEstimateTraceView = {
   assumptions: Array<string>;
   inputs: Array<AutoImportEstimateInput>;
   confidence_interval: string;
+  source_ids_used: Array<string>;
   limitations: Array<string>;
 };
 
@@ -585,6 +626,9 @@ export type AutoImportMappingOption = {
 export type AutoImportMappingReview = {
   mappings: Array<AutoImportMappingEdit>;
   reviewed: boolean;
+  distribution: {
+  [key: string]: number;
+} | null;
 };
 
 export type AutoImportPromotionRequest = {
@@ -621,6 +665,10 @@ export type AutoImportQueuePageView = {
   lower_priority_population: number;
 };
 
+export type AutoImportRerunRequest = {
+  source_tiers: Array<"official_statistics" | "census" | "representative_survey" | "research_article" | "government_report" | "university_report" | "news" | "online_opinion" | "expert_commentary">;
+};
+
 export type AutoImportResearchSource = {
   source_id: string;
   title: string;
@@ -642,7 +690,7 @@ export type AutoImportSearchEntry = {
   engine: string;
   language: string;
   query: string;
-  searched_at: string;
+  searched_at: string | null;
   result_count: number;
   outcome: string;
   rejection_reasons: Array<string>;
@@ -729,6 +777,34 @@ export type BehaviourBundle = {
 };
 };
   provenance: Evidence;
+};
+
+export type BehaviourEvidenceRow = {
+  id: string;
+  action_id: string;
+  country_code: string;
+  definition: string;
+  model_status: "active_fitted" | "rejected_fit" | "label_only";
+  source_status: "measured" | "source_unclassified";
+  source_type: string;
+  source_tier: number | null;
+  outcome_rate: number | null;
+  ci_low: number | null;
+  ci_high: number | null;
+  uncertainty: number | null;
+  sample_size: number;
+  effective_sample_size: number | null;
+  ci_method: string | null;
+  population: string;
+  denominator: string;
+  traits: Array<string>;
+  algorithm: string | null;
+  reason: string | null;
+  training_rows: number;
+  heldout_rows: number;
+  heldout_loss: number | null;
+  baseline_loss: number | null;
+  provenance: Provenance;
 };
 
 export type BehaviourModel = {
@@ -880,17 +956,30 @@ export type ChoiceEvidence = {
 };
 
 export type ChoiceEvidenceCatalog = {
-  rows: Array<ChoiceEvidence>;
+  rows: Array<BehaviourEvidenceRow>;
 };
 
 export type CityDetail = {
   city: AtlasCity;
-  missing_fields: Array<"age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
-  direct_observation_gaps: Array<"age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
+  missing_fields: Array<"age_sex" | "income" | "education" | "specialization" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
+  direct_observation_gaps: Array<"age_sex" | "income" | "education" | "specialization" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size">;
   history: Array<Provenance>;
   legacy_fields: Array<LegacyMarginalField>;
   revision: number;
   simulation_note: string;
+};
+
+export type CoefficientInterval = {
+  low: number;
+  high: number;
+};
+
+export type CoefficientPlace = {
+  level: "city" | "country" | "region" | "global";
+  place_id: string;
+  region_id?: string | null;
+  country_id?: string | null;
+  city_id?: string | null;
 };
 
 export type ColumnMapping = {
@@ -1074,7 +1163,7 @@ export type DataGap = {
   city: string;
   country_code: string;
   population: number;
-  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
+  field: "age_sex" | "income" | "education" | "specialization" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   status: "present" | "inherited" | "imputed" | "estimated" | "missing";
   suggested_source: string;
 };
@@ -1378,6 +1467,17 @@ export type Distribution = {
   provenance: Evidence;
 };
 
+export type EducationProfile = {
+  years_of_education?: number | null;
+  isced_level?: number | null;
+  country_label: string;
+  country_code: string;
+  specialization?: string | null;
+  specialization_threshold_years: number;
+  specialization_status: "present" | "not_applicable" | "awaiting_data";
+  provenance: StateEvidence;
+};
+
 export type EnsembleUpdate = {
   run_id: string;
   completed: number;
@@ -1463,7 +1563,6 @@ export type EvidenceReference = {
 
 export type FamilyRelationship = {
   target_agent_id: string;
-  display_name: string;
   relationship: string;
   age?: number | null;
   weight: number;
@@ -1529,7 +1628,7 @@ export type FeatureResolutionRecord = {
 };
 
 export type FieldCoverage = {
-  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
+  field: "age_sex" | "income" | "education" | "specialization" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   present: number;
   inherited: number;
   imputed: number;
@@ -1543,10 +1642,53 @@ export type FieldCoverage = {
   estimated_population_percent: number;
 };
 
+export type FinanceEvidence = {
+  status: "measured_joint" | "measured_marginal" | "inherited" | "imputed" | "literature_support" | "default_estimated" | "unknown" | "simulated";
+  source: string;
+  source_version: string;
+  source_date?: string | null;
+  url?: string | null;
+  place: string;
+  population: string;
+  language?: string | null;
+  original_title?: string | null;
+  english_title?: string | null;
+  search_source?: string | null;
+  uncertainty: number;
+  default_reason?: string | null;
+  currency: string;
+};
+
+export type FinanceQuantity = {
+  value?: number | null;
+  evidence: FinanceEvidence;
+};
+
+export type FinanceState = {
+  currency: string;
+  status: "measured_joint" | "measured_marginal" | "inherited" | "imputed" | "literature_support" | "default_estimated" | "unknown" | "simulated";
+  source_distribution_id?: string | null;
+  source_cell_id?: string | null;
+  money: FinanceQuantity;
+  income: FinanceQuantity;
+  expenses: FinanceQuantity;
+  savings: FinanceQuantity;
+  debt: FinanceQuantity;
+  evidence: FinanceEvidence;
+  formula?: string;
+};
+
 export type GraphTraversal = {
   primitive?: "neighbors";
   network: string;
   depth: number;
+};
+
+export type HeldOutValidationReceipt = {
+  metric?: "log_loss";
+  held_out_rows: number;
+  fitted_score: number;
+  default_score: number;
 };
 
 export type HierarchyOverview = {
@@ -1578,7 +1720,6 @@ export type HierarchyRow = {
 
 export type HouseholdMember = {
   agent_id: string;
-  display_name: string;
   age?: number | null;
   relationship: string;
   agent_types: Array<string>;
@@ -1586,7 +1727,6 @@ export type HouseholdMember = {
 
 export type HouseholdMemberSeed = {
   member_id: string;
-  name?: string | null;
   age: number;
   sex: string;
   relationship_to_reference: "self" | "spouse" | "child" | "parent" | "sibling" | "other";
@@ -1682,7 +1822,6 @@ export type ImportVersion = {
 
 export type InitialAgentDetail = {
   agent_id: string;
-  display_name: string;
   agent_types: Array<string>;
   age?: number | null;
   sex: string;
@@ -1701,14 +1840,40 @@ export type InitialAgentDetail = {
   initial_states: {
   [key: string]: string;
 };
+  education_profile: EducationProfile;
+  state_vector: AgentStateVector;
+  finances: FinanceState;
   occupation?: string | null;
-  income?: string | number | number | null;
-  education?: string | null;
   health?: string | null;
   routines: Array<RoutineLink>;
   decision_trees: Array<DecisionTreeLink>;
   interaction_context: InitialInteractionContext;
   representative_weight: number;
+};
+
+export type InitialAgentDeviation = {
+  deviation_id: string;
+  field: string;
+  status: "estimated" | "regional_imputed" | "omitted";
+  places: Array<string>;
+  reason: string;
+  full_requirement: string;
+};
+
+export type InitialAgentDistribution = {
+  field_id: string;
+  label: string;
+  summary: string;
+  evidence_status: "measured" | "own_country_inherited" | "regional_imputed" | "estimated";
+  source?: string | null;
+  source_place?: string | null;
+  bins: Array<InitialAgentDistributionBin>;
+};
+
+export type InitialAgentDistributionBin = {
+  label: string;
+  percentage: number;
+  estimated_agents: number;
 };
 
 export type InitialAgentFacets = {
@@ -1718,9 +1883,35 @@ export type InitialAgentFacets = {
   family_statuses: Array<string>;
 };
 
+export type InitialAgentFieldCoverage = {
+  measured: Array<string>;
+  own_country_inherited: Array<string>;
+  regional_imputed: Array<string>;
+  estimated: Array<string>;
+  place_evidence?: Array<InitialAgentFieldPlaceEvidence>;
+};
+
+export type InitialAgentFieldPlaceEvidence = {
+  country: string;
+  country_code: string;
+  status: "measured" | "own_country_inherited" | "regional_imputed" | "estimated";
+  source?: string | null;
+  source_place?: string | null;
+  source_level: "country" | "region" | "global";
+  source_version?: string | null;
+};
+
+export type InitialAgentGlobalInteractionSummary = {
+  status?: "configured" | "recorded" | "unavailable";
+  run_id?: string | null;
+  participating_countries?: Array<string>;
+  participating_regions?: Array<string>;
+  cross_country_interactions?: number;
+  cross_region_interactions?: number;
+};
+
 export type InitialAgentListItem = {
   agent_id: string;
-  display_name: string;
   agent_types: Array<string>;
   age?: number | null;
   sex: string;
@@ -1739,6 +1930,15 @@ export type InitialAgentPage = {
   page_size: number;
   pages: number;
   facets: InitialAgentFacets;
+  evidence_summary: InitialPopulationEvidenceSummary;
+};
+
+export type InitialAgentPlaceComparison = {
+  comparison_id: string;
+  level: "global" | "country" | "region";
+  place: string;
+  agent_count: number;
+  distributions: Array<InitialAgentDistribution>;
 };
 
 export type InitialInteractionContext = {
@@ -1752,7 +1952,6 @@ export type InitialInteractionContext = {
 
 export type InitialInteractionCounterpart = {
   target_agent_id: string;
-  display_name: string;
   relationship: string;
   relationship_kind: string;
   weight: number;
@@ -1794,6 +1993,22 @@ export type InitialInteractionRule = {
   interaction_tree_id?: string | null;
   formula: string;
   factors: Array<InitialInteractionFactor>;
+};
+
+export type InitialPopulationEvidenceSummary = {
+  total_agents?: number;
+  country_agent_counts: {
+  [key: string]: number;
+};
+  region_agent_counts: {
+  [key: string]: number;
+};
+  fields: {
+  [key: string]: InitialAgentFieldCoverage;
+};
+  comparisons?: Array<InitialAgentPlaceComparison>;
+  deviations?: Array<InitialAgentDeviation>;
+  interactions?: InitialAgentGlobalInteractionSummary;
 };
 
 export type InitialPopulationMaterialization = {
@@ -1867,9 +2082,7 @@ export type InteractionEventDetail = {
   interaction_type: string;
   channel: "in_person" | "phone_message" | "online";
   initiator_id: string;
-  initiator_name: string;
   target_id: string;
-  target_name: string;
   place_id: string;
   relationship_type: string;
   probability: number;
@@ -1884,9 +2097,7 @@ export type InteractionEventDetail = {
 };
 
 export type InteractionFacets = {
-  agents: {
-  [key: string]: string;
-};
+  agents: Array<string>;
   interaction_types: Array<string>;
   channels: Array<"in_person" | "phone_message" | "online">;
   relationships: Array<string>;
@@ -1906,7 +2117,7 @@ export type InteractionFactorProvenance = {
   source_date?: string | null;
   evidence_id?: string | null;
   licence?: string | null;
-  status: "measured_joint" | "fitted_model" | "approved_estimate" | "unknown" | "label_only" | "ambiguous" | "legacy";
+  status: "measured_joint" | "fitted_model" | "default_estimated" | "approved_estimate" | "unknown" | "label_only" | "ambiguous" | "legacy";
   uncertainty: number;
   user_approved?: boolean;
 };
@@ -1920,9 +2131,7 @@ export type InteractionListItem = {
   interaction_type: string;
   channel: "in_person" | "phone_message" | "online";
   initiator_id: string;
-  initiator_name: string;
   target_id: string;
-  target_name: string;
   place_id: string;
   relationship_type: string;
   probability: number;
@@ -2200,7 +2409,6 @@ export type LegacyMarginalField = {
 
 export type LocationAgentDetail = {
   agent_id: string;
-  display_name: string;
   current_location: LocationPlaceSummary;
   ancestry: Array<LocationPlaceSummary>;
   history: Array<LocationHistoryRecord>;
@@ -2213,7 +2421,6 @@ export type LocationAgentDetail = {
 
 export type LocationAgentSummary = {
   agent_id: string;
-  display_name: string;
   current_location_id: string;
 };
 
@@ -2315,7 +2522,7 @@ export type MappingConfirmation = {
 };
 
 export type MarginalField = {
-  field: "age_sex" | "income" | "education" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
+  field: "age_sex" | "income" | "education" | "specialization" | "ideology_economic" | "ideology_state" | "ideology_cultural" | "household_size";
   status: "present" | "inherited" | "imputed" | "estimated" | "missing";
   value: {
   [key: string]: number;
@@ -2671,7 +2878,7 @@ export type Relationship = {
   trust?: number | null;
   similarity?: number | null;
   evidence_id?: string | null;
-  evidence_status?: "measured_joint" | "fitted_model" | "approved_estimate" | "user_defined" | "imputed" | "unknown" | null;
+  evidence_status?: "measured_joint" | "fitted_model" | "default_estimated" | "approved_estimate" | "user_defined" | "imputed" | "unknown" | null;
 };
 
 export type RelationshipKindEffect = {
@@ -2761,7 +2968,7 @@ export type RoutineDefinition = {
 };
 
 export type RoutineEvidence = {
-  status: "measured" | "user_defined" | "illustrative" | "unknown";
+  status: "measured" | "user_defined" | "default_estimated" | "illustrative" | "unknown";
   source_title?: string | null;
   source_date?: string | null;
   source_uri?: string | null;
@@ -2860,7 +3067,6 @@ export type RuleDefinition = {
 
 export type RunAgentDetail = {
   agent_id: string;
-  display_name: string;
   final_module: string;
   final_state: string;
   final_location: string;
@@ -2889,10 +3095,31 @@ export type RunAgentPage = {
 
 export type RunAgentSummary = {
   agent_id: string;
-  display_name: string;
   final_module: string;
   final_state: string;
   final_location: string;
+};
+
+export type RunCoefficientReceipt = {
+  action_id: string;
+  edge_id: string;
+  place: CoefficientPlace;
+  source_place?: CoefficientPlace | null;
+  resolution_status?: "direct" | "inherited" | "imputed";
+  evidence_state: "fitted" | "default_estimated" | "blocked";
+  value: number;
+  interval: CoefficientInterval;
+  coefficient_set_id: string;
+  default_coefficient_set_id: string;
+  default_value: number;
+  fitted_delta?: number | null;
+  promotion_id?: string | null;
+  source_label: string;
+  source_version: string;
+  source_id?: string | null;
+  default_reason?: string | null;
+  held_out?: HeldOutValidationReceipt | null;
+  affected_agents?: number;
 };
 
 export type RunComplete = {
@@ -2980,6 +3207,21 @@ export type RunEventPage = {
   pages: number;
 };
 
+export type RunEvidenceSummary = {
+  fitted_count: number;
+  default_estimated_count: number;
+  blocked_count: number;
+  by_action_place: Array<ActionPlaceEvidenceSummary>;
+};
+
+export type RunEvidenceWarning = {
+  code?: "default_estimated_coefficients";
+  action_id: string;
+  place: CoefficientPlace;
+  coefficient_ids: Array<string>;
+  message: string;
+};
+
 export type RunFailed = {
   run_id: string;
   status: "failed";
@@ -3023,6 +3265,8 @@ export type SimulationResult = {
   engine_version: string;
   data_version: string;
   program_version: string;
+  default_dsl_version?: string | null;
+  default_dsl_hash?: string | null;
   input_hash: string;
   output_hash: string;
   snapshots: Array<SnapshotSummary>;
@@ -3049,6 +3293,11 @@ export type SimulationRunView = {
   total_ticks: number;
   result?: SimulationResult | null;
   error?: string | null;
+  default_dsl_version?: string | null;
+  default_dsl_hash?: string | null;
+  evidence_summary?: RunEvidenceSummary;
+  evidence_warnings?: Array<RunEvidenceWarning>;
+  global_demo_summary?: InitialPopulationEvidenceSummary | null;
 };
 
 export type SliderSpec = {
@@ -3096,6 +3345,22 @@ export type StateDefinition = {
   id: string;
   values: Array<string>;
   initial: Distribution;
+};
+
+export type StateEvidence = {
+  status: "measured_joint" | "measured_marginal" | "inherited" | "imputed" | "literature_support" | "default_estimated" | "unknown" | "simulated";
+  source: string;
+  source_version: string;
+  source_date?: string | null;
+  url?: string | null;
+  place: string;
+  population: string;
+  language?: string | null;
+  original_title?: string | null;
+  english_title?: string | null;
+  search_source?: string | null;
+  uncertainty: number;
+  default_reason?: string | null;
 };
 
 export type StoryDetail = {

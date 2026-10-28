@@ -89,7 +89,6 @@ def _population():
                     members=[
                         HouseholdMemberSeed(
                             member_id="younger",
-                            name="Younger",
                             age=30,
                             sex="female",
                             relationship_to_reference="self",
@@ -98,7 +97,6 @@ def _population():
                         ),
                         HouseholdMemberSeed(
                             member_id="older",
-                            name="Older",
                             age=60,
                             sex="male",
                             relationship_to_reference="spouse",

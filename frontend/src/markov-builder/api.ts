@@ -4,6 +4,8 @@ import type {
   ChainValidationResult,
   ConfirmationResult,
   MarkovBuilderApi,
+  PipelineTransitionEstimate,
+  TransitionProbabilityResearchRequest,
 } from './types';
 
 const json = (body: unknown): RequestInit => ({
@@ -43,6 +45,8 @@ export const markovBuilderApi: MarkovBuilderApi = {
   propose: (text, useLlm) =>
     request<ChainProposalResult>('/proposals', { text, use_llm: useLlm }),
   validate: (draft: ChainDraft) => request<ChainValidationResult>('/validation', draft),
+  researchProbability: (researchRequest: TransitionProbabilityResearchRequest) =>
+    request<PipelineTransitionEstimate>('/probability-research', researchRequest),
   confirm: (draft: ChainDraft) =>
     request<ConfirmationResult>('/confirm', { draft, user_confirmed: true }),
 };

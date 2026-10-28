@@ -7,8 +7,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from ..atlas.evidence_receipts import AtlasEvidenceReceiptRegistry
 from ..population import AgentRecord
 from ..rust_core import RustCoreClient
+from .coefficient_evidence import (
+    load_coefficient_registry,
+    load_default_dsl_identity,
+    validate_coefficient_registry,
+)
+from .initial_agent_summary import (
+    global_population_evidence_summary,
+    is_global_demo_population,
+)
 from .interaction_trees import AgentRoutineEffect as InteractionTreeAgentRoutineEffect
 from .interaction_trees import AgentStateEffect as InteractionTreeAgentStateEffect
 from .locations import (
@@ -20,11 +30,13 @@ from .mobility import MobilityEvidence, ResolvedMobility, resolve_mobility
 from .registry_store import SimulationRegistryStore
 from .routines import ResolvedRoutineRegistry, resolve_routines
 from .run_service import PreparedRustRun, SimulationRunConfig
+from .run_warnings import evidence_summary
 from .runtime_decision_compiler import (
-    BASELINE_PROGRAM_VERSION,
+    RUNTIME_PROGRAM_VERSION,
     RuntimeDecisionCompilation,
     compile_runtime_decisions,
 )
+from .runtime_state_compiler import compile_runtime_state
 
 WEEKDAY_INDEX = {
     "monday": 0,
@@ -39,6 +51,7 @@ CURRENT_PLACE_IDS = {"current", "current_place"}
 EXECUTABLE_RELATIONSHIP_EVIDENCE = {
     "measured_joint",
     "fitted_model",
+    "default_estimated",
     "approved_estimate",
 }
 
@@ -159,7 +172,11 @@ def _routine_schedules(
         ]
         for resolved_routine in agent_type.routines:
             routine = resolved_routine.routine
-            if routine.evidence.status not in {"measured", "user_defined"}:
+            if routine.evidence.status not in {
+                "measured",
+                "user_defined",
+                "default_estimated",
+            }:
                 continue
             expected_origin_ids = list(initial_runtime_place_ids)
             for step in routine.steps:
@@ -286,13 +303,20 @@ def _program_version(
     mobility = store.mobility()
     evidence = store.decision_evidence()
     interaction_program = store.interaction_program()
+    coefficient_registry = load_coefficient_registry(store)
+    registry_payload = store.payload_snapshot()
     payload = {
-        "base": BASELINE_PROGRAM_VERSION,
+        "base": RUNTIME_PROGRAM_VERSION,
         "agent_types": agent_types.model_dump(mode="json") if agent_types else None,
         "routines": routines.model_dump(mode="json") if routines else None,
         "mobility": mobility.model_dump(mode="json") if mobility else None,
         "decision_trees": store.decision_trees().model_dump(mode="json"),
         "decision_evidence": evidence.model_dump(mode="json") if evidence else None,
+        "coefficient_registry": (
+            coefficient_registry.model_dump(mode="json") if coefficient_registry else None
+        ),
+        "default_actions": registry_payload.get("default_actions"),
+        "agent_states": registry_payload.get("agent_states"),
         "interaction_trees": [tree.model_dump(mode="json") for tree in store.interaction_trees()],
         "interaction_program": (
             interaction_program.model_dump(mode="json") if interaction_program else None
@@ -300,7 +324,7 @@ def _program_version(
         "runtime_modules": dict(sorted(module_ids_by_agent_type.items())),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return f"{BASELINE_PROGRAM_VERSION}:{hashlib.sha256(encoded.encode()).hexdigest()[:16]}"
+    return f"{RUNTIME_PROGRAM_VERSION}:{hashlib.sha256(encoded.encode()).hexdigest()[:16]}"
 
 
 def _reachable_source_modules_by_tree(
@@ -464,7 +488,7 @@ def _select_agents(candidates: list[AgentRecord], config: SimulationRunConfig) -
         matching = [
             agent
             for agent in ordered
-            if agent.agent_id in remaining and agent_type in _agent_types(agent)
+            if agent.agent_id in remaining and agent_type == _primary_agent_type(agent)
         ]
         if len(matching) < count:
             raise ValueError(
@@ -1208,6 +1232,7 @@ def _initial_agent_profiles(
 def prepare_registry_run(
     store: SimulationRegistryStore,
     config: SimulationRunConfig,
+    evidence_receipts: AtlasEvidenceReceiptRegistry | None = None,
 ) -> PreparedRustRun:
     materialization = store.initial_population()
     if materialization is None:
@@ -1218,9 +1243,33 @@ def prepare_registry_run(
         agent for agent in materialization.population.agents if _matches_scope(agent, config)
     ]
     agents = _select_agents(candidates, config)
+    global_demo_summary = (
+        global_population_evidence_summary(
+            materialization.population.model_copy(update={"agents": agents}),
+            store.interaction_program(),
+        )
+        if config.place_scope.level == "global"
+        and is_global_demo_population(materialization.population)
+        else None
+    )
     resolved_routines = _resolved_routines(store)
     mobility = _resolved_mobility(store)
     numeric_memory = _numeric_memory(agents)
+    state_program = compile_runtime_state(store, agents, set(numeric_memory))
+    coefficient_registry = load_coefficient_registry(store)
+    default_dsl_identity = load_default_dsl_identity(store)
+    if coefficient_registry is not None:
+        validation = validate_coefficient_registry(
+            coefficient_registry,
+            default_dsl_identity,
+            evidence_receipts,
+        )
+        if not validation.executable:
+            detail = "; ".join(
+                f"{issue.action_id}/{issue.coefficient_set_id}: {issue.message}"
+                for issue in validation.issues
+            )
+            raise ValueError(f"Run blocked by coefficient evidence: {detail}")
     decision_program = compile_runtime_decisions(
         store.decision_trees(),
         store.decision_evidence(),
@@ -1229,6 +1278,11 @@ def prepare_registry_run(
         requested_tree_ids_by_agent=_agent_type_tree_ids_by_agent(store, agents),
         requested_module_ids_by_agent=_routine_module_ids_by_agent(resolved_routines, agents),
         runtime_context_keys=set(numeric_memory),
+        coefficient_registry=coefficient_registry,
+        default_dsl_identity=default_dsl_identity,
+    )
+    coefficient_summary, evidence_warnings = evidence_summary(
+        decision_program.coefficient_receipts + state_program.coefficient_receipts
     )
     module_ids_by_agent_type: dict[str, tuple[str, ...]] = {}
     for agent_type in sorted(
@@ -1346,16 +1400,22 @@ def prepare_registry_run(
             interactions["relationships"],
         ),
         "schedules": schedules,
-        "meaningful_actions": [],
+        "meaningful_actions": state_program.meaningful_actions,
         "interactions": interactions,
         "synchronization": {},
+        "state_dynamics": state_program.state_dynamics,
     }
     return PreparedRustRun(
         rust_request=request,
         agent_ids=[agent.agent_id for agent in agents],
-        agent_names=[_text_trait(agent, "name") or agent.agent_id for agent in agents],
         data_version=(f"{materialization.population.version}:{materialization.input_hash[:16]}"),
         program_version=program_version,
+        default_dsl_version=(
+            default_dsl_identity.version if default_dsl_identity is not None else None
+        ),
+        default_dsl_hash=(
+            default_dsl_identity.hash if default_dsl_identity is not None else None
+        ),
         location_places=location_places,
         initial_location_ids=initial_location_ids,
         runtime_place_location_ids=[place.location_id for place in runtime_places],
@@ -1365,4 +1425,7 @@ def prepare_registry_run(
             resolved_routines,
             decision_program.tree_ids_by_agent,
         ),
+        coefficient_evidence=coefficient_summary,
+        evidence_warnings=evidence_warnings,
+        global_demo_summary=global_demo_summary,
     )

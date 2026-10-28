@@ -397,8 +397,8 @@
       {
         "path": "registry_feature_dump/priority_feature_distributions.parquet",
         "present": true,
-        "bytes": 25094,
-        "sha256": "af221e0dee71b85cefada46f6954945ec5fa4008548fc9e8b8111b5dd30f04fa"
+        "bytes": 27756,
+        "sha256": "209608d56a538a85ee667a20951dc983be68e9dde3aeab7ca7b38c4a9f8457e7"
       }
     ]
   },

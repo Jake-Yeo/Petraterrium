@@ -30,7 +30,7 @@ test('feature research and inheritance details use one collapsed, scrollable acc
   await page.keyboard.press('Enter');
   await expect(research).toHaveAttribute('aria-expanded', 'true');
   await expect(researchPanel).toBeVisible();
-  await expect(research).toContainText('No promoted auto-import evidence');
+  await expect(research).toContainText('Research pipeline ready');
   await expect(inheritance).toHaveAttribute('aria-expanded', 'false');
 
   await inheritance.focus();

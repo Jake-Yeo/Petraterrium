@@ -343,18 +343,22 @@ def test_confirmed_builder_chain_stays_blocked_until_evidence_is_attached(tmp_pa
 
     assert confirmation.status_code == 200
     saved = registry.decision_trees()
-    assert saved.trees[0].status == "blocked"
-    assert saved.modules[0].status == "blocked"
-    assert saved.modules[0].source == (
+    saved_tree = next(item for item in saved.trees if item.id == "weekend_choice")
+    saved_module = next(
+        item for item in saved.modules if item.id == saved_tree.root_module_id
+    )
+    assert saved_tree.status == "blocked"
+    assert saved_module.status == "blocked"
+    assert saved_module.source == (
         "User-confirmed natural-language proposal · deterministic parser · evidence pending"
     )
-    assert saved.trees[0].proposal_audit.origin == "deterministic"
-    assert saved.trees[0].proposal_audit.source_id == "deterministic-parser"
-    assert saved.trees[0].proposal_audit.source_label == "Deterministic parser"
-    assert saved.trees[0].proposal_audit.prompt_version == "markov-chain-proposal-v1"
-    assert saved.modules[0].proposal_audit == saved.trees[0].proposal_audit
-    assert all(edge.decision_id is None for edge in saved.modules[0].edges)
-    assert all("evidence pending" in edge.label for edge in saved.modules[0].edges)
+    assert saved_tree.proposal_audit.origin == "deterministic"
+    assert saved_tree.proposal_audit.source_id == "deterministic-parser"
+    assert saved_tree.proposal_audit.source_label == "Deterministic parser"
+    assert saved_tree.proposal_audit.prompt_version == "markov-chain-proposal-v1"
+    assert saved_module.proposal_audit == saved_tree.proposal_audit
+    assert all(edge.decision_id is None for edge in saved_module.edges)
+    assert all("evidence pending" in edge.label for edge in saved_module.edges)
 
 
 def test_confirmed_builder_chain_persists_full_selected_ai_provenance(tmp_path):

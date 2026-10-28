@@ -25,6 +25,7 @@ PACK_SOURCES = (
     "Global Preferences Survey via Our World in Data",
     "OpenPsychometrics",
     "Schwartz cultural value orientations",
+    "Petraterrium in-app specialization research pipeline",
 )
 
 
@@ -499,6 +500,126 @@ def load_schwartz_estimates() -> dict[str, Estimate]:
     return result
 
 
+def load_specialization_estimates(data_directory: Path) -> dict[str, Estimate]:
+    pipeline_directory = data_directory / "sources" / "specialization" / "pipeline"
+    if not pipeline_directory.exists():
+        raise FileNotFoundError(
+            f"Required specialization pipeline receipts are missing: {pipeline_directory}"
+        )
+    specialization = next(
+        feature
+        for feature in canonical_feature_registry().definitions
+        if feature.id == "specialization"
+    )
+    expected_values = set(specialization.canonical_values)
+    estimates = {}
+    for receipt_path in sorted(pipeline_directory.glob("*.json")):
+        receipt = json.loads(receipt_path.read_text())
+        target = receipt.get("target", {})
+        if target.get("level") != "country" or target.get("feature_id") != "specialization":
+            continue
+        if receipt.get("status") not in {"ready", "promoted"}:
+            continue
+        result_kind = receipt.get("result_kind")
+        if result_kind not in {"measured", "estimated"}:
+            continue
+        country_code = str(target.get("country_code") or target.get("place_id", "")).upper()
+        mapped_distribution = receipt.get("mapped_distribution")
+        if not country_code or not isinstance(mapped_distribution, dict):
+            raise ValueError(f"Invalid specialization pipeline receipt: {receipt_path}")
+        if set(mapped_distribution) != expected_values:
+            raise ValueError(
+                f"Specialization receipt {receipt_path.name} has non-canonical values"
+            )
+        values = {
+            str(label): float(percentage) / 100
+            for label, percentage in sorted(mapped_distribution.items())
+        }
+        if any(not math.isfinite(value) or value < 0 or value > 1 for value in values.values()):
+            raise ValueError(
+                f"Specialization receipt {receipt_path.name} has invalid probabilities"
+            )
+        if not math.isclose(sum(values.values()), 1, abs_tol=1e-9):
+            raise ValueError(
+                f"Specialization receipt {receipt_path.name} does not sum to one"
+            )
+        selected_source_ids = set(receipt.get("selected_source_ids") or ())
+        selected_sources = [
+            source
+            for source in receipt.get("sources", ())
+            if source.get("candidate_id") in selected_source_ids
+        ]
+        if not selected_sources:
+            raise ValueError(
+                f"Specialization receipt {receipt_path.name} has no selected source"
+            )
+        source_titles = sorted(
+            {str(source["title"]) for source in selected_sources if source.get("title")}
+        )
+        source_versions = sorted(
+            {
+                str(source["source_version"])
+                for source in selected_sources
+                if source.get("source_version")
+            }
+        )
+        licences = sorted(
+            {
+                str(source["license"])
+                for source in selected_sources
+                if source.get("license")
+            }
+        )
+        source_dates = [
+            str(source.get("observation_date") or source.get("published_date"))
+            for source in selected_sources
+            if source.get("observation_date") or source.get("published_date")
+        ]
+        source_date = max(source_dates) if source_dates else str(receipt["updated_at"])[:10]
+        mapping_version = str(receipt.get("mapping_preview", {}).get("version") or "pending")
+        version_parts = [
+            *(source_versions or [f"pipeline-attempt-{receipt['attempt_id']}"]),
+            f"mapping {mapping_version}",
+            f"pipeline attempt {receipt['attempt_id']}",
+            *(f"licence {licence}" for licence in licences),
+        ]
+        sample_size = next(
+            (
+                int(source.get("sample_size") or source.get("population"))
+                for source in selected_sources
+                if source.get("sample_size") or source.get("population")
+            ),
+            None,
+        )
+        if result_kind == "estimated":
+            intervals = (receipt.get("estimate_trace") or {}).get(
+                "confidence_intervals", {}
+            )
+            interval_widths = [
+                float(interval["upper"]) - float(interval["lower"])
+                for interval in intervals.values()
+                if isinstance(interval, dict)
+                and "lower" in interval
+                and "upper" in interval
+            ]
+            uncertainty = min(1, max([0.3, *(width / 100 for width in interval_widths)]))
+        else:
+            uncertainty = 0.05 if receipt.get("mapping_confirmed") else 0.3
+        estimates[country_code] = Estimate(
+            values=values,
+            mean=None,
+            standard_deviation=None,
+            source="; ".join(source_titles),
+            version="; ".join(version_parts),
+            source_date=source_date,
+            status="present" if result_kind == "measured" else "literature_estimate",
+            uncertainty=uncertainty,
+            method="measured" if result_kind == "measured" else "compositional",
+            sample_size=sample_size,
+        )
+    return estimates
+
+
 def merge_estimates(*groups: dict[str, dict[str, Estimate]]) -> dict[str, dict[str, Estimate]]:
     result: dict[str, dict[str, Estimate]] = defaultdict(dict)
     for group in groups:
@@ -606,6 +727,7 @@ def build_priority_feature_distributions(
         load_gps_estimates(data_directory),
         {"occupation_isco": load_occupation_estimates(data_directory)},
         {"schwartz_values": load_schwartz_estimates()},
+        {"specialization": load_specialization_estimates(data_directory)},
     )
     expected_features = {
         feature.id for feature in canonical_feature_registry().definitions

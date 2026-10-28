@@ -473,6 +473,50 @@
       "title": "ActionLogEntry",
       "type": "object"
     },
+    "ActionPlaceEvidenceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "place": {
+          "$ref": "#/$defs/CoefficientPlace"
+        },
+        "fitted_count": {
+          "minimum": 0,
+          "title": "Fitted Count",
+          "type": "integer"
+        },
+        "default_estimated_count": {
+          "minimum": 0,
+          "title": "Default Estimated Count",
+          "type": "integer"
+        },
+        "blocked_count": {
+          "minimum": 0,
+          "title": "Blocked Count",
+          "type": "integer"
+        },
+        "coefficients": {
+          "items": {
+            "$ref": "#/$defs/RunCoefficientReceipt"
+          },
+          "title": "Coefficients",
+          "type": "array"
+        }
+      },
+      "required": [
+        "action_id",
+        "place",
+        "fitted_count",
+        "default_estimated_count",
+        "blocked_count",
+        "coefficients"
+      ],
+      "title": "ActionPlaceEvidenceSummary",
+      "type": "object"
+    },
     "AgentBehaviorProposalDraft": {
       "additionalProperties": false,
       "properties": {
@@ -753,11 +797,6 @@
           "title": "Other Agent Id",
           "type": "string"
         },
-        "other_agent_name": {
-          "minLength": 1,
-          "title": "Other Agent Name",
-          "type": "string"
-        },
         "place": {
           "minLength": 1,
           "title": "Place",
@@ -795,7 +834,6 @@
         "interaction_type",
         "channel",
         "other_agent_id",
-        "other_agent_name",
         "place",
         "state_deltas",
         "relationship_deltas"
@@ -1095,6 +1133,67 @@
       "title": "AgentRoutineEffect",
       "type": "object"
     },
+    "AgentStateValue": {
+      "additionalProperties": false,
+      "properties": {
+        "state_id": {
+          "title": "State Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "status": {
+          "enum": [
+            "present",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/StateEvidence"
+        }
+      },
+      "required": [
+        "state_id",
+        "status",
+        "evidence"
+      ],
+      "title": "AgentStateValue",
+      "type": "object"
+    },
+    "AgentStateVector": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_version": {
+          "title": "Catalog Version",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/AgentStateValue"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "catalog_version",
+        "values"
+      ],
+      "title": "AgentStateVector",
+      "type": "object"
+    },
     "AgentTimelineEntry": {
       "additionalProperties": false,
       "properties": {
@@ -1232,6 +1331,29 @@
         "location": {
           "title": "Location",
           "type": "string"
+        },
+        "memory": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Memory",
+          "type": "object"
+        },
+        "state_receipts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "State Receipts",
+          "type": "array"
+        },
+        "action_receipts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Action Receipts",
+          "type": "array"
         },
         "actions": {
           "items": {
@@ -2571,6 +2693,26 @@
           "title": "Candidate Values",
           "type": "object"
         },
+        "distribution_changes": {
+          "items": {
+            "$ref": "#/$defs/AutoImportDistributionChange"
+          },
+          "title": "Distribution Changes",
+          "type": "array"
+        },
+        "draft_status": {
+          "enum": [
+            "editable_draft",
+            "confirmed",
+            "promoted"
+          ],
+          "title": "Draft Status",
+          "type": "string"
+        },
+        "usable_in_demo": {
+          "title": "Usable In Demo",
+          "type": "boolean"
+        },
         "can_promote": {
           "title": "Can Promote",
           "type": "boolean"
@@ -2596,6 +2738,17 @@
             }
           ],
           "title": "Promoted At"
+        },
+        "promotion_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Promotion Id"
         }
       },
       "required": [
@@ -2609,9 +2762,13 @@
         "evidence_kind",
         "estimate_trace",
         "candidate_values",
+        "distribution_changes",
+        "draft_status",
+        "usable_in_demo",
         "can_promote",
         "error",
-        "promoted_at"
+        "promoted_at",
+        "promotion_id"
       ],
       "title": "AutoImportAttemptView",
       "type": "object"
@@ -2915,6 +3072,35 @@
       "title": "AutoImportCanonicalValue",
       "type": "object"
     },
+    "AutoImportDistributionChange": {
+      "additionalProperties": false,
+      "properties": {
+        "source_label": {
+          "title": "Source Label",
+          "type": "string"
+        },
+        "target_label": {
+          "title": "Target Label",
+          "type": "string"
+        },
+        "before": {
+          "title": "Before",
+          "type": "number"
+        },
+        "after": {
+          "title": "After",
+          "type": "number"
+        }
+      },
+      "required": [
+        "source_label",
+        "target_label",
+        "before",
+        "after"
+      ],
+      "title": "AutoImportDistributionChange",
+      "type": "object"
+    },
     "AutoImportDistributionRequirement": {
       "additionalProperties": false,
       "properties": {
@@ -3031,6 +3217,13 @@
           "title": "Confidence Interval",
           "type": "string"
         },
+        "source_ids_used": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids Used",
+          "type": "array"
+        },
         "limitations": {
           "items": {
             "type": "string"
@@ -3045,6 +3238,7 @@
         "assumptions",
         "inputs",
         "confidence_interval",
+        "source_ids_used",
         "limitations"
       ],
       "title": "AutoImportEstimateTraceView",
@@ -3196,11 +3390,27 @@
         "reviewed": {
           "title": "Reviewed",
           "type": "boolean"
+        },
+        "distribution": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distribution"
         }
       },
       "required": [
         "mappings",
-        "reviewed"
+        "reviewed",
+        "distribution"
       ],
       "title": "AutoImportMappingReview",
       "type": "object"
@@ -3400,6 +3610,34 @@
       "title": "AutoImportQueuePageView",
       "type": "object"
     },
+    "AutoImportRerunRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "source_tiers": {
+          "items": {
+            "enum": [
+              "official_statistics",
+              "census",
+              "representative_survey",
+              "research_article",
+              "government_report",
+              "university_report",
+              "news",
+              "online_opinion",
+              "expert_commentary"
+            ],
+            "type": "string"
+          },
+          "title": "Source Tiers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_tiers"
+      ],
+      "title": "AutoImportRerunRequest",
+      "type": "object"
+    },
     "AutoImportResearchSource": {
       "additionalProperties": false,
       "properties": {
@@ -3557,8 +3795,15 @@
           "type": "string"
         },
         "searched_at": {
-          "title": "Searched At",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Searched At"
         },
         "result_count": {
           "minimum": 0,
@@ -4036,6 +4281,253 @@
         "provenance"
       ],
       "title": "BehaviourBundle",
+      "type": "object"
+    },
+    "BehaviourEvidenceRow": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        },
+        "model_status": {
+          "enum": [
+            "active_fitted",
+            "rejected_fit",
+            "label_only"
+          ],
+          "title": "Model Status",
+          "type": "string"
+        },
+        "source_status": {
+          "enum": [
+            "measured",
+            "source_unclassified"
+          ],
+          "title": "Source Status",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_tier": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Tier"
+        },
+        "outcome_rate": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome Rate"
+        },
+        "ci_low": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci Low"
+        },
+        "ci_high": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci High"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty"
+        },
+        "sample_size": {
+          "minimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "effective_sample_size": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effective Sample Size"
+        },
+        "ci_method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci Method"
+        },
+        "population": {
+          "title": "Population",
+          "type": "string"
+        },
+        "denominator": {
+          "title": "Denominator",
+          "type": "string"
+        },
+        "traits": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "array"
+        },
+        "algorithm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Algorithm"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "training_rows": {
+          "minimum": 0,
+          "title": "Training Rows",
+          "type": "integer"
+        },
+        "heldout_rows": {
+          "minimum": 0,
+          "title": "Heldout Rows",
+          "type": "integer"
+        },
+        "heldout_loss": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heldout Loss"
+        },
+        "baseline_loss": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Loss"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "id",
+        "action_id",
+        "country_code",
+        "definition",
+        "model_status",
+        "source_status",
+        "source_type",
+        "source_tier",
+        "outcome_rate",
+        "ci_low",
+        "ci_high",
+        "uncertainty",
+        "sample_size",
+        "effective_sample_size",
+        "ci_method",
+        "population",
+        "denominator",
+        "traits",
+        "algorithm",
+        "reason",
+        "training_rows",
+        "heldout_rows",
+        "heldout_loss",
+        "baseline_loss",
+        "provenance"
+      ],
+      "title": "BehaviourEvidenceRow",
       "type": "object"
     },
     "BehaviourModel": {
@@ -4917,7 +5409,7 @@
       "properties": {
         "rows": {
           "items": {
-            "$ref": "#/$defs/ChoiceEvidence"
+            "$ref": "#/$defs/BehaviourEvidenceRow"
           },
           "title": "Rows",
           "type": "array"
@@ -4941,6 +5433,7 @@
               "age_sex",
               "income",
               "education",
+              "specialization",
               "ideology_economic",
               "ideology_state",
               "ideology_cultural",
@@ -4957,6 +5450,7 @@
               "age_sex",
               "income",
               "education",
+              "specialization",
               "ideology_economic",
               "ideology_state",
               "ideology_cultural",
@@ -5001,6 +5495,94 @@
         "simulation_note"
       ],
       "title": "CityDetail",
+      "type": "object"
+    },
+    "CoefficientInterval": {
+      "additionalProperties": false,
+      "properties": {
+        "low": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Low",
+          "type": "number"
+        },
+        "high": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "High",
+          "type": "number"
+        }
+      },
+      "required": [
+        "low",
+        "high"
+      ],
+      "title": "CoefficientInterval",
+      "type": "object"
+    },
+    "CoefficientPlace": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "enum": [
+            "city",
+            "country",
+            "region",
+            "global"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "place_id": {
+          "minLength": 1,
+          "title": "Place Id",
+          "type": "string"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "country_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country Id"
+        },
+        "city_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City Id"
+        }
+      },
+      "required": [
+        "level",
+        "place_id"
+      ],
+      "title": "CoefficientPlace",
       "type": "object"
     },
     "ColumnMapping": {
@@ -5931,6 +6513,7 @@
             "age_sex",
             "income",
             "education",
+            "specialization",
             "ideology_economic",
             "ideology_state",
             "ideology_cultural",
@@ -7663,6 +8246,88 @@
       "title": "Distribution",
       "type": "object"
     },
+    "EducationProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "years_of_education": {
+          "anyOf": [
+            {
+              "maximum": 40,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Years Of Education"
+        },
+        "isced_level": {
+          "anyOf": [
+            {
+              "maximum": 8,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Isced Level"
+        },
+        "country_label": {
+          "minLength": 1,
+          "title": "Country Label",
+          "type": "string"
+        },
+        "country_code": {
+          "minLength": 2,
+          "title": "Country Code",
+          "type": "string"
+        },
+        "specialization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specialization"
+        },
+        "specialization_threshold_years": {
+          "maximum": 40,
+          "minimum": 0,
+          "title": "Specialization Threshold Years",
+          "type": "integer"
+        },
+        "specialization_status": {
+          "enum": [
+            "present",
+            "not_applicable",
+            "awaiting_data"
+          ],
+          "title": "Specialization Status",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/StateEvidence"
+        }
+      },
+      "required": [
+        "country_label",
+        "country_code",
+        "specialization_threshold_years",
+        "specialization_status",
+        "provenance"
+      ],
+      "title": "EducationProfile",
+      "type": "object"
+    },
     "EnsembleUpdate": {
       "additionalProperties": false,
       "properties": {
@@ -8170,10 +8835,6 @@
           "title": "Target Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "relationship": {
           "title": "Relationship",
           "type": "string"
@@ -8200,7 +8861,6 @@
       },
       "required": [
         "target_agent_id",
-        "display_name",
         "relationship",
         "weight"
       ],
@@ -8585,6 +9245,7 @@
             "age_sex",
             "income",
             "education",
+            "specialization",
             "ideology_economic",
             "ideology_state",
             "ideology_cultural",
@@ -8655,6 +9316,268 @@
       "title": "FieldCoverage",
       "type": "object"
     },
+    "FinanceEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured_joint",
+            "measured_marginal",
+            "inherited",
+            "imputed",
+            "literature_support",
+            "default_estimated",
+            "unknown",
+            "simulated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_version": {
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "place": {
+          "minLength": 1,
+          "title": "Place",
+          "type": "string"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "minLength": 2,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "original_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Title"
+        },
+        "english_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "English Title"
+        },
+        "search_source": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Search Source"
+        },
+        "uncertainty": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Uncertainty",
+          "type": "number"
+        },
+        "default_reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Reason"
+        },
+        "currency": {
+          "maxLength": 3,
+          "minLength": 3,
+          "title": "Currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "source",
+        "source_version",
+        "place",
+        "population",
+        "uncertainty",
+        "currency"
+      ],
+      "title": "FinanceEvidence",
+      "type": "object"
+    },
+    "FinanceQuantity": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "evidence": {
+          "$ref": "#/$defs/FinanceEvidence"
+        }
+      },
+      "required": [
+        "evidence"
+      ],
+      "title": "FinanceQuantity",
+      "type": "object"
+    },
+    "FinanceState": {
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "maxLength": 3,
+          "minLength": 3,
+          "title": "Currency",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "measured_joint",
+            "measured_marginal",
+            "inherited",
+            "imputed",
+            "literature_support",
+            "default_estimated",
+            "unknown",
+            "simulated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source_distribution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Distribution Id"
+        },
+        "source_cell_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Cell Id"
+        },
+        "money": {
+          "$ref": "#/$defs/FinanceQuantity"
+        },
+        "income": {
+          "$ref": "#/$defs/FinanceQuantity"
+        },
+        "expenses": {
+          "$ref": "#/$defs/FinanceQuantity"
+        },
+        "savings": {
+          "$ref": "#/$defs/FinanceQuantity"
+        },
+        "debt": {
+          "$ref": "#/$defs/FinanceQuantity"
+        },
+        "evidence": {
+          "$ref": "#/$defs/FinanceEvidence"
+        },
+        "formula": {
+          "default": "money[t+1] = money[t] + wages + business_income + transfers + debt_draw + savings_withdrawal - housing - food - transport - other_expenses - taxes - savings_contribution - debt_repayment",
+          "title": "Formula",
+          "type": "string"
+        }
+      },
+      "required": [
+        "currency",
+        "status",
+        "money",
+        "income",
+        "expenses",
+        "savings",
+        "debt",
+        "evidence"
+      ],
+      "title": "FinanceState",
+      "type": "object"
+    },
     "GraphTraversal": {
       "additionalProperties": false,
       "properties": {
@@ -8680,6 +9603,39 @@
         "depth"
       ],
       "title": "GraphTraversal",
+      "type": "object"
+    },
+    "HeldOutValidationReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "metric": {
+          "const": "log_loss",
+          "default": "log_loss",
+          "title": "Metric",
+          "type": "string"
+        },
+        "held_out_rows": {
+          "exclusiveMinimum": 0,
+          "title": "Held Out Rows",
+          "type": "integer"
+        },
+        "fitted_score": {
+          "minimum": 0,
+          "title": "Fitted Score",
+          "type": "number"
+        },
+        "default_score": {
+          "minimum": 0,
+          "title": "Default Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "held_out_rows",
+        "fitted_score",
+        "default_score"
+      ],
+      "title": "HeldOutValidationReceipt",
       "type": "object"
     },
     "HierarchyOverview": {
@@ -8838,10 +9794,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "age": {
           "anyOf": [
             {
@@ -8869,7 +9821,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "relationship",
         "agent_types"
       ],
@@ -8883,19 +9834,6 @@
           "minLength": 1,
           "title": "Member Id",
           "type": "string"
-        },
-        "name": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Name"
         },
         "age": {
           "maximum": 125,
@@ -9425,10 +10363,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "agent_types": {
           "items": {
             "type": "string"
@@ -9528,6 +10462,15 @@
           "title": "Initial States",
           "type": "object"
         },
+        "education_profile": {
+          "$ref": "#/$defs/EducationProfile"
+        },
+        "state_vector": {
+          "$ref": "#/$defs/AgentStateVector"
+        },
+        "finances": {
+          "$ref": "#/$defs/FinanceState"
+        },
         "occupation": {
           "anyOf": [
             {
@@ -9539,36 +10482,6 @@
           ],
           "default": null,
           "title": "Occupation"
-        },
-        "income": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Income"
-        },
-        "education": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Education"
         },
         "health": {
           "anyOf": [
@@ -9607,7 +10520,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "agent_types",
         "sex",
         "country",
@@ -9618,12 +10530,156 @@
         "family_relationships",
         "traits",
         "initial_states",
+        "education_profile",
+        "state_vector",
+        "finances",
         "routines",
         "decision_trees",
         "interaction_context",
         "representative_weight"
       ],
       "title": "InitialAgentDetail",
+      "type": "object"
+    },
+    "InitialAgentDeviation": {
+      "additionalProperties": false,
+      "properties": {
+        "deviation_id": {
+          "title": "Deviation Id",
+          "type": "string"
+        },
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "estimated",
+            "regional_imputed",
+            "omitted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "places": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "full_requirement": {
+          "title": "Full Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "deviation_id",
+        "field",
+        "status",
+        "places",
+        "reason",
+        "full_requirement"
+      ],
+      "title": "InitialAgentDeviation",
+      "type": "object"
+    },
+    "InitialAgentDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "field_id": {
+          "title": "Field Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "evidence_status": {
+          "enum": [
+            "measured",
+            "own_country_inherited",
+            "regional_imputed",
+            "estimated"
+          ],
+          "title": "Evidence Status",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "source_place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Place"
+        },
+        "bins": {
+          "items": {
+            "$ref": "#/$defs/InitialAgentDistributionBin"
+          },
+          "title": "Bins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "field_id",
+        "label",
+        "summary",
+        "evidence_status",
+        "bins"
+      ],
+      "title": "InitialAgentDistribution",
+      "type": "object"
+    },
+    "InitialAgentDistributionBin": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "percentage": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Percentage",
+          "type": "number"
+        },
+        "estimated_agents": {
+          "minimum": 0,
+          "title": "Estimated Agents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "label",
+        "percentage",
+        "estimated_agents"
+      ],
+      "title": "InitialAgentDistributionBin",
       "type": "object"
     },
     "InitialAgentFacets": {
@@ -9667,15 +10723,190 @@
       "title": "InitialAgentFacets",
       "type": "object"
     },
+    "InitialAgentFieldCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "measured": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Measured",
+          "type": "array"
+        },
+        "own_country_inherited": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Own Country Inherited",
+          "type": "array"
+        },
+        "regional_imputed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Regional Imputed",
+          "type": "array"
+        },
+        "estimated": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Estimated",
+          "type": "array"
+        },
+        "place_evidence": {
+          "items": {
+            "$ref": "#/$defs/InitialAgentFieldPlaceEvidence"
+          },
+          "title": "Place Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "measured",
+        "own_country_inherited",
+        "regional_imputed",
+        "estimated"
+      ],
+      "title": "InitialAgentFieldCoverage",
+      "type": "object"
+    },
+    "InitialAgentFieldPlaceEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "title": "Country",
+          "type": "string"
+        },
+        "country_code": {
+          "title": "Country Code",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "measured",
+            "own_country_inherited",
+            "regional_imputed",
+            "estimated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "source_place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Place"
+        },
+        "source_level": {
+          "enum": [
+            "country",
+            "region",
+            "global"
+          ],
+          "title": "Source Level",
+          "type": "string"
+        },
+        "source_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Version"
+        }
+      },
+      "required": [
+        "country",
+        "country_code",
+        "status",
+        "source_level"
+      ],
+      "title": "InitialAgentFieldPlaceEvidence",
+      "type": "object"
+    },
+    "InitialAgentGlobalInteractionSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "default": "unavailable",
+          "enum": [
+            "configured",
+            "recorded",
+            "unavailable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run Id"
+        },
+        "participating_countries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Participating Countries",
+          "type": "array"
+        },
+        "participating_regions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Participating Regions",
+          "type": "array"
+        },
+        "cross_country_interactions": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cross Country Interactions",
+          "type": "integer"
+        },
+        "cross_region_interactions": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cross Region Interactions",
+          "type": "integer"
+        }
+      },
+      "title": "InitialAgentGlobalInteractionSummary",
+      "type": "object"
+    },
     "InitialAgentListItem": {
       "additionalProperties": false,
       "properties": {
         "agent_id": {
           "title": "Agent Id",
-          "type": "string"
-        },
-        "display_name": {
-          "title": "Display Name",
           "type": "string"
         },
         "agent_types": {
@@ -9747,7 +10978,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "agent_types",
         "sex",
         "country",
@@ -9790,6 +11020,9 @@
         },
         "facets": {
           "$ref": "#/$defs/InitialAgentFacets"
+        },
+        "evidence_summary": {
+          "$ref": "#/$defs/InitialPopulationEvidenceSummary"
         }
       },
       "required": [
@@ -9798,9 +11031,53 @@
         "page",
         "page_size",
         "pages",
-        "facets"
+        "facets",
+        "evidence_summary"
       ],
       "title": "InitialAgentPage",
+      "type": "object"
+    },
+    "InitialAgentPlaceComparison": {
+      "additionalProperties": false,
+      "properties": {
+        "comparison_id": {
+          "title": "Comparison Id",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "global",
+            "country",
+            "region"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "agent_count": {
+          "minimum": 0,
+          "title": "Agent Count",
+          "type": "integer"
+        },
+        "distributions": {
+          "items": {
+            "$ref": "#/$defs/InitialAgentDistribution"
+          },
+          "title": "Distributions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "comparison_id",
+        "level",
+        "place",
+        "agent_count",
+        "distributions"
+      ],
+      "title": "InitialAgentPlaceComparison",
       "type": "object"
     },
     "InitialInteractionContext": {
@@ -9866,10 +11143,6 @@
       "properties": {
         "target_agent_id": {
           "title": "Target Agent Id",
-          "type": "string"
-        },
-        "display_name": {
-          "title": "Display Name",
           "type": "string"
         },
         "relationship": {
@@ -9976,7 +11249,6 @@
       },
       "required": [
         "target_agent_id",
-        "display_name",
         "relationship",
         "relationship_kind",
         "weight",
@@ -10186,6 +11458,62 @@
         "factors"
       ],
       "title": "InitialInteractionRule",
+      "type": "object"
+    },
+    "InitialPopulationEvidenceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "total_agents": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total Agents",
+          "type": "integer"
+        },
+        "country_agent_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Country Agent Counts",
+          "type": "object"
+        },
+        "region_agent_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Region Agent Counts",
+          "type": "object"
+        },
+        "fields": {
+          "additionalProperties": {
+            "$ref": "#/$defs/InitialAgentFieldCoverage"
+          },
+          "title": "Fields",
+          "type": "object"
+        },
+        "comparisons": {
+          "items": {
+            "$ref": "#/$defs/InitialAgentPlaceComparison"
+          },
+          "title": "Comparisons",
+          "type": "array"
+        },
+        "deviations": {
+          "items": {
+            "$ref": "#/$defs/InitialAgentDeviation"
+          },
+          "title": "Deviations",
+          "type": "array"
+        },
+        "interactions": {
+          "$ref": "#/$defs/InitialAgentGlobalInteractionSummary"
+        }
+      },
+      "required": [
+        "country_agent_counts",
+        "region_agent_counts",
+        "fields"
+      ],
+      "title": "InitialPopulationEvidenceSummary",
       "type": "object"
     },
     "InitialPopulationMaterialization": {
@@ -10506,16 +11834,8 @@
           "title": "Initiator Id",
           "type": "string"
         },
-        "initiator_name": {
-          "title": "Initiator Name",
-          "type": "string"
-        },
         "target_id": {
           "title": "Target Id",
-          "type": "string"
-        },
-        "target_name": {
-          "title": "Target Name",
           "type": "string"
         },
         "place_id": {
@@ -10598,9 +11918,7 @@
         "interaction_type",
         "channel",
         "initiator_id",
-        "initiator_name",
         "target_id",
-        "target_name",
         "place_id",
         "relationship_type",
         "probability",
@@ -10619,11 +11937,11 @@
       "additionalProperties": false,
       "properties": {
         "agents": {
-          "additionalProperties": {
+          "items": {
             "type": "string"
           },
           "title": "Agents",
-          "type": "object"
+          "type": "array"
         },
         "interaction_types": {
           "items": {
@@ -10757,6 +12075,7 @@
           "enum": [
             "measured_joint",
             "fitted_model",
+            "default_estimated",
             "approved_estimate",
             "unknown",
             "label_only",
@@ -10831,16 +12150,8 @@
           "title": "Initiator Id",
           "type": "string"
         },
-        "initiator_name": {
-          "title": "Initiator Name",
-          "type": "string"
-        },
         "target_id": {
           "title": "Target Id",
-          "type": "string"
-        },
-        "target_name": {
-          "title": "Target Name",
           "type": "string"
         },
         "place_id": {
@@ -10872,9 +12183,7 @@
         "interaction_type",
         "channel",
         "initiator_id",
-        "initiator_name",
         "target_id",
-        "target_name",
         "place_id",
         "relationship_type",
         "probability",
@@ -12316,10 +13625,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "current_location": {
           "$ref": "#/$defs/LocationPlaceSummary"
         },
@@ -12361,7 +13666,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "current_location",
         "ancestry",
         "history",
@@ -12379,10 +13683,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "current_location_id": {
           "title": "Current Location Id",
           "type": "string"
@@ -12390,7 +13690,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "current_location_id"
       ],
       "title": "LocationAgentSummary",
@@ -12955,6 +14254,7 @@
             "age_sex",
             "income",
             "education",
+            "specialization",
             "ideology_economic",
             "ideology_state",
             "ideology_cultural",
@@ -14873,6 +16173,7 @@
               "enum": [
                 "measured_joint",
                 "fitted_model",
+                "default_estimated",
                 "approved_estimate",
                 "user_defined",
                 "imputed",
@@ -15341,6 +16642,7 @@
           "enum": [
             "measured",
             "user_defined",
+            "default_estimated",
             "illustrative",
             "unknown"
           ],
@@ -15940,10 +17242,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "final_module": {
           "title": "Final Module",
           "type": "string"
@@ -16004,7 +17302,6 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "final_module",
         "final_state",
         "final_location",
@@ -16066,10 +17363,6 @@
           "title": "Agent Id",
           "type": "string"
         },
-        "display_name": {
-          "title": "Display Name",
-          "type": "string"
-        },
         "final_module": {
           "title": "Final Module",
           "type": "string"
@@ -16085,12 +17378,176 @@
       },
       "required": [
         "agent_id",
-        "display_name",
         "final_module",
         "final_state",
         "final_location"
       ],
       "title": "RunAgentSummary",
+      "type": "object"
+    },
+    "RunCoefficientReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "edge_id": {
+          "minLength": 1,
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "place": {
+          "$ref": "#/$defs/CoefficientPlace"
+        },
+        "source_place": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoefficientPlace"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "resolution_status": {
+          "default": "direct",
+          "enum": [
+            "direct",
+            "inherited",
+            "imputed"
+          ],
+          "title": "Resolution Status",
+          "type": "string"
+        },
+        "evidence_state": {
+          "enum": [
+            "fitted",
+            "default_estimated",
+            "blocked"
+          ],
+          "title": "Evidence State",
+          "type": "string"
+        },
+        "value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "interval": {
+          "$ref": "#/$defs/CoefficientInterval"
+        },
+        "coefficient_set_id": {
+          "minLength": 1,
+          "title": "Coefficient Set Id",
+          "type": "string"
+        },
+        "default_coefficient_set_id": {
+          "minLength": 1,
+          "title": "Default Coefficient Set Id",
+          "type": "string"
+        },
+        "default_value": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Default Value",
+          "type": "number"
+        },
+        "fitted_delta": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": -1,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fitted Delta"
+        },
+        "promotion_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Promotion Id"
+        },
+        "source_label": {
+          "minLength": 1,
+          "title": "Source Label",
+          "type": "string"
+        },
+        "source_version": {
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "default_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Reason"
+        },
+        "held_out": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HeldOutValidationReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "affected_agents": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Affected Agents",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "action_id",
+        "edge_id",
+        "place",
+        "evidence_state",
+        "value",
+        "interval",
+        "coefficient_set_id",
+        "default_coefficient_set_id",
+        "default_value",
+        "source_label",
+        "source_version"
+      ],
+      "title": "RunCoefficientReceipt",
       "type": "object"
     },
     "RunComplete": {
@@ -16608,6 +18065,80 @@
       "title": "RunEventPage",
       "type": "object"
     },
+    "RunEvidenceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "fitted_count": {
+          "minimum": 0,
+          "title": "Fitted Count",
+          "type": "integer"
+        },
+        "default_estimated_count": {
+          "minimum": 0,
+          "title": "Default Estimated Count",
+          "type": "integer"
+        },
+        "blocked_count": {
+          "minimum": 0,
+          "title": "Blocked Count",
+          "type": "integer"
+        },
+        "by_action_place": {
+          "items": {
+            "$ref": "#/$defs/ActionPlaceEvidenceSummary"
+          },
+          "title": "By Action Place",
+          "type": "array"
+        }
+      },
+      "required": [
+        "fitted_count",
+        "default_estimated_count",
+        "blocked_count",
+        "by_action_place"
+      ],
+      "title": "RunEvidenceSummary",
+      "type": "object"
+    },
+    "RunEvidenceWarning": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "const": "default_estimated_coefficients",
+          "default": "default_estimated_coefficients",
+          "title": "Code",
+          "type": "string"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string"
+        },
+        "place": {
+          "$ref": "#/$defs/CoefficientPlace"
+        },
+        "coefficient_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Coefficient Ids",
+          "type": "array"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "place",
+        "coefficient_ids",
+        "message"
+      ],
+      "title": "RunEvidenceWarning",
+      "type": "object"
+    },
     "RunFailed": {
       "additionalProperties": false,
       "properties": {
@@ -16835,6 +18366,31 @@
           "title": "Program Version",
           "type": "string"
         },
+        "default_dsl_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Dsl Version"
+        },
+        "default_dsl_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Dsl Hash"
+        },
         "input_hash": {
           "title": "Input Hash",
           "type": "string"
@@ -16977,6 +18533,52 @@
           ],
           "default": null,
           "title": "Error"
+        },
+        "default_dsl_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Dsl Version"
+        },
+        "default_dsl_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Dsl Hash"
+        },
+        "evidence_summary": {
+          "$ref": "#/$defs/RunEvidenceSummary"
+        },
+        "evidence_warnings": {
+          "items": {
+            "$ref": "#/$defs/RunEvidenceWarning"
+          },
+          "title": "Evidence Warnings",
+          "type": "array"
+        },
+        "global_demo_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InitialPopulationEvidenceSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -17193,6 +18795,151 @@
         "initial"
       ],
       "title": "StateDefinition",
+      "type": "object"
+    },
+    "StateEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "measured_joint",
+            "measured_marginal",
+            "inherited",
+            "imputed",
+            "literature_support",
+            "default_estimated",
+            "unknown",
+            "simulated"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_version": {
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        },
+        "source_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Date"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "place": {
+          "minLength": 1,
+          "title": "Place",
+          "type": "string"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "minLength": 2,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "original_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Title"
+        },
+        "english_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "English Title"
+        },
+        "search_source": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Search Source"
+        },
+        "uncertainty": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Uncertainty",
+          "type": "number"
+        },
+        "default_reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Reason"
+        }
+      },
+      "required": [
+        "status",
+        "source",
+        "source_version",
+        "place",
+        "population",
+        "uncertainty"
+      ],
+      "title": "StateEvidence",
       "type": "object"
     },
     "StoryDetail": {
@@ -18385,6 +20132,9 @@
     },
     {
       "$ref": "#/$defs/AutoImportQueuePageView"
+    },
+    {
+      "$ref": "#/$defs/AutoImportRerunRequest"
     },
     {
       "$ref": "#/$defs/AIConnectionTest"

@@ -1,6 +1,20 @@
 import './run-panel.css';
 import { createInteractionsHttpClient, InteractionsView } from './interactions';
 import { createLocationsHttpClient, LocationsView } from './locations';
+import {
+  GlobalDemoSummaryView,
+  isGlobalDemoSummaryData,
+  type GlobalDemoSummaryData,
+} from './global-demo-summary';
+import {
+  SimulationLaunchEvidencePreview,
+  type SimulationRunPreviewClient,
+} from './run-launch-preview';
+import {
+  runEvidenceMarkup,
+  type RunEvidenceSummary,
+  type RunEvidenceWarning,
+} from './run-evidence';
 
 export type SimulationRunStatus =
   'queued' | 'running' | 'cancelling' | 'cancelled' | 'completed' | 'failed';
@@ -37,6 +51,8 @@ export interface SimulationResult {
   engine_version: string;
   data_version: string;
   program_version: string;
+  default_dsl_version?: string | null;
+  default_dsl_hash?: string | null;
   input_hash: string;
   output_hash: string;
   snapshots: SimulationSnapshot[];
@@ -51,11 +67,15 @@ export interface SimulationRun {
   total_ticks: number;
   result: SimulationResult | null;
   error: string | null;
+  default_dsl_version?: string | null;
+  default_dsl_hash?: string | null;
+  evidence_summary?: RunEvidenceSummary;
+  evidence_warnings?: RunEvidenceWarning[];
+  global_demo_summary?: GlobalDemoSummaryData;
 }
 
 export interface RunAgentSummary {
   agent_id: string;
-  display_name: string;
   final_module: string;
   final_state: string;
   final_location: string;
@@ -77,12 +97,85 @@ export interface AgentTimelinePoint {
   module: string;
   state: string;
   location: string;
+  memory?: Record<string, number>;
+  state_receipts?: StateTickReceipt[];
+  action_receipts?: ActionReceipt[];
   actions: string[];
   routine_actions: string[];
   interactions: string[];
   interaction_details?: AgentInteractionDetail[];
   decision_path: DecisionPathStep[];
   location_transitions: LocationTransitionStep[];
+}
+
+export interface StateTickReceipt {
+  tick: number;
+  event_counts: Record<string, number>;
+  state_rules: Array<{
+    rule_index?: number;
+    target_state_id: string;
+    input_state_ids: string[];
+    formula: string;
+    evidence: {
+      status: string;
+      source: string;
+      source_version: string;
+      uncertainty: number;
+    };
+  }>;
+  event_effects?: Array<{
+    event: string;
+    agent_index: number;
+    target_state_id: string;
+    operation: string;
+    configured_value: number;
+    delta: number;
+    evidence: {
+      status: string;
+      source: string;
+      source_version: string;
+      uncertainty: number;
+    };
+  }>;
+  agent_state_changes?: Array<{
+    agent_index: number;
+    target_state_id: string;
+    rule_index: number;
+    before: number;
+    event_delta: number;
+    equation_delta: number;
+    after: number;
+  }>;
+  finance_changes?: Array<{
+    agent_index: number;
+    currency: string;
+    provenance: {
+      status: string;
+      source: string;
+    };
+    flows: Record<string, number>;
+    ledger_changes: Array<{
+      ledger: string;
+      before: number | null;
+      flow_delta: number;
+      after: number | null;
+    }>;
+  }>;
+  finance_formula?: string | null;
+}
+
+export interface ActionReceipt {
+  tick: number;
+  action: string;
+  rule_index: number;
+  probability: number;
+  draw: number;
+  provenance: {
+    source: string;
+    version: string;
+    status: string;
+    uncertainty: number;
+  };
 }
 
 export interface InteractionPathStep {
@@ -108,7 +201,6 @@ export interface AgentInteractionDetail {
   interaction_type: string;
   channel: string;
   other_agent_id: string;
-  other_agent_name: string;
   place: string;
   state_deltas: Array<{
     agent_id: string;
@@ -204,6 +296,7 @@ export interface SimulationRunClient {
 
 export interface SimulationRunPanelOptions {
   pollIntervalMs?: number;
+  launchPreviewClient?: SimulationRunPreviewClient | null;
 }
 
 interface InitialPopulationDefaults {
@@ -254,7 +347,8 @@ function requireRun(value: unknown): SimulationRun {
     typeof value.status !== 'string' ||
     typeof value.progress !== 'number' ||
     typeof value.completed_ticks !== 'number' ||
-    typeof value.total_ticks !== 'number'
+    typeof value.total_ticks !== 'number' ||
+    (value.global_demo_summary != null && !isGlobalDemoSummaryData(value.global_demo_summary))
   ) {
     throw new Error('The server returned an invalid simulation run contract.');
   }
@@ -348,13 +442,15 @@ export class SimulationRunPanel {
   private eventKind = '';
   private interactionsView: InteractionsView | null = null;
   private locationsView: LocationsView | null = null;
+  private globalDemoSummaryView: GlobalDemoSummaryView | null = null;
+  private launchEvidencePreview: SimulationLaunchEvidencePreview | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private requestVersion = 0;
   private disposed = false;
   private active = true;
   private draftConfig: SimulationRunConfig = {
     population_size: 1000,
-    seed: 42,
+    seed: 1,
     days: 30,
     tick_interval_hours: 1,
     start_date: new Date().toISOString().slice(0, 10),
@@ -362,6 +458,7 @@ export class SimulationRunPanel {
     agent_type_mix: {},
   };
   private readonly pollIntervalMs: number;
+  private readonly launchPreviewClient: SimulationRunPreviewClient | null | undefined;
 
   constructor(
     private readonly host: HTMLElement,
@@ -369,6 +466,7 @@ export class SimulationRunPanel {
     options: SimulationRunPanelOptions = {},
   ) {
     this.pollIntervalMs = options.pollIntervalMs ?? 350;
+    this.launchPreviewClient = options.launchPreviewClient;
     this.host.classList.add('simulation-run-panel');
     this.host.addEventListener('submit', this.onSubmit);
     this.host.addEventListener('click', this.onClick);
@@ -387,6 +485,8 @@ export class SimulationRunPanel {
     this.host.removeEventListener('change', this.onChange);
     this.interactionsView?.destroy();
     this.locationsView?.dispose();
+    this.globalDemoSummaryView?.destroy();
+    this.launchEvidencePreview?.dispose();
   }
 
   activate(): void {
@@ -400,6 +500,10 @@ export class SimulationRunPanel {
     this.active = false;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+  }
+
+  refreshDefaults(): Promise<void> {
+    return this.loadInitialPopulationDefaults();
   }
 
   private onSubmit = (event: SubmitEvent): void => {
@@ -491,6 +595,7 @@ export class SimulationRunPanel {
       this.renderMessage(error);
       return;
     }
+    if (!(await this.prepareLaunchEvidence(config))) return;
     const version = ++this.requestVersion;
     this.renderMessage('Preparing the Rust run…');
     try {
@@ -505,6 +610,16 @@ export class SimulationRunPanel {
       if (this.disposed || version !== this.requestVersion) return;
       this.renderRequestError(errorValue);
     }
+  }
+
+  private async prepareLaunchEvidence(config: SimulationRunConfig): Promise<boolean> {
+    while (this.launchEvidencePreview) {
+      const preview = this.launchEvidencePreview;
+      const ready = await preview.load(config);
+      if (ready) return true;
+      if (preview === this.launchEvidencePreview) return false;
+    }
+    return true;
   }
 
   private validateConfig(config: SimulationRunConfig): string | null {
@@ -703,7 +818,17 @@ export class SimulationRunPanel {
     this.interactionsView = null;
     this.locationsView?.dispose();
     this.locationsView = null;
+    this.globalDemoSummaryView?.destroy();
+    this.globalDemoSummaryView = null;
+    this.launchEvidencePreview?.dispose();
+    this.launchEvidencePreview = null;
     this.host.innerHTML = `${this.renderConfig()}${this.renderSavedRuns()}<div class="simulation-run-body">${this.renderRun()}</div>`;
+    const launchPreviewHost = this.host.querySelector<HTMLElement>('[data-run-launch-preview]');
+    if (launchPreviewHost && this.launchPreviewClient !== null) {
+      this.launchEvidencePreview = this.launchPreviewClient
+        ? new SimulationLaunchEvidencePreview(launchPreviewHost, this.launchPreviewClient)
+        : new SimulationLaunchEvidencePreview(launchPreviewHost);
+    }
     const interactionHost = this.host.querySelector<HTMLElement>('[data-run-interactions]');
     if (interactionHost && this.run) {
       this.interactionsView = new InteractionsView(
@@ -717,6 +842,15 @@ export class SimulationRunPanel {
       this.locationsView = new LocationsView(
         locationsHost,
         createLocationsHttpClient(this.run.run_id),
+      );
+    }
+    const populationEvidenceHost = this.host.querySelector<HTMLElement>(
+      '[data-run-population-evidence]',
+    );
+    if (populationEvidenceHost && this.run?.global_demo_summary) {
+      this.globalDemoSummaryView = new GlobalDemoSummaryView(
+        populationEvidenceHost,
+        this.run.global_demo_summary,
       );
     }
   }
@@ -741,7 +875,8 @@ export class SimulationRunPanel {
         <label>Place<input name="place_scope_identifier" type="text" value="${escapeHtml(config.place_scope.identifier ?? '')}" placeholder="Required for region, country, or city" ${locked ? 'disabled' : ''} /></label>
         <label class="simulation-run-type-mix">Agent type mix<textarea name="agent_type_mix" rows="2" placeholder="Blank uses Initial Agents mix" ${locked ? 'disabled' : ''}>${escapeHtml(typeMix)}</textarea></label>
         <button class="button" type="submit" ${locked ? 'disabled' : ''}>Launch Rust simulation</button>
-      </form>`;
+      </form>
+      <div data-run-launch-preview></div>`;
   }
 
   private async loadInitialPopulationDefaults(): Promise<void> {
@@ -802,17 +937,23 @@ export class SimulationRunPanel {
   private renderRun(): string {
     if (!this.run)
       return '<div class="simulation-run-empty">Launch a simulation or open a saved run.</div>';
-    if (['queued', 'running', 'cancelling'].includes(this.run.status)) return this.renderProgress();
+    const evidence = runEvidenceMarkup(this.run.evidence_summary, this.run.evidence_warnings);
+    const populationEvidence = this.run.global_demo_summary
+      ? '<div class="simulation-run-population-evidence" data-run-population-evidence></div>'
+      : '';
+    if (['queued', 'running', 'cancelling'].includes(this.run.status))
+      return `${populationEvidence}${evidence}${this.renderProgress()}`;
     if (this.run.status === 'failed') {
-      return `<div class="simulation-run-state simulation-run-error" role="alert"><strong>Run failed</strong><span>${escapeHtml(this.run.error ?? 'The Rust engine failed.')}</span><button class="button secondary" type="button" data-run-action="retry">Edit configuration</button></div>`;
+      return `${evidence}<div class="simulation-run-state simulation-run-error" role="alert"><strong>Run failed</strong><span>${escapeHtml(this.run.error ?? 'The Rust engine failed.')}</span><button class="button secondary" type="button" data-run-action="retry">Edit configuration</button></div>`;
     }
     if (this.run.status === 'cancelled') {
-      return '<div class="simulation-run-state"><strong>Cancelled</strong><span>The engine stopped before the next recorded tick.</span><button class="button secondary" type="button" data-run-action="retry">Start another run</button></div>';
+      return `${evidence}<div class="simulation-run-state"><strong>Cancelled</strong><span>The engine stopped before the next recorded tick.</span><button class="button secondary" type="button" data-run-action="retry">Start another run</button></div>`;
     }
     if (!this.run.result)
-      return '<div class="simulation-run-state" role="alert">Completed run has no result.</div>';
-    if (this.agentDetail) return this.renderAgentDetail(this.agentDetail);
-    return `${this.renderResultHeader()}${this.renderResultNavigation()}${
+      return `${populationEvidence}${evidence}<div class="simulation-run-state" role="alert">Completed run has no result.</div>`;
+    if (this.agentDetail)
+      return `${populationEvidence}${evidence}${this.renderAgentDetail(this.agentDetail)}`;
+    return `${this.renderResultHeader()}${populationEvidence}${evidence}${this.renderResultNavigation()}${
       this.view === 'agents'
         ? this.renderAgents()
         : this.view === 'locations'
@@ -839,8 +980,12 @@ export class SimulationRunPanel {
   private renderResultHeader(): string {
     const result = this.run?.result;
     if (!result) return '';
+    const defaultDsl =
+      result.default_dsl_version && result.default_dsl_hash
+        ? `<small>Default DSL ${escapeHtml(result.default_dsl_version)} · <span title="${escapeHtml(result.default_dsl_hash)}">${escapeHtml(result.default_dsl_hash.slice(0, 18))}…</span></small>`
+        : '';
     return `<div class="simulation-result-heading">
-      <div><span class="simulation-run-status">Completed</span><strong>Rust ${escapeHtml(result.engine_version)}</strong><small>Protocol ${escapeHtml(result.protocol_version)} · data ${escapeHtml(result.data_version)} · program ${escapeHtml(result.program_version)}</small></div>
+      <div><span class="simulation-run-status">Completed</span><strong>Rust ${escapeHtml(result.engine_version)}</strong><small>Protocol ${escapeHtml(result.protocol_version)} · data ${escapeHtml(result.data_version)} · program ${escapeHtml(result.program_version)}</small>${defaultDsl}</div>
       <div class="simulation-run-hashes"><span title="${escapeHtml(result.input_hash)}">Input ${escapeHtml(result.input_hash.slice(0, 10))}</span><span title="${escapeHtml(result.output_hash)}">Output ${escapeHtml(result.output_hash.slice(0, 10))}</span></div>
     </div>`;
   }
@@ -907,8 +1052,8 @@ export class SimulationRunPanel {
     if (!this.agentPage)
       return '<div class="simulation-run-state" role="status">Loading recorded agents…</div>';
     return `<section class="simulation-run-agents">
-      <form data-run-agent-search><label>Search recorded agents<input type="search" name="search" value="${escapeHtml(this.agentSearch)}" placeholder="Name, ID, state, or location" /></label><button class="button secondary" type="submit">Search</button></form>
-      <div class="simulation-agent-list">${this.agentPage.items.map((agent) => `<button type="button" data-run-action="open-agent" data-agent-id="${escapeHtml(agent.agent_id)}" aria-label="Open ${escapeHtml(agent.display_name)}"><span><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(agent.agent_id)}</small></span><span>${escapeHtml(agent.final_module)} / ${escapeHtml(agent.final_state)}</span><span>${escapeHtml(agent.final_location)}</span><b>›</b></button>`).join('') || '<div class="simulation-run-empty">No recorded agents match.</div>'}</div>
+      <form data-run-agent-search><label>Search recorded agents<input type="search" name="search" value="${escapeHtml(this.agentSearch)}" placeholder="Agent ID, state, or location" /></label><button class="button secondary" type="submit">Search</button></form>
+      <div class="simulation-agent-list">${this.agentPage.items.map((agent) => `<button type="button" data-run-action="open-agent" data-agent-id="${escapeHtml(agent.agent_id)}" aria-label="Open ${escapeHtml(agent.agent_id)}"><span><strong>${escapeHtml(agent.agent_id)}</strong><small>Synthetic agent ID</small></span><span>${escapeHtml(agent.final_module)} / ${escapeHtml(agent.final_state)}</span><span>${escapeHtml(agent.final_location)}</span><b>›</b></button>`).join('') || '<div class="simulation-run-empty">No recorded agents match.</div>'}</div>
       ${this.renderPagination(this.agentPage.page, this.agentPage.pages, 'agents')}
     </section>`;
   }
@@ -916,11 +1061,11 @@ export class SimulationRunPanel {
   private renderAgentDetail(agent: RunAgentDetail): string {
     return `<section class="simulation-agent-detail">
       <button class="simulation-run-back" type="button" data-run-action="close-agent">← Back to results</button>
-      <header><div><span class="small-label">RECORDED AGENT</span><h2>${escapeHtml(agent.display_name)}</h2><p>${escapeHtml(agent.agent_id)}</p></div><span>${escapeHtml(agent.final_location)}</span></header>
+      <header><div><span class="small-label">RECORDED AGENT</span><h2>${escapeHtml(agent.agent_id)}</h2><p>Synthetic agent ID</p></div><span>${escapeHtml(agent.final_location)}</span></header>
       <div class="simulation-agent-state-pair"><div><small>Initial state</small><strong>${escapeHtml(agent.initial_module)} / ${escapeHtml(agent.initial_state)}</strong><span>${escapeHtml(agent.initial_location)}</span></div><b>→</b><div><small>Final state</small><strong>${escapeHtml(agent.final_module)} / ${escapeHtml(agent.final_state)}</strong><span>${escapeHtml(agent.final_location)}</span></div></div>
       ${this.renderInitialProfile(agent.initial_profile ?? {})}
       <div class="simulation-agent-data">${this.renderRecord('Final traits', agent.traits)}${this.renderRecord('Final memory', agent.memory)}</div>
-      <section class="simulation-agent-timeline" aria-label="${escapeHtml(agent.display_name)} timeline"><h3>Daily state, decisions, and locations</h3><div class="simulation-timeline-table"><div class="simulation-timeline-labels"><span>Day</span><span>State</span><span>Location</span><span>Recorded activity</span></div>${agent.timeline.map((point) => this.renderTimelinePoint(point)).join('')}</div></section>
+      <section class="simulation-agent-timeline" aria-label="${escapeHtml(agent.agent_id)} timeline"><h3>Daily state, decisions, and locations</h3><div class="simulation-timeline-table"><div class="simulation-timeline-labels"><span>Day</span><span>State</span><span>Location</span><span>Recorded activity</span></div>${agent.timeline.map((point) => this.renderTimelinePoint(point)).join('')}</div></section>
     </section>`;
   }
 
@@ -951,7 +1096,69 @@ export class SimulationRunPanel {
     const activity = [...point.routine_actions, ...point.actions, ...point.interactions].join(
       ' · ',
     );
-    return `<div class="simulation-timeline-row"><span><strong>${point.day}</strong><small>${escapeHtml(point.date)}</small></span><span>${escapeHtml(point.module)} / ${escapeHtml(point.state)}</span><span>${escapeHtml(point.location)}</span><span>${escapeHtml(activity || 'None')}${this.renderLocationTransitions(point.location_transitions ?? [])}${this.renderDecisionPath(point.decision_path ?? [])}${this.renderInteractionDetails(point.interaction_details ?? [])}</span></div>`;
+    return `<div class="simulation-timeline-row"><span><strong>${point.day}</strong><small>${escapeHtml(point.date)}</small></span><span>${escapeHtml(point.module)} / ${escapeHtml(point.state)}</span><span>${escapeHtml(point.location)}</span><span>${escapeHtml(activity || 'None')}${this.renderTimelineMemory(point.memory ?? {})}${this.renderActionReceipts(point.action_receipts ?? [])}${this.renderStateReceipts(point.state_receipts ?? [])}${this.renderLocationTransitions(point.location_transitions ?? [])}${this.renderDecisionPath(point.decision_path ?? [])}${this.renderInteractionDetails(point.interaction_details ?? [])}</span></div>`;
+  }
+
+  private renderTimelineMemory(memory: Record<string, number>): string {
+    const entries = Object.entries(memory).sort(([left], [right]) => left.localeCompare(right));
+    if (!entries.length) return '';
+    return `<details class="simulation-state-receipts"><summary>Recorded state vector</summary><dl>${entries.map(([state, value]) => `<div><dt>${escapeHtml(display(state))}</dt><dd>${this.number(value)}</dd></div>`).join('')}</dl></details>`;
+  }
+
+  private renderActionReceipts(receipts: ActionReceipt[]): string {
+    if (!receipts.length) return '';
+    return `<details class="simulation-state-receipts"><summary>${receipts.length} causal action ${receipts.length === 1 ? 'receipt' : 'receipts'}</summary>${receipts
+      .map(
+        (receipt) =>
+          `<article><strong>${escapeHtml(display(receipt.action))} · ${this.number(receipt.probability * 100)}%</strong><code>P=${this.number(receipt.probability)} · draw ${this.number(receipt.draw)} · rule ${receipt.rule_index}</code><small>${escapeHtml(display(receipt.provenance.status))} · ${escapeHtml(receipt.provenance.source)} ${escapeHtml(receipt.provenance.version)} · uncertainty ${Math.round(receipt.provenance.uncertainty * 100)}% · tick ${receipt.tick}</small></article>`,
+      )
+      .join('')}</details>`;
+  }
+
+  private renderStateReceipts(receipts: StateTickReceipt[]): string {
+    if (!receipts.length) return '';
+    const rules = new Map<number | string, StateTickReceipt['state_rules'][number]>();
+    const changes = receipts.flatMap((receipt) => {
+      receipt.state_rules.forEach((rule, index) => {
+        rules.set(rule.rule_index ?? `${rule.target_state_id}:${index}`, rule);
+      });
+      return receipt.agent_state_changes ?? [];
+    });
+    const financeFormulas = [
+      ...new Set(
+        receipts
+          .map((receipt) => receipt.finance_formula)
+          .filter((formula): formula is string => Boolean(formula)),
+      ),
+    ];
+    const financeChanges = receipts.flatMap((receipt) => receipt.finance_changes ?? []);
+    return `<details class="simulation-state-receipts"><summary>State formulas and receipts</summary>${changes
+      .map(
+        (change) =>
+          `<article><strong>${escapeHtml(display(change.target_state_id))} ${this.number(change.before)} ${this.signedNumber(change.event_delta)} ${this.signedNumber(change.equation_delta)} → ${this.number(change.after)}</strong><small>event delta ${this.signedNumber(change.event_delta)} · equation delta ${this.signedNumber(change.equation_delta)} · rule ${change.rule_index}</small></article>`,
+      )
+      .join(
+        '',
+      )}${[...rules.values()].map((rule) => `<article><strong>${escapeHtml(display(rule.target_state_id))}</strong><code>${escapeHtml(rule.formula)}</code><small>${escapeHtml(display(rule.evidence.status))} · ${escapeHtml(rule.evidence.source)} ${escapeHtml(rule.evidence.source_version)} · uncertainty ${Math.round(rule.evidence.uncertainty * 100)}%</small></article>`).join('')}${financeChanges.map((change) => this.renderFinanceChange(change)).join('')}${financeFormulas.map((formula) => `<article><strong>Finance equation</strong><code>${escapeHtml(formula)}</code></article>`).join('')}</details>`;
+  }
+
+  private renderFinanceChange(
+    change: NonNullable<StateTickReceipt['finance_changes']>[number],
+  ): string {
+    const currency = escapeHtml(change.currency);
+    const ledgers = change.ledger_changes
+      .map(
+        (ledger) =>
+          `<strong>${escapeHtml(display(ledger.ledger))} ${this.number(ledger.before ?? 0)} ${this.signedNumber(ledger.flow_delta)} → ${this.number(ledger.after ?? 0)} ${currency}</strong>`,
+      )
+      .join('');
+    const flows = Object.entries(change.flows)
+      .filter(([, value]) => value !== 0)
+      .map(
+        ([name, value]) => `<span>${escapeHtml(display(name))} ${this.signedNumber(value)}</span>`,
+      )
+      .join(' · ');
+    return `<article>${ledgers}<small>${flows || 'No cash flows'} · ${escapeHtml(display(change.provenance.status))} · ${escapeHtml(change.provenance.source)}</small></article>`;
   }
 
   private renderInteractionDetails(interactions: AgentInteractionDetail[]): string {
@@ -981,13 +1188,16 @@ export class SimulationRunPanel {
               })
               .join('')}</div>`
           : '';
-        return `<article><h4>${escapeHtml(display(interaction.interaction_type))} · ${escapeHtml(display(interaction.channel))} with ${escapeHtml(interaction.other_agent_name)}</h4><p>${escapeHtml(interaction.place)} · ${escapeHtml(display(interaction.role))} · tick ${interaction.tick}</p>${treePath}${stateDeltas}${relationshipDeltas}</article>`;
+        return `<article><h4>${escapeHtml(display(interaction.interaction_type))} · ${escapeHtml(display(interaction.channel))} with ${escapeHtml(interaction.other_agent_id)}</h4><p>${escapeHtml(interaction.place)} · ${escapeHtml(display(interaction.role))} · tick ${interaction.tick}</p>${treePath}${stateDeltas}${relationshipDeltas}</article>`;
       })
       .join('')}</details>`;
   }
 
   private number(value: number): string {
-    return Number.isInteger(value) ? value.toFixed(0) : String(value);
+    return value.toLocaleString('en', {
+      maximumFractionDigits: 6,
+      useGrouping: true,
+    });
   }
 
   private signedNumber(value: number): string {

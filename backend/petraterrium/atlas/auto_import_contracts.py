@@ -94,7 +94,7 @@ class AutoImportSearchEntry(Contract):
     engine: str
     language: str
     query: str
-    searched_at: str
+    searched_at: str | None
     result_count: int = Field(ge=0)
     outcome: str
     rejection_reasons: list[str]
@@ -112,7 +112,15 @@ class AutoImportEstimateTraceView(Contract):
     assumptions: list[str]
     inputs: list[AutoImportEstimateInput]
     confidence_interval: str
+    source_ids_used: list[str]
     limitations: list[str]
+
+
+class AutoImportDistributionChange(Contract):
+    source_label: str
+    target_label: str
+    before: float
+    after: float
 
 
 class AutoImportAttemptView(Contract):
@@ -126,9 +134,13 @@ class AutoImportAttemptView(Contract):
     evidence_kind: Literal["measured", "estimated"] | None
     estimate_trace: AutoImportEstimateTraceView | None
     candidate_values: dict[str, float | str | None]
+    distribution_changes: list[AutoImportDistributionChange]
+    draft_status: Literal["editable_draft", "confirmed", "promoted"]
+    usable_in_demo: bool
     can_promote: bool
     error: str | None
     promoted_at: str | None
+    promotion_id: str | None
 
 
 class AutoImportBatchSummary(Contract):
@@ -177,10 +189,27 @@ class AutoImportMappingEdit(Contract):
 class AutoImportMappingReview(Contract):
     mappings: list[AutoImportMappingEdit]
     reviewed: bool
+    distribution: dict[str, float] | None = None
 
 
 class AutoImportPromotionRequest(Contract):
     redistribution_confirmed: bool
+
+
+class AutoImportRerunRequest(Contract):
+    source_tiers: list[
+        Literal[
+            "official_statistics",
+            "census",
+            "representative_survey",
+            "research_article",
+            "government_report",
+            "university_report",
+            "news",
+            "online_opinion",
+            "expert_commentary",
+        ]
+    ] = Field(default_factory=list)
 
 
 class AutoImportExplicitSelection(Contract):

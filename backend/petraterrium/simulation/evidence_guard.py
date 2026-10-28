@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 from ..atlas.evidence_receipts import AtlasEvidenceReceiptRegistry
+from .coefficient_evidence import (
+    load_coefficient_registry,
+    load_default_dsl_identity,
+    validate_coefficient_registry,
+)
 from .decision_evidence_routes import validate_decision_evidence_registry
 from .interaction_program_routes import validate_interaction_program
 from .interaction_trees import InteractionTreeRegistry
@@ -12,6 +17,19 @@ def require_trusted_simulation_evidence(
     evidence_receipts: AtlasEvidenceReceiptRegistry,
     interaction_trees: InteractionTreeRegistry,
 ) -> None:
+    coefficient_registry = load_coefficient_registry(store)
+    if coefficient_registry is not None:
+        coefficient_validation = validate_coefficient_registry(
+            coefficient_registry,
+            load_default_dsl_identity(store),
+            evidence_receipts,
+        )
+        if not coefficient_validation.executable:
+            detail = "; ".join(
+                f"{issue.action_id}/{issue.coefficient_set_id}: {issue.message}"
+                for issue in coefficient_validation.issues
+            )
+            raise ValueError(f"Coefficient evidence is blocked: {detail}")
     decision_evidence = store.decision_evidence()
     if decision_evidence is not None:
         validation = validate_decision_evidence_registry(
@@ -20,8 +38,7 @@ def require_trusted_simulation_evidence(
         )
         if not validation.valid:
             detail = "; ".join(
-                f"{issue.code}:{issue.path}:{issue.message}"
-                for issue in validation.issues
+                f"{issue.code}:{issue.path}:{issue.message}" for issue in validation.issues
             )
             raise ValueError(f"Decision evidence registry is not executable: {detail}")
     interaction_program = store.interaction_program()
@@ -33,9 +50,7 @@ def require_trusted_simulation_evidence(
         evidence_receipts,
     )
     if not program_validation.valid:
-        detail = "; ".join(
-            f"{issue.path}:{issue.message}" for issue in program_validation.issues
-        )
+        detail = "; ".join(f"{issue.path}:{issue.message}" for issue in program_validation.issues)
         raise ValueError(f"Interaction program is not executable: {detail}")
     tree_ids = sorted(
         {

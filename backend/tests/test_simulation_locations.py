@@ -241,7 +241,6 @@ def test_router_exposes_tree_and_agent_location_detail():
         4,
         places(),
         moved.state,
-        {"avery": "Avery", "sam": "Sam", "mira": "Mira"},
     )
     app = FastAPI()
     app.include_router(create_location_router(registry))
@@ -266,11 +265,11 @@ def test_router_exposes_tree_and_agent_location_detail():
         "Home",
         "Living room",
     ]
-    assert {agent["display_name"] for agent in detail.json()["co_located_agents"]} == {
-        "Avery",
-        "Sam",
+    assert {agent["agent_id"] for agent in detail.json()["co_located_agents"]} == {
+        "avery",
+        "sam",
     }
-    assert [agent["display_name"] for agent in detail.json()["elsewhere_agents"]] == []
+    assert detail.json()["elsewhere_agents"] == []
     assert detail.json()["history"][0]["route_location_ids"] == [
         "kitchen",
         "home-1",
@@ -285,11 +284,10 @@ def test_agent_detail_separates_co_located_agents_from_everyone_else():
         4,
         places(),
         state(),
-        {"avery": "Avery", "sam": "Sam", "mira": "Mira"},
     )
 
     detail = registry.catalog("run-elsewhere").agent_detail("avery")
 
-    assert [agent.display_name for agent in detail.co_located_agents] == ["Sam"]
-    assert [agent.display_name for agent in detail.elsewhere_agents] == ["Mira"]
+    assert [agent.agent_id for agent in detail.co_located_agents] == ["sam"]
+    assert [agent.agent_id for agent in detail.elsewhere_agents] == ["mira"]
     assert detail.elsewhere_agents[0].current_location_id == "kitchen"

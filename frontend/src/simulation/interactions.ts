@@ -94,9 +94,7 @@ export interface InteractionListItem {
   interaction_type: string;
   channel: InteractionChannel;
   initiator_id: string;
-  initiator_name: string;
   target_id: string;
-  target_name: string;
   place_id: string;
   relationship_type: string;
   probability: number;
@@ -114,7 +112,7 @@ export interface InteractionEventDetail extends InteractionListItem {
 }
 
 export interface InteractionFacets {
-  agents: Record<string, string>;
+  agents: string[];
   interaction_types: string[];
   channels: InteractionChannel[];
   relationships: string[];
@@ -168,7 +166,7 @@ const emptyQuery = (): InteractionQuery => ({
 });
 
 const emptyFacets = (): InteractionFacets => ({
-  agents: {},
+  agents: [],
   interaction_types: [],
   channels: [],
   relationships: [],
@@ -356,7 +354,7 @@ export class InteractionsView {
   private renderFilters(facets: InteractionFacets): string {
     return `<section class="interaction-filters" aria-label="Interaction filters">
       <label class="interaction-search">Search<input type="search" data-interaction-filter="search" value="${escapeHtml(this.query.search)}" placeholder="Agent, action, place…"></label>
-      <label>Agent<select data-interaction-filter="agent_id">${this.options(Object.entries(facets.agents), this.query.agent_id, 'All agents')}</select></label>
+      <label>Agent<select data-interaction-filter="agent_id">${this.options(facets.agents.map((agentId) => [agentId, agentId]), this.query.agent_id, 'All agents')}</select></label>
       <label>Direction<select data-interaction-filter="direction"${this.query.agent_id ? '' : ' disabled'}>${this.options(
         [
           ['either', 'Sent or received'],
@@ -440,9 +438,9 @@ export class InteractionsView {
   }
 
   private renderRow(event: InteractionListItem): string {
-    return `<button type="button" class="interaction-row" data-interaction-action="open" data-event-id="${escapeHtml(event.event_id)}" aria-label="Open ${escapeHtml(event.initiator_name)} to ${escapeHtml(event.target_name)} ${escapeHtml(label(event.interaction_type))} interaction">
+    return `<button type="button" class="interaction-row" data-interaction-action="open" data-event-id="${escapeHtml(event.event_id)}" aria-label="Open ${escapeHtml(event.initiator_id)} to ${escapeHtml(event.target_id)} ${escapeHtml(label(event.interaction_type))} interaction">
       <span><strong>Tick ${event.tick}</strong><small>${hourLabel(event.hour)} · day ${event.weekday + 1}</small></span>
-      <span class="interaction-direction"><strong>${escapeHtml(event.initiator_name)} <i>→</i> ${escapeHtml(event.target_name)}</strong><small>${escapeHtml(label(event.interaction_type))} · ${escapeHtml(label(event.channel))}</small></span>
+      <span class="interaction-direction"><strong>${escapeHtml(event.initiator_id)} <i>→</i> ${escapeHtml(event.target_id)}</strong><small>${escapeHtml(label(event.interaction_type))} · ${escapeHtml(label(event.channel))}</small></span>
       <span><strong>${escapeHtml(label(event.place_id))}</strong><small>${escapeHtml(label(event.relationship_type))}</small></span>
       <span><strong>${percentage(event.probability)}</strong><small>recorded formula</small></span>
       <span><strong>${event.effect_count}</strong><small>state changes</small></span><b>›</b>
@@ -451,7 +449,7 @@ export class InteractionsView {
 
   private renderDetail(event: InteractionEventDetail): string {
     return `<button type="button" class="interaction-back" data-interaction-action="back">← Back to interactions</button>
-      <header class="interaction-detail-heading"><div><span class="small-label">${escapeHtml(label(event.channel))} · TICK ${event.tick}</span><h2>${escapeHtml(event.initiator_name)} <i>→</i> ${escapeHtml(event.target_name)}</h2><p>${escapeHtml(label(event.interaction_type))} at ${escapeHtml(label(event.place_id))}, ${hourLabel(event.hour)}</p></div><strong>${percentage(event.probability)}</strong></header>
+      <header class="interaction-detail-heading"><div><span class="small-label">${escapeHtml(label(event.channel))} · TICK ${event.tick}</span><h2>${escapeHtml(event.initiator_id)} <i>→</i> ${escapeHtml(event.target_id)}</h2><p>${escapeHtml(label(event.interaction_type))} at ${escapeHtml(label(event.place_id))}, ${hourLabel(event.hour)}</p></div><strong>${percentage(event.probability)}</strong></header>
       <section class="interaction-facts" aria-label="Interaction context">
         ${this.fact('Relationship', label(event.relationship_type))}${this.fact('Weight', decimal(event.relationship_weight))}${this.fact('Trust', decimal(event.trust))}${this.fact('Similarity', decimal(event.similarity))}${this.fact('Rule', event.rule_id)}
       </section>

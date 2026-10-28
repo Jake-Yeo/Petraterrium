@@ -2,16 +2,34 @@ import asyncio
 import logging
 
 from . import engine
-from .contracts import EnsembleUpdate, MissingFallback, RunConfig, RunError, StoryRecord
+from .contracts import (
+    ActionLogEntry,
+    EnsembleUpdate,
+    MissingFallback,
+    RunConfig,
+    RunError,
+    StoryRecord,
+)
 from .decision_graph import record_action_logs
 from .dsl import DSLConfig, validate_dsl
 from .events import Event, detect_events, generate_story
-from .population import generate_population
+from .population import PopulationTable, generate_population
 from .recorder import RunRecord, RunStore
-from .runtime import resolve_runtime
+from .runtime import RuntimeSpec, resolve_runtime
 from .versions import ENGINE_VERSION, config_hash
 
 logger = logging.getLogger(__name__)
+
+
+def _prepare_run(
+    config: RunConfig, include_action_logs: bool
+) -> tuple[RuntimeSpec, PopulationTable, list[ActionLogEntry]]:
+    runtime = resolve_runtime(config)
+    population = generate_population(runtime.dsl, None, config.seed)
+    action_logs = (
+        record_action_logs(runtime.dsl, population, config.seed) if include_action_logs else []
+    )
+    return runtime, population, action_logs
 
 
 def evidence_fallbacks(dsl: DSLConfig) -> list[MissingFallback]:
@@ -137,12 +155,15 @@ class RunService:
             return
         record.status = "running"
         try:
-            runtime = resolve_runtime(record.config)
-            record.population = generate_population(runtime.dsl, None, record.config.seed)
-            if record.outputs.agent_logs != "none":
-                record.action_logs = record_action_logs(
-                    runtime.dsl, record.population, record.config.seed
-                )
+            runtime, population, action_logs = await asyncio.to_thread(
+                _prepare_run,
+                record.config,
+                record.outputs.agent_logs != "none",
+            )
+            if self.store.get(record.run_id) is not record:
+                return
+            record.population = population
+            record.action_logs = action_logs
             previous = None
             for snapshot in engine.simulate(record.config, record.run_id, ENGINE_VERSION):
                 if self.store.get(record.run_id) is not record:

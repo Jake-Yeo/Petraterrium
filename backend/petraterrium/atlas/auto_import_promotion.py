@@ -245,8 +245,10 @@ def sync_missing_document(
             state = "Estimated with a stored uncertainty and reasoning trace"
             next_evidence = row["better_data"]
         elif row["status"] in {"not_found", "rejected"}:
-            state = "Missing after research"
-            next_evidence = row["failure_reason"] or row["better_data"]
+            state = "Earlier research attempt is ready to retry"
+            next_evidence = (
+                "Retry with another source or engine to create an estimated draft"
+            )
         else:
             state = "Research or review in progress"
             next_evidence = row["better_data"]

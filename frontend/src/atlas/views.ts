@@ -185,7 +185,7 @@ function cityResearchTrace(value: unknown): string {
         .join('<br>')
     : '';
   return `<details class="atlas-research-trace">
-    <summary>Research trace · ${e(trace.result_kind ?? 'unknown')}</summary>
+    <summary>Research trace · ${e(trace.result_kind ?? 'estimated draft')}</summary>
     ${trace.languages?.length ? `<p><strong>Languages</strong> ${trace.languages.map(e).join(', ')}</p>` : ''}
     ${storedMapping(trace)}
     ${storedVerification(trace)}

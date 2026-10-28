@@ -171,8 +171,12 @@ def create_atlas_router(store: AtlasStore, run_store, ai_provider=None) -> APIRo
         )
 
     @router.get("/choice-evidence", response_model=ChoiceEvidenceCatalog)
-    def choices():
-        return choice_evidence_catalog()
+    def choices(scope: str = "shared", as_of: date | None = None):
+        return choice_evidence_catalog(
+            store,
+            scope,
+            as_of.isoformat() if as_of else None,
+        )
 
     @router.get("/scopes", response_model=AtlasScopes)
     def scopes():

@@ -1,0 +1,938 @@
+{
+  "attempt_id": "465dc492acdc487c91db2ae96667027f",
+  "target": {
+    "level": "country",
+    "place_id": "BD",
+    "place_label": "Bangladesh",
+    "feature_id": "specialization",
+    "population": 171466990,
+    "current_status": "missing",
+    "scope": "shared",
+    "as_of": "2026-10-27",
+    "country_code": "BD",
+    "local_names": {},
+    "dominant_languages": [
+      "bn",
+      "en"
+    ],
+    "place_aliases": [],
+    "context_places": [
+      {
+        "level": "region",
+        "place_id": "Asia excluding China and India",
+        "place_label": "Asia excluding China and India",
+        "aliases": []
+      }
+    ]
+  },
+  "requirement": {
+    "feature_id": "specialization",
+    "name": "Field-of-study specialization",
+    "value_specification": "ISCED-F 2013 broad-field distribution for qualified people",
+    "canonical_values": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10"
+    ],
+    "denominator": "people with a post-secondary field of study",
+    "accepted_denominators": [
+      "people with a post-secondary field of study",
+      "tertiary graduates",
+      "post-secondary graduates",
+      "tertiary students",
+      "post-secondary students",
+      "graduates",
+      "students"
+    ],
+    "time_unit": "academic year, graduation year, census date, or survey wave",
+    "accepted_units": [
+      "percent",
+      "percentage",
+      "%"
+    ],
+    "distribution_total": 100.0,
+    "allows_source_categories": false,
+    "better_data_needed": "A nationally representative ISCED-F 2013 distribution with qualification, age, and sex joints for the same country",
+    "feature_aliases": [
+      "specialization",
+      "field of study",
+      "fields of education and training",
+      "isced-f",
+      "university major",
+      "discipline"
+    ],
+    "label_aliases": {
+      "f00": "00",
+      "f01": "01",
+      "f02": "02",
+      "f03": "03",
+      "f04": "04",
+      "f05": "05",
+      "f06": "06",
+      "f07": "07",
+      "f08": "08",
+      "f09": "09",
+      "f10": "10",
+      "generic programmes and qualifications": "00",
+      "education": "01",
+      "arts and humanities": "02",
+      "humanities and arts": "02",
+      "social sciences journalism and information": "03",
+      "social sciences business and law": "03",
+      "business administration and law": "04",
+      "business and law": "04",
+      "natural sciences mathematics and statistics": "05",
+      "science": "05",
+      "information and communication technologies": "06",
+      "information and communication technology": "06",
+      "ict": "06",
+      "engineering manufacturing and construction": "07",
+      "engineering manufacturing and building": "07",
+      "agriculture forestry fisheries and veterinary": "08",
+      "agriculture": "08",
+      "health and welfare": "09",
+      "health and social services": "09",
+      "services": "10"
+    }
+  },
+  "status": "ready",
+  "result_kind": "measured",
+  "user_sources": [
+    {
+      "kind": "url",
+      "name": "https://ugc.portal.gov.bd/pages/publications",
+      "locator": "https://ugc.portal.gov.bd/pages/publications",
+      "content": null,
+      "language": "bn"
+    },
+    {
+      "kind": "url",
+      "name": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-ugc/2024/12/09b200db3ff0498c9417c90ba622365e.pdf",
+      "locator": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-ugc/2024/12/09b200db3ff0498c9417c90ba622365e.pdf",
+      "content": null,
+      "language": "bn"
+    },
+    {
+      "kind": "url",
+      "name": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=BGD&start=2020&end=2020&footnotes=true&indicatorMetadata=true",
+      "locator": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=BGD&start=2020&end=2020&footnotes=true&indicatorMetadata=true",
+      "content": null,
+      "language": "en"
+    }
+  ],
+  "search_plan": {
+    "languages": [
+      "bn",
+      "en"
+    ],
+    "steps": [
+      {
+        "sequence": 1,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+        "engine": "Bangladesh Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 2,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+        "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 3,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+        "engine": "Bangladesh Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 4,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+        "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 5,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+        "engine": "Google Bangladesh",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 6,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 7,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+        "engine": "BanglaJOL",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 8,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+        "engine": "Bing local-language fallback after BanglaJOL",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 9,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+        "engine": "Google Bangladesh",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 10,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 11,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+        "engine": "BanglaJOL",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 12,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+        "engine": "Bing local-language fallback after BanglaJOL",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 13,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+        "engine": "Google News Bangladesh",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 14,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+        "engine": "Bing local-language fallback after Google News Bangladesh",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 15,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+        "engine": "Google Bangladesh",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 16,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 17,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+        "engine": "Google Bangladesh",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 18,
+        "language": "bn",
+        "language_name": "Bengali",
+        "query": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+        "engine": "Bing local-language fallback after Google Bangladesh",
+        "source_kind": "expert_commentary"
+      },
+      {
+        "sequence": 19,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students official statistics",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "official_statistics"
+      },
+      {
+        "sequence": 20,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students census",
+        "engine": "Official statistics and census catalogs",
+        "source_kind": "census"
+      },
+      {
+        "sequence": 21,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students representative survey",
+        "engine": "Bing",
+        "source_kind": "representative_survey"
+      },
+      {
+        "sequence": 22,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students research article",
+        "engine": "Google Scholar",
+        "source_kind": "research_article"
+      },
+      {
+        "sequence": 23,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students government report",
+        "engine": "Bing",
+        "source_kind": "government_report"
+      },
+      {
+        "sequence": 24,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students university report",
+        "engine": "Google Scholar",
+        "source_kind": "university_report"
+      },
+      {
+        "sequence": 25,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students local news",
+        "engine": "Bing News",
+        "source_kind": "news"
+      },
+      {
+        "sequence": 26,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students public opinion forum",
+        "engine": "Bing",
+        "source_kind": "online_opinion"
+      },
+      {
+        "sequence": 27,
+        "language": "en",
+        "language_name": "English",
+        "query": "Bangladesh field of study ISCED-F distribution graduates students expert commentary",
+        "engine": "Bing",
+        "source_kind": "expert_commentary"
+      }
+    ]
+  },
+  "search_log": [
+    {
+      "sequence": 1,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bangladesh Bureau of Statistics",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 2,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 3,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bangladesh Bureau of Statistics",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 4,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Bangladesh Bureau of Statistics",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 5,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 6,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 7,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "BanglaJOL",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 8,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after BanglaJOL",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F research article",
+      "source_kind": "research_article",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 9,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 10,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 11,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "BanglaJOL",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 12,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after BanglaJOL",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F university report",
+      "source_kind": "university_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 13,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google News Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 14,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google News Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 15,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 16,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 17,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 18,
+      "origin": "automatic",
+      "language": "bn",
+      "engine": "Bing local-language fallback after Google Bangladesh",
+      "query_or_source": "Bangladesh অধ্যয়নের ক্ষেত্র স্নাতক বণ্টন ISCED-F expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 19,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students official statistics",
+      "source_kind": "official_statistics",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 20,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Official statistics and census catalogs",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students census",
+      "source_kind": "census",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 21,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students representative survey",
+      "source_kind": "representative_survey",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 22,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students research article",
+      "source_kind": "research_article",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DBangladesh%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Bresearch%2Barticle&q=EgTPPF3VGJOBg9cGIiwCLlBRW_GjtNap2zRePdUfU4DDKHgDBKJ0F_2iAFjw2yxt_rflBS2zdF0xizICclJaAUNgvYTkztDsxbbuAQ'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 23,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students government report",
+      "source_kind": "government_report",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 24,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Google Scholar",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students university report",
+      "source_kind": "university_report",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "Client error '429 Too Many Requests' for url 'https://www.google.com/sorry/index?continue=https://scholar.google.com/scholar%3Fq%3DBangladesh%2Bfield%2Bof%2Bstudy%2BISCED-F%2Bdistribution%2Bgraduates%2Bstudents%2Buniversity%2Breport&q=EgTPPF3VGKSBg9cGIixjM7htpHkybq3G2lEfzVRkn_1M_cXc7X844wrP21LhZ2uq0dnhGDPFK-AQUzICclJaAUNggbij4cTBlZp2'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429"
+      ]
+    },
+    {
+      "sequence": 25,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing News",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students local news",
+      "source_kind": "news",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 26,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students public opinion forum",
+      "source_kind": "online_opinion",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 27,
+      "origin": "automatic",
+      "language": "en",
+      "engine": "Bing",
+      "query_or_source": "Bangladesh field of study ISCED-F distribution graduates students expert commentary",
+      "source_kind": "expert_commentary",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 28,
+      "origin": "user",
+      "language": "bn",
+      "engine": "User supplied",
+      "query_or_source": "https://ugc.portal.gov.bd/pages/publications",
+      "source_kind": "user_url",
+      "outcome": "error",
+      "candidate_ids": [],
+      "rejection_reasons": [
+        "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'ugc.portal.gov.bd'. (_ssl.c:1032)"
+      ]
+    },
+    {
+      "sequence": 29,
+      "origin": "user",
+      "language": "bn",
+      "engine": "User supplied",
+      "query_or_source": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-ugc/2024/12/09b200db3ff0498c9417c90ba622365e.pdf",
+      "source_kind": "user_url",
+      "outcome": "no_result",
+      "candidate_ids": [],
+      "rejection_reasons": []
+    },
+    {
+      "sequence": 30,
+      "origin": "user",
+      "language": "en",
+      "engine": "User supplied",
+      "query_or_source": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=BGD&start=2020&end=2020&footnotes=true&indicatorMetadata=true",
+      "source_kind": "user_url",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "9a614597b0554a289fcbba792048540c"
+      ],
+      "rejection_reasons": []
+    }
+  ],
+  "sources": [
+    {
+      "candidate_id": "9a614597b0554a289fcbba792048540c",
+      "title": "UNESCO UIS tertiary graduates by field · Bangladesh",
+      "url": "https://api.uis.unesco.org/api/public/data/indicators?indicator=FOSGP.5T8.FUK&indicator=FOSGP.5T8.F110&indicator=FOSGP.5T8.F200&indicator=FOSGP.5T8.F300&indicator=FOSGP.5T8.F400&indicator=FOSGP.5T8.F500&indicator=FOSGP.5T8.F600&indicator=FOSGP.5T8.F700&indicator=FOSGP.5T8.F800&indicator=FOSGP.5T8.F900&indicator=FOSGP.5T8.F1000&geoUnit=BGD&start=2020&end=2020&footnotes=true&indicatorMetadata=true",
+      "source_kind": "official_statistics",
+      "feature": "specialization",
+      "place": "Bangladesh",
+      "place_level": "country",
+      "denominator": "tertiary graduates",
+      "population": null,
+      "observation_date": "2020-12-31",
+      "published_date": "2026-02-09",
+      "time_unit": "graduation year",
+      "unit": "percent",
+      "distribution": {
+        "10": 0.211827928,
+        "01": 1.208256392,
+        "02": 31.649398715,
+        "03": 25.779822166,
+        "04": 26.921260352,
+        "05": 7.973481229,
+        "06": 1.833472604,
+        "07": 1.338891513,
+        "08": 1.111899169,
+        "09": 1.971689932,
+        "00": 0.0
+      },
+      "evidence_kind": "measured",
+      "credible": true,
+      "credibility_reason": "National administrative percentage distribution published by UNESCO UIS",
+      "language": "en",
+      "original_excerpt": "Source: UIS Dynamic template based on UIS Education Survey; NA; Country's submission to UIS SFE Questionnaire C",
+      "translated_excerpt": null,
+      "sample_size": null,
+      "source_version": "February 2026 Data Release",
+      "license": "CC BY-SA 4.0",
+      "estimate_reasoning": null,
+      "estimate_assumptions": [],
+      "estimate_confidence_intervals": {},
+      "estimate_source_ids": [],
+      "ai_provenance": null
+    }
+  ],
+  "rejected_sources": [],
+  "selected_source_ids": [
+    "9a614597b0554a289fcbba792048540c"
+  ],
+  "verifications": [
+    {
+      "candidate_id": "9a614597b0554a289fcbba792048540c",
+      "accepted": true,
+      "direct_measurement": true,
+      "checks": [
+        {
+          "name": "credibility",
+          "passed": true,
+          "expected": "Credible source with a stated basis",
+          "actual": "National administrative percentage distribution published by UNESCO UIS",
+          "reason": "National administrative percentage distribution published by UNESCO UIS"
+        },
+        {
+          "name": "feature",
+          "passed": true,
+          "expected": "Field-of-study specialization",
+          "actual": "specialization",
+          "reason": "Feature matches"
+        },
+        {
+          "name": "place",
+          "passed": true,
+          "expected": "country: Bangladesh",
+          "actual": "country: Bangladesh",
+          "reason": "Place matches"
+        },
+        {
+          "name": "denominator",
+          "passed": true,
+          "expected": "people with a post-secondary field of study",
+          "actual": "tertiary graduates",
+          "reason": "Denominator matches"
+        },
+        {
+          "name": "population",
+          "passed": true,
+          "expected": "A stated positive population/sample universe, or a national official percentage table with a declared denominator",
+          "actual": "not stated",
+          "reason": "National official percentage table defines its denominator"
+        },
+        {
+          "name": "date",
+          "passed": true,
+          "expected": "Stated observation and publication dates on or before 2026-10-27",
+          "actual": "observed 2020-12-31; published 2026-02-09",
+          "reason": "Observation and publication dates pass the availability cutoff"
+        },
+        {
+          "name": "time_basis",
+          "passed": true,
+          "expected": "academic year, graduation year, census date, or survey wave",
+          "actual": "graduation year",
+          "reason": "Time basis matches"
+        },
+        {
+          "name": "unit",
+          "passed": true,
+          "expected": "percent, percentage, %",
+          "actual": "percent",
+          "reason": "Unit matches"
+        },
+        {
+          "name": "distribution",
+          "passed": true,
+          "expected": "Values in range totaling 100",
+          "actual": "Distribution totals 100",
+          "reason": "Distribution totals 100"
+        },
+        {
+          "name": "translation",
+          "passed": true,
+          "expected": "Original text and an English translation for non-English evidence",
+          "actual": "original text only",
+          "reason": "Provenance is displayable in English"
+        },
+        {
+          "name": "evidence_kind",
+          "passed": true,
+          "expected": "Measured evidence or an explicitly labelled estimate hint",
+          "actual": "measured",
+          "reason": "Evidence classification accepted"
+        }
+      ],
+      "reasons": []
+    }
+  ],
+  "mapping_preview": {
+    "version": "atlas-auto-import-labels-v1",
+    "rows": [
+      {
+        "source_label": "10",
+        "proposed_label": "10",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "01",
+        "proposed_label": "01",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "02",
+        "proposed_label": "02",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "03",
+        "proposed_label": "03",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "04",
+        "proposed_label": "04",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "05",
+        "proposed_label": "05",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "06",
+        "proposed_label": "06",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "07",
+        "proposed_label": "07",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "08",
+        "proposed_label": "08",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "09",
+        "proposed_label": "09",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      },
+      {
+        "source_label": "00",
+        "proposed_label": "00",
+        "confidence": "exact",
+        "reason": "Exact canonical label"
+      }
+    ],
+    "needs_confirmation": true
+  },
+  "mapping_confirmed": true,
+  "proposed_distribution": {
+    "10": 0.211827928,
+    "01": 1.208256392,
+    "02": 31.649398715,
+    "03": 25.779822166,
+    "04": 26.921260352,
+    "05": 7.973481229,
+    "06": 1.833472604,
+    "07": 1.338891513,
+    "08": 1.111899169,
+    "09": 1.971689932,
+    "00": 0.0
+  },
+  "mapped_distribution": {
+    "10": 0.211828,
+    "01": 1.208256,
+    "02": 31.649399,
+    "03": 25.779822,
+    "04": 26.92126,
+    "05": 7.973481,
+    "06": 1.833473,
+    "07": 1.338892,
+    "08": 1.111899,
+    "09": 1.97169,
+    "00": 0.0
+  },
+  "estimate_trace": null,
+  "languages_searched": [
+    "bn",
+    "en"
+  ],
+  "failure_reason": null,
+  "promotion_id": null,
+  "created_at": "2026-10-27T15:11:44.143031Z",
+  "updated_at": "2026-10-27T15:19:19.379227Z"
+}

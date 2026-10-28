@@ -6,6 +6,7 @@ CanonicalFeatureId = Literal[
     "age_sex",
     "income",
     "education",
+    "specialization",
     "ideology_economic",
     "ideology_state",
     "ideology_cultural",
@@ -38,6 +39,7 @@ AGE_SEX_VALUES = tuple(
     f"{sex}_{age}" for sex in ("female", "male") for age in AGES
 )
 EDUCATION_VALUES = tuple(str(level) for level in range(9)) + ("unknown",)
+SPECIALIZATION_VALUES = tuple(f"{code:02d}" for code in range(11))
 
 
 def _requirement(
@@ -156,6 +158,59 @@ CANONICAL_FIELD_REQUIREMENTS: dict[CanonicalFeatureId, CanonicalFieldRequirement
             "doctorate": "8",
             "doctoral": "8",
             "unknown": "unknown",
+        },
+    ),
+    "specialization": _requirement(
+        "specialization",
+        "Field-of-study specialization",
+        "ISCED-F 2013 broad-field distribution for qualified people",
+        SPECIALIZATION_VALUES,
+        "people with a post-secondary field of study",
+        (
+            "people with a post-secondary field of study",
+            "tertiary graduates",
+            "post-secondary graduates",
+            "tertiary students",
+            "post-secondary students",
+            "graduates",
+            "students",
+        ),
+        "academic year, graduation year, census date, or survey wave",
+        ("percent", "percentage", "%"),
+        (
+            "A nationally representative ISCED-F 2013 distribution with qualification, "
+            "age, and sex joints for the same country"
+        ),
+        (
+            "specialization",
+            "field of study",
+            "fields of education and training",
+            "isced-f",
+            "university major",
+            "discipline",
+        ),
+        {
+            **{f"f{code:02d}": f"{code:02d}" for code in range(11)},
+            "generic programmes and qualifications": "00",
+            "education": "01",
+            "arts and humanities": "02",
+            "humanities and arts": "02",
+            "social sciences journalism and information": "03",
+            "social sciences business and law": "03",
+            "business administration and law": "04",
+            "business and law": "04",
+            "natural sciences mathematics and statistics": "05",
+            "science": "05",
+            "information and communication technologies": "06",
+            "information and communication technology": "06",
+            "ict": "06",
+            "engineering manufacturing and construction": "07",
+            "engineering manufacturing and building": "07",
+            "agriculture forestry fisheries and veterinary": "08",
+            "agriculture": "08",
+            "health and welfare": "09",
+            "health and social services": "09",
+            "services": "10",
         },
     ),
     "ideology_economic": _requirement(

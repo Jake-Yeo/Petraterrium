@@ -29,7 +29,6 @@ export type HouseholdRelationship =
 
 export type HouseholdMemberSeed = {
   member_id: string;
-  name: string | null;
   age: number;
   sex: string;
   relationship_to_reference: HouseholdRelationship;
@@ -198,7 +197,7 @@ export function validateInitialPopulationDraft(
           validationIssue(
             'parent_too_young',
             `${path}.members.${parent.member_id}.age`,
-            `Parent ${parent.name ?? parent.member_id} is younger than 16.`,
+            `Parent ${parent.member_id} is younger than 16.`,
           ),
         );
       }
@@ -210,7 +209,7 @@ export function validateInitialPopulationDraft(
             validationIssue(
               'child_older_than_parent',
               `${path}.members.${child.member_id}.age`,
-              `Child ${child.name ?? child.member_id} is not younger than parent ${parent.name ?? parent.member_id}.`,
+              `Child ${child.member_id} is not younger than parent ${parent.member_id}.`,
             ),
           );
         } else if (parent.age - child.age < 12) {
@@ -218,7 +217,7 @@ export function validateInitialPopulationDraft(
             validationIssue(
               'parent_age_gap_implausible',
               `${path}.members.${child.member_id}.age`,
-              `Parent ${parent.name ?? parent.member_id} is less than 12 years older than child ${child.name ?? child.member_id}.`,
+              `Parent ${parent.member_id} is less than 12 years older than child ${child.member_id}.`,
             ),
           );
         }
@@ -374,7 +373,7 @@ export class InitialPopulationEditor {
           <label>Latitude<input data-template-field="latitude" type="number" min="-90" max="90" step="any" value="${template.latitude}" required></label>
           <label>Longitude<input data-template-field="longitude" type="number" min="-180" max="180" step="any" value="${template.longitude}" required></label>
         </div>
-        <div class="initial-household-member-labels"><span>Name</span><span>Age</span><span>Sex</span><span>Family role</span><span>Agent types</span><span></span></div>
+        <div class="initial-household-member-labels"><span>Agent ID</span><span>Age</span><span>Sex</span><span>Family role</span><span>Agent types</span><span></span></div>
         <div class="initial-household-members">
           ${template.members
             .map((member, memberIndex) =>
@@ -395,12 +394,12 @@ export class InitialPopulationEditor {
     const fieldId = `initial-member-${templateIndex}-${memberIndex}`;
     return `
       <div class="initial-household-member" data-household-member data-household-index="${templateIndex}" data-member-index="${memberIndex}">
-        <label><span>Name</span><input id="${fieldId}-name" aria-label="Name for ${escapeHtml(member.member_id)}" data-member-field="name" value="${escapeHtml(member.name ?? '')}"></label>
+        <label><span>Agent ID</span><input id="${fieldId}-id" aria-label="Agent ID for household member" data-member-field="member_id" value="${escapeHtml(member.member_id)}"></label>
         <label><span>Age</span><input id="${fieldId}-age" aria-label="Age for ${escapeHtml(member.member_id)}" data-member-field="age" type="number" min="0" max="125" step="1" value="${member.age}"></label>
         <label><span>Sex</span><input id="${fieldId}-sex" aria-label="Sex for ${escapeHtml(member.member_id)}" data-member-field="sex" value="${escapeHtml(member.sex)}"></label>
         <label><span>Family role</span><select id="${fieldId}-relationship" aria-label="Family role for ${escapeHtml(member.member_id)}" data-member-field="relationship_to_reference">${relationships.map((value) => `<option value="${value}" ${value === member.relationship_to_reference ? 'selected' : ''}>${value}</option>`).join('')}</select></label>
         <label><span>Agent types</span><input id="${fieldId}-types" aria-label="Agent types for ${escapeHtml(member.member_id)}" data-member-field="agent_types" value="${escapeHtml(member.agent_types.join(', '))}"></label>
-        <button type="button" aria-label="Remove ${escapeHtml(member.name ?? member.member_id)}" data-population-action="remove-member" data-household-index="${templateIndex}" data-member-index="${memberIndex}" ${memberCount === 1 ? 'disabled' : ''}>×</button>
+        <button type="button" aria-label="Remove ${escapeHtml(member.member_id)}" data-population-action="remove-member" data-household-index="${templateIndex}" data-member-index="${memberIndex}" ${memberCount === 1 ? 'disabled' : ''}>×</button>
       </div>`;
   }
 
@@ -434,7 +433,7 @@ export class InitialPopulationEditor {
     const member = this.draft.household_templates[templateIndex]?.members[memberIndex];
     if (!member) return;
     if (field === 'age') member.age = Number(control.value);
-    if (field === 'name') member.name = control.value.trim() || null;
+    if (field === 'member_id') member.member_id = control.value.trim();
     if (field === 'sex') member.sex = control.value.trim();
     if (field === 'relationship_to_reference') {
       member.relationship_to_reference = control.value as HouseholdRelationship;
@@ -471,7 +470,6 @@ export class InitialPopulationEditor {
     const number = previousSize + 1;
     template.members.push({
       member_id: `member-${number}`,
-      name: null,
       age: 18,
       sex: 'unknown',
       relationship_to_reference: 'other',

@@ -37,7 +37,6 @@ def population_payload() -> dict:
                 "members": [
                     {
                         "member_id": "reference",
-                        "name": "Avery",
                         "age": 40,
                         "sex": "female",
                         "relationship_to_reference": "self",
@@ -64,25 +63,37 @@ def test_materialized_population_drives_server_paged_initial_agents(tmp_path):
 
     with TestClient(application) as client:
         before = client.get("/simulation/initial-agents")
+        state_system = client.get("/simulation/agent-state-system")
         materialized = client.post(
             "/simulation/initial-population/materialize",
             json=population_payload(),
         )
         listed = client.get(
             "/simulation/initial-agents",
-            params={"search": "Avery", "country": "Canada", "page_size": 10},
+            params={"search": "Engineer", "country": "Canada", "page_size": 10},
         )
         agent_id = listed.json()["items"][0]["agent_id"]
         detail = client.get(f"/simulation/initial-agents/{agent_id}")
 
-    assert before.status_code == 200 and before.json()["total"] == 0
+    assert before.status_code == 200 and before.json()["total"] == 1_000
+    assert state_system.status_code == 200
+    state_ids = {
+        item["id"] for item in state_system.json()["agent_states"]["definitions"]
+    }
+    relationship_state_ids = {
+        item["id"]
+        for item in state_system.json()["relationship_states"]["definitions"]
+    }
+    assert {"stress", "health", "financial_stress"} <= state_ids
+    assert "love" in relationship_state_ids
+    assert "love" not in state_ids
     assert materialized.status_code == 200
     assert listed.status_code == 200 and listed.json()["total"] == 1
     assert detail.json()["age"] == 40
     assert detail.json()["household"]["members"][0]["agent_id"] == agent_id
     assert detail.json()["interaction_context"] == {
-        "program_status": "absent",
-        "program_version": None,
+        "program_status": "confirmed",
+        "program_version": "global-demo-cross-country-v1",
         "history_available": False,
         "history_message": (
             "No interaction frequency or history exists before a run. Run the simulation, "

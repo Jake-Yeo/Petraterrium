@@ -3,6 +3,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..atlas.database import AtlasStore
 from ..atlas.feature_queries import FeatureQueryService, PlaceOptions
+from .agent_state import (
+    AgentStateSystemView,
+    core_agent_state_catalog,
+    relationship_state_catalog,
+)
 from .atlas_population import (
     AtlasPopulationMaterializer,
     AtlasPopulationRequest,
@@ -146,6 +151,13 @@ def create_population_router(
             agent_count=len(population.agents),
             input_hash=materialization.input_hash,
             agent_type_mix=_population_type_mix(materialization),
+        )
+
+    @router.get("/agent-state-system", response_model=AgentStateSystemView)
+    def agent_state_system() -> AgentStateSystemView:
+        return AgentStateSystemView(
+            agent_states=core_agent_state_catalog(),
+            relationship_states=relationship_state_catalog(),
         )
 
     @router.post("/initial-population/validate", response_model=InitialPopulationValidation)

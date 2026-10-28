@@ -52,17 +52,47 @@ function evidenceSource(source: ResearchSource): string {
     : `<strong>${e(source.title)}</strong>`;
   return `<article class="feature-research-source">
     <div>${title}<span class="field-status ${source.accepted ? 'present' : 'missing'}">${source.accepted ? 'accepted' : 'rejected'}</span></div>
-    <small>${e(source.publisher)} · ${e(source.language)} · observed ${e(source.source_date ?? 'undated')} · published ${e(source.published_date ?? 'undated')} · ${e(source.version ?? 'unknown version')} · ${e(source.licence ?? 'unknown licence')}</small>
+    <small>${e(source.publisher)} · ${e(source.language)} · observed ${e(source.source_date ?? 'date not supplied')} · published ${e(source.published_date ?? 'date not supplied')} · ${e(source.version ?? 'version not supplied')} · ${e(source.licence ?? 'licence not supplied')}</small>
     ${source.original_excerpt ? `<p><strong>Original</strong> ${e(source.original_excerpt)}</p>` : ''}
     ${source.translated_excerpt ? `<p><strong>Translation</strong> ${e(source.translated_excerpt)}</p>` : ''}
     ${source.rejection_reason ? `<p>${e(source.rejection_reason)}</p>` : ''}
   </article>`;
 }
 
+function featureSearchLog(attempt: AutoImportAttempt): string {
+  if (!attempt.search_log.length) return '<p class="muted">No recorded searches for this run.</p>';
+  return `<details class="feature-research-log" open>
+    <summary>Research search log · ${attempt.search_log.length.toLocaleString()}</summary>
+    <div class="auto-import-table-scroll"><table>
+      <thead><tr><th>Engine</th><th>Language</th><th>Query / source</th><th>Date</th><th>Results</th><th>Outcome</th><th>Reasons</th></tr></thead>
+      <tbody>${attempt.search_log
+        .map(
+          (entry) => `<tr>
+            <td>${e(entry.engine)}</td><td>${e(entry.language)}</td><td>${e(entry.query)}</td><td>${e(entry.searched_at ?? 'date not supplied')}</td>
+            <td>${entry.result_count.toLocaleString()}</td><td>${e(entry.outcome)}</td>
+            <td>${entry.rejection_reasons.length ? entry.rejection_reasons.map(e).join('<br>') : '—'}</td>
+          </tr>`,
+        )
+        .join('')}</tbody>
+    </table></div>
+  </details>`;
+}
+
+function titleCase(value: string): string {
+  const words = value.replaceAll('_', ' ');
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+function resultStateLabel(attempt: AutoImportAttempt): string {
+  if (attempt.draft_status === 'editable_draft') return 'Editable draft';
+  return `${titleCase(attempt.draft_status)} version`;
+}
+
 function featureResearchEvidence(attempts: AutoImportAttempt[]): string {
   if (!attempts.length) {
     return `<section class="feature-catalog-detail-section feature-research-evidence">
-      <div><h4>Imported research evidence</h4><span>No promoted auto-import evidence</span></div>
+      <div><h4>Imported research evidence</h4><span>Research pipeline ready</span></div>
+      <p>Import or run research to produce a reviewable draft.</p>
     </section>`;
   }
   return `<section class="feature-catalog-detail-section feature-research-evidence">
@@ -79,9 +109,10 @@ function featureResearchEvidence(attempts: AutoImportAttempt[]): string {
         return `<article class="feature-research-attempt">
           <div class="feature-research-heading">
             <div><strong>${e(attempt.target.place_label)}</strong><small>${e(attempt.target.level)} · ${attempt.target.population.toLocaleString()} people</small></div>
-            <span class="field-status ${attempt.evidence_kind === 'measured' ? 'present' : 'estimated'}">${e(attempt.evidence_kind ?? 'unknown')}</span>
+            <span class="field-status ${attempt.evidence_kind === 'measured' ? 'present' : 'estimated'}">${e(attempt.evidence_kind ?? 'estimated draft')}</span>
           </div>
-          <p class="feature-research-distribution">${distribution || 'No distribution values recorded'}</p>
+          <p class="feature-research-draft"><strong>${e(resultStateLabel(attempt))}</strong> · ${attempt.usable_in_demo ? 'Executable with this evidence status visible' : 'Review required before execution'}</p>
+          <p class="feature-research-distribution">${distribution || 'Draft distribution is being assembled'}</p>
           ${languages.length ? `<small>Searched in ${languages.map(e).join(', ')}</small>` : ''}
           <div class="feature-research-sources">${attempt.sources.map(evidenceSource).join('')}</div>
           ${
@@ -96,6 +127,8 @@ function featureResearchEvidence(attempts: AutoImportAttempt[]): string {
                 </dl>`
               : ''
           }
+          ${featureSearchLog(attempt)}
+          ${attempt.promotion_id ? `<p class="auto-import-promotion-record"><strong>Promotion record</strong> <code>${e(attempt.promotion_id)}</code>${attempt.promoted_at ? ` · ${e(attempt.promoted_at)}` : ''}</p>` : ''}
         </article>`;
       })
       .join('')}</div>
@@ -284,7 +317,7 @@ export class DataTab {
       const [view, history, choices] = await Promise.all([
         atlasApi.overview(query),
         atlasApi.history(query.get('scope')!),
-        atlasApi.choices(),
+        atlasApi.choices(query.get('scope')!, query.get('as_of')!),
         this.hierarchyBrowser.setContext(query.get('scope')!, query.get('as_of')!),
         this.autoImport.setContext({
           scope: query.get('scope')!,

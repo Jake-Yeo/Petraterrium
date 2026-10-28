@@ -74,7 +74,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await expect(page.locator('#atlas-validation')).toContainText('Validation passed');
   await page.getByRole('button', { name: 'Commit to this run' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await expect(page.locator('#atlas-cities')).toContainText('28.57%');
+  await expect(page.locator('#atlas-cities')).toContainText('25.00%');
   const scoped = await (
     await request.get(`http://127.0.0.1:8011/atlas/overview?scope=${run}`)
   ).json();
@@ -93,7 +93,7 @@ test('Data tab filters, validates, commits privately, promotes explicitly, and r
   await page.getByRole('button', { name: 'Promote version', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.getByLabel('Data scope', { exact: true }).selectOption('shared');
-  await expect(page.locator('#atlas-cities')).toContainText('28.57%');
+  await expect(page.locator('#atlas-cities')).toContainText('25.00%');
   await page.screenshot({ path: 'test-results/data-atlas-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Source loaders', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('IPUMS International');
@@ -193,11 +193,71 @@ test('Data tab creates, edits, opens, and queries persistent agent features', as
   await page.getByRole('searchbox', { name: 'Search features' }).fill('endurance');
   await expect(catalog).toContainText('Sustained effort measured by a validated assessment.');
   await page.getByRole('tab', { name: 'Evidence', exact: true }).click();
+  await expect(page.locator('#atlas-choice-evidence')).toContainText(
+    'Promote linked trait/outcome data to populate behavior evidence.',
+  );
   await page.getByRole('button', { name: 'Import behavior evidence' }).click();
   const evidenceImport = page.getByRole('dialog', { name: 'Import atlas data' });
   await expect(evidenceImport.getByLabel('Data kind')).toHaveValue('behaviour');
   await evidenceImport.getByRole('button', { name: 'Cancel' }).click();
   expect(errors).toEqual([]);
+});
+
+test('Evidence tab renders scoped fitted-model receipts as audit records', async ({ page }) => {
+  await page.route('**/api/atlas/choice-evidence?**', async (route) => {
+    await route.fulfill({
+      json: {
+        rows: [
+          {
+            id: 'atlas-model-7',
+            action_id: 'go_out',
+            country_code: 'CA',
+            definition: 'Active weighted-logit model that beat its held-out baseline',
+            model_status: 'active_fitted',
+            source_status: 'measured',
+            source_type: 'representative_survey',
+            source_tier: 3,
+            outcome_rate: 0.667,
+            ci_low: 0.25,
+            ci_high: 0.91,
+            uncertainty: 0.66,
+            sample_size: 100,
+            effective_sample_size: 82.4,
+            ci_method:
+              'Approximate Wilson interval using Kish effective sample size; survey clustering and strata are unavailable',
+            population: 'CA imported linked respondents',
+            denominator: 'Respondents with nonempty traits and a binary outcome',
+            traits: ['extraversion'],
+            algorithm: 'weighted-logit-irls-v1',
+            reason: null,
+            training_rows: 80,
+            heldout_rows: 20,
+            heldout_loss: 0.4,
+            baseline_loss: 0.6,
+            provenance: {
+              import_id: 'promoted-behaviour',
+              source: 'World Values Survey',
+              source_date: '2024-01-01',
+              published_date: '2024-02-01',
+              version: '2024-v1',
+              scope: 'shared',
+              uploader: 'tester',
+            },
+          },
+        ],
+      },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await page.getByRole('tab', { name: 'Evidence', exact: true }).click();
+  const evidence = page.locator('#atlas-choice-evidence');
+  await expect(evidence).toContainText('1 MODEL RECEIPTS');
+  await expect(evidence).toContainText('go_out');
+  await expect(evidence).toContainText('active fitted');
+  await expect(evidence).toContainText('82.4 effective');
+  await expect(evidence).toContainText('World Values Survey');
+  await expect(evidence).toContainText('receipt promoted-behaviour');
 });
 
 test('Data tab reviews and explicitly promotes a field-level research import', async ({
@@ -257,8 +317,10 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
   };
   await dialog.getByLabel('Pasted source text').fill(JSON.stringify(candidate));
   await dialog.getByRole('button', { name: 'Research automatically' }).click();
-  await expect(dialog.getByRole('heading', { name: 'Confirm mapping' })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Confirm mapping and values' })).toBeVisible();
   await expect(dialog).toContainText('Under 50k');
+  await dialog.getByLabel('Share for under 50k').fill('55');
+  await dialog.getByLabel('Share for 50k or more').fill('45');
   const before = await (await request.get('http://127.0.0.1:8011/atlas/cities/1')).json();
   expect(
     before.city.fields.find((field: { field: string }) => field.field === 'income').status,
@@ -270,15 +332,42 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
     .check();
   await dialog.getByRole('button', { name: 'Confirm mapping and verify' }).click();
   await expect(dialog.getByRole('heading', { name: 'Measured evidence' })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Confirmed changes' })).toBeVisible();
   await expect(dialog).toContainText('Distribution totals 100');
   await expect(dialog.getByRole('button', { name: 'Retry unresolved research' })).toHaveCount(0);
   await expect(dialog).toContainText('Alpha income table');
   await expect(dialog.getByRole('link', { name: 'Open source ↗' })).toHaveCount(0);
+  const sourceCard = dialog
+    .locator('.auto-import-source')
+    .filter({ hasText: 'Alpha income table' });
+  await expect(sourceCard.locator('.auto-import-source-context')).toContainText('Alpha');
+  await expect(sourceCard.locator('.auto-import-source-context')).toContainText('1,000');
+  await expect(sourceCard.locator('.auto-import-source-context')).toContainText('Measured');
+  await dialog.getByRole('button', { name: 'Edit confirmed draft' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Edit confirmed draft' })).toBeVisible();
+  const revisionDiff = dialog.getByRole('region', { name: 'Revision diff' });
+  const underFiftyDiff = revisionDiff.getByRole('row').filter({ hasText: 'Under 50k' });
+  await expect(underFiftyDiff).toContainText('55%');
+  await expect(underFiftyDiff).toContainText('Unchanged');
+  await dialog.getByLabel('Share for under 50k').fill('58');
+  await dialog.getByLabel('Share for 50k or more').fill('42');
+  await expect(underFiftyDiff).toContainText('58%');
+  await expect(underFiftyDiff).toContainText('Changed');
+  await dialog
+    .getByLabel(
+      'I reviewed every mapping, including values, units, denominator, geography, and date.',
+    )
+    .check();
+  await dialog.getByRole('button', { name: 'Reconfirm revised draft' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Measured evidence' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Edit confirmed draft' })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Confirmed changes' })).toBeVisible();
   await dialog
     .getByLabel('I confirm this source permits redistribution in the shared atlas.')
     .check();
   await dialog.getByRole('button', { name: 'Promote', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Promote', exact: true })).toHaveCount(0);
+  await expect(dialog).toContainText('Promotion record');
   const after = await (await request.get('http://127.0.0.1:8011/atlas/cities/1')).json();
   const income = after.city.fields.find((field: { field: string }) => field.field === 'income');
   expect(income.status).toBe('present');
@@ -296,6 +385,14 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
   await expect(trace).toContainText('Alpha income table');
   await expect(trace.getByRole('link', { name: /Alpha income table/ })).toHaveCount(0);
   await cityDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.route('**/api/atlas/auto-import/evidence/**', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      attempts: Array<{ search_log: Array<{ searched_at: string | null }> }>;
+    };
+    if (body.attempts[0]?.search_log[0]) body.attempts[0].search_log[0].searched_at = null;
+    await route.fulfill({ response, json: body });
+  });
   await page.getByRole('tab', { name: 'Features', exact: true }).click();
   await page
     .locator('#atlas-feature-catalog')
@@ -303,8 +400,13 @@ test('Data tab reviews and explicitly promotes a field-level research import', a
     .click();
   const feature = page.locator('#atlas-feature-catalog');
   await expect(feature).toContainText('Imported research evidence');
+  await feature.getByRole('button', { name: 'Imported research evidence' }).click();
   await expect(feature).toContainText('Alpha');
   await expect(feature).toContainText('Annual income: under 50k 60%; 50k or more 40%.');
+  await expect(feature).toContainText('Research search log');
+  await expect(feature).toContainText('date not supplied');
+  await expect(feature).toContainText('Promotion record');
+  await expect(feature).toContainText('Promoted version');
   expect(errors).toEqual([]);
 });
 

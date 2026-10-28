@@ -7,6 +7,7 @@ import {
   type AgentTypeGraphController,
   type AgentTypeGraphNode,
 } from './agent-type-graph';
+import type { AgentStateSystem } from './agent-state-view';
 import {
   mountAgentTypeProposalPanel,
   type AgentTypeProposalAudit,
@@ -34,6 +35,8 @@ import {
 } from './interaction-trees';
 import { InteractionProgramEditor } from './interaction-program';
 import { renderDecisionEvidence, type EvaluatedDecisionProbability } from './decision-evidence';
+import { DefaultDslResetControl } from './default-dsl-reset';
+import { CoefficientPromotionPanel } from './coefficient-promotion-panel';
 import { SimulationRunPanel } from './run-panel';
 import { RoutineDetailView, type AgentRoutineDetail } from './routines';
 import {
@@ -103,6 +106,7 @@ export class SimulationWorkspace {
   private run?: RunDetail;
   private agentTypes: AgentTypeGraphNode[] = [];
   private agentTypeAudit?: AgentTypeProposalAudit;
+  private agentStateSystem?: AgentStateSystem;
   private agentTypeGraph?: AgentTypeGraphController;
   private proposalPanel?: AgentTypeProposalPanelController;
   private initialAgents?: InitialAgentsView;
@@ -118,14 +122,20 @@ export class SimulationWorkspace {
   private interactionTreeRequestVersion = 0;
   private treesMode: DecisionTreeMode = 'browse';
   private readonly runPanel: SimulationRunPanel;
+  private readonly coefficientPromotionPanel: CoefficientPromotionPanel;
   private readonly decisionGraph: DecisionGraphView;
   private readonly decisionTrees: MarkovChainBuilder;
+  private readonly defaultDslReset: DefaultDslResetControl;
 
   constructor(private readonly options: SimulationWorkspaceOptions) {
     const graphHost = this.element('simulation-graph-view');
     graphHost.innerHTML = this.graphShell();
     this.decisionGraph = new DecisionGraphView(
       graphHost.querySelector<HTMLElement>('[data-recorded-action-graph]')!,
+    );
+    this.defaultDslReset = new DefaultDslResetControl(
+      graphHost.querySelector<HTMLElement>('[data-default-dsl-reset]')!,
+      { onRestored: () => this.refreshAfterDefaultReset() },
     );
     const treeHost = this.element('simulation-trees-view');
     treeHost.innerHTML = this.treeShell();
@@ -134,6 +144,9 @@ export class SimulationWorkspace {
       { onConfirmed: () => this.loadDecisionTrees() },
     );
     this.runPanel = new SimulationRunPanel(this.element('rust-run-panel'));
+    this.coefficientPromotionPanel = new CoefficientPromotionPanel(
+      this.element('coefficient-promotion-panel'),
+    );
     document.addEventListener('click', this.onClick);
     void this.loadAgentTypes();
     this.show('graph');
@@ -197,6 +210,8 @@ export class SimulationWorkspace {
     this.interactionTreeInspector?.destroy();
     this.interactionProgramEditor?.destroy();
     this.runPanel.dispose();
+    this.coefficientPromotionPanel.dispose();
+    this.defaultDslReset.dispose();
     this.decisionGraph.deactivate();
     this.decisionTrees.destroy();
   }
@@ -213,12 +228,24 @@ export class SimulationWorkspace {
         <div><span class="small-label">GLOBAL TYPE SYSTEM</span><h1>Agents and decisions</h1><p>Inspect reusable agent types, inherited definitions, and recorded action paths.</p></div>
         <div><button class="button secondary" type="button" data-simulation-graph-mode="types" aria-pressed="true">Agent types</button><button class="button secondary" type="button" data-simulation-graph-mode="actions" aria-pressed="false">Recorded actions</button><button class="button primary" type="button" data-simulation-workspace-action="add-agent-type">Add agent type</button></div>
       </div>
+      <div data-default-dsl-reset></div>
       <div data-agent-type-workspace>
         <div data-agent-type-status class="simulation-graph-status" role="status">Loading agent types…</div>
         <div data-agent-type-graph></div>
       </div>
       <div data-recorded-action-graph hidden></div>
       <div data-agent-type-proposal></div>`;
+  }
+
+  private async refreshAfterDefaultReset(): Promise<void> {
+    this.decisionAgent = undefined;
+    this.interactionTreeRegistry = [];
+    await Promise.all([
+      this.loadAgentTypes(),
+      this.initialAgents?.refresh(),
+      this.runPanel.refreshDefaults(),
+    ]);
+    if (this.section === 'trees') await this.activateTrees();
   }
 
   private treeShell(): string {
@@ -434,7 +461,7 @@ export class SimulationWorkspace {
     );
     const evaluation = await responseBody<EvaluatedDecisionProbability>(response);
     if (!host.isConnected) return;
-    host.innerHTML = `<div class="simulation-decision-agent-context"><span>Evaluated for</span><strong>${escapeHtml(agent.display_name)}</strong><small>${escapeHtml(agent.city)} · ${escapeHtml(agent.country)}</small></div><div data-decision-context-limitations></div><div data-decision-evidence-receipt></div>`;
+    host.innerHTML = `<div class="simulation-decision-agent-context"><span>Evaluated for</span><strong>${escapeHtml(agent.agent_id)}</strong><small>${escapeHtml(agent.city)} · ${escapeHtml(agent.country)}</small></div><div data-decision-context-limitations></div><div data-decision-evidence-receipt></div>`;
     renderDecisionContextLimitations(
       host.querySelector<HTMLElement>('[data-decision-context-limitations]')!,
       prepared.limitations,
@@ -452,10 +479,17 @@ export class SimulationWorkspace {
     status.hidden = false;
     status.textContent = 'Loading agent types…';
     try {
-      const response = await fetch('/api/simulation/agent-types');
-      const registry = await responseBody<AgentTypeRegistryResponse>(response);
+      const [registryResponse, stateResponse] = await Promise.all([
+        fetch('/api/simulation/agent-types'),
+        fetch('/api/simulation/agent-state-system'),
+      ]);
+      const [registry, stateSystem] = await Promise.all([
+        responseBody<AgentTypeRegistryResponse>(registryResponse),
+        responseBody<AgentStateSystem>(stateResponse),
+      ]);
       this.agentTypes = registry.resolved.types;
       this.agentTypeAudit = registry.confirmed?.audit;
+      this.agentStateSystem = stateSystem;
       status.textContent = registry.configured
         ? `${this.agentTypes.length} global agent types configured`
         : 'No global agent types yet. Add one manually or request an AI proposal.';
@@ -473,6 +507,7 @@ export class SimulationWorkspace {
     this.agentTypeGraph = mountAgentTypeGraph(host, {
       types: this.agentTypes,
       audit: this.agentTypeAudit,
+      stateSystem: this.agentStateSystem,
       renderDecisionTree: (target, agentType) =>
         this.renderAgentTypeDecisionTree(target, agentType),
     });
@@ -547,6 +582,7 @@ export class SimulationWorkspace {
       {
         onOpenRoutine: (routine, agent) => void this.openRoutine(routine, agent),
         onOpenDecisionTree: (tree, agent) => void this.openDecisionTree(tree.tree_id, agent),
+        stateCatalog: () => this.agentStateSystem?.agent_states,
       },
     );
   }
@@ -793,7 +829,6 @@ export class SimulationWorkspace {
           members: [
             {
               member_id: 'person-1',
-              name: null,
               age: 0,
               sex: 'unknown',
               relationship_to_reference: 'self',

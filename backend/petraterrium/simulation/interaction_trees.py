@@ -425,6 +425,16 @@ class InteractionTreeRegistry:
         self._persist = persist
         self._evidence_receipts = evidence_receipts
 
+    def reload(self, definitions: Sequence[InteractionTreeDefinition]) -> None:
+        collected: dict[str, InteractionTreeDefinition] = {}
+        for definition in definitions:
+            if definition.id in collected:
+                raise ValueError(f"Duplicate interaction tree ID {definition.id}")
+            collected[definition.id] = definition
+        _validate_registry(collected)
+        with self._lock:
+            self._definitions = collected
+
     def save(self, definition: InteractionTreeDefinition) -> InteractionTreeDefinition:
         self._validate_evidence(definition)
         with self._lock:

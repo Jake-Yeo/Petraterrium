@@ -72,7 +72,8 @@
 }
 
 .markov-prompt-card > label,
-.markov-metadata label {
+.markov-metadata label,
+.markov-research-context label {
   color: var(--markov-muted);
   font-size: 9px;
   font-weight: 600;
@@ -84,7 +85,9 @@
 .markov-metadata input,
 .markov-metadata select,
 .markov-table-section input,
-.markov-table-section select {
+.markov-table-section select,
+.markov-research-context input,
+.markov-research-context select {
   width: 100%;
   border: 1px solid var(--markov-line);
   border-radius: 4px;
@@ -228,7 +231,9 @@
 .markov-metadata input,
 .markov-metadata select,
 .markov-table-section input,
-.markov-table-section select {
+.markov-table-section select,
+.markov-research-context input,
+.markov-research-context select {
   min-height: 36px;
   padding: 8px 9px;
 }
@@ -281,7 +286,8 @@
 
 .markov-graph-scroll,
 .markov-table-scroll,
-.markov-diagnostics {
+.markov-diagnostics,
+.markov-search-log-scroll {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-width: thin;
 }
@@ -547,4 +553,5 @@
   .markov-metadata {
     grid-template-columns: 1fr;
   }
+
 }

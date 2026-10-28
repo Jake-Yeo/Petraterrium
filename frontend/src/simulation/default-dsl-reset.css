@@ -1,0 +1,132 @@
+.default-dsl-reset {
+  --reset-surface: #0f1720;
+  --reset-raised: #131e28;
+  --reset-text: #dce5e8;
+  --reset-muted: #7f929d;
+  --reset-line: #ffffff18;
+  --reset-error: #ffad98;
+  color: var(--reset-text);
+  width: 100%;
+}
+
+:root[data-theme='light'] .default-dsl-reset,
+:root[data-color-scheme='light'] .default-dsl-reset,
+:root.theme-light .default-dsl-reset {
+  --reset-surface: #f4f6f5;
+  --reset-raised: #ffffff;
+  --reset-text: #1d292e;
+  --reset-muted: #60747c;
+  --reset-line: #17241b24;
+  --reset-error: #a63f29;
+}
+
+.default-dsl-reset-trigger {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.default-dsl-reset-trigger > div {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.default-dsl-reset-trigger small,
+.default-dsl-reset-trigger output {
+  color: var(--reset-muted);
+  font-size: 0.72rem;
+}
+
+.default-dsl-dialog-backdrop {
+  align-items: center;
+  background: #03070db8;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 80;
+}
+
+.default-dsl-dialog {
+  background: var(--reset-surface);
+  border: 1px solid var(--reset-line);
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 5rem #00000055;
+  display: grid;
+  gap: 1rem;
+  max-height: min(42rem, calc(100vh - 2rem));
+  max-width: 46rem;
+  overflow: hidden;
+  padding: 1.25rem;
+  width: 100%;
+}
+
+.default-dsl-dialog header h2,
+.default-dsl-dialog header p {
+  margin: 0.25rem 0 0;
+}
+
+.default-dsl-dialog header p {
+  color: var(--reset-muted);
+}
+
+.default-dsl-dialog code {
+  overflow-wrap: anywhere;
+}
+
+.default-dsl-preview {
+  display: grid;
+  gap: 0.55rem;
+  max-height: 22rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.default-dsl-preview article {
+  background: var(--reset-raised);
+  border: 1px solid var(--reset-line);
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem;
+}
+
+.default-dsl-preview article > div,
+.default-dsl-preview article p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.default-dsl-preview article small,
+.default-dsl-preview article span {
+  color: var(--reset-muted);
+  font-size: 0.75rem;
+}
+
+.default-dsl-dialog footer {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.default-dsl-error {
+  color: var(--reset-error);
+}
+
+@media (max-width: 720px) {
+  .default-dsl-reset-trigger {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .default-dsl-reset-trigger > div {
+    align-items: flex-start;
+  }
+}

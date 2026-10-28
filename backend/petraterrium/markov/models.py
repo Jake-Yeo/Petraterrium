@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..dsl import ChoiceEvidence, Evidence
+from .pipeline_evidence import PipelineTransitionEstimate
 
 IdentifierPattern = r"^[a-z][a-z0-9_-]*$"
 Scalar = str | float | int | bool
@@ -183,6 +184,7 @@ class TransitionEvidence(MarkovModel):
 class EvidenceCatalog(MarkovModel):
     choice: list[ChoiceEvidence] = Field(default_factory=list)
     transition: list[TransitionEvidence] = Field(default_factory=list)
+    estimated_transition: list[PipelineTransitionEstimate] = Field(default_factory=list)
 
 
 class CompilationContext(MarkovModel):
@@ -232,9 +234,18 @@ class ResolvedProbability(MarkovModel):
     probability: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     ci_low: float = Field(ge=0, le=1, allow_inf_nan=False)
     ci_high: float = Field(ge=0, le=1, allow_inf_nan=False)
-    evidence_kind: EvidenceKind | Literal["unknown"]
+    evidence_kind: EvidenceKind | Literal["pipeline_estimate", "unknown"]
     evidence_id: str | None = None
     provenance: Evidence
+    estimate: PipelineTransitionEstimate | None = None
+
+    @model_validator(mode="after")
+    def estimate_matches_kind(self):
+        if self.evidence_kind == "pipeline_estimate" and self.estimate is None:
+            raise ValueError("Pipeline estimate resolution requires its research draft")
+        if self.evidence_kind != "pipeline_estimate" and self.estimate is not None:
+            raise ValueError("Only pipeline estimate resolution can carry a research draft")
+        return self
 
 
 class OutgoingProbabilityTotal(MarkovModel):
@@ -275,6 +286,7 @@ class CompilationResult(MarkovModel):
     context: CompilationContext
     executable: bool
     issues: list[ValidationIssue]
+    warnings: list[ValidationIssue] = Field(default_factory=list)
     modules: list[CompiledModule]
     probabilities: list[ResolvedProbability]
     outgoing_totals: list[OutgoingProbabilityTotal]

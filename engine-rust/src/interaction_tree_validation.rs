@@ -367,7 +367,7 @@ fn validate_evidence(
     }
     if !matches!(
         evidence.status.as_str(),
-        "measured_joint" | "fitted_model" | "approved_estimate"
+        "measured_joint" | "fitted_model" | "default_estimated" | "approved_estimate"
     ) {
         return Err(InteractionTreeError::at(
             "NON_PREDICTIVE_TRANSITION_EVIDENCE",

@@ -1,6 +1,9 @@
 use crate::agent_types::*;
 use crate::error::{CoreError, CoreResult};
-use std::collections::BTreeSet;
+use crate::state_finance::{
+    CashFlowColumns, FinanceColumns, StateColumns, advance_finance_columns, advance_state_columns,
+};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
     if request.ticks == 0 {
@@ -99,6 +102,7 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
     validate_continuation(request)?;
     validate_modules(request)?;
     validate_schedules(request)?;
+    validate_state_dynamics(request)?;
     let action_ids: BTreeSet<_> = request
         .meaningful_actions
         .iter()
@@ -111,7 +115,20 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
             "meaningful_actions",
         ));
     }
+    let mut exclusive_choice_groups = BTreeMap::new();
     for (action_index, action) in request.meaningful_actions.iter().enumerate() {
+        if let Some(group) = &action.exclusive_choice_group {
+            if group.trim().is_empty() {
+                return Err(CoreError::at(
+                    "INVALID_ACTION_CHOICE_GROUP",
+                    "Exclusive action choice group identifiers cannot be empty",
+                    format!("meaningful_actions.{action_index}.exclusive_choice_group"),
+                ));
+            }
+            *exclusive_choice_groups
+                .entry(group.as_str())
+                .or_insert(0usize) += 1;
+        }
         if action.rules.is_empty() {
             return Err(CoreError::at(
                 "MISSING_ACTION_PROBABILITY",
@@ -125,6 +142,16 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
                 &format!("meaningful_actions.{action_index}.rules.{rule_index}"),
             )?;
         }
+    }
+    if let Some((group, _)) = exclusive_choice_groups
+        .iter()
+        .find(|(_, branch_count)| **branch_count < 2)
+    {
+        return Err(CoreError::at(
+            "INVALID_ACTION_CHOICE_GROUP",
+            format!("Exclusive action choice group {group} requires at least two branches"),
+            format!("meaningful_actions.exclusive_choice_group.{group}"),
+        ));
     }
     if let Some(network) = &request.network {
         network.validate("network")?;
@@ -161,6 +188,194 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
         request.synchronization.weekly_leader_every_ticks,
         "synchronization.weekly_leader_every_ticks",
     )?;
+    Ok(())
+}
+
+fn validate_state_dynamics(request: &AgentProgramRequest) -> CoreResult<()> {
+    let dynamics = &request.state_dynamics;
+    let population = request.agents.state.len();
+    let event_ids: BTreeSet<_> = dynamics
+        .events
+        .iter()
+        .map(|event| event.id.as_str())
+        .collect();
+    if event_ids.len() != dynamics.events.len()
+        || dynamics
+            .events
+            .iter()
+            .any(|event| event.id.trim().is_empty())
+    {
+        return Err(CoreError::at(
+            "DUPLICATE_STATE_EVENT",
+            "State dynamics event identifiers must be non-empty and unique",
+            "state_dynamics.events",
+        ));
+    }
+    let rule_targets: BTreeSet<_> = dynamics
+        .state_rules
+        .iter()
+        .map(|rule| rule.target_state_id.as_str())
+        .collect();
+    for (event_index, event) in dynamics.events.iter().enumerate() {
+        if event.evidence.status.trim().is_empty()
+            || event.evidence.source.trim().is_empty()
+            || event.evidence.source_version.trim().is_empty()
+            || !event.evidence.uncertainty.is_finite()
+            || !(0.0..=1.0).contains(&event.evidence.uncertainty)
+        {
+            return Err(CoreError::at(
+                "INVALID_STATE_EVENT_EVIDENCE",
+                "State event evidence requires a source, version, status, and uncertainty from zero to one",
+                format!("state_dynamics.events.{event_index}.evidence"),
+            ));
+        }
+        if event
+            .cash_flow
+            .values()
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(CoreError::at(
+                "INVALID_STATE_EVENT_CASH_FLOW",
+                "State event cash flows must be finite and non-negative",
+                format!("state_dynamics.events.{event_index}.cash_flow"),
+            ));
+        }
+        if let Some(columns) = &event.cash_flow_by_agent {
+            let values = [
+                &columns.wages,
+                &columns.business_income,
+                &columns.transfers,
+                &columns.housing,
+                &columns.food,
+                &columns.transport,
+                &columns.other_expenses,
+                &columns.taxes,
+                &columns.savings_contribution,
+                &columns.savings_withdrawal,
+                &columns.debt_draw,
+                &columns.debt_repayment,
+            ];
+            if values.iter().any(|column| {
+                column.len() != population
+                    || column
+                        .iter()
+                        .any(|value| !value.is_finite() || *value < 0.0)
+            }) {
+                return Err(CoreError::at(
+                    "INVALID_STATE_EVENT_AGENT_CASH_FLOW",
+                    "Per-agent cash-flow columns must contain one finite non-negative value per agent",
+                    format!("state_dynamics.events.{event_index}.cash_flow_by_agent"),
+                ));
+            }
+        }
+        for (effect_index, effect) in event.effects.iter().enumerate() {
+            let state_id = effect.target.strip_prefix("memory.").ok_or_else(|| {
+                CoreError::at(
+                    "INVALID_STATE_EVENT_TARGET",
+                    "State dynamics event effects must target memory fields",
+                    format!("state_dynamics.events.{event_index}.effects.{effect_index}.target"),
+                )
+            })?;
+            if !rule_targets.contains(state_id) {
+                return Err(CoreError::at(
+                    "MISSING_STATE_EVENT_RULE",
+                    format!(
+                        "State event {} targets {state_id} without a state rule",
+                        event.id
+                    ),
+                    format!("state_dynamics.events.{event_index}.effects.{effect_index}.target"),
+                ));
+            }
+            if !matches!(
+                effect.operation.as_str(),
+                "add" | "subtract" | "set" | "multiply"
+            ) || !effect.value.is_finite()
+            {
+                return Err(CoreError::at(
+                    "INVALID_STATE_EVENT_OPERATION",
+                    "State event operations must be add, subtract, set, or multiply with a finite value",
+                    format!("state_dynamics.events.{event_index}.effects.{effect_index}"),
+                ));
+            }
+        }
+    }
+    if !dynamics.state_rules.is_empty() {
+        let event_deltas = StateColumns {
+            values: rule_targets
+                .iter()
+                .map(|target| ((*target).to_owned(), vec![0.0; population]))
+                .collect(),
+        };
+        advance_state_columns(
+            &StateColumns {
+                values: request.agents.memory.clone(),
+            },
+            &event_deltas,
+            &dynamics.state_rules,
+        )?;
+    }
+    if let Some(metadata) = &dynamics.finance {
+        if metadata.currency.len() != population
+            || metadata.status.len() != population
+            || metadata.source.len() != population
+            || metadata
+                .currency
+                .iter()
+                .any(|value| value.trim().is_empty())
+            || metadata.status.iter().any(|value| value.trim().is_empty())
+            || metadata.source.iter().any(|value| value.trim().is_empty())
+        {
+            return Err(CoreError::at(
+                "INVALID_FINANCE_METADATA",
+                "Finance metadata must provide non-empty currency, status, and source for every agent",
+                "state_dynamics.finance",
+            ));
+        }
+        let memory_column = |name: &str| -> CoreResult<Vec<Option<f64>>> {
+            request
+                .agents
+                .memory
+                .get(name)
+                .map(|values| values.iter().copied().map(Some).collect())
+                .ok_or_else(|| {
+                    CoreError::at(
+                        "UNKNOWN_FINANCE_STATE",
+                        format!("Finance runtime requires memory column {name}"),
+                        "state_dynamics.finance",
+                    )
+                })
+        };
+        let finances = FinanceColumns {
+            currency: metadata.currency.clone(),
+            money: memory_column("finance.money")?,
+            income: memory_column("finance.income")?,
+            expenses: memory_column("finance.expenses")?,
+            savings: memory_column("finance.savings")?,
+            debt: memory_column("finance.debt")?,
+            status: metadata.status.clone(),
+            source: metadata.source.clone(),
+        };
+        let zeros = vec![0.0; population];
+        advance_finance_columns(
+            &finances,
+            &CashFlowColumns {
+                wages: zeros.clone(),
+                business_income: zeros.clone(),
+                transfers: zeros.clone(),
+                housing: zeros.clone(),
+                food: zeros.clone(),
+                transport: zeros.clone(),
+                other_expenses: zeros.clone(),
+                taxes: zeros.clone(),
+                savings_contribution: zeros.clone(),
+                savings_withdrawal: zeros.clone(),
+                debt_draw: zeros.clone(),
+                debt_repayment: zeros,
+            },
+            &dynamics.finance_rules,
+        )?;
+    }
     Ok(())
 }
 
@@ -544,7 +759,7 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
             format!("{path}.provenance"),
         ));
     }
-    let predictive = ["present", "measured"];
+    let predictive = ["present", "measured", "default_estimated", "fitted"];
     if !predictive.contains(&provenance.status.as_str()) {
         return Err(CoreError::at(
             "NON_PREDICTIVE_EVIDENCE",
@@ -563,10 +778,10 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
                 format!("{path}.provenance.resolution_status"),
             ));
         }
-        if resolution_status == "imputed" {
+        if resolution_status == "imputed" && provenance.status != "default_estimated" {
             return Err(CoreError::at(
                 "NON_PREDICTIVE_EVIDENCE",
-                "Imputed evidence cannot drive a transition",
+                "Imputed measured or fitted evidence cannot drive a transition",
                 format!("{path}.provenance.resolution_status"),
             ));
         }
@@ -622,6 +837,10 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
         }
     }
     Ok(())
+}
+
+pub fn validate_probability_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
+    validate_rule(rule, path)
 }
 
 fn validate_effect(
