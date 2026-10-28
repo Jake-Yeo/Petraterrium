@@ -222,24 +222,48 @@ class TextDslService:
         document = self.current()
         if not document.validation.valid:
             raise ValueError("DSL has validation errors")
-        artifact = self._latest_aggregate_artifact(request.function_id)
         started = time.perf_counter()
-        result = self.rust.evaluate_text_dsl_aggregate(
-            document.code,
-            dsl_source_hash=document.source_hash,
-            function_id=request.function_id,
-            seed=request.seed,
-            days=request.days,
-            evaluated_at_day=request.evaluated_at_day,
-            inputs=request.inputs,
-            events=list(request.events),
-            artifact=artifact,
-            force_relearn=request.force_relearn,
+        cached_composition = any(
+            value.get("id") == request.function_id and bool(value.get("cached"))
+            for value in document.validation.compositions
         )
+        if cached_composition:
+            result = self.rust.evaluate_cached_composition(
+                document.code,
+                dsl_source_hash=document.source_hash,
+                function_id=request.function_id,
+                seed=request.seed,
+                days=request.days,
+                evaluated_at_day=request.evaluated_at_day,
+                inputs=request.inputs,
+                branch_inputs=request.branch_inputs,
+                input_schedule=list(request.input_schedule),
+                events=list(request.events),
+                artifacts=self._hierarchy_artifact_catalog(),
+                force_relearn=request.force_relearn,
+            )
+        else:
+            artifact = self._latest_aggregate_artifact(request.function_id)
+            result = self.rust.evaluate_text_dsl_aggregate(
+                document.code,
+                dsl_source_hash=document.source_hash,
+                function_id=request.function_id,
+                seed=request.seed,
+                days=request.days,
+                evaluated_at_day=request.evaluated_at_day,
+                inputs=request.inputs,
+                events=list(request.events),
+                artifact=artifact,
+                force_relearn=request.force_relearn,
+            )
         elapsed_seconds = time.perf_counter() - started
         learned = dict(result["artifact"])
-        if not bool(result.get("cache_hit")):
-            self._persist_aggregate_artifact(request.function_id, learned)
+        returned_artifacts = result.get("artifacts", {request.function_id: learned})
+        for function_id, value in returned_artifacts.items():
+            artifact = dict(value)
+            latest = self._latest_aggregate_artifact(str(function_id))
+            if latest is None or int(artifact["version"]) > int(latest["version"]):
+                self._persist_aggregate_artifact(str(function_id), artifact)
         return AggregateEvaluationResult(
             function_id=str(result["function_id"]),
             cache_hit=bool(result["cache_hit"]),
@@ -255,6 +279,9 @@ class TextDslService:
                 TextDslReport.model_validate(value) for value in result.get("reports", [])
             ),
             elapsed_seconds=elapsed_seconds,
+            cache_tree=result.get("cache_tree"),
+            feedback_iterations=int(result.get("feedback_iterations", 0)),
+            feedback_change_percent=float(result.get("feedback_change_percent", 0.0)),
         )
 
     def aggregate_versions(self, function_id: str) -> tuple[AggregateCacheVersion, ...]:
@@ -317,6 +344,24 @@ class TextDslService:
     def _latest_aggregate_artifact(self, function_id: str) -> dict[str, Any] | None:
         paths = sorted(self._aggregate_function_path(function_id).glob("v*.json.gz"))
         return self._read_run(paths[-1]) if paths else None
+
+    def _aggregate_artifact_catalog(self) -> dict[str, dict[str, Any]]:
+        result = {}
+        for path in self.aggregate_cache_path.iterdir():
+            if not path.is_dir():
+                continue
+            artifact = self._latest_aggregate_artifact(path.name)
+            if artifact is not None:
+                result[path.name] = artifact
+        return result
+
+    def _hierarchy_artifact_catalog(self) -> dict[str, dict[str, Any]]:
+        result = self._aggregate_artifact_catalog()
+        for artifact in result.values():
+            artifact["points"] = [
+                {**point, "reports": []} for point in artifact.get("points", [])
+            ]
+        return result
 
     def _persist_aggregate_artifact(
         self,

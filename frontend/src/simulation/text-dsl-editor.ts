@@ -16,7 +16,7 @@ interface DslValidation {
   archetypes: string[];
   weighted_populations: string[];
   aggregate_functions: AggregateFunctionDefinition[];
-  compositions: Array<{ id: string; level: string }>;
+  compositions: Array<{ id: string; level: string; cached?: boolean }>;
   composition_populations: string[];
   neighbourhoods: string[];
   neighbourhood_populations: string[];
@@ -116,6 +116,8 @@ interface AggregateEvaluationResult {
   }>;
   reports: Report[];
   elapsed_seconds: number;
+  feedback_iterations?: number;
+  feedback_change_percent?: number;
 }
 
 export interface TextDslEditorOptions {
@@ -149,6 +151,39 @@ const signed = (value: number): string => `${value >= 0 ? '+' : ''}${number(valu
 
 const isRates = (value: ReportValue): value is Record<string, number> =>
   typeof value === 'object' && value !== null;
+
+const assignments = (source: string): Array<[string, string, number]> =>
+  source
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      const [path, encoded] = value.split('=');
+      const separator = path.lastIndexOf('.');
+      if (separator <= 0 || encoded === undefined || !Number.isFinite(Number(encoded))) {
+        throw new Error(`Invalid assignment ${value}`);
+      }
+      return [path.slice(0, separator), path.slice(separator + 1), Number(encoded)];
+    });
+
+const branchInputs = (source: string): Record<string, Record<string, number>> =>
+  assignments(source).reduce<Record<string, Record<string, number>>>((result, [branch, input, value]) => {
+    (result[branch] ??= {})[input] = value;
+    return result;
+  }, {});
+
+const inputSchedule = (source: string): Array<{ day: number; values: Record<string, number> }> => {
+  const grouped = assignments(source).reduce<Map<number, Record<string, number>>>(
+    (result, [encodedDay, input, value]) => {
+      const day = Number(encodedDay);
+      if (!Number.isInteger(day) || day < 1) throw new Error(`Invalid schedule day ${encodedDay}`);
+      (result.get(day) ?? (result.set(day, {}), result.get(day)!))[input] = value;
+      return result;
+    },
+    new Map(),
+  );
+  return [...grouped].map(([day, values]) => ({ day, values }));
+};
 
 export class TextDslEditor {
   private document?: DslDocument;
@@ -187,6 +222,8 @@ export class TextDslEditor {
         <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
         <label>Evaluation day<input type="number" min="0" step="1" value="0" data-aggregate-day></label>
         <label>Events<input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
+        <label>Branch inputs<input type="text" placeholder="NorthOne.unemployment=0.8" data-aggregate-branch-inputs></label>
+        <label>Input schedule<input type="text" placeholder="30.unemployment=0.8" data-aggregate-input-schedule></label>
         <button type="button" class="button secondary" data-dsl-action="aggregate-cached">Evaluate cached</button>
         <button type="button" class="button secondary" data-dsl-action="aggregate-relearn">Relearn detailed</button>
       </div>
@@ -423,12 +460,23 @@ export class TextDslEditor {
             days,
             evaluated_at_day: evaluatedAtDay,
             inputs,
+            branch_inputs: branchInputs(
+              this.root.querySelector<HTMLInputElement>('[data-aggregate-branch-inputs]')!.value,
+            ),
+            input_schedule: inputSchedule(
+              this.root.querySelector<HTMLInputElement>('[data-aggregate-input-schedule]')!.value,
+            ),
             events,
             force_relearn: forceRelearn,
           }),
         },
       );
-      this.status.textContent = `${result.cache_hit ? 'Cache hit' : 'Detailed relearn'} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms.`;
+      const evaluation = result.cache_hit
+        ? 'Cache hit'
+        : result.agent_ticks > 0
+          ? 'Branch relearn'
+          : 'Hierarchy updated';
+      this.status.textContent = `${evaluation} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.feedback_iterations ?? 0} feedback iterations.`;
       this.renderAggregateResults(result, days);
     } catch (error) {
       this.options.onError(error);
@@ -440,7 +488,7 @@ export class TextDslEditor {
     const deltas = new Map<string, ReportDelta>();
     const outputIds = Object.keys(result.time_series.at(-1)?.outputs ?? {});
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : 'DETAILED RELEARN'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks</p></div></header>
+      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : result.agent_ticks > 0 ? 'BRANCH RELEARN' : 'HIERARCHY UPDATED'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks · ${result.feedback_iterations ?? 0} feedback iterations · ${number(result.feedback_change_percent ?? 0, 3)}% final change</p></div></header>
       <section class="text-dsl-result-table" data-report-id="aggregate_time_series"><h3>Fast-forward time series</h3><div class="table-scroll"><table><thead><tr><th>Day</th>${outputIds.map((id) => `<th>${escapeHtml(id.replaceAll('_', ' '))}</th><th>${escapeHtml(id.replaceAll('_', ' '))} sd</th>`).join('')}</tr></thead><tbody>${result.time_series
         .map(
           (point) =>
@@ -501,7 +549,7 @@ export class TextDslEditor {
 
   private renderPopulationOptions(
     populations: string[],
-    compositions: Array<{ id: string; level: string }>,
+    compositions: Array<{ id: string; level: string; cached?: boolean }>,
     compositionPopulations: string[],
     neighbourhoods: string[],
     neighbourhoodPopulations: string[],

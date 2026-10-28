@@ -715,15 +715,22 @@ composition Toronto:
     RuralMixed: weight = 40
   institutions = Work, School, Bar, Cinema, SchoolDistrict, Hospital, ShoppingCentre, Transit
   parameters:
-    municipal_tax = 0.23
+    policy_tax = 0.23
     transit_access = 0.81
+    unemployment_national = 0.06
   adjacency:
     UrbanLiberal <-> SuburbanMixed distance = 1
     SuburbanMixed <-> RuralMixed distance = 1.5
   flows:
-    commute_urban_suburban UrbanLiberal -> SuburbanMixed rate = 0.18 effect = visit via Transit
-    commute_suburban_urban SuburbanMixed -> UrbanLiberal rate = 0.14 effect = visit via Transit
-    migrate_rural_suburban RuralMixed -> SuburbanMixed rate = 0.04 effect = transfer
+    commute_urban_suburban UrbanLiberal -> SuburbanMixed rate = formula(clamp(0.1042 + unemployment_national * 0.80 + transit_access * 0.04 - policy_tax * 0.02, 0, 0.50)) effect = visit via Transit
+    commute_suburban_urban SuburbanMixed -> UrbanLiberal rate = formula(clamp(0.0783 + unemployment_national * 0.70 + transit_access * 0.03 - policy_tax * 0.02, 0, 0.45)) effect = visit via Transit
+    migrate_rural_suburban RuralMixed -> SuburbanMixed rate = formula(clamp(0.022 + unemployment_national * 0.30 + economic_shock * 0.10, 0, 0.20)) effect = transfer
+  cached:
+    sync = 1 days
+    max_iterations = 1
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.10
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -742,15 +749,22 @@ composition Vancouver:
     RuralMixed: weight = 30
   institutions = Work, School, Bar, Cinema, SchoolDistrict, Hospital, ShoppingCentre, Transit
   parameters:
-    municipal_tax = 0.21
+    policy_tax = 0.21
     transit_access = 0.84
+    unemployment_national = 0.055
   adjacency:
     UrbanLiberal <-> SuburbanMixed distance = 1
     SuburbanMixed <-> RuralMixed distance = 1.7
   flows:
-    commute_urban_suburban UrbanLiberal -> SuburbanMixed rate = 0.20 effect = visit via Transit
-    commute_suburban_urban SuburbanMixed -> UrbanLiberal rate = 0.16 effect = visit via Transit
-    migrate_rural_suburban RuralMixed -> SuburbanMixed rate = 0.03 effect = transfer
+    commute_urban_suburban UrbanLiberal -> SuburbanMixed rate = formula(clamp(0.1266 + unemployment_national * 0.80 + transit_access * 0.04 - policy_tax * 0.02, 0, 0.50)) effect = visit via Transit
+    commute_suburban_urban SuburbanMixed -> UrbanLiberal rate = formula(clamp(0.1005 + unemployment_national * 0.70 + transit_access * 0.03 - policy_tax * 0.02, 0, 0.45)) effect = visit via Transit
+    migrate_rural_suburban RuralMixed -> SuburbanMixed rate = formula(clamp(0.01625 + unemployment_national * 0.25 + economic_shock * 0.10, 0, 0.20)) effect = transfer
+  cached:
+    sync = 1 days
+    max_iterations = 1
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.10
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -766,10 +780,24 @@ composition Ontario:
   children:
     Toronto: weight = 100
     Vancouver: weight = 50
+  institutions = Work, School, Bar, Cinema, Transit
   parameters:
     provincial_policy_tax = 0.25
+    policy_tax = 0.25
+    media_trend = 0.00
+    transit_available = 0.78
+    unemployment_national = 0.06
   adjacency:
     Toronto <-> Vancouver distance = 3
+  flows:
+    intermunicipal_visit Toronto -> Vancouver rate = formula(clamp(0.08 + unemployment_national * 0.40 + transit_available * 0.03 - provincial_policy_tax * 0.01 + Toronto_mean_stress * 0.02, 0, 0.30)) effect = visit via Transit
+    intermunicipal_transfer Vancouver -> Toronto rate = formula(clamp(0.005 + unemployment_national * 0.10 + economic_shock * 0.05, 0, 0.08)) effect = transfer
+  cached:
+    sync = 1 days
+    max_iterations = 5
+    tolerance = 0.01
+    feedback:
+      mean_stress -> economic_shock scale = 0.08
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -777,84 +805,104 @@ composition Ontario:
   output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
   output mean_kids_per_family = kids_per_family()
   output fights_per_day = action_count(fights, window=day)
+  output commuting_rate = flow_rate(intermunicipal_visit)
+  output migration_rate = flow_rate(intermunicipal_transfer)
   output gdp_proxy = sum(money)
 
 aggregate_function Toronto:
   inputs:
     policy_tax = 0.23 range 0.10..0.40
     economic_shock = 0.00 range -0.20..0.20
+    transit_access = 0.81 range 0.40..1.00
+    unemployment_national = 0.06 range 0.02..0.15
   time = 30 days
   time_points = 1, 7, 30
   effects:
     field money *= 1 - policy_tax * 0.23 + economic_shock * 0.20
     field stress += economic_shock * 0.24 + policy_tax * 0.04
   outputs:
-    population = formula(policy_tax, economic_shock)
-    mean_income = formula(policy_tax, economic_shock)
-    mean_stress = formula(policy_tax, economic_shock)
-    mean_health = formula(policy_tax, economic_shock)
-    vote_liberal_share = formula(policy_tax, economic_shock)
-    mean_kids_per_family = formula(policy_tax, economic_shock)
-    fights_per_day = formula(policy_tax, economic_shock)
-    commuting_rate = formula(policy_tax, economic_shock)
-    migration_rate = formula(policy_tax, economic_shock)
+    population = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    commuting_rate = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, transit_access, unemployment_national)
   cache:
     valid_for = 30 days
-    inputs_hash = hash(policy_tax, economic_shock)
+    inputs_hash = hash(policy_tax, economic_shock, transit_access, unemployment_national)
     invalidate_on:
       policy_tax change > 0.05
       economic_shock change > 0.10
+      transit_access change > 0.10
+      unemployment_national change > 0.02
       event = disruption, election
 
 aggregate_function Vancouver:
   inputs:
     policy_tax = 0.21 range 0.10..0.40
     economic_shock = 0.00 range -0.20..0.20
+    transit_access = 0.84 range 0.40..1.00
+    unemployment_national = 0.055 range 0.02..0.15
   time = 30 days
   time_points = 1, 7, 30
   effects:
     field money *= 1 - policy_tax * 0.21 + economic_shock * 0.19
     field stress += economic_shock * 0.22 + policy_tax * 0.03
   outputs:
-    population = formula(policy_tax, economic_shock)
-    mean_income = formula(policy_tax, economic_shock)
-    mean_stress = formula(policy_tax, economic_shock)
-    mean_health = formula(policy_tax, economic_shock)
-    vote_liberal_share = formula(policy_tax, economic_shock)
-    mean_kids_per_family = formula(policy_tax, economic_shock)
-    fights_per_day = formula(policy_tax, economic_shock)
-    commuting_rate = formula(policy_tax, economic_shock)
-    migration_rate = formula(policy_tax, economic_shock)
+    population = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_income = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_stress = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_health = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    vote_liberal_share = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    mean_kids_per_family = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    fights_per_day = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    commuting_rate = formula(policy_tax, economic_shock, transit_access, unemployment_national)
+    migration_rate = formula(policy_tax, economic_shock, transit_access, unemployment_national)
   cache:
     valid_for = 30 days
-    inputs_hash = hash(policy_tax, economic_shock)
+    inputs_hash = hash(policy_tax, economic_shock, transit_access, unemployment_national)
     invalidate_on:
       policy_tax change > 0.05
       economic_shock change > 0.10
+      transit_access change > 0.10
+      unemployment_national change > 0.02
       event = disruption, election
 
 aggregate_function Ontario:
   inputs:
     provincial_policy_tax = 0.25 range 0.10..0.40
+    policy_tax = 0.25 range 0.10..0.40
+    media_trend = 0.00 range -1.00..1.00
     economic_shock = 0.00 range -0.20..0.20
+    transit_available = 0.78 range 0.40..1.00
+    unemployment_national = 0.06 range 0.02..0.15
   time = 30 days
   time_points = 1, 7, 30
   effects:
     field money *= 1 - provincial_policy_tax * 0.22 + economic_shock * 0.18
     field stress += economic_shock * 0.21 + provincial_policy_tax * 0.03
   outputs:
-    population = formula(provincial_policy_tax, economic_shock)
-    mean_income = formula(provincial_policy_tax, economic_shock)
-    mean_stress = formula(provincial_policy_tax, economic_shock)
-    mean_health = formula(provincial_policy_tax, economic_shock)
-    vote_liberal_share = formula(provincial_policy_tax, economic_shock)
-    mean_kids_per_family = formula(provincial_policy_tax, economic_shock)
-    fights_per_day = formula(provincial_policy_tax, economic_shock)
-    gdp_proxy = formula(provincial_policy_tax, economic_shock)
+    population = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    mean_income = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    mean_stress = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    mean_health = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    vote_liberal_share = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    mean_kids_per_family = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    fights_per_day = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    commuting_rate = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    migration_rate = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
+    gdp_proxy = formula(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
   cache:
     valid_for = 30 days
-    inputs_hash = hash(provincial_policy_tax, economic_shock)
+    inputs_hash = hash(provincial_policy_tax, policy_tax, media_trend, economic_shock, transit_available, unemployment_national)
     invalidate_on:
       provincial_policy_tax change > 0.05
+      policy_tax change > 0.05
+      media_trend change > 0.20
       economic_shock change > 0.10
+      transit_available change > 0.10
+      unemployment_national change > 0.02
       event = disruption, election

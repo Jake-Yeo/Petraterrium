@@ -208,6 +208,7 @@ fn learn_aggregate_function(
         valid_until: evaluated_at_day + function.cache.valid_for_days,
         inputs_hash: inputs_hash(anchor_inputs),
         learning_agent_ticks,
+        dependencies: BTreeMap::new(),
         points,
     })
 }
@@ -401,32 +402,100 @@ fn evaluation_time_points(
         .collect()
 }
 
-fn interpolate_outputs(
+pub(super) fn interpolate_outputs(
     function: &AggregateFunctionDefinition,
     artifact: &LearnedAggregateArtifact,
     inputs: &BTreeMap<String, f64>,
     day: u32,
 ) -> DslResult<BTreeMap<String, LearnedMetricSummary>> {
+    let learned_days = artifact
+        .points
+        .iter()
+        .map(|point| point.day)
+        .collect::<BTreeSet<_>>();
+    let lower = learned_days
+        .iter()
+        .copied()
+        .filter(|learned| *learned <= day)
+        .next_back()
+        .or_else(|| learned_days.first().copied())
+        .ok_or_else(|| {
+            DslError::new(
+                "MISSING_LEARNED_POINT",
+                function.line,
+                "Learned aggregate has no points",
+            )
+        })?;
+    let upper = learned_days
+        .iter()
+        .copied()
+        .find(|learned| *learned >= day)
+        .unwrap_or(lower);
+    let lower_outputs = interpolate_outputs_at_day(function, artifact, inputs, lower)?;
+    if lower == upper {
+        return Ok(lower_outputs);
+    }
+    let upper_outputs = interpolate_outputs_at_day(function, artifact, inputs, upper)?;
+    let fraction = f64::from(day - lower) / f64::from(upper - lower);
     function
         .outputs
         .iter()
         .map(|output| {
-            let mean = interpolate_number(function, artifact, inputs, day, |point| {
-                point.outputs.get(&output.id).map(|summary| summary.mean)
-            })?;
-            let second_moment = interpolate_number(function, artifact, inputs, day, |point| {
-                point
-                    .outputs
-                    .get(&output.id)
-                    .map(|summary| summary.standard_deviation.powi(2) + summary.mean.powi(2))
-            })?;
+            let lower = &lower_outputs[&output.id];
+            let upper = &upper_outputs[&output.id];
+            let mean = stable_number(lower.mean + (upper.mean - lower.mean) * fraction);
+            let lower_second = lower.standard_deviation.powi(2) + lower.mean.powi(2);
+            let upper_second = upper.standard_deviation.powi(2) + upper.mean.powi(2);
+            let second = lower_second + (upper_second - lower_second) * fraction;
             Ok((
                 output.id.clone(),
                 LearnedMetricSummary {
                     mean,
-                    standard_deviation: stable_number(
-                        (second_moment - mean.powi(2)).max(0.0).sqrt(),
-                    ),
+                    standard_deviation: stable_number((second - mean.powi(2)).max(0.0).sqrt()),
+                },
+            ))
+        })
+        .collect()
+}
+
+fn interpolate_outputs_at_day(
+    function: &AggregateFunctionDefinition,
+    artifact: &LearnedAggregateArtifact,
+    inputs: &BTreeMap<String, f64>,
+    day: u32,
+) -> DslResult<BTreeMap<String, LearnedMetricSummary>> {
+    let mut means = BTreeMap::<String, f64>::new();
+    let mut seconds = BTreeMap::<String, f64>::new();
+    let mut denominator = 0.0;
+    for point in artifact.points.iter().filter(|point| point.day == day) {
+        let weight = interpolation_weight(&function.inputs, inputs, &point.inputs);
+        denominator += weight;
+        for output in &function.outputs {
+            if let Some(summary) = point.outputs.get(&output.id) {
+                *means.entry(output.id.clone()).or_default() += summary.mean * weight;
+                *seconds.entry(output.id.clone()).or_default() +=
+                    (summary.standard_deviation.powi(2) + summary.mean.powi(2)) * weight;
+            }
+        }
+    }
+    if denominator <= 0.0 {
+        return Err(DslError::new(
+            "MISSING_LEARNED_POINT",
+            function.line,
+            format!("Learned aggregate has no data for day {day}"),
+        ));
+    }
+    function
+        .outputs
+        .iter()
+        .map(|output| {
+            let mean = stable_number(means[&output.id] / denominator);
+            let second = seconds[&output.id] / denominator;
+            Ok((
+                output.id.clone(),
+                LearnedMetricSummary {
+                    mean,
+                    standard_deviation: stable_number((second - mean.powi(2)).max(0.0).sqrt()),
                 },
             ))
         })
@@ -439,6 +508,50 @@ fn interpolate_number(
     inputs: &BTreeMap<String, f64>,
     day: u32,
     value: impl Fn(&LearnedAggregatePoint) -> Option<f64>,
+) -> DslResult<f64> {
+    let mut learned_days = artifact
+        .points
+        .iter()
+        .map(|point| point.day)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    learned_days.sort_unstable();
+    let lower = learned_days
+        .iter()
+        .copied()
+        .filter(|learned| *learned <= day)
+        .next_back()
+        .or_else(|| learned_days.first().copied())
+        .ok_or_else(|| {
+            DslError::new(
+                "MISSING_LEARNED_POINT",
+                function.line,
+                "Learned aggregate has no points",
+            )
+        })?;
+    let upper = learned_days
+        .iter()
+        .copied()
+        .find(|learned| *learned >= day)
+        .unwrap_or(lower);
+    let lower_value = interpolate_number_at_day(function, artifact, inputs, lower, &value)?;
+    if lower == upper {
+        return Ok(lower_value);
+    }
+    let upper_value = interpolate_number_at_day(function, artifact, inputs, upper, &value)?;
+    let fraction = f64::from(day - lower) / f64::from(upper - lower);
+    Ok(stable_number(
+        lower_value + (upper_value - lower_value) * fraction,
+    ))
+}
+
+fn interpolate_number_at_day(
+    function: &AggregateFunctionDefinition,
+    artifact: &LearnedAggregateArtifact,
+    inputs: &BTreeMap<String, f64>,
+    day: u32,
+    value: &impl Fn(&LearnedAggregatePoint) -> Option<f64>,
 ) -> DslResult<f64> {
     let mut numerator = 0.0;
     let mut denominator = 0.0;
@@ -762,7 +875,7 @@ fn apply_number(current: f64, operation: &str, value: f64) -> DslResult<f64> {
     }
 }
 
-fn inputs_hash(inputs: &BTreeMap<String, f64>) -> String {
+pub(super) fn inputs_hash(inputs: &BTreeMap<String, f64>) -> String {
     let hash = inputs
         .iter()
         .fold(0xcbf29ce484222325_u64, |hash, (id, value)| {

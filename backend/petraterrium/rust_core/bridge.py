@@ -231,6 +231,42 @@ class RustCoreClient:
             }
         )
 
+    def evaluate_cached_composition(
+        self,
+        source: str,
+        *,
+        dsl_source_hash: str,
+        function_id: str,
+        seed: int,
+        days: int,
+        evaluated_at_day: int,
+        inputs: Mapping[str, float],
+        branch_inputs: Mapping[str, Mapping[str, float]],
+        input_schedule: list[Mapping[str, Any]],
+        events: list[str],
+        artifacts: Mapping[str, Mapping[str, Any]],
+        force_relearn: bool = False,
+    ) -> dict[str, Any]:
+        return self.call(
+            {
+                "operation": "evaluate_cached_composition",
+                "source": source,
+                "dsl_source_hash": dsl_source_hash,
+                "function_id": function_id,
+                "seed": seed,
+                "days": days,
+                "evaluated_at_day": evaluated_at_day,
+                "inputs": dict(inputs),
+                "branch_inputs": {
+                    branch: dict(values) for branch, values in branch_inputs.items()
+                },
+                "input_schedule": [dict(value) for value in input_schedule],
+                "events": events,
+                "artifacts": {key: dict(value) for key, value in artifacts.items()},
+                "force_relearn": force_relearn,
+            }
+        )
+
     def run_compiled_markov(
         self,
         program: Any,

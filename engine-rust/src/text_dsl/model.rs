@@ -195,9 +195,26 @@ pub struct CompositionFlowDefinition {
     pub id: String,
     pub source: String,
     pub target: String,
-    pub rate: f64,
+    pub rate: Expr,
     pub effect: String,
     pub via: Option<String>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionFeedbackDefinition {
+    pub output: String,
+    pub input: String,
+    pub scale: f64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CachedCompositionDefinition {
+    pub sync_days: u32,
+    pub max_iterations: u32,
+    pub tolerance: f64,
+    pub feedback: Vec<CompositionFeedbackDefinition>,
     pub line: usize,
 }
 
@@ -210,6 +227,7 @@ pub struct CompositionDefinition {
     pub parameters: BTreeMap<String, f64>,
     pub adjacency: Vec<CompositionAdjacency>,
     pub flows: Vec<CompositionFlowDefinition>,
+    pub cached: Option<CachedCompositionDefinition>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
     pub report_id: String,
     pub interaction_report_id: String,
@@ -657,7 +675,74 @@ pub struct LearnedAggregateArtifact {
     pub valid_until: u32,
     pub inputs_hash: String,
     pub learning_agent_ticks: u64,
+    #[serde(default)]
+    pub dependencies: BTreeMap<String, u32>,
     pub points: Vec<LearnedAggregatePoint>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CachedCompositionProtocolRequest {
+    pub source: String,
+    pub dsl_source_hash: String,
+    pub function_id: String,
+    pub seed: u64,
+    pub days: u32,
+    pub evaluated_at_day: u32,
+    #[serde(default)]
+    pub inputs: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub branch_inputs: BTreeMap<String, BTreeMap<String, f64>>,
+    #[serde(default)]
+    pub input_schedule: Vec<ScheduledAggregateInputs>,
+    #[serde(default)]
+    pub events: BTreeSet<String>,
+    #[serde(default)]
+    pub artifacts: BTreeMap<String, LearnedAggregateArtifact>,
+    #[serde(default)]
+    pub force_relearn: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ScheduledAggregateInputs {
+    pub day: u32,
+    pub values: BTreeMap<String, f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionCacheMetadata {
+    pub function_id: String,
+    pub version: u32,
+    pub dsl_source_hash: String,
+    pub inputs_hash: String,
+    pub valid_from: u32,
+    pub valid_until: u32,
+    pub seed: u64,
+    pub original_learning_ticks: u64,
+    pub evaluation_agent_ticks: u64,
+    pub cached: bool,
+    pub detailed: bool,
+    pub invalidation_reason: Option<String>,
+    pub children: Vec<CompositionCacheMetadata>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CachedCompositionEvaluationResult {
+    pub function_id: String,
+    pub cache_hit: bool,
+    pub invalidation_reason: Option<String>,
+    pub agent_ticks: u64,
+    pub inputs_hash: String,
+    pub valid_from: u32,
+    pub valid_until: u32,
+    pub dsl_source_hash: String,
+    pub artifact: LearnedAggregateArtifact,
+    pub artifacts: BTreeMap<String, LearnedAggregateArtifact>,
+    pub time_series: Vec<AggregateTimePoint>,
+    pub reports: Vec<DslReport>,
+    pub cache_tree: CompositionCacheMetadata,
+    pub feedback_iterations: u32,
+    pub feedback_change_percent: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "petraterrium-engine"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "pretty_assertions",
  "rand",

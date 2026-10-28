@@ -1,8 +1,9 @@
 use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
 use super::composition_parser::{
     parse_composition, parse_composition_population, parse_neighbourhood,
-    parse_neighbourhood_population, validate_compositions,
+    parse_neighbourhood_population,
 };
+use super::composition_validation::validate_compositions;
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -1890,7 +1891,9 @@ fn validate_program(program: &Program) -> DslResult<()> {
         }
         for output in &archetype.outputs {
             match &output.metric {
+                ReportMetric::Count => {}
                 ReportMetric::Mean { field } if archetype_fields.contains(field) => {}
+                ReportMetric::Sum { field } if archetype_fields.contains(field) => {}
                 ReportMetric::KidsPerFamily => {}
                 ReportMetric::ActionCount { aggregate, window }
                     if aggregates.contains(aggregate.as_str()) =>

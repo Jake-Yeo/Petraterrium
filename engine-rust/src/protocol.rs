@@ -5,9 +5,10 @@ use crate::error::{CoreError, CoreResult};
 use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
-    AggregateEvaluationProtocolRequest, DslRunRequest, TextDslProtocolRequest,
-    TextDslValidateRequest, evaluate_aggregate_function, parse_program, run_composition,
-    run_program, run_weighted_population,
+    AggregateEvaluationProtocolRequest, CachedCompositionProtocolRequest, DslRunRequest,
+    TextDslProtocolRequest, TextDslValidateRequest, evaluate_aggregate_function,
+    evaluate_cached_composition, parse_program, run_composition, run_program,
+    run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -27,6 +28,7 @@ pub enum Request {
     ValidateTextDsl(TextDslValidateRequest),
     RunTextDsl(TextDslProtocolRequest),
     EvaluateAggregate(AggregateEvaluationProtocolRequest),
+    EvaluateCachedComposition(CachedCompositionProtocolRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -89,7 +91,7 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "aggregate_functions": program.aggregate_functions,
-                "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level})).collect::<Vec<_>>(),
+                "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level, "cached": item.cached.is_some()})).collect::<Vec<_>>(),
                 "composition_populations": program.composition_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "neighbourhoods": program.compositions.iter().filter(|item| item.report_id == "neighbourhoods").map(|item| &item.id).collect::<Vec<_>>(),
                 "neighbourhood_populations": program.composition_populations.iter().filter(|population| population.entries.iter().all(|entry| program.compositions.iter().any(|item| item.id == entry.composition && item.report_id == "neighbourhoods"))).map(|item| &item.id).collect::<Vec<_>>(),
@@ -155,6 +157,10 @@ pub fn execute(request: Request) -> CoreResult<Value> {
         Request::EvaluateAggregate(request) => {
             let program = parse_program(&request.source).map_err(text_dsl_error)?;
             serialize(evaluate_aggregate_function(program, request).map_err(text_dsl_error)?)
+        }
+        Request::EvaluateCachedComposition(request) => {
+            let program = parse_program(&request.source).map_err(text_dsl_error)?;
+            serialize(evaluate_cached_composition(program, request).map_err(text_dsl_error)?)
         }
     }
 }

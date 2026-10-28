@@ -34,6 +34,7 @@ class FakeRustDsl:
             "adult_population": 2,
             "archetypes": ["Alpha"],
             "weighted_populations": ["Weighted"],
+            "compositions": [{"id": "Metro", "level": "synthetic", "cached": True}],
             "diagnostics": [],
         }
 
@@ -144,6 +145,75 @@ class FakeRustDsl:
             "artifact": learned,
             "time_series": [],
             "reports": [],
+        }
+
+    def evaluate_cached_composition(
+        self,
+        source: str,
+        *,
+        dsl_source_hash: str,
+        function_id: str,
+        seed: int,
+        days: int,
+        evaluated_at_day: int,
+        inputs,
+        branch_inputs,
+        input_schedule,
+        events,
+        artifacts,
+        force_relearn=False,
+    ):
+        cache_hit = function_id in artifacts and not force_relearn
+        version = int(artifacts.get(function_id, {}).get("version", 0)) + int(not cache_hit)
+        artifact = {
+            "function_id": function_id,
+            "version": version,
+            "dsl_source_hash": dsl_source_hash,
+            "seed": seed,
+            "anchor_inputs": dict(inputs),
+            "valid_from": evaluated_at_day,
+            "valid_until": evaluated_at_day + 30,
+            "inputs_hash": "fnv1a64:metro",
+            "learning_agent_ticks": 50,
+            "dependencies": {"Leaf": 1},
+            "points": [],
+        }
+        leaf = artifacts.get("Leaf") or {
+            **artifact,
+            "function_id": "Leaf",
+            "inputs_hash": "fnv1a64:leaf",
+            "dependencies": {},
+        }
+        return {
+            "function_id": function_id,
+            "cache_hit": cache_hit,
+            "invalidation_reason": None if cache_hit else "cache_miss",
+            "agent_ticks": 0 if cache_hit else 50,
+            "inputs_hash": artifact["inputs_hash"],
+            "valid_from": artifact["valid_from"],
+            "valid_until": artifact["valid_until"],
+            "dsl_source_hash": dsl_source_hash,
+            "artifact": artifact,
+            "artifacts": {"Leaf": leaf, function_id: artifact},
+            "time_series": [],
+            "reports": [],
+            "cache_tree": {
+                "function_id": function_id,
+                "version": version,
+                "dsl_source_hash": dsl_source_hash,
+                "inputs_hash": artifact["inputs_hash"],
+                "valid_from": evaluated_at_day,
+                "valid_until": evaluated_at_day + 30,
+                "seed": seed,
+                "original_learning_ticks": 50,
+                "evaluation_agent_ticks": 0 if cache_hit else 50,
+                "cached": cache_hit,
+                "detailed": False,
+                "invalidation_reason": None if cache_hit else "cache_miss",
+                "children": [],
+            },
+            "feedback_iterations": 2,
+            "feedback_change_percent": 0.5,
         }
 
 
@@ -320,3 +390,19 @@ def test_aggregate_artifacts_persist_and_are_reused(tmp_path):
     assert cached.agent_ticks == 0
     assert not relearned.cache_hit
     assert [version.version for version in dsl.aggregate_versions("Alpha")] == [1, 2]
+
+
+def test_cached_composition_artifact_catalog_and_metadata_are_persisted(tmp_path):
+    dsl = service(tmp_path)
+    request = AggregateEvaluationRequest(function_id="Metro", inputs={"shock": 0.1})
+
+    learned = dsl.evaluate_aggregate(request)
+    cached = dsl.evaluate_aggregate(request)
+
+    assert learned.agent_ticks == 50
+    assert learned.cache_tree is not None
+    assert learned.feedback_iterations == 2
+    assert cached.cache_hit
+    assert cached.agent_ticks == 0
+    assert [version.version for version in dsl.aggregate_versions("Metro")] == [1]
+    assert [version.version for version in dsl.aggregate_versions("Leaf")] == [1]

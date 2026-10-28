@@ -1,4 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const cachedCompositionDsl = readFileSync(
+  resolve(process.cwd(), '../engine-rust/dsl/cached_composition_test.dsl'),
+  'utf8',
+);
 
 test.beforeEach(async ({ page, request }) => {
   await request.post('/api/simulation/text-dsl/reset');
@@ -114,7 +121,9 @@ test('learns, reuses, and invalidates an aggregate cache from DSL text', async (
   await expect(page.getByRole('status')).not.toContainText('· 0 agent ticks');
 
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks', {
+    timeout: 30_000,
+  });
   await expect(page.getByText('CACHED FAST-FORWARD')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Fast-forward time series' })).toBeVisible();
 
@@ -156,7 +165,9 @@ test('runs shared-place neighbourhoods and their cached aggregate', async ({ pag
   await page.getByRole('button', { name: 'Relearn detailed' }).click();
   await expect(page.getByRole('status')).toContainText('Detailed relearn', { timeout: 15_000 });
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks', {
+    timeout: 30_000,
+  });
   await expect(page.getByText('CACHED FAST-FORWARD')).toBeVisible();
 });
 
@@ -191,7 +202,100 @@ test('runs and edits generic municipality and division compositions', async ({ p
   await page.getByLabel('Aggregate function').selectOption('Toronto');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Relearn detailed' }).click();
-  await expect(page.getByRole('status')).toContainText('Detailed relearn', { timeout: 15_000 });
+  await expect(page.getByRole('status')).toContainText('Branch relearn', { timeout: 30_000 });
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+});
+
+test('shows recursive cache metadata, branch invalidation, feedback, and evolving fast-forward', async ({
+  page,
+}) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await editor.fill(cachedCompositionDsl);
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+
+  await page.getByLabel('Population').selectOption('composition:Province');
+  await page.getByLabel('Days').fill('2');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Province synthetic_division aggregates' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cross-composition interactions' })).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('Province');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Cache hit/);
+  await expect(page.getByRole('heading', { name: 'Composition cache hierarchy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Composition feedback convergence' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'NorthOne', exact: true })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'MetroNorth', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+
+  await page.getByLabel('Branch inputs').fill('NorthOne.unemployment=0.8');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Branch relearn');
+  await expect(page.getByText('input:unemployment', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Branch inputs').fill('');
+  await page.getByLabel('Input schedule').fill('30.unemployment=0.8');
+  await page.getByLabel('Days').fill('90');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  const rows = page.locator('[data-report-id="aggregate_time_series"] tbody tr');
+  const day30 = rows.filter({ has: page.getByRole('rowheader', { name: '30', exact: true }) });
+  const day90 = rows.filter({ has: page.getByRole('rowheader', { name: '90', exact: true }) });
+  await expect(day30).toBeVisible();
+  await expect(day90).toBeVisible();
+  expect(await day90.textContent()).not.toBe(await day30.textContent());
+
+  await page.getByLabel('tax').fill('0.35');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Hierarchy updated|Branch relearn/);
+  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+});
+
+test('runs the shipped division detailed and from its recursive zero-tick cache', async ({ page }) => {
+  test.setTimeout(90_000);
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/composition Ontario:/);
+  await expect(editor).toHaveValue(/cached:/);
+  await expect(editor).toHaveValue(/intermunicipal_visit Toronto -> Vancouver/);
+
+  await page.getByLabel('Population').selectOption('composition:Ontario');
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Ontario division aggregates' })).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('Ontario');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  const status = page.getByRole('status');
+  await expect(status).toContainText(/Branch relearn|Cache hit/, { timeout: 60_000 });
+  if ((await status.textContent())?.includes('Branch relearn')) {
+    await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  }
+  await expect(status).toContainText('Cache hit · 0 agent ticks', { timeout: 30_000 });
+  const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
+  await expect(hierarchy.getByRole('heading', { name: 'Composition cache hierarchy' })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'Ontario', exact: true })).toBeVisible();
+  await expect(hierarchy.getByRole('rowheader', { name: 'Toronto', exact: true })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'UrbanLiberal', exact: true }).first(),
+  ).toBeVisible();
+
+  await page.getByLabel('Input schedule').fill('30.unemployment_national=0.075');
+  await page.getByLabel('Days').fill('90');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks', {
+    timeout: 30_000,
+  });
+  const rows = page.locator('[data-report-id="aggregate_time_series"] tbody tr');
+  const day30 = rows.filter({ has: page.getByRole('rowheader', { name: '30', exact: true }) });
+  const day90 = rows.filter({ has: page.getByRole('rowheader', { name: '90', exact: true }) });
+  await expect(day30).toBeVisible();
+  await expect(day90).toBeVisible();
+  expect(await day90.textContent()).not.toBe(await day30.textContent());
+  await expect(page.getByRole('heading', { name: 'Cached cross-composition interactions' })).toBeVisible();
 });

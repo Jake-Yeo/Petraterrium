@@ -25,7 +25,7 @@ class TextDslValidation(TextDslModel):
     archetypes: tuple[str, ...] = ()
     weighted_populations: tuple[str, ...] = ()
     aggregate_functions: tuple[dict[str, Any], ...] = ()
-    compositions: tuple[dict[str, str], ...] = ()
+    compositions: tuple[dict[str, Any], ...] = ()
     composition_populations: tuple[str, ...] = ()
     neighbourhoods: tuple[str, ...] = ()
     neighbourhood_populations: tuple[str, ...] = ()
@@ -132,6 +132,8 @@ class AggregateEvaluationRequest(TextDslModel):
     days: int = Field(default=30, ge=1, le=365)
     evaluated_at_day: int = Field(default=0, ge=0)
     inputs: dict[str, float] = Field(default_factory=dict)
+    branch_inputs: dict[str, dict[str, float]] = Field(default_factory=dict)
+    input_schedule: tuple[dict[str, Any], ...] = ()
     events: tuple[str, ...] = ()
     force_relearn: bool = False
 
@@ -149,6 +151,9 @@ class AggregateEvaluationResult(TextDslModel):
     time_series: tuple[dict[str, Any], ...]
     reports: tuple[TextDslReport, ...]
     elapsed_seconds: float
+    cache_tree: dict[str, Any] | None = None
+    feedback_iterations: int = 0
+    feedback_change_percent: float = 0.0
 
 
 class AggregateCacheVersion(TextDslModel):

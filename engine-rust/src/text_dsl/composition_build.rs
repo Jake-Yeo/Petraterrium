@@ -1,5 +1,6 @@
 use super::archetypes::build_archetype_state;
 use super::compositions::{CompositionBuild, ExecutedFlow};
+use super::expression::evaluate;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -107,6 +108,7 @@ pub(super) fn build_composition_state(
     let mut nodes = Vec::new();
     collect_composition_nodes(composition, &compositions, &[], &mut nodes);
     let flows = apply_flows(
+        program,
         composition,
         &compositions,
         &nodes,
@@ -114,7 +116,7 @@ pub(super) fn build_composition_state(
         &mut state,
         &mut agent_groups,
         &mut agent_paths,
-    );
+    )?;
     Ok(CompositionBuild {
         program: combined,
         state,
@@ -452,6 +454,7 @@ fn map_place_expression(expression: &mut Expr, place_map: &BTreeMap<String, Stri
 }
 
 fn apply_flows(
+    program: &Program,
     root: &CompositionDefinition,
     compositions: &BTreeMap<&str, &CompositionDefinition>,
     nodes: &[CompositionNode<'_>],
@@ -459,10 +462,26 @@ fn apply_flows(
     state: &mut DslRunState,
     agent_groups: &mut BTreeMap<String, String>,
     agent_paths: &mut BTreeMap<String, Vec<String>>,
-) -> Vec<ExecutedFlow> {
+) -> DslResult<Vec<ExecutedFlow>> {
     let mut executed = Vec::new();
     for node in nodes {
         for flow in &node.definition.flows {
+            let mut values = composition_values(program, node.definition);
+            let distance = adjacency_distance(node.definition, flow).max(1.0);
+            values.insert(
+                format!("distance_{}_{}", flow.source, flow.target),
+                DslValue::Number(distance),
+            );
+            let rate = evaluate(&flow.rate, &values)?
+                .as_f64()
+                .ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_COMPOSITION_FLOW_RATE",
+                        flow.line,
+                        "Flow rate must resolve to a number",
+                    )
+                })?
+                .clamp(0.0, 1.0);
             let membership_index = node.path.len();
             let source_agents = state
                 .agents
@@ -485,7 +504,7 @@ fn apply_flows(
                 .collect::<Vec<_>>();
             households
                 .sort_by_key(|household| derived_seed(seed, &format!("{}:{household}", flow.id)));
-            let effective_rate = flow.rate / adjacency_distance(node.definition, flow).max(1.0);
+            let effective_rate = rate / distance;
             let selected_count =
                 ((households.len() as f64 * effective_rate).round() as usize).min(households.len());
             let selected = households
@@ -534,7 +553,46 @@ fn apply_flows(
             });
         }
     }
-    executed
+    Ok(executed)
+}
+
+fn composition_values(
+    program: &Program,
+    composition: &CompositionDefinition,
+) -> BTreeMap<String, DslValue> {
+    let mut values = composition
+        .parameters
+        .iter()
+        .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+        .collect::<BTreeMap<_, _>>();
+    if let Some(function) = program
+        .aggregate_functions
+        .iter()
+        .find(|function| function.id == composition.id)
+    {
+        for input in &function.inputs {
+            values
+                .entry(input.id.clone())
+                .or_insert(DslValue::Number(input.default));
+        }
+    }
+    for entry in &composition.entries {
+        if let Some(child) = program
+            .compositions
+            .iter()
+            .find(|child| child.id == entry.child)
+        {
+            for output in &child.outputs {
+                values
+                    .entry(format!("{}_{}", child.id, output.id))
+                    .or_insert(DslValue::Number(0.0));
+                values
+                    .entry(format!("{}.{}", child.id, output.id))
+                    .or_insert(DslValue::Number(0.0));
+            }
+        }
+    }
+    values
 }
 
 fn scoped_flow_place(
