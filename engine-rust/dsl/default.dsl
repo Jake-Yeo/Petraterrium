@@ -116,6 +116,90 @@ population:
       type = Student if age > 5 else Child
       link = parent, household
 
+archetype HouseholdLiberalUrban:
+  sample_households = 20
+  composition:
+    adults count = 2 mix Worker:0.65, Student:0.35
+    children count = 1 mix Child:1.0
+  initial:
+    age ~ Normal(mean=34, sd=12, min=0, max=78)
+    aggression ~ Beta(alpha=1.8, beta=5.8)
+    health ~ Normal(mean=0.84, sd=0.10, min=0, max=1)
+    stress ~ Normal(mean=0.48, sd=0.17, min=0, max=1)
+    money ~ LogNormal(mean=7.65, sd=0.72, min=0, max=100000)
+    vote_liberal ~ Bernoulli(p=0.76 if age >= 18 else 0.0)
+    has_family ~ Bernoulli(p=clamp((age - 22) / 44, 0, 0.78))
+    has_spouse ~ Bernoulli(p=0.66 if has_family else 0.0)
+    kids ~ Poisson(lambda=clamp((age - 25) / 20, 0, 2.2) if has_family else 0, cap=5)
+  decision go_bar multiplier = 1.20
+  decision go_work multiplier = 0.95
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+
+archetype HouseholdConservativeSuburban:
+  sample_households = 20
+  composition:
+    adults count = 2 mix Worker:0.82, Student:0.18
+    children count = 1 mix Child:1.0
+  initial:
+    age ~ Normal(mean=43, sd=13, min=0, max=82)
+    aggression ~ Beta(alpha=2.1, beta=5.1)
+    health ~ Normal(mean=0.80, sd=0.12, min=0, max=1)
+    stress ~ Normal(mean=0.39, sd=0.15, min=0, max=1)
+    money ~ LogNormal(mean=7.80, sd=0.65, min=0, max=100000)
+    vote_liberal ~ Bernoulli(p=0.28 if age >= 18 else 0.0)
+    has_family ~ Bernoulli(p=clamp((age - 20) / 38, 0, 0.88))
+    has_spouse ~ Bernoulli(p=0.78 if has_family else 0.0)
+    kids ~ Poisson(lambda=clamp((age - 23) / 17, 0, 2.9) if has_family else 0, cap=5)
+  decision go_bar multiplier = 0.62
+  decision go_work multiplier = 1.12
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+
+archetype HouseholdRuralMixed:
+  sample_households = 20
+  composition:
+    adults count = 2 mix Worker:0.74, Student:0.26
+    children count = 1 mix Child:1.0
+  initial:
+    age ~ Normal(mean=40, sd=15, min=0, max=84)
+    aggression ~ Beta(alpha=2.3, beta=4.8)
+    health ~ Normal(mean=0.78, sd=0.14, min=0, max=1)
+    stress ~ Normal(mean=0.35, sd=0.16, min=0, max=1)
+    money ~ LogNormal(mean=7.30, sd=0.76, min=0, max=100000)
+    vote_liberal ~ Bernoulli(p=0.47 if age >= 18 else 0.0)
+    has_family ~ Bernoulli(p=clamp((age - 19) / 39, 0, 0.86))
+    has_spouse ~ Bernoulli(p=0.72 if has_family else 0.0)
+    kids ~ Poisson(lambda=clamp((age - 22) / 16, 0, 3.2) if has_family else 0, cap=5)
+  decision go_bar multiplier = 0.82
+  decision go_work multiplier = 1.04
+  output mean_income = mean(money) where age >= 18 with sd
+  output mean_stress = mean(stress) with sd
+  output mean_health = mean(health)
+  output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
+  output mean_kids_per_family = kids_per_family()
+
+population TownHouseholds:
+  HouseholdLiberalUrban: weight = 40
+  HouseholdConservativeSuburban: weight = 35
+  HouseholdRuralMixed: weight = 25
+
+population CanadaHouseholds:
+  HouseholdLiberalUrban: weight = 2800000
+  HouseholdConservativeSuburban: weight = 3200000
+  HouseholdRuralMixed: weight = 1900000
+
+population SevenBillionHouseholds:
+  HouseholdLiberalUrban: weight = 933333333
+  HouseholdConservativeSuburban: weight = 816666667
+  HouseholdRuralMixed: weight = 583333333
+
 decision where_to_go:
   branch go_work p = 0.70 if role.worker and hour >= 6 and hour < 10 placeholder
   branch go_school p = 0.78 if role.student and hour >= 6 and hour < 10 placeholder

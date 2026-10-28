@@ -78,13 +78,19 @@
   margin-left: 0;
 }
 
-.text-dsl-toolbar input {
+.text-dsl-toolbar input,
+.text-dsl-toolbar select {
   background: var(--dsl-bg);
   border: 1px solid var(--dsl-line);
   border-radius: 4px;
   color: var(--dsl-text);
   padding: 7px;
   width: 76px;
+}
+
+.text-dsl-toolbar select {
+  min-width: 170px;
+  width: auto;
 }
 
 .text-dsl-status {

@@ -17,6 +17,7 @@ SOURCE = '''program Tiny version "1.0":
 class FakeRustDsl:
     def __init__(self):
         self.validation_calls = 0
+        self.last_population_id = None
 
     def validate_text_dsl(self, source: str):
         self.validation_calls += 1
@@ -26,10 +27,21 @@ class FakeRustDsl:
             "version": "1.0",
             "tick_hours": 1,
             "adult_population": 2,
+            "archetypes": ["Alpha"],
+            "weighted_populations": ["Weighted"],
             "diagnostics": [],
         }
 
-    def run_text_dsl(self, source: str, *, seed: int, ticks: int, continuation=None):
+    def run_text_dsl(
+        self,
+        source: str,
+        *,
+        seed: int,
+        ticks: int,
+        continuation=None,
+        population_id=None,
+    ):
+        self.last_population_id = population_id
         rate = 200 if "edited" in source else 100
         return {
             "engine_version": "test-rust",
@@ -135,6 +147,17 @@ def test_text_dsl_routes_return_code_validation_and_small_run(tmp_path):
     assert current.json()["validation"]["valid"]
     assert run.status_code == 200
     assert run.json()["total_agents"] == 3
+    weighted = client.post(
+        "/simulation/text-dsl/runs",
+        json={
+            "seed": 1,
+            "days": 1,
+            "baseline_run_id": None,
+            "population_id": "Weighted",
+        },
+    )
+    assert weighted.status_code == 200
+    assert dsl.rust.last_population_id == "Weighted"
 
 
 def test_legacy_fixed_aggregate_run_reopens_as_generic_reports(tmp_path):

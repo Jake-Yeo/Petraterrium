@@ -75,3 +75,30 @@ test('shows Rust parser diagnostics with source line numbers', async ({ page }) 
   await expect(page.getByText(/Line \d+/).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run saved DSL' })).toBeDisabled();
 });
+
+test('edits a household weight and changes weighted archetype output', async ({ page }) => {
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/archetype HouseholdLiberalUrban:/);
+  await expect(editor).toHaveValue(/population TownHouseholds:/);
+  await page.getByLabel('Population').selectOption('TownHouseholds');
+  await page.getByLabel('Days').fill('1');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'TownHouseholds weighted archetype aggregates' }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Archetypes' })).toBeVisible();
+  await expect(page.getByText('300', { exact: true }).first()).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(
+    source.replace('HouseholdLiberalUrban: weight = 40', 'HouseholdLiberalUrban: weight = 80'),
+  );
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('TownHouseholds');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(
+    page.locator('[data-report-id="weighted_summary"] dd').filter({ hasText: /^420/ }),
+  ).toBeVisible();
+});

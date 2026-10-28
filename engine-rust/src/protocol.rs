@@ -6,6 +6,7 @@ use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
     DslRunRequest, TextDslProtocolRequest, TextDslValidateRequest, parse_program, run_program,
+    run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -83,6 +84,8 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "version": program.version,
                 "tick_hours": program.tick_hours,
                 "adult_population": program.population.size,
+                "archetypes": program.archetypes.iter().map(|item| &item.id).collect::<Vec<_>>(),
+                "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "diagnostics": [],
             })),
             Err(error) => Ok(json!({
@@ -92,15 +95,25 @@ pub fn execute(request: Request) -> CoreResult<Value> {
         },
         Request::RunTextDsl(request) => {
             let program = parse_program(&request.source).map_err(text_dsl_error)?;
-            serialize(
+            let result = if let Some(population_id) = request.population_id {
+                if request.continuation.is_some() {
+                    return Err(CoreError::new(
+                        "WEIGHTED_CONTINUATION_UNSUPPORTED",
+                        "Weighted archetype runs do not accept a continuation checkpoint",
+                    ));
+                }
+                run_weighted_population(program, &population_id, request.seed, request.ticks)
+                    .map_err(text_dsl_error)?
+            } else {
                 run_program(DslRunRequest {
                     program,
                     seed: request.seed,
                     ticks: request.ticks,
                     continuation: request.continuation,
                 })
-                .map_err(text_dsl_error)?,
-            )
+                .map_err(text_dsl_error)?
+            };
+            serialize(result)
         }
     }
 }

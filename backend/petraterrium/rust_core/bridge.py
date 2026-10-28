@@ -175,6 +175,7 @@ class RustCoreClient:
         seed: int,
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
+        population_id: str | None = None,
     ) -> dict[str, Any]:
         request: dict[str, Any] = {
             "operation": "run_text_dsl",
@@ -184,6 +185,8 @@ class RustCoreClient:
         }
         if continuation is not None:
             request["continuation"] = dict(continuation)
+        if population_id is not None:
+            request["population_id"] = population_id
         return self.call(request)
 
     def run_compiled_markov(

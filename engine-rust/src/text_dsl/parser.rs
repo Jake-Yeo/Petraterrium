@@ -27,6 +27,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut decisions = Vec::new();
     let mut actions = Vec::new();
     let mut reports = Vec::new();
+    let mut archetypes = Vec::new();
+    let mut weighted_populations = Vec::new();
     let mut index = 1;
     while index < lines.len() {
         let line = &lines[index];
@@ -81,6 +83,14 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         } else if line.text == "population:" {
             let (value, next) = parse_population(&lines, index)?;
             population = Some(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "archetype") {
+            let (value, next) = parse_archetype(&lines, index, name)?;
+            archetypes.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "population") {
+            let (value, next) = parse_weighted_population(&lines, index, name)?;
+            weighted_populations.push(value);
             index = next;
         } else if let Some(name) = block_name(&line.text, "decision") {
             let (value, next) = parse_decision(&lines, index, name)?;
@@ -153,6 +163,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         decisions,
         actions,
         reports,
+        archetypes,
+        weighted_populations,
     };
     validate_program(&program)?;
     Ok(program)
@@ -604,6 +616,227 @@ fn parse_population(lines: &[Line], start: usize) -> DslResult<(PopulationDefini
             })?,
             mix,
             child_generation,
+        },
+        index,
+    ))
+}
+
+fn parse_archetype(
+    lines: &[Line],
+    start: usize,
+    name: &str,
+) -> DslResult<(ArchetypeDefinition, usize)> {
+    identifier(name, lines[start].number)?;
+    let mut sample_households = None;
+    let mut composition = Vec::new();
+    let mut initial = Vec::new();
+    let mut decision_multipliers = Vec::new();
+    let mut outputs = Vec::new();
+    let mut index = start + 1;
+    while index < lines.len() && lines[index].indent > 0 {
+        let line = &lines[index];
+        require_indent(line, 2)?;
+        if let Some(value) = line.text.strip_prefix("sample_households = ") {
+            sample_households = Some(value.parse::<usize>().map_err(|_| {
+                DslError::new(
+                    "INVALID_ARCHETYPE_SAMPLE",
+                    line.number,
+                    "sample_households must be a positive integer",
+                )
+            })?);
+            index += 1;
+        } else if line.text == "composition:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                composition.push(parse_archetype_composition(entry)?);
+                index += 1;
+            }
+        } else if line.text == "initial:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                let estimated = Line {
+                    number: entry.number,
+                    indent: entry.indent,
+                    text: format!("{} placeholder", entry.text),
+                };
+                initial.push(parse_initial_assignment(&estimated)?);
+                index += 1;
+            }
+        } else if let Some(value) = line.text.strip_prefix("decision ") {
+            let Some((action, multiplier)) = value.split_once(" multiplier = ") else {
+                return Err(DslError::new(
+                    "INVALID_ARCHETYPE_DECISION",
+                    line.number,
+                    "Archetype decision uses: decision action multiplier = number",
+                ));
+            };
+            decision_multipliers.push(ArchetypeDecisionMultiplier {
+                action: action.to_owned(),
+                multiplier: multiplier.parse::<f64>().map_err(|_| {
+                    DslError::new(
+                        "INVALID_ARCHETYPE_DECISION",
+                        line.number,
+                        "Decision multiplier must be numeric",
+                    )
+                })?,
+                line: line.number,
+            });
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("output ") {
+            outputs.push(parse_archetype_output(value, line.number)?);
+            index += 1;
+        } else {
+            return Err(DslError::new(
+                "UNKNOWN_ARCHETYPE_STATEMENT",
+                line.number,
+                format!("Unknown archetype statement {}", line.text),
+            ));
+        }
+    }
+    Ok((
+        ArchetypeDefinition {
+            id: name.to_owned(),
+            sample_households: sample_households.ok_or_else(|| {
+                DslError::new(
+                    "MISSING_ARCHETYPE_SAMPLE",
+                    lines[start].number,
+                    format!("Archetype {name} needs sample_households"),
+                )
+            })?,
+            composition,
+            initial,
+            decision_multipliers,
+            outputs,
+            line: lines[start].number,
+        },
+        index,
+    ))
+}
+
+fn parse_archetype_composition(line: &Line) -> DslResult<ArchetypeCompositionGroup> {
+    let Some((id, value)) = line.text.split_once(" count = ") else {
+        return Err(DslError::new(
+            "INVALID_ARCHETYPE_COMPOSITION",
+            line.number,
+            "Composition uses: group count = number mix Type:probability",
+        ));
+    };
+    identifier(id, line.number)?;
+    let Some((count, mix_source)) = value.split_once(" mix ") else {
+        return Err(DslError::new(
+            "INVALID_ARCHETYPE_COMPOSITION",
+            line.number,
+            "Composition needs an agent mix",
+        ));
+    };
+    let count = count.parse::<usize>().map_err(|_| {
+        DslError::new(
+            "INVALID_ARCHETYPE_COMPOSITION",
+            line.number,
+            "Composition count must be a positive integer",
+        )
+    })?;
+    let mut mix = Vec::new();
+    for entry in mix_source.split(',') {
+        let Some((agent_type, probability)) = entry.trim().split_once(':') else {
+            return Err(DslError::new(
+                "INVALID_ARCHETYPE_COMPOSITION",
+                line.number,
+                "Composition mix entries use Agent:probability",
+            ));
+        };
+        mix.push(PopulationMix {
+            agent_type: agent_type.trim().to_owned(),
+            probability: probability.trim().parse::<f64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_ARCHETYPE_COMPOSITION",
+                    line.number,
+                    "Composition probability must be numeric",
+                )
+            })?,
+            line: line.number,
+        });
+    }
+    let total = mix.iter().map(|entry| entry.probability).sum::<f64>();
+    if (total - 1.0).abs() > 1e-9 {
+        return Err(DslError::new(
+            "PROBABILITIES_NOT_ONE",
+            line.number,
+            format!("Composition mix probabilities total {total}"),
+        ));
+    }
+    Ok(ArchetypeCompositionGroup {
+        id: id.to_owned(),
+        count,
+        mix,
+        line: line.number,
+    })
+}
+
+fn parse_archetype_output(value: &str, line: usize) -> DslResult<ArchetypeOutputDefinition> {
+    let Some((id, metric)) = value.split_once(" = ") else {
+        return Err(DslError::new(
+            "INVALID_ARCHETYPE_OUTPUT",
+            line,
+            "Archetype output needs =",
+        ));
+    };
+    identifier(id, line)?;
+    let (metric, spread) = metric
+        .strip_suffix(" with sd")
+        .map_or((metric, false), |value| (value, true));
+    let (metric, filter) = split_where(metric);
+    Ok(ArchetypeOutputDefinition {
+        id: id.to_owned(),
+        metric: parse_report_metric(metric, line)?,
+        filter: filter
+            .map(|value| parse_expression(value, line))
+            .transpose()?,
+        spread,
+        line,
+    })
+}
+
+fn parse_weighted_population(
+    lines: &[Line],
+    start: usize,
+    name: &str,
+) -> DslResult<(WeightedPopulationDefinition, usize)> {
+    identifier(name, lines[start].number)?;
+    let mut entries = Vec::new();
+    let mut index = start + 1;
+    while index < lines.len() && lines[index].indent > 0 {
+        let line = &lines[index];
+        require_indent(line, 2)?;
+        let Some((archetype, weight)) = line.text.split_once(": weight = ") else {
+            return Err(DslError::new(
+                "INVALID_POPULATION_WEIGHT",
+                line.number,
+                "Population entries use: Archetype: weight = count",
+            ));
+        };
+        entries.push(WeightedPopulationEntry {
+            archetype: archetype.to_owned(),
+            weight: weight.parse::<u64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_POPULATION_WEIGHT",
+                    line.number,
+                    "Population weight must be a positive integer",
+                )
+            })?,
+            line: line.number,
+        });
+        index += 1;
+    }
+    Ok((
+        WeightedPopulationDefinition {
+            id: name.to_owned(),
+            entries,
+            line: lines[start].number,
         },
         index,
     ))
@@ -1205,6 +1438,17 @@ fn validate_program(program: &Program) -> DslResult<()> {
         "output",
         program.reports.iter().map(|item| (&item.id, item.line)),
     )?;
+    unique_ids(
+        "archetype",
+        program.archetypes.iter().map(|item| (&item.id, item.line)),
+    )?;
+    unique_ids(
+        "weighted population",
+        program
+            .weighted_populations
+            .iter()
+            .map(|item| (&item.id, item.line)),
+    )?;
     if program.reports.is_empty() {
         return Err(DslError::new(
             "MISSING_OUTPUT",
@@ -1487,6 +1731,161 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 }
                 _ => {}
             }
+        }
+    }
+    let archetypes = program
+        .archetypes
+        .iter()
+        .map(|item| (item.id.as_str(), item))
+        .collect::<BTreeMap<_, _>>();
+    for archetype in &program.archetypes {
+        if archetype.sample_households == 0 {
+            return Err(DslError::new(
+                "INVALID_ARCHETYPE_SAMPLE",
+                archetype.line,
+                format!(
+                    "Archetype {} sample_households must be positive",
+                    archetype.id
+                ),
+            ));
+        }
+        if archetype.composition.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_ARCHETYPE_COMPOSITION",
+                archetype.line,
+                format!("Archetype {} needs a composition", archetype.id),
+            ));
+        }
+        if archetype.outputs.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_ARCHETYPE_OUTPUT",
+                archetype.line,
+                format!("Archetype {} needs outputs", archetype.id),
+            ));
+        }
+        for group in &archetype.composition {
+            if group.count == 0 {
+                return Err(DslError::new(
+                    "INVALID_ARCHETYPE_COMPOSITION",
+                    group.line,
+                    format!("Composition group {} count must be positive", group.id),
+                ));
+            }
+            for entry in &group.mix {
+                if !agents.contains_key(entry.agent_type.as_str()) {
+                    return Err(DslError::new(
+                        "UNKNOWN_ARCHETYPE_AGENT",
+                        entry.line,
+                        format!(
+                            "Archetype {} references unknown agent {}",
+                            archetype.id, entry.agent_type
+                        ),
+                    ));
+                }
+            }
+        }
+        let archetype_fields = all_agent_fields
+            .iter()
+            .cloned()
+            .chain(archetype.initial.iter().map(|item| item.field.clone()))
+            .collect::<BTreeSet<_>>();
+        for multiplier in &archetype.decision_multipliers {
+            if !actions.contains(multiplier.action.as_str()) {
+                return Err(DslError::new(
+                    "UNKNOWN_ARCHETYPE_ACTION",
+                    multiplier.line,
+                    format!(
+                        "Archetype {} references unknown action {}",
+                        archetype.id, multiplier.action
+                    ),
+                ));
+            }
+            if !multiplier.multiplier.is_finite() || multiplier.multiplier < 0.0 {
+                return Err(DslError::new(
+                    "INVALID_ARCHETYPE_DECISION",
+                    multiplier.line,
+                    "Decision multiplier must be finite and non-negative",
+                ));
+            }
+        }
+        for output in &archetype.outputs {
+            match &output.metric {
+                ReportMetric::Mean { field } if archetype_fields.contains(field) => {}
+                ReportMetric::KidsPerFamily => {}
+                ReportMetric::Mean { field } => {
+                    return Err(DslError::new(
+                        "UNKNOWN_ARCHETYPE_FIELD",
+                        output.line,
+                        format!("Archetype output references unknown field {field}"),
+                    ));
+                }
+                _ => {
+                    return Err(DslError::new(
+                        "INVALID_ARCHETYPE_OUTPUT",
+                        output.line,
+                        "Archetype outputs support mean(field) and kids_per_family()",
+                    ));
+                }
+            }
+        }
+    }
+    for population in &program.weighted_populations {
+        if population.entries.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_WEIGHTED_POPULATION",
+                population.line,
+                format!("Population {} needs archetype weights", population.id),
+            ));
+        }
+        let mut population_archetypes = BTreeSet::new();
+        let mut output_ids: Option<BTreeSet<&str>> = None;
+        for entry in &population.entries {
+            if !population_archetypes.insert(entry.archetype.as_str()) {
+                return Err(DslError::new(
+                    "DUPLICATE_POPULATION_ARCHETYPE",
+                    entry.line,
+                    format!(
+                        "Population {} repeats archetype {}",
+                        population.id, entry.archetype
+                    ),
+                ));
+            }
+            if !archetypes.contains_key(entry.archetype.as_str()) {
+                return Err(DslError::new(
+                    "UNKNOWN_ARCHETYPE",
+                    entry.line,
+                    format!(
+                        "Population {} references unknown archetype {}",
+                        population.id, entry.archetype
+                    ),
+                ));
+            }
+            if entry.weight == 0 {
+                return Err(DslError::new(
+                    "INVALID_POPULATION_WEIGHT",
+                    entry.line,
+                    "Population weight must be positive",
+                ));
+            }
+            let current_outputs = archetypes[entry.archetype.as_str()]
+                .outputs
+                .iter()
+                .map(|output| output.id.as_str())
+                .collect::<BTreeSet<_>>();
+            if output_ids
+                .as_ref()
+                .is_some_and(|expected| *expected != current_outputs)
+            {
+                return Err(DslError::new(
+                    "ARCHETYPE_OUTPUT_MISMATCH",
+                    entry.line,
+                    format!(
+                        "Population {} archetypes must expose the same output IDs",
+                        population.id
+                    ),
+                ));
+            }
+            output_ids = Some(current_outputs);
         }
     }
     validate_inheritance_cycles(&agents)?;

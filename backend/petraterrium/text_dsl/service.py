@@ -78,6 +78,10 @@ class TextDslService:
             version=result.get("version"),
             tick_hours=result.get("tick_hours"),
             adult_population=result.get("adult_population"),
+            archetypes=tuple(str(value) for value in result.get("archetypes", [])),
+            weighted_populations=tuple(
+                str(value) for value in result.get("weighted_populations", [])
+            ),
             diagnostics=diagnostics,
         )
         self._validation_cache[source_hash] = validation
@@ -118,10 +122,12 @@ class TextDslService:
             raise ValueError("DSL has validation errors")
         tick_hours = document.validation.tick_hours or 1
         ticks = round(request.days * 24 / tick_hours)
+        population_id = getattr(request, "population_id", None)
         result = self.rust.run_text_dsl(
             document.code,
             seed=request.seed,
             ticks=ticks,
+            population_id=population_id,
         )
         run_id = uuid.uuid4().hex
         created_at = datetime.now(UTC).isoformat()
@@ -135,7 +141,11 @@ class TextDslService:
             else None
         )
         agents = result.get("state", {}).get("agents", [])
-        adult_population = document.validation.adult_population or 0
+        adult_population = (
+            sum(agent.get("parent_id") is None for agent in agents)
+            if population_id is not None
+            else document.validation.adult_population or 0
+        )
         response = TextDslRunResult(
             run_id=run_id,
             source_hash=document.source_hash,
@@ -145,6 +155,7 @@ class TextDslService:
             adult_population=adult_population,
             total_agents=len(agents),
             generated_children=max(0, len(agents) - adult_population),
+            population_id=population_id,
             results_title=str(result.get("results_title", "Results")),
             results_subtitle=str(result.get("results_subtitle", "")),
             reports=reports,
@@ -180,6 +191,7 @@ class TextDslService:
             days=view.days,
             ticks=view.ticks,
             total_agents=view.total_agents,
+            population_id=view.population_id,
             created_at=view.created_at,
         )
         payload = {
@@ -314,6 +326,7 @@ class TextDslService:
             "adult_population": view["adult_population"],
             "total_agents": view["total_agents"],
             "generated_children": view["generated_children"],
+            "population_id": None,
             "results_title": "Recorded Rust output",
             "results_subtitle": "Legacy recorded statistics",
             "reports": reports,

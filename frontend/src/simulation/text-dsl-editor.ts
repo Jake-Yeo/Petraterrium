@@ -13,6 +13,8 @@ interface DslValidation {
   version?: string | null;
   tick_hours?: number | null;
   adult_population?: number | null;
+  archetypes: string[];
+  weighted_populations: string[];
   diagnostics: DslDiagnostic[];
 }
 
@@ -68,6 +70,7 @@ interface DslRunResult {
   adult_population: number;
   total_agents: number;
   generated_children: number;
+  population_id?: string | null;
   results_title: string;
   results_subtitle: string;
   reports: Report[];
@@ -128,13 +131,14 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Small-town simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs. Every number is a wide-uncertainty demo placeholder.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Small-town simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs. Town coefficients retain their placeholder labels; archetype values are explicit estimates.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-toolbar">
         <button type="button" class="button secondary" data-dsl-action="validate">Validate code</button>
         <button type="button" class="button primary" data-dsl-action="save">Save DSL</button>
         <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
+        <label>Population<select data-dsl-population><option value="">Town</option></select></label>
         <label>Seed<input type="number" min="0" step="1" value="1" data-dsl-seed></label>
         <label>Days<input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
         <button type="button" class="button primary" data-dsl-action="run">Run saved DSL</button>
@@ -281,6 +285,7 @@ export class TextDslEditor {
     if (!this.document || this.dirty || !this.document.validation.valid) return;
     const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
     const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
+    const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
     this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
     try {
       this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
@@ -289,7 +294,9 @@ export class TextDslEditor {
         body: JSON.stringify({
           seed,
           days,
-          baseline_run_id: this.run?.run_id ?? null,
+          baseline_run_id:
+            this.run?.population_id === (populationId || null) ? this.run.run_id : null,
+          population_id: populationId || null,
         }),
       });
       this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks.`;
@@ -316,6 +323,7 @@ export class TextDslEditor {
   }
 
   private renderValidation(validation: DslValidation): void {
+    this.renderPopulationOptions(validation.weighted_populations ?? []);
     this.diagnostics.replaceChildren();
     if (validation.valid) {
       this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · ${number(validation.adult_population ?? 0, 0)} adults before generated children</span></div>`;
@@ -339,6 +347,16 @@ export class TextDslEditor {
       this.status.textContent = 'Fix the DSL errors before saving or running.';
     }
     this.updateButtons(validation);
+  }
+
+  private renderPopulationOptions(populations: string[]): void {
+    const select = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!;
+    const selected = select.value;
+    select.replaceChildren(new Option('Town', ''));
+    for (const population of populations) {
+      select.add(new Option(population, population));
+    }
+    select.value = populations.includes(selected) ? selected : '';
   }
 
   private focusLine(line: number): void {

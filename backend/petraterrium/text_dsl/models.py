@@ -22,6 +22,8 @@ class TextDslValidation(TextDslModel):
     version: str | None = None
     tick_hours: float | None = None
     adult_population: int | None = None
+    archetypes: tuple[str, ...] = ()
+    weighted_populations: tuple[str, ...] = ()
     diagnostics: tuple[TextDslDiagnostic, ...] = ()
 
 
@@ -45,6 +47,7 @@ class TextDslRunRequest(TextDslModel):
     seed: int = Field(default=1, ge=0)
     days: int = Field(default=30, ge=1, le=365)
     baseline_run_id: str | None = None
+    population_id: str | None = None
 
 
 TextDslReportValue = float | str | dict[str, float]
@@ -93,6 +96,7 @@ class TextDslRunResult(TextDslModel):
     adult_population: int
     total_agents: int
     generated_children: int
+    population_id: str | None = None
     results_title: str
     results_subtitle: str
     reports: tuple[TextDslReport, ...]
@@ -109,4 +113,5 @@ class TextDslRunSummary(TextDslModel):
     days: int
     ticks: int
     total_agents: int
+    population_id: str | None = None
     created_at: str

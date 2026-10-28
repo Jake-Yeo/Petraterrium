@@ -97,6 +97,7 @@ class LazyRustCoreClient:
         seed: int,
         ticks: int,
         continuation: Mapping[str, Any] | None = None,
+        population_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             if self._client is None:
@@ -107,6 +108,7 @@ class LazyRustCoreClient:
             seed=seed,
             ticks=ticks,
             continuation=continuation,
+            population_id=population_id,
         )
 
 

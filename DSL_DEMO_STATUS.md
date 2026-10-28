@@ -33,6 +33,12 @@
 - Saved runs from the earlier fixed aggregate contract reopen through a read-only legacy adapter.
 - The app opens directly to the exact DSL source in a line-numbered text editor. Rust validation,
   save, reset, run, and baseline deltas operate on that text.
+- Agent archetypes remain the numeric bottom level. Household archetypes compose agent mixes,
+  estimated initial distributions, decision multipliers, and derived outputs in DSL text.
+- Weighted populations map household archetypes to represented household counts. Rust simulates
+  each small archetype cohort once and weights its outputs without expanding represented counts.
+- Weighted results include a population summary, per-place and per-agent-type tables, and a
+  per-archetype table. Income, stress, and vote outputs retain mean and pooled standard deviation.
 
 ## Implemented but narrower
 
@@ -43,8 +49,12 @@
   for its social actions.
 - The API persists completed runs and Rust checkpoints round-trip in focused tests. There is no
   pause/resume management UI for an interrupted active run in this demo.
-- All coefficients are explicitly labelled as wide-uncertainty placeholders from agent knowledge.
-  They are intentionally not measurements or fitted claims.
+- Existing Town coefficients remain wide-uncertainty placeholders. Household archetype values are
+  direct estimates and are intentionally not measurements or fitted claims.
+- The shipped household values are direct estimates. Each archetype simulates 20 sample
+  households; represented household weights do not change simulated object count.
+- Archetype cohorts run separately, so cross-archetype meetings are outside this proof. Existing
+  shared-place interactions continue within each archetype cohort.
 
 ## Deferred and not part of this demo
 
@@ -53,6 +63,9 @@
 - Globe work, country polygons, graphs, inheritance visualizations, decision-tree visualizations,
   and visual drag-and-drop editors.
 - Any real-world calibration or prediction claim.
+- Neighbourhood, municipality, division, country, and world composition or flows.
+- Learned aggregate functions, cache validity, time-loop feedback, and fast-forwarding.
+- Archetype research/data imports, graph views, and visual archetype editors.
 
 ## Focused verification
 
@@ -64,23 +77,38 @@
 - Browser code-display/edit/save/run/compare and line-error tests: 2 passed.
 - Frontend production build: 9 modules in 0.25 seconds.
 - Engine source grep contains none of the shipped place, action, or scenario names.
+- Generic archetype parser, exact weighting, million-weight representation, 300-agent comparison,
+  and determinism tests: 5 passed in 13.76 seconds.
+- Browser DSL edit/save/run test changes a household weight and its weighted aggregate: passed.
 
 ## Performance
 
-- A 30-day API run fell from `9.4` seconds to `0.387` seconds.
-- A 365-day API run completes in `4.307` seconds for 130 agents and 8,760 ticks.
+- A 30-day Town API run completes in `0.374` seconds (`0.335` seconds in Rust execution).
+- A 365-day Town API run completes in `4.117` seconds for 130 agents and 8,760 ticks.
 - The rendered app completed and displayed the same 365-day run in `4.345` seconds.
 - The default DSL records the requested daily/final reports and omits the unused 670,767-event
   action payload. Set `record_actions = true` when a run needs every raw receipt.
 
 ## Final demo run
 
-- Run ID: `e4cc383ed65842ed9cc998c84a9e1015`
-- DSL hash: `sha256:6e75e7759f97e747d4509df6f8f2bd195c93a16fdeef5965dd175d6af4cd3922`
-- Rust engine: `0.3.1`
+- Run ID: `d91ed6043dbe4a43b20c7aef614a904d`
+- DSL hash: `sha256:220960f5dc41b9c5bf523ebada1f3759ce71e3b393296a0e457c50cf34e0df81`
+- Rust engine: `0.4.0`
 - Seed: `1`
-- Duration: `30` days / `720` ticks
+- Duration: `365` days / `8,760` ticks
 - Population: `100` sampled adults plus `30` generated children
-- DSL-defined reports: one final card report and two daily table reports with `30` snapshots each
+- State and report snapshots exactly match the pre-archetype 365-day golden run.
 - Final output keeps health, stress, alcohol, reputation, money, and place states inside their
   DSL-declared ranges. Recorded fights are attributed to Bar, where they occurred.
+
+## Final weighted archetype run
+
+- Run ID: `174837e544c74f0f95435d80f89a1436`
+- Seed: `1`
+- Duration: `30` days / `720` ticks
+- Simulated agents: `180`
+- Represented population: `300`
+- Archetypes: `3`
+- Runtime: `0.429` seconds
+- Raw action receipts: `0`
+- The seven-billion example represents `6,999,999,999` agents with the same `180` simulated agents.

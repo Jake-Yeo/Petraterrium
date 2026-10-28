@@ -126,6 +126,55 @@ pub struct PopulationDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ArchetypeCompositionGroup {
+    pub id: String,
+    pub count: usize,
+    pub mix: Vec<PopulationMix>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ArchetypeDecisionMultiplier {
+    pub action: String,
+    pub multiplier: f64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ArchetypeOutputDefinition {
+    pub id: String,
+    pub metric: ReportMetric,
+    pub filter: Option<Expr>,
+    pub spread: bool,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ArchetypeDefinition {
+    pub id: String,
+    pub sample_households: usize,
+    pub composition: Vec<ArchetypeCompositionGroup>,
+    pub initial: Vec<InitialAssignment>,
+    pub decision_multipliers: Vec<ArchetypeDecisionMultiplier>,
+    pub outputs: Vec<ArchetypeOutputDefinition>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedPopulationEntry {
+    pub archetype: String,
+    pub weight: u64,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WeightedPopulationDefinition {
+    pub id: String,
+    pub entries: Vec<WeightedPopulationEntry>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DecisionBranch {
     pub action: String,
     pub probability: Expr,
@@ -261,6 +310,8 @@ pub struct Program {
     pub decisions: Vec<DecisionDefinition>,
     pub actions: Vec<ActionDefinition>,
     pub reports: Vec<ReportDefinition>,
+    pub archetypes: Vec<ArchetypeDefinition>,
+    pub weighted_populations: Vec<WeightedPopulationDefinition>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -441,6 +492,8 @@ pub struct TextDslProtocolRequest {
     pub ticks: u64,
     #[serde(default)]
     pub continuation: Option<DslRunState>,
+    #[serde(default)]
+    pub population_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
