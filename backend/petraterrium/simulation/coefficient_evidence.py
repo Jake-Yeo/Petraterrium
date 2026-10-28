@@ -131,6 +131,7 @@ class DefaultActionCoefficients(CoefficientEvidenceModel):
     intervals: dict[str, CoefficientInterval] = Field(min_length=1)
     source: DefaultCoefficientSource
     evidence_state: Literal["default_estimated"] = "default_estimated"
+    outgoing_groups: dict[str, list[str]] = Field(default_factory=dict)
 
     @field_validator("coefficients")
     @classmethod
@@ -144,8 +145,14 @@ class DefaultActionCoefficients(CoefficientEvidenceModel):
     def complete_distribution(self):
         if set(self.coefficients) != set(self.intervals):
             raise ValueError("Every default coefficient requires an interval")
-        if not math.isclose(sum(self.coefficients.values()), 1, rel_tol=0, abs_tol=1e-9):
-            raise ValueError("Default action coefficients must sum to one")
+        groups = self.outgoing_groups or {"default": list(self.coefficients)}
+        if {key for values in groups.values() for key in values} != set(self.coefficients):
+            raise ValueError("Default coefficient outgoing groups must cover every edge")
+        for values in groups.values():
+            if not math.isclose(
+                sum(self.coefficients[key] for key in values), 1, rel_tol=0, abs_tol=1e-9
+            ):
+                raise ValueError("Default action coefficients must sum to one per decision node")
         for edge_id, value in self.coefficients.items():
             interval = self.intervals[edge_id]
             if not interval.low <= value <= interval.high:

@@ -34,6 +34,8 @@ pub struct InteractionAgentColumns {
     pub place: Vec<usize>,
     pub actions: Vec<Vec<String>>,
     #[serde(default)]
+    pub primary_busy: Vec<bool>,
+    #[serde(default)]
     pub traits: BTreeMap<String, Vec<f64>>,
     #[serde(default)]
     pub states: BTreeMap<String, Vec<f64>>,
@@ -382,7 +384,11 @@ fn validate_request(request: &InteractionRequest) -> Result<(), InteractionError
             "agents.agent_ids",
         ));
     }
-    if request.agents.place.len() != agent_count || request.agents.actions.len() != agent_count {
+    if request.agents.place.len() != agent_count
+        || request.agents.actions.len() != agent_count
+        || (!request.agents.primary_busy.is_empty()
+            && request.agents.primary_busy.len() != agent_count)
+    {
         return Err(InteractionError::at(
             "AGENT_COLUMN_LENGTH",
             "Interaction agent columns must have equal lengths",
@@ -695,6 +701,19 @@ fn evaluate_candidate(
     target: usize,
     relationships: &[InteractionRelationship],
 ) -> Result<CandidateEvaluation, String> {
+    if rule.channel == "in_person"
+        && request
+            .agents
+            .primary_busy
+            .get(target)
+            .copied()
+            .unwrap_or(false)
+        && !request.agents.actions[target]
+            .iter()
+            .any(|action| action == &rule.source_action)
+    {
+        return Err("target is busy with another primary action".to_owned());
+    }
     let initiator_place_index = request.agents.place[initiator];
     let target_place_index = request.agents.place[target];
     let same_place = initiator_place_index == target_place_index;

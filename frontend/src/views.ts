@@ -44,13 +44,8 @@ export function shell(): string {
       <div class="workspace-label">
         <span class="status-dot"></span> SIMULATION WORKSPACE <span class="version">V0.2</span>
       </div>
-      <button class="button primary new-run-button" data-action="new">
-        <span>＋</span> New experiment <span class="button-arrow">↗</span>
-      </button>
       <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
-        <button role="tab" aria-selected="true" aria-controls="simulation-view" data-action="simulation-tab">Simulation</button>
-        <button role="tab" aria-selected="false" aria-controls="stories-view" data-action="stories-tab">Stories</button>
-        <button role="tab" aria-selected="false" aria-controls="data-view" data-action="data-tab">Data</button>
+        <button role="tab" aria-selected="true" aria-controls="simulation-view" data-action="simulation-tab">DSL Demo</button>
       </div>
       <div class="sidebar-section-title" hidden aria-hidden="true">
         <span>SAVED RUNS</span
@@ -62,31 +57,27 @@ export function shell(): string {
         </ul>
       </nav>
       <div class="sidebar-footer">
-        <span class="small-label">SIMULATION FRAMEWORK</span>
-        <div class="fake-tag" id="workspace-data-notice">SIMULATION WORKSPACE</div>
-        <p class="muted" id="workspace-storage-notice">Simulation runs, timelines, and events are saved on the API server.</p>
+        <span class="small-label">RUST DSL ENGINE</span>
+        <div class="fake-tag" id="workspace-data-notice">SMALL-TOWN DEMO</div>
+        <p class="muted" id="workspace-storage-notice">The displayed DSL text is the exact program parsed and run by Rust.</p>
       </div>
     </aside>
     <main>
       <header class="topbar">
         <span class="breadcrumb">Workspace <span>/</span> <span id="workspace-breadcrumb">Population lab</span></span>
         <div class="topbar-right">
-          <button class="text-button" data-action="settings" aria-label="Open settings">Settings</button
-          ><span id="api-status" class="api-status">Connecting</span
+          <span id="api-status" class="api-status">Connecting</span
           ><span class="avatar" aria-hidden="true">P</span>
         </div>
       </header>
       <div class="simulation-workspace" id="simulation-view">
         <nav class="simulation-sections" role="tablist" aria-label="Simulation sections">
-          <button role="tab" aria-selected="true" aria-controls="simulation-graph-view" data-simulation-section="graph">Graph</button>
-          <button role="tab" aria-selected="false" aria-controls="simulation-agents-view" data-simulation-section="agents">Initial Agents</button>
-          <button role="tab" aria-selected="false" aria-controls="simulation-trees-view" data-simulation-section="trees">Decision Trees</button>
-          <button role="tab" aria-selected="false" aria-controls="simulation-run-view" data-simulation-section="run">Run Simulation</button>
-          <button class="simulation-settings-button" type="button" data-action="settings">AI Settings</button>
+          <button role="tab" aria-selected="true" aria-controls="simulation-graph-view" data-simulation-section="graph">DSL Code</button>
         </nav>
         <section id="simulation-graph-view" class="simulation-section"></section>
         <section id="simulation-agents-view" class="simulation-section" hidden></section>
         <section id="simulation-trees-view" class="simulation-section" hidden></section>
+        <section id="simulation-globe-view" class="simulation-section" hidden></section>
         <div class="lab simulation-section" id="simulation-run-view" hidden>
         <div id="rust-run-panel" class="simulation-rust-run"></div>
         <div id="coefficient-promotion-panel"></div>

@@ -39,6 +39,7 @@ class DecisionTreeNode(TreeModuleModel):
     kind: TreeNodeKind
     description: str = ""
     target_module_id: str | None = Field(default=None, pattern=IdentifierPattern)
+    action_id: str | None = Field(default=None, pattern=IdentifierPattern)
 
     @model_validator(mode="after")
     def valid_reference_target(self):
@@ -46,6 +47,8 @@ class DecisionTreeNode(TreeModuleModel):
             raise ValueError("Module reference nodes require a target module")
         if self.kind != "module_reference" and self.target_module_id is not None:
             raise ValueError("Only module reference nodes can target a module")
+        if self.kind != "action" and self.action_id is not None:
+            raise ValueError("Only action nodes can reference an action")
         return self
 
 
@@ -57,6 +60,11 @@ class DecisionTreeEdge(TreeModuleModel):
     condition: str = ""
     decision_id: str | None = Field(default=None, pattern=IdentifierPattern)
     evidence_edge_id: str | None = Field(default=None, pattern=IdentifierPattern)
+    formula: str | None = None
+    probability: float | None = Field(default=None, ge=0, le=1)
+    place_requirements: list[str] = Field(default_factory=list)
+    time_requirements: list[str] = Field(default_factory=list)
+    runtime_rules: list[dict] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def complete_evidence_link(self):
@@ -175,9 +183,7 @@ class DecisionTreeModuleRegistry:
             raise KeyError(f"Unknown decision tree: {tree_id}")
         module = self._modules.get(tree.root_module_id)
         if module is None:
-            raise KeyError(
-                f"Decision tree {tree_id} has missing root module {tree.root_module_id}"
-            )
+            raise KeyError(f"Decision tree {tree_id} has missing root module {tree.root_module_id}")
         return ModuleNavigation(tree=tree, module=module, validation=self._validation)
 
     def referenced_module(self, module_id: str, node_id: str) -> DecisionTreeModule:
@@ -276,8 +282,7 @@ class DecisionTreeModuleRegistry:
     def _tree_matches(self, tree: DecisionTreeDefinition, selected: TreeFilter) -> bool:
         return all(
             (
-                selected.agent_type_id is None
-                or selected.agent_type_id in tree.agent_type_ids,
+                selected.agent_type_id is None or selected.agent_type_id in tree.agent_type_ids,
                 selected.place_id is None or selected.place_id in tree.place_ids,
                 selected.source is None or selected.source == tree.source,
                 selected.status is None or selected.status == tree.status,
@@ -296,9 +301,7 @@ class DecisionTreeModuleRegistry:
             if module is None:
                 continue
             pending.extend(
-                node.target_module_id
-                for node in module.nodes
-                if node.target_module_id is not None
+                node.target_module_id for node in module.nodes if node.target_module_id is not None
             )
         return found
 
@@ -357,7 +360,7 @@ class DecisionTreeModuleRegistry:
                 )
             )
         for edge in module.edges:
-            if module.status == "ready" and edge.condition:
+            if module.status == "ready" and edge.condition and not edge.runtime_rules:
                 issues.append(
                     TreeModuleIssue(
                         code="free_text_condition_non_executable",

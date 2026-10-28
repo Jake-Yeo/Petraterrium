@@ -69,6 +69,11 @@ from .simulation.agent_type_routes import create_agent_type_router
 from .simulation.coefficient_promotions import create_coefficient_promotion_router
 from .simulation.decision_evidence_routes import create_decision_evidence_router
 from .simulation.default_dsl import DefaultDslService, create_default_dsl_router
+from .simulation.default_pipeline_bootstrap import build_default_pipeline_service
+from .simulation.default_pipeline_routes import create_default_pipeline_router
+from .simulation.default_pipeline_service import SimulationRegistryDefaultStateAdapter
+from .simulation.editable_dsl_routes import create_editable_dsl_router
+from .simulation.editable_dsl_service import EditableDslService
 from .simulation.evidence_guard import require_trusted_simulation_evidence
 from .simulation.interaction_program_routes import create_interaction_program_router
 from .simulation.interaction_trees import (
@@ -90,6 +95,7 @@ from .simulation.run_preview import (
 from .simulation.run_routes import create_simulation_run_router
 from .simulation.run_service import SimulationRunService
 from .simulation.tree_routes import create_decision_tree_router
+from .text_dsl import TextDslService, create_text_dsl_router
 from .versions import ENGINE_VERSION
 
 
@@ -115,17 +121,57 @@ def create_app(
     configured_research_provider = research_provider or PublicResearchProvider(
         ai_provider=selected_ai
     )
-    transition_research_provider = (
-        markov_research_provider
-        or PublicTransitionResearchProvider(configured_research_provider)
+    transition_research_provider = markov_research_provider or PublicTransitionResearchProvider(
+        configured_research_provider
     )
     markov_probability_research = MarkovProbabilityResearchService(
         transition_research_provider,
         selected_ai,
     )
     simulation_registry = simulation_registry_store or SimulationRegistryStore()
+    rust_core = LazyRustCoreClient()
+    text_dsl = TextDslService(rust=rust_core)
     default_dsl = DefaultDslService(simulation_registry)
     default_dsl.ensure()
+    default_pipeline = build_default_pipeline_service(simulation_registry)
+
+    def select_cached_pipeline_default(sections, version):
+        prior_receipt = simulation_registry.default_dsl_receipt()
+        prior_managed_sections = (
+            set(prior_receipt.managed_sections) if prior_receipt is not None else set()
+        )
+        default_dsl.set_cached_pipeline_default(sections, version)
+        for section in tuple(sections):
+            sections[section] = default_dsl.package.content[section]
+        installed_payload = simulation_registry.payload_snapshot()
+        missing_sections = {
+            section: default_dsl.package.content[section]
+            for section in default_dsl.package.receipt.managed_sections
+            if section not in installed_payload and section not in prior_managed_sections
+        }
+        simulation_registry.restore_default_dsl_sections(
+            missing_sections,
+            default_dsl.package.receipt.model_dump(mode="json"),
+        )
+
+    active_pipeline_snapshot = default_pipeline.active_snapshot()
+    if active_pipeline_snapshot is not None:
+        active_pipeline_run, active_pipeline_sections = active_pipeline_snapshot
+        select_cached_pipeline_default(
+            active_pipeline_sections,
+            active_pipeline_run.version,
+        )
+    default_pipeline.add_restore_hook(select_cached_pipeline_default)
+    try:
+        default_pipeline.restore_active()
+        default_pipeline_restore_error = None
+    except (KeyError, ValueError) as error:
+        default_pipeline_restore_error = str(error)
+    editable_dsl = EditableDslService(simulation_registry)
+    runtime_simulation_registry = editable_dsl.registry_overlay()
+    default_pipeline.state_provider = SimulationRegistryDefaultStateAdapter(
+        runtime_simulation_registry
+    )
     interaction_registry = InteractionRunRegistry()
     location_registry = LocationRunRegistry()
     interaction_tree_registry = InteractionTreeRegistry(
@@ -136,16 +182,19 @@ def create_app(
     default_dsl.add_reset_hook(
         lambda: interaction_tree_registry.reload(simulation_registry.interaction_trees())
     )
-    rust_core = LazyRustCoreClient()
-
+    default_dsl.add_reset_hook(default_pipeline.restore_active)
+    default_dsl.add_reset_hook(editable_dsl.clear_active_overlay)
+    default_pipeline.add_restore_hook(
+        lambda _sections, _version: editable_dsl.clear_active_overlay()
+    )
     def prepare_simulation(config):
         require_trusted_simulation_evidence(
-            simulation_registry,
+            runtime_simulation_registry,
             evidence_receipts,
             interaction_tree_registry,
         )
         return prepare_registry_run(
-            simulation_registry,
+            runtime_simulation_registry,
             config,
             evidence_receipts=evidence_receipts,
         )
@@ -164,10 +213,14 @@ def create_app(
     application.state.markov_probability_research = markov_probability_research
     application.state.simulation_registry = simulation_registry
     application.state.default_dsl = default_dsl
+    application.state.default_pipeline = default_pipeline
+    application.state.default_pipeline_restore_error = default_pipeline_restore_error
+    application.state.editable_dsl = editable_dsl
     application.state.simulation_runs = simulation_runs
     application.state.simulation_run_previews = simulation_run_previews
     application.state.simulation_interactions = interaction_registry
     application.state.simulation_locations = location_registry
+    application.state.text_dsl = text_dsl
     application.state.simulation_interaction_trees = interaction_tree_registry
     application.include_router(create_atlas_router(atlas_store, run_store, selected_ai))
     application.include_router(
@@ -192,8 +245,11 @@ def create_app(
         create_agent_type_router(simulation_registry, selected_ai, atlas_store)
     )
     application.include_router(create_default_dsl_router(default_dsl))
+    application.include_router(create_default_pipeline_router(default_pipeline))
+    application.include_router(create_editable_dsl_router(editable_dsl))
+    application.include_router(create_text_dsl_router(text_dsl))
     application.include_router(create_population_router(simulation_registry, atlas_store))
-    application.include_router(create_decision_tree_router(simulation_registry))
+    application.include_router(create_decision_tree_router(runtime_simulation_registry))
     application.include_router(create_routine_router(simulation_registry))
     application.include_router(create_mobility_router(simulation_registry))
     application.include_router(
@@ -206,9 +262,7 @@ def create_app(
         create_interaction_program_router(simulation_registry, evidence_receipts)
     )
     application.include_router(create_simulation_run_router(simulation_runs))
-    application.include_router(
-        create_simulation_run_preview_router(simulation_run_previews)
-    )
+    application.include_router(create_simulation_run_preview_router(simulation_run_previews))
     application.include_router(create_interaction_router(interaction_registry))
     application.include_router(create_location_router(location_registry))
     application.include_router(
@@ -222,7 +276,7 @@ def create_app(
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
     application.router.add_event_handler("shutdown", simulation_runs.shutdown)
@@ -449,4 +503,24 @@ def create_app(
     return application
 
 
-app = create_app()
+def create_dsl_demo_app() -> FastAPI:
+    application = FastAPI(title="Petraterrium · Rust DSL demo", version="0.3.0")
+    rust_core = LazyRustCoreClient()
+    text_dsl = TextDslService(rust=rust_core)
+    application.state.text_dsl = text_dsl
+    application.include_router(create_text_dsl_router(text_dsl))
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Content-Type"],
+    )
+
+    @application.get("/health")
+    def dsl_health() -> dict[str, str]:
+        return {"status": "ok", "engine": "rust_text_dsl"}
+
+    return application
+
+
+app = create_dsl_demo_app()

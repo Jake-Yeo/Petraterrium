@@ -38,6 +38,10 @@ def test_shipped_default_compiles_state_choices_propagation_and_finance(tmp_path
     dynamics = request["state_dynamics"]
     events = {item["id"]: item for item in dynamics["events"]}
     rules = {item["target_state_id"]: item for item in dynamics["state_rules"]}
+    timed_actions = {
+        item["action_id"]: item for item in dynamics["time_execution"]["actions"]
+    }
+    aggregates = prepared.aggregate_statistics
 
     assert {
         "bad_work",
@@ -53,6 +57,40 @@ def test_shipped_default_compiles_state_choices_propagation_and_finance(tmp_path
         "memory.financial_stress"
     )
     assert actions["exercise"]["rules"][0]["conditions"][0]["input"] == "context.hour"
+    assert set(events) < set(timed_actions)
+    assert set(timed_actions) - set(events) == {"choose exercise or recovery"}
+    assert all(
+        item["duration"]["duration_min_hours"]
+        < item["duration"]["duration_max_hours"]
+        for item in timed_actions.values()
+    )
+    assert aggregates is not None
+    assert {item.action_id for item in aggregates.action_contributions} == set(events)
+    assert len(aggregates.timeline_subjects) == 12
+    assert len(dynamics["time_execution"]["receipt_agent_indices"]) == 12
+    assert all(
+        item["duration"]["provenance"]["status"] == "default_estimated"
+        for item in timed_actions.values()
+    )
+    assert all(
+        "World Population Prospects 2024" in item["duration"]["provenance"]["source"]
+        for action_id, item in timed_actions.items()
+        if action_id in events
+    )
+    assert all(
+        "U.S. Bureau of Labor Statistics" in item["duration"]["provenance"]["source"]
+        for action_id, item in timed_actions.items()
+        if action_id in events
+    )
+    assert timed_actions["choose exercise or recovery"]["duration"]["provenance"] == {
+        "source": "Shipped global structural schedule default",
+        "version": "2026-10-27",
+        "status": "default_estimated",
+        "uncertainty": 1.0,
+        "source_date": "2026-10-27",
+        "evidence_id": "routine:daily_life:daily_activity_window",
+        "evidence_kind": "default_estimated",
+    }
     for action_id in (
         "bad_work",
         "eat_lunch",
@@ -299,14 +337,13 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         for factor in interaction["factors"]
     )
 
-    work_wages_by_country = defaultdict(set)
-    for tick in first["state_ticks"]:
-        for change in tick["finance_changes"]:
-            wages = change["flows"]["wages"]
-            if wages > 0:
-                work_wages_by_country[countries[change["agent_index"]]].add(wages)
-    assert len(work_wages_by_country) > 1
-    assert len({wage for values in work_wages_by_country.values() for wage in values}) > 12
+    annual_income_by_country = defaultdict(set)
+    for index, income in enumerate(first["agents"]["memory"]["finance.annual_income"]):
+        annual_income_by_country[countries[index]].add(income)
+    assert len(annual_income_by_country) == 12
+    assert len(
+        {income for values in annual_income_by_country.values() for income in values}
+    ) > 12
 
     events = first["events"]
     meal_events = [
@@ -315,15 +352,17 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         if event["action"] in {"eat_lunch", "skip_lunch"}
     ]
     noon_ticks = {13 + 24 * day for day in range(30)}
-    meal_events_by_tick_and_agent = Counter(
-        (event["tick"], event["agent_index"]) for event in meal_events
+    allowed_completion_ticks = noon_ticks | {tick + 1 for tick in noon_ticks}
+    meal_events_by_day_and_agent = Counter(
+        ((event["tick"] - 1) // 24, event["agent_index"])
+        for event in meal_events
     )
     assert len(meal_events) == 30_000
-    assert {event["tick"] for event in meal_events} == noon_ticks
-    assert set(meal_events_by_tick_and_agent.values()) == {1}
-    assert set(meal_events_by_tick_and_agent) == {
-        (tick, agent_index)
-        for tick in noon_ticks
+    assert {event["tick"] for event in meal_events} <= allowed_completion_ticks
+    assert set(meal_events_by_day_and_agent.values()) == {1}
+    assert set(meal_events_by_day_and_agent) == {
+        (day, agent_index)
+        for day in range(30)
         for agent_index in range(1000)
     }
     assert {event["action"] for event in meal_events} == {
@@ -434,13 +473,11 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         for tick in first["state_ticks"]
         if any(
             effect["event"] == "bad_work"
-            and effect["agent_index"] == causal_agent
             and effect["target_state_id"] == "stress"
             for effect in tick["event_effects"]
         )
         and any(
-            change["agent_index"] == causal_agent
-            and change["target_state_id"] == "stress"
+            change["target_state_id"] == "stress"
             and change["after"] > change["before"]
             for change in tick["agent_state_changes"]
         )
@@ -449,13 +486,13 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         effect
         for effect in bad_work_tick["event_effects"]
         if effect["event"] == "bad_work"
-        and effect["agent_index"] == causal_agent
         and effect["target_state_id"] == "stress"
     )
+    receipt_agent = bad_work_effect["agent_index"]
     bad_work_change = next(
         change
         for change in bad_work_tick["agent_state_changes"]
-        if change["agent_index"] == causal_agent
+        if change["agent_index"] == receipt_agent
         and change["target_state_id"] == "stress"
     )
     assert bad_work_effect["delta"] == 0.08
@@ -466,15 +503,20 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         for tick in first["state_ticks"]
         if any(
             effect["event"] == "exercise"
-            and effect["agent_index"] == causal_agent
             and effect["target_state_id"] == "stress"
             for effect in tick["event_effects"]
         )
     )
+    exercise_effect = next(
+        effect
+        for effect in exercise_tick["event_effects"]
+        if effect["event"] == "exercise"
+        and effect["target_state_id"] == "stress"
+    )
     exercise_change = next(
         change
         for change in exercise_tick["agent_state_changes"]
-        if change["agent_index"] == causal_agent
+        if change["agent_index"] == exercise_effect["agent_index"]
         and change["target_state_id"] == "stress"
     )
     assert exercise_change["event_delta"] == -0.12
@@ -484,8 +526,7 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         tick
         for tick in first["state_ticks"]
         if any(
-            change["agent_index"] == causal_agent
-            and change["target_state_id"] == "health"
+            change["target_state_id"] == "health"
             and change["after"] < change["before"]
             for change in tick["agent_state_changes"]
         )
@@ -493,8 +534,7 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
     health_change = next(
         change
         for change in health_tick["agent_state_changes"]
-        if change["agent_index"] == causal_agent
-        and change["target_state_id"] == "health"
+        if change["target_state_id"] == "health" and change["after"] < change["before"]
     )
     health_rule = health_tick["state_rules"][health_change["rule_index"]]
     assert health_change["equation_delta"] < 0
@@ -506,8 +546,7 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
         tick
         for tick in first["state_ticks"]
         if any(
-            change["agent_index"] == causal_agent
-            and change["flows"]["wages"] > 0
+            change["flows"]["wages"] > 0
             and change["flows"]["transport"] > 0
             and change["flows"]["taxes"] > 0
             for change in tick["finance_changes"]
@@ -516,15 +555,15 @@ def test_default_1000_agent_30_day_run_is_deterministic_and_causal(tmp_path):
     finance_change = next(
         change
         for change in finance_tick["finance_changes"]
-        if change["agent_index"] == causal_agent
-        and change["flows"]["wages"] > 0
+        if change["flows"]["wages"] > 0
     )
+    finance_agent = finance_change["agent_index"]
     ledgers = {item["ledger"]: item for item in finance_change["ledger_changes"]}
     assert finance_change["provenance"]["status"] == dynamics["finance"]["status"][
-        causal_agent
+        finance_agent
     ]
     assert finance_change["provenance"]["source"] == dynamics["finance"]["source"][
-        causal_agent
+        finance_agent
     ]
     assert ledgers["income"]["flow_delta"] == finance_change["flows"]["wages"]
     assert ledgers["expenses"]["flow_delta"] == (

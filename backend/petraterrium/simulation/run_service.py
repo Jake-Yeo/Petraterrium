@@ -15,6 +15,14 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .aggregate_statistics import (
+    AggregateStatisticsProgram,
+    RunAggregatePage,
+    RunAggregateRecord,
+    collect_daily_aggregate_statistics,
+    timeline_agent_ids,
+    timeline_start_ticks,
+)
 from .initial_agent_summary import InitialPopulationEvidenceSummary
 from .interactions import (
     AppliedRelationshipDelta,
@@ -34,6 +42,13 @@ from .run_warnings import (
     RunEvidenceWarning,
     empty_evidence_summary,
 )
+from .spatial_projection import (
+    SpatialPointPage,
+    SpatialSnapshot,
+    SpatialSnapshotSeries,
+    project_spatial_snapshot_series,
+    query_spatial_snapshot,
+)
 
 RunStatus = Literal["queued", "running", "cancelling", "cancelled", "completed", "failed"]
 MAX_RUST_CHUNK_TICKS = 1024
@@ -47,6 +62,7 @@ CHUNK_EVENT_FIELDS = (
     "interactions",
     "blocked_interactions",
     "state_ticks",
+    "time_ticks",
     "synchronization",
 )
 
@@ -99,8 +115,8 @@ class SimulationRunConfig(SimulationRunModel):
         if self.agent_type_mix:
             if any(not name.strip() for name in self.agent_type_mix):
                 raise ValueError("Agent type mix names cannot be empty")
-            if any(value <= 0 or value > 1 for value in self.agent_type_mix.values()):
-                raise ValueError("Agent type mix shares must be greater than zero and at most one")
+            if any(value < 0 or value > 1 for value in self.agent_type_mix.values()):
+                raise ValueError("Agent type mix shares must be between zero and one")
             if not isclose(sum(self.agent_type_mix.values()), 1, rel_tol=0, abs_tol=1e-9):
                 raise ValueError("Agent type mix shares must sum to one")
         return self
@@ -128,6 +144,7 @@ class PreparedRustRun(SimulationRunModel):
     coefficient_evidence: RunEvidenceSummary = Field(default_factory=empty_evidence_summary)
     evidence_warnings: list[RunEvidenceWarning] = Field(default_factory=list)
     global_demo_summary: InitialPopulationEvidenceSummary | None = None
+    aggregate_statistics: AggregateStatisticsProgram | None = None
 
     @model_validator(mode="after")
     def complete_agent_identity(self):
@@ -137,6 +154,19 @@ class PreparedRustRun(SimulationRunModel):
             raise ValueError("Prepared Rust agent IDs must be unique")
         if self.initial_agent_profiles and len(self.initial_agent_profiles) != len(self.agent_ids):
             raise ValueError("Prepared initial agent profiles must match the agent ID count")
+        if self.aggregate_statistics is not None and not self.initial_agent_profiles:
+            raise ValueError("Aggregate statistics require prepared initial agent profiles")
+        if self.aggregate_statistics is not None:
+            unknown_timeline_agents = {
+                subject.agent_id
+                for subject in self.aggregate_statistics.timeline_subjects
+                if subject.agent_id not in self.agent_ids
+            }
+            if unknown_timeline_agents:
+                raise ValueError(
+                    "Aggregate timeline subjects are not in the prepared population: "
+                    + ", ".join(sorted(unknown_timeline_agents))
+                )
         location_fields = (
             bool(self.location_places),
             bool(self.initial_location_ids),
@@ -217,6 +247,9 @@ class SimulationRunView(SimulationRunModel):
     evidence_summary: RunEvidenceSummary = Field(default_factory=empty_evidence_summary)
     evidence_warnings: list[RunEvidenceWarning] = Field(default_factory=list)
     global_demo_summary: InitialPopulationEvidenceSummary | None = None
+    aggregate_record_count: int = Field(default=0, ge=0)
+    aggregate_statistics_version: str | None = None
+    routine_agent_action_logging: Literal[False] = False
 
 
 class RunAgentSummary(SimulationRunModel):
@@ -284,6 +317,8 @@ class AgentTimelinePoint(SimulationRunModel):
     interaction_details: list[AgentInteractionDetail] = Field(default_factory=list)
     decision_path: list[DecisionPathStep]
     location_transitions: list[LocationTransitionStep]
+    time_receipts: list[dict[str, Any]] = Field(default_factory=list)
+    daily_time: dict[str, Any] | None = None
 
 
 class RunAgentDetail(RunAgentSummary):
@@ -328,6 +363,7 @@ class _AgentTick:
     day: int
     date: date
     tick: int
+    agent_ids: tuple[str, ...]
     modules: tuple[str, ...]
     states: tuple[str, ...]
     locations: tuple[str, ...]
@@ -340,6 +376,8 @@ class _AgentTick:
     interaction_details: tuple[tuple[AgentInteractionDetail, ...], ...]
     decisions: tuple[tuple[DecisionPathStep, ...], ...]
     location_transitions: tuple[tuple[LocationTransitionStep, ...], ...]
+    time_receipts: tuple[tuple[dict[str, Any], ...], ...]
+    daily_time: tuple[dict[str, Any] | None, ...]
     live_places: tuple[LocationLivePlaceState, ...] = ()
 
 
@@ -352,6 +390,9 @@ class _RunRecord:
     completed_ticks: int = 0
     result: SimulationResult | None = None
     error: str | None = None
+    default_dsl_version: str | None = None
+    default_dsl_hash: str | None = None
+    aggregate_statistics_version: str | None = None
     evidence_summary: RunEvidenceSummary = field(default_factory=empty_evidence_summary)
     evidence_warnings: list[RunEvidenceWarning] = field(default_factory=list)
     prepared: PreparedRustRun | None = None
@@ -360,6 +401,9 @@ class _RunRecord:
     final_output: dict[str, Any] | None = None
     location_ids: list[str] = field(default_factory=list)
     location_history: list[LocationHistoryRecord] = field(default_factory=list)
+    aggregates: list[RunAggregateRecord] = field(default_factory=list)
+    aggregate_record_count: int = 0
+    spatial_snapshots: dict[int, SpatialSnapshotSeries] = field(default_factory=dict)
     cancel_requested: threading.Event = field(default_factory=threading.Event)
     frames_loaded: bool = True
     events_loaded: bool = True
@@ -367,6 +411,7 @@ class _RunRecord:
     prepared_loaded: bool = True
     result_loaded: bool = True
     location_history_loaded: bool = True
+    aggregates_loaded: bool = True
 
 
 class RunNotFoundError(KeyError):
@@ -424,6 +469,13 @@ class SimulationRunService:
             run_id=run_id,
             config=config,
             prepared=prepared,
+            default_dsl_version=prepared.default_dsl_version,
+            default_dsl_hash=prepared.default_dsl_hash,
+            aggregate_statistics_version=(
+                prepared.aggregate_statistics.version
+                if prepared.aggregate_statistics is not None
+                else None
+            ),
             evidence_summary=prepared.coefficient_evidence,
             evidence_warnings=list(prepared.evidence_warnings),
             location_ids=list(prepared.initial_location_ids),
@@ -565,6 +617,14 @@ class SimulationRunService:
                     location_transitions=list(
                         frame.location_transitions[frame_agent_index]
                     ),
+                    time_receipts=[
+                        dict(item) for item in frame.time_receipts[frame_agent_index]
+                    ],
+                    daily_time=(
+                        dict(frame.daily_time[frame_agent_index])
+                        if frame.daily_time[frame_agent_index] is not None
+                        else None
+                    ),
                 )
                 for frame in frames
             ]
@@ -633,6 +693,125 @@ class SimulationRunService:
             pages=(total + page_size - 1) // page_size,
         )
 
+    def statistics(
+        self,
+        run_id: str,
+        *,
+        place_level: str | None = None,
+        place_id: str | None = None,
+        day: int | None = None,
+        page: int = 1,
+        page_size: int = 500,
+    ) -> RunAggregatePage:
+        if page < 1 or page_size < 1 or page_size > 1_000:
+            raise ValueError("Statistics page and page size are outside the allowed range")
+        if place_level is not None and place_level not in {"country", "region", "global"}:
+            raise ValueError("Statistics place level must be country, region, or global")
+        if day is not None and day < 1:
+            raise ValueError("Statistics day must be positive")
+        with self._lock:
+            record = self._record(run_id)
+            page_loader = (
+                getattr(self._persistence, "load_aggregate_page", None)
+                if self._persistence is not None and not record.aggregates_loaded
+                else None
+            )
+            if page_loader is not None:
+                payloads, total = page_loader(
+                    run_id,
+                    place_level=place_level,
+                    place_id=place_id,
+                    day=day,
+                    page=page,
+                    page_size=page_size,
+                )
+                if place_level is None and place_id is None and day is None:
+                    record.aggregate_record_count = total
+                return RunAggregatePage(
+                    items=[RunAggregateRecord.model_validate(item) for item in payloads],
+                    total=total,
+                    page=page,
+                    page_size=page_size,
+                    pages=(total + page_size - 1) // page_size,
+                )
+            self._ensure_aggregates_loaded(record)
+            items = [
+                item
+                for item in record.aggregates
+                if (place_level is None or item.place_level == place_level)
+                and (place_id is None or item.place_id == place_id)
+                and (day is None or item.day == day)
+            ]
+        total = len(items)
+        start = (page - 1) * page_size
+        return RunAggregatePage(
+            items=items[start : start + page_size],
+            total=total,
+            page=page,
+            page_size=page_size,
+            pages=(total + page_size - 1) // page_size,
+        )
+
+    def spatial_points(
+        self,
+        run_id: str,
+        *,
+        day: int,
+        tick: int,
+        detail_level: str = "city",
+        north: float,
+        east: float,
+        south: float,
+        west: float,
+        city_ids: Sequence[str] = (),
+        offset: int = 0,
+        limit: int = 20_000,
+    ) -> SpatialPointPage:
+        if detail_level not in {"city", "neighborhood"}:
+            raise ValueError("Spatial detail level must be city or neighborhood")
+        if day < 1 or tick < 1:
+            raise ValueError("Spatial day and tick must be positive")
+        with self._lock:
+            record = self._record(run_id)
+            if day > record.config.days:
+                raise ValueError("Spatial day exceeds the configured run duration")
+            series = record.spatial_snapshots.get(day)
+            if series is None and self._persistence is not None:
+                loader = getattr(self._persistence, "load_spatial_snapshot", None)
+                payload = loader(run_id, day) if loader is not None else None
+                if payload is not None:
+                    if "snapshots" in payload:
+                        series = SpatialSnapshotSeries.model_validate_json(json.dumps(payload))
+                    else:
+                        legacy = SpatialSnapshot.model_validate_json(json.dumps(payload))
+                        series = SpatialSnapshotSeries(
+                            run_id=legacy.run_id,
+                            day=legacy.day,
+                            date=legacy.date,
+                            tick=legacy.tick,
+                            snapshots=(legacy,),
+                        )
+                    record.spatial_snapshots[day] = series
+            if series is None:
+                raise RunNotReadyError(
+                    f"Run {run_id} has no recorded spatial snapshot for day {day}"
+                )
+            snapshot = series.at_tick(tick)
+            if snapshot is None:
+                raise RunNotReadyError(
+                    f"Run {run_id} day {day} has no recorded spatial snapshot at tick {tick}"
+                )
+        return query_spatial_snapshot(
+            snapshot,
+            north=north,
+            east=east,
+            south=south,
+            west=west,
+            city_ids=city_ids,
+            offset=offset,
+            limit=limit,
+        )
+
     def shutdown(self, *, wait: bool = True) -> None:
         self._executor.shutdown(wait=wait, cancel_futures=True)
 
@@ -663,9 +842,13 @@ class SimulationRunService:
             result=record.result if include_result else None,
             error=record.error,
             default_dsl_version=(
-                prepared.default_dsl_version if prepared is not None else None
+                prepared.default_dsl_version
+                if prepared is not None
+                else record.default_dsl_version
             ),
-            default_dsl_hash=prepared.default_dsl_hash if prepared is not None else None,
+            default_dsl_hash=(
+                prepared.default_dsl_hash if prepared is not None else record.default_dsl_hash
+            ),
             evidence_summary=(
                 record.evidence_summary if include_result else empty_evidence_summary()
             ),
@@ -674,6 +857,12 @@ class SimulationRunService:
                 prepared.global_demo_summary
                 if include_result and prepared is not None
                 else None
+            ),
+            aggregate_record_count=record.aggregate_record_count,
+            aggregate_statistics_version=(
+                prepared.aggregate_statistics.version
+                if prepared is not None and prepared.aggregate_statistics is not None
+                else record.aggregate_statistics_version
             ),
         )
 
@@ -708,6 +897,11 @@ class SimulationRunService:
                     "program_version": prepared.program_version,
                     "default_dsl_version": prepared.default_dsl_version,
                     "default_dsl_hash": prepared.default_dsl_hash,
+                    "aggregate_statistics": (
+                        prepared.aggregate_statistics.model_dump(mode="json")
+                        if prepared.aggregate_statistics is not None
+                        else None
+                    ),
                 }
             )
             output_digest = hashlib.sha256()
@@ -723,6 +917,7 @@ class SimulationRunService:
             previous_snapshot_tick = 0
             completed_tick = 0
             daily_output: dict[str, Any] | None = None
+            daily_start_agents: dict[str, Any] | None = None
             accumulated_output: dict[str, Any] | None = None
             while completed_tick < config.total_ticks:
                 with self._lock:
@@ -735,6 +930,8 @@ class SimulationRunService:
                     completed_tick % config.ticks_per_day
                 )
                 chunk_ticks = min(ticks_until_snapshot, MAX_RUST_CHUNK_TICKS)
+                if daily_start_agents is None:
+                    daily_start_agents = deepcopy(request["agents"])
                 request["ticks"] = chunk_ticks
                 output = self._rust_client.run_agents(request)
                 self._validate_output(output, prepared)
@@ -746,7 +943,13 @@ class SimulationRunService:
                 if self._record_interactions is not None:
                     self._record_interactions(
                         run_id,
-                        {"events": output.get("interactions", [])},
+                        {
+                            "events": self._retained_raw_interactions(
+                                output.get("interactions", []),
+                                prepared,
+                                tick,
+                            )
+                        },
                     )
                 if self._record_locations is not None and prepared.location_places:
                     location_state = self._location_state(record, output, prepared, tick)
@@ -773,6 +976,33 @@ class SimulationRunService:
                 day = tick // config.ticks_per_day
                 if daily_output is None:
                     raise ValueError(f"Rust output for day {day} is missing")
+                aggregates = self._daily_aggregates(
+                    run_id,
+                    daily_output,
+                    prepared,
+                    config,
+                    day,
+                    tick,
+                )
+                if daily_start_agents is None:
+                    raise ValueError(f"Rust output for day {day} has no initial agent columns")
+                spatial_snapshot = project_spatial_snapshot_series(
+                    run_id=run_id,
+                    seed=config.seed,
+                    day=day,
+                    current_date=config.start_date + timedelta(days=day - 1),
+                    start_tick=previous_snapshot_tick,
+                    end_tick=tick,
+                    agent_ids=prepared.agent_ids,
+                    profiles=prepared.initial_agent_profiles,
+                    initial_agents=daily_start_agents,
+                    output=daily_output,
+                    modules=request.get("modules", []),
+                    routes=request.get("routes", []),
+                    location_places=prepared.location_places,
+                    initial_location_ids=prepared.initial_location_ids,
+                    runtime_place_location_ids=prepared.runtime_place_location_ids,
+                )
                 frame, summary, events = self._frame(
                     daily_output,
                     prepared,
@@ -785,6 +1015,9 @@ class SimulationRunService:
                     first_event_index = len(record.events)
                     record.agent_ticks.append(frame)
                     record.events.extend(events)
+                    record.aggregates.extend(aggregates)
+                    record.aggregate_record_count = len(record.aggregates)
+                    record.spatial_snapshots[day] = spatial_snapshot
                     summaries.append(summary)
                     frame_index = len(record.agent_ticks) - 1
                 self._persist_checkpoint(
@@ -793,6 +1026,8 @@ class SimulationRunService:
                     frame,
                     first_event_index,
                     events,
+                    aggregates,
+                    spatial_snapshot,
                 )
                 with self._lock:
                     status_changed_during_checkpoint = record.status != "running"
@@ -800,6 +1035,7 @@ class SimulationRunService:
                     self._persist_metadata(record)
                 previous_snapshot_tick = tick
                 daily_output = None
+                daily_start_agents = None
             with self._lock:
                 if record.cancel_requested.is_set():
                     record.status = "cancelled"
@@ -854,6 +1090,7 @@ class SimulationRunService:
         merged = deepcopy(dict(output))
         for field_name in CHUNK_EVENT_FIELDS:
             merged[field_name] = []
+        merged["daily_time"] = []
         return merged
 
     @classmethod
@@ -1017,8 +1254,19 @@ class SimulationRunService:
     def _agent_frames(
         self, record: _RunRecord, agent_index: int
     ) -> tuple[list[_AgentTick], int]:
+        prepared = self._required_prepared(record)
+        agent_id = prepared.agent_ids[agent_index]
         if record.frames_loaded:
-            return record.agent_ticks, agent_index
+            selected = []
+            for frame in record.agent_ticks:
+                if agent_id in frame.agent_ids:
+                    selected.append(self._project_frame(frame, frame.agent_ids.index(agent_id)))
+                elif frame.agent_ids and all(
+                    value.startswith("legacy-agent-") for value in frame.agent_ids
+                ):
+                    if agent_index < len(frame.agent_ids):
+                        selected.append(self._project_frame(frame, agent_index))
+            return selected, 0
         loader = (
             getattr(self._persistence, "load_agent_frames", None)
             if self._persistence is not None
@@ -1026,10 +1274,34 @@ class SimulationRunService:
         )
         if loader is None:
             self._ensure_frames_loaded(record)
-            return record.agent_ticks, agent_index
+            return self._agent_frames(record, agent_index)
         return [
-            self._stored_frame(frame) for frame in loader(record.run_id, agent_index)
+            self._stored_frame(frame) for frame in loader(record.run_id, agent_id)
         ], 0
+
+    @staticmethod
+    def _project_frame(frame: _AgentTick, index: int) -> _AgentTick:
+        return _AgentTick(
+            day=frame.day,
+            date=frame.date,
+            tick=frame.tick,
+            agent_ids=(frame.agent_ids[index],),
+            modules=(frame.modules[index],),
+            states=(frame.states[index],),
+            locations=(frame.locations[index],),
+            memory=(frame.memory[index],),
+            state_receipts=(frame.state_receipts[index],),
+            action_receipts=(frame.action_receipts[index],),
+            actions=(frame.actions[index],),
+            routines=(frame.routines[index],),
+            interactions=(frame.interactions[index],),
+            interaction_details=(frame.interaction_details[index],),
+            decisions=(frame.decisions[index],),
+            location_transitions=(frame.location_transitions[index],),
+            time_receipts=(frame.time_receipts[index],),
+            daily_time=(frame.daily_time[index],),
+            live_places=(),
+        )
 
     def _ensure_events_loaded(self, record: _RunRecord) -> None:
         if record.events_loaded:
@@ -1108,6 +1380,22 @@ class SimulationRunService:
         ]
         record.location_history_loaded = True
 
+    def _ensure_aggregates_loaded(self, record: _RunRecord) -> None:
+        if record.aggregates_loaded:
+            return
+        if self._persistence is None:
+            record.aggregates_loaded = True
+            return
+        loader = getattr(self._persistence, "load_aggregates", None)
+        if loader is None:
+            record.aggregates_loaded = True
+            return
+        record.aggregates = [
+            RunAggregateRecord.model_validate(item) for item in loader(record.run_id)
+        ]
+        record.aggregate_record_count = len(record.aggregates)
+        record.aggregates_loaded = True
+
     def _discard_derived_catalogs(self, run_id: str) -> None:
         for recorder in (self._record_interactions, self._record_locations):
             registry = getattr(recorder, "__self__", None)
@@ -1127,26 +1415,60 @@ class SimulationRunService:
         frame: _AgentTick,
         first_event_index: int,
         events: list[RunEvent],
+        aggregates: list[RunAggregateRecord],
+        spatial_snapshot: SpatialSnapshotSeries,
     ) -> None:
         if self._persistence is None:
             return
+        metadata = {
+            "status": record.status,
+            "progress": record.progress,
+            "completed_ticks": record.completed_ticks,
+            "final_output": self._persisted_final_output(record.final_output),
+            "location_ids": record.location_ids,
+            "location_history": [
+                item.model_dump(mode="json") for item in record.location_history
+            ],
+            "aggregate_record_count": record.aggregate_record_count,
+            "default_dsl_version": record.default_dsl_version,
+            "default_dsl_hash": record.default_dsl_hash,
+            "aggregate_statistics_version": record.aggregate_statistics_version,
+        }
+        frame_payload = self._frame_payload(frame)
+        event_payloads = [event.model_dump(mode="json") for event in events]
+        aggregate_payloads = [item.model_dump(mode="json") for item in aggregates]
+        spatial_payload = spatial_snapshot.model_dump(mode="json")
+        atomic_writer = getattr(
+            self._persistence,
+            "append_checkpoint_with_aggregates",
+            None,
+        )
+        if atomic_writer is not None:
+            atomic_writer(
+                record.run_id,
+                metadata,
+                frame_index,
+                frame_payload,
+                first_event_index,
+                event_payloads,
+                aggregate_payloads,
+                spatial_payload,
+            )
+            return
         self._persistence.append_checkpoint(
             record.run_id,
-            {
-                "status": record.status,
-                "progress": record.progress,
-                "completed_ticks": record.completed_ticks,
-                "final_output": self._persisted_final_output(record.final_output),
-                "location_ids": record.location_ids,
-                "location_history": [
-                    item.model_dump(mode="json") for item in record.location_history
-                ],
-            },
+            metadata,
             frame_index,
-            self._frame_payload(frame),
+            frame_payload,
             first_event_index,
-            [event.model_dump(mode="json") for event in events],
+            event_payloads,
         )
+        aggregate_writer = getattr(self._persistence, "append_aggregates", None)
+        if aggregate_writer is not None:
+            aggregate_writer(record.run_id, aggregate_payloads)
+        spatial_writer = getattr(self._persistence, "append_spatial_snapshot", None)
+        if spatial_writer is not None:
+            spatial_writer(record.run_id, spatial_payload)
 
     @staticmethod
     def _metadata_payload(record: _RunRecord) -> dict[str, Any]:
@@ -1168,6 +1490,7 @@ class SimulationRunService:
             ),
             "location_ids": record.location_ids,
             "location_history": [item.model_dump(mode="json") for item in record.location_history],
+            "aggregate_record_count": record.aggregate_record_count,
         }
 
     @staticmethod
@@ -1179,6 +1502,7 @@ class SimulationRunService:
         persisted = dict(final_output)
         for field_name in CHUNK_EVENT_FIELDS:
             persisted[field_name] = []
+        persisted["daily_time"] = []
         return persisted
 
     @staticmethod
@@ -1187,6 +1511,7 @@ class SimulationRunService:
             "day": frame.day,
             "date": frame.date.isoformat(),
             "tick": frame.tick,
+            "agent_ids": list(frame.agent_ids),
             "modules": list(frame.modules),
             "states": list(frame.states),
             "locations": list(frame.locations),
@@ -1210,6 +1535,12 @@ class SimulationRunService:
             "location_transitions": [
                 [item.model_dump(mode="json") for item in values]
                 for values in frame.location_transitions
+            ],
+            "time_receipts": [
+                [dict(value) for value in values] for values in frame.time_receipts
+            ],
+            "daily_time": [
+                dict(value) if value is not None else None for value in frame.daily_time
             ],
             "live_places": [place.model_dump(mode="json") for place in frame.live_places],
         }
@@ -1263,12 +1594,18 @@ class SimulationRunService:
                 LocationHistoryRecord.model_validate(item)
                 for item in (metadata.get("location_history") or [])
             ],
+            aggregates=[],
+            aggregate_record_count=int(metadata.get("aggregate_record_count", 0)),
+            default_dsl_version=metadata.get("default_dsl_version"),
+            default_dsl_hash=metadata.get("default_dsl_hash"),
+            aggregate_statistics_version=metadata.get("aggregate_statistics_version"),
             frames_loaded=frames_loaded,
             events_loaded=events_loaded,
             final_output_loaded=final_output_loaded,
             prepared_loaded=prepared_loaded,
             result_loaded=result_loaded,
             location_history_loaded=location_history_loaded,
+            aggregates_loaded=frames_loaded,
         )
 
     @classmethod
@@ -1290,6 +1627,13 @@ class SimulationRunService:
             day=int(payload["day"]),
             date=date.fromisoformat(str(payload["date"])),
             tick=int(payload["tick"]),
+            agent_ids=tuple(
+                str(value)
+                for value in payload.get(
+                    "agent_ids",
+                    [f"legacy-agent-{index}" for index in range(agent_count)],
+                )
+            ),
             modules=tuple(str(value) for value in payload["modules"]),
             states=tuple(str(value) for value in payload["states"]),
             locations=tuple(str(value) for value in payload["locations"]),
@@ -1323,6 +1667,18 @@ class SimulationRunService:
             location_transitions=tuple(
                 tuple(LocationTransitionStep.model_validate(value) for value in row)
                 for row in payload["location_transitions"]
+            ),
+            time_receipts=tuple(
+                tuple(dict(value) for value in values)
+                for values in payload.get(
+                    "time_receipts", [[] for _ in range(agent_count)]
+                )
+            ),
+            daily_time=tuple(
+                dict(value) if value is not None else None
+                for value in payload.get(
+                    "daily_time", [None for _ in range(agent_count)]
+                )
             ),
             live_places=tuple(
                 LocationLivePlaceState.model_validate(value)
@@ -1367,15 +1723,16 @@ class SimulationRunService:
             if before == after:
                 continue
             moved_agents.add(agent_index)
-            record.location_history.append(
-                LocationHistoryRecord(
-                    tick=event_tick,
-                    agent_id=prepared.agent_ids[agent_index],
-                    from_location_id=before,
-                    to_location_id=after,
-                    route_location_ids=cls._location_route(registry, before, after),
+            if cls._timeline_history_enabled(prepared, agent_index, event_tick):
+                record.location_history.append(
+                    LocationHistoryRecord(
+                        tick=event_tick,
+                        agent_id=prepared.agent_ids[agent_index],
+                        from_location_id=before,
+                        to_location_id=after,
+                        route_location_ids=cls._location_route(registry, before, after),
+                    )
                 )
-            )
         current: list[str] = []
         for index, runtime_place in enumerate(columns["place"]):
             runtime_place_index = int(runtime_place)
@@ -1383,15 +1740,16 @@ class SimulationRunService:
         for index, (before, after) in enumerate(zip(previous, current, strict=True)):
             if before == after or index in moved_agents:
                 continue
-            record.location_history.append(
-                LocationHistoryRecord(
-                    tick=tick,
-                    agent_id=prepared.agent_ids[index],
-                    from_location_id=before,
-                    to_location_id=after,
-                    route_location_ids=cls._location_route(registry, before, after),
+            if cls._timeline_history_enabled(prepared, index, tick):
+                record.location_history.append(
+                    LocationHistoryRecord(
+                        tick=tick,
+                        agent_id=prepared.agent_ids[index],
+                        from_location_id=before,
+                        to_location_id=after,
+                        route_location_ids=cls._location_route(registry, before, after),
+                    )
                 )
-            )
         record.location_ids = current
         return LocationRuntimeState(
             agents=LocationAgentColumns(
@@ -1401,6 +1759,18 @@ class SimulationRunService:
             history=tuple(record.location_history),
             live_places=cls._live_places(output, prepared),
         )
+
+    @staticmethod
+    def _timeline_history_enabled(
+        prepared: PreparedRustRun,
+        agent_index: int,
+        tick: int,
+    ) -> bool:
+        if not prepared.initial_agent_profiles:
+            return True
+        starts = timeline_start_ticks(prepared.aggregate_statistics)
+        agent_id = prepared.agent_ids[agent_index]
+        return agent_id in starts and tick >= starts[agent_id]
 
     @staticmethod
     def _location_route(
@@ -1519,6 +1889,96 @@ class SimulationRunService:
         if prepared.location_places:
             cls._live_places(output, prepared)
 
+    @staticmethod
+    def _daily_aggregates(
+        run_id: str,
+        output: Mapping[str, Any],
+        prepared: PreparedRustRun,
+        config: SimulationRunConfig,
+        day: int,
+        tick: int,
+    ) -> list[RunAggregateRecord]:
+        program = prepared.aggregate_statistics
+        if program is None or not prepared.initial_agent_profiles:
+            return []
+        return collect_daily_aggregate_statistics(
+            run_id=run_id,
+            program=program,
+            agent_ids=prepared.agent_ids,
+            profiles=prepared.initial_agent_profiles,
+            output=output,
+            day=day,
+            current_date=config.start_date + timedelta(days=day - 1),
+            tick=tick,
+            location_places=prepared.location_places,
+            initial_location_ids=prepared.initial_location_ids,
+            runtime_place_location_ids=prepared.runtime_place_location_ids,
+        )
+
+    @staticmethod
+    def _timeline_events(
+        events: Sequence[RunEvent],
+        start_ticks: Mapping[str, int],
+    ) -> list[RunEvent]:
+        retained = []
+        for event in events:
+            if not event.agent_ids:
+                retained.append(event)
+                continue
+            active_ids = [
+                agent_id
+                for agent_id in event.agent_ids
+                if agent_id in start_ticks and event.tick >= start_ticks[agent_id]
+            ]
+            if not active_ids:
+                continue
+            details = dict(event.details)
+            for field_name in (
+                "agent_index",
+                "agent_indices",
+                "source_agent_index",
+                "initiator_index",
+                "target_agent_index",
+                "target_index",
+                "actor_index",
+                "counterpart_index",
+            ):
+                details.pop(field_name, None)
+            retained.append(
+                event.model_copy(
+                    update={
+                        "agent_ids": (
+                            event.agent_ids if event.kind == "interaction" else active_ids
+                        ),
+                        "details": details,
+                    }
+                )
+            )
+        return retained
+
+    @classmethod
+    def _retained_raw_interactions(
+        cls,
+        raw_interactions: Any,
+        prepared: PreparedRustRun,
+        tick: int,
+    ) -> list[dict[str, Any]]:
+        interactions = cls._list_of_mappings(raw_interactions)
+        if not prepared.initial_agent_profiles:
+            return [dict(item) for item in interactions]
+        start_ticks = timeline_start_ticks(prepared.aggregate_statistics)
+        retained = []
+        for item in interactions:
+            indices = cls._interaction_agent_indices(item, len(prepared.agent_ids))
+            event_tick = int(item.get("tick", tick))
+            if any(
+                prepared.agent_ids[index] in start_ticks
+                and event_tick >= start_ticks[prepared.agent_ids[index]]
+                for index in indices
+            ):
+                retained.append(dict(item))
+        return retained
+
     @classmethod
     def _frame(
         cls,
@@ -1548,15 +2008,66 @@ class SimulationRunService:
             previous_tick,
             tick,
         )
-        actions: list[list[str]] = [[] for _ in states]
-        action_receipts: list[list[dict[str, Any]]] = [[] for _ in states]
-        routines: list[list[str]] = [[] for _ in states]
-        interactions: list[list[str]] = [[] for _ in states]
-        interaction_details: list[list[AgentInteractionDetail]] = [[] for _ in states]
-        decisions: list[list[DecisionPathStep]] = [[] for _ in states]
-        location_transitions: list[list[LocationTransitionStep]] = [[] for _ in states]
-        id_indices = {agent_id: index for index, agent_id in enumerate(prepared.agent_ids)}
-        for event in events:
+        if prepared.initial_agent_profiles:
+            retained_ids = timeline_agent_ids(
+                prepared.aggregate_statistics,
+                prepared.initial_agent_profiles,
+            )
+            retained_start_ticks = timeline_start_ticks(prepared.aggregate_statistics)
+            retained_indices = [
+                index
+                for index, agent_id in enumerate(prepared.agent_ids)
+                if agent_id in retained_ids
+                and tick >= retained_start_ticks.get(agent_id, tick + 1)
+            ]
+            retained_events = cls._timeline_events(events, retained_start_ticks)
+        else:
+            retained_indices = list(range(len(states)))
+            retained_start_ticks = {}
+            retained_events = events
+        timeline_count = len(retained_indices)
+        actions: list[list[str]] = [[] for _ in range(timeline_count)]
+        action_receipts: list[list[dict[str, Any]]] = [
+            [] for _ in range(timeline_count)
+        ]
+        routines: list[list[str]] = [[] for _ in range(timeline_count)]
+        interactions: list[list[str]] = [[] for _ in range(timeline_count)]
+        interaction_details: list[list[AgentInteractionDetail]] = [
+            [] for _ in range(timeline_count)
+        ]
+        decisions: list[list[DecisionPathStep]] = [[] for _ in range(timeline_count)]
+        location_transitions: list[list[LocationTransitionStep]] = [
+            [] for _ in range(timeline_count)
+        ]
+        time_receipts: list[list[dict[str, Any]]] = [
+            [] for _ in range(timeline_count)
+        ]
+        daily_time: list[dict[str, Any] | None] = [None for _ in range(timeline_count)]
+        retained_positions = {
+            agent_index: timeline_index
+            for timeline_index, agent_index in enumerate(retained_indices)
+        }
+        for receipt in cls._list_of_mappings(output.get("time_ticks", [])):
+            receipt_tick = int(receipt.get("tick", -1))
+            agent_index = int(receipt.get("agent_index", -1))
+            timeline_index = retained_positions.get(agent_index)
+            if (
+                timeline_index is not None
+                and previous_tick < receipt_tick <= tick
+                and receipt_tick
+                >= retained_start_ticks.get(prepared.agent_ids[agent_index], 1)
+            ):
+                time_receipts[timeline_index].append(dict(receipt))
+        for accounting in cls._list_of_mappings(output.get("daily_time", [])):
+            agent_index = int(accounting.get("agent_index", -1))
+            timeline_index = retained_positions.get(agent_index)
+            if timeline_index is not None and int(accounting.get("day_index", -1)) == day - 1:
+                daily_time[timeline_index] = dict(accounting)
+        id_indices = {
+            prepared.agent_ids[agent_index]: timeline_index
+            for timeline_index, agent_index in enumerate(retained_indices)
+        }
+        for event in retained_events:
             if event.kind == "transition":
                 for agent_id in event.agent_ids:
                     index = id_indices.get(agent_id)
@@ -1639,16 +2150,26 @@ class SimulationRunService:
                 if previous_tick < int(item.get("tick", -1)) <= tick
             ],
             len(states),
+            retained_indices,
         )
         frame = _AgentTick(
             day=day,
             date=config.start_date + timedelta(days=day - 1),
             tick=tick,
-            modules=modules,
-            states=states,
-            locations=locations,
-            memory=memory,
-            state_receipts=state_receipts,
+            agent_ids=tuple(prepared.agent_ids[index] for index in retained_indices),
+            modules=tuple(modules[index] for index in retained_indices),
+            states=tuple(states[index] for index in retained_indices),
+            locations=tuple(locations[index] for index in retained_indices),
+            memory=tuple(memory[index] for index in retained_indices),
+            state_receipts=tuple(
+                tuple(
+                    receipt
+                    for receipt in state_receipts[timeline_index]
+                    if int(receipt.get("tick", tick))
+                    >= retained_start_ticks.get(prepared.agent_ids[agent_index], 1)
+                )
+                for timeline_index, agent_index in enumerate(retained_indices)
+            ),
             action_receipts=tuple(tuple(values) for values in action_receipts),
             actions=tuple(tuple(values) for values in actions),
             routines=tuple(tuple(values) for values in routines),
@@ -1656,6 +2177,8 @@ class SimulationRunService:
             interaction_details=tuple(tuple(values) for values in interaction_details),
             decisions=tuple(tuple(values) for values in decisions),
             location_transitions=tuple(tuple(values) for values in location_transitions),
+            time_receipts=tuple(tuple(values) for values in time_receipts),
+            daily_time=tuple(daily_time),
             live_places=live_places,
         )
         summary = SnapshotSummary(
@@ -1671,21 +2194,29 @@ class SimulationRunService:
             event_count=sum(event.kind in {"action", "routine"} for event in events),
             interaction_count=sum(event.kind == "interaction" for event in events),
         )
-        return frame, summary, events
+        return frame, summary, retained_events
 
     @classmethod
     def _state_receipts_by_agent(
         cls,
         receipts: Sequence[Mapping[str, Any]],
         agent_count: int,
+        selected_agent_indices: Sequence[int] | None = None,
     ) -> tuple[tuple[dict[str, Any], ...], ...]:
-        result: list[list[dict[str, Any]]] = [[] for _ in range(agent_count)]
+        selected = (
+            list(range(agent_count))
+            if selected_agent_indices is None
+            else list(selected_agent_indices)
+        )
+        if any(index < 0 or index >= agent_count for index in selected):
+            raise ValueError("State receipt selection references an invalid agent")
+        result: list[list[dict[str, Any]]] = [[] for _ in selected]
         for receipt in receipts:
             effects = cls._list_of_mappings(receipt.get("event_effects", []))
             changes = cls._list_of_mappings(receipt.get("agent_state_changes", []))
             finance_changes = cls._list_of_mappings(receipt.get("finance_changes", []))
             rules = cls._list_of_mappings(receipt.get("state_rules", []))
-            for agent_index in range(agent_count):
+            for result_index, agent_index in enumerate(selected):
                 agent_effects = [
                     dict(effect)
                     for effect in effects
@@ -1725,7 +2256,7 @@ class SimulationRunService:
                 if agent_finance_changes and receipt.get("finance_formula") is not None:
                     projected["finance_formula"] = str(receipt["finance_formula"])
                 if agent_effects or agent_changes or agent_finance_changes:
-                    result[agent_index].append(projected)
+                    result[result_index].append(projected)
         return tuple(tuple(values) for values in result)
 
     @classmethod

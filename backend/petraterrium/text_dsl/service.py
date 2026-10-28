@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import gzip
+import hashlib
+import json
+import os
+import tempfile
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from ..rust_core import RustCoreClient
+from .models import (
+    TextDslDiagnostic,
+    TextDslDocument,
+    TextDslReport,
+    TextDslReportDelta,
+    TextDslReportValue,
+    TextDslRunRequest,
+    TextDslRunResult,
+    TextDslRunSummary,
+    TextDslValidation,
+)
+
+
+def default_text_dsl_root() -> Path:
+    configured = os.getenv("PETRATERRIUM_TEXT_DSL_ROOT")
+    if configured:
+        return Path(configured).expanduser()
+    return Path(__file__).resolve().parents[2] / "data" / "text_dsl"
+
+
+def shipped_text_dsl_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "engine-rust" / "dsl" / "default.dsl"
+
+
+class TextDslService:
+    def __init__(
+        self,
+        rust: RustCoreClient | None = None,
+        root: Path | None = None,
+        default_path: Path | None = None,
+    ):
+        self.rust = rust or RustCoreClient()
+        self.root = Path(root or default_text_dsl_root())
+        self.default_path = Path(default_path or shipped_text_dsl_path())
+        self.active_path = self.root / "active.dsl"
+        self.metadata_path = self.root / "active.json"
+        self.runs_path = self.root / "runs"
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.runs_path.mkdir(parents=True, exist_ok=True)
+
+    def current(self) -> TextDslDocument:
+        code = self._code()
+        metadata = self._metadata()
+        return TextDslDocument(
+            code=code,
+            source_hash=self._hash(code),
+            saved_at=metadata.get("saved_at"),
+            validation=self.validate(code),
+        )
+
+    def validate(self, code: str) -> TextDslValidation:
+        result = self.rust.validate_text_dsl(code)
+        diagnostics = tuple(
+            TextDslDiagnostic.model_validate(value)
+            for value in result.get("diagnostics", [])
+        )
+        return TextDslValidation(
+            valid=bool(result.get("valid")),
+            program_id=result.get("program_id"),
+            version=result.get("version"),
+            tick_hours=result.get("tick_hours"),
+            adult_population=result.get("adult_population"),
+            diagnostics=diagnostics,
+        )
+
+    def save(self, code: str, expected_hash: str) -> TextDslDocument:
+        current = self.current()
+        if current.source_hash != expected_hash:
+            raise ValueError("DSL source changed; reload before saving")
+        validation = self.validate(code)
+        if not validation.valid:
+            raise ValueError("DSL has validation errors")
+        saved_at = datetime.now(UTC).isoformat()
+        self._write(self.active_path, code)
+        self._write(
+            self.metadata_path,
+            json.dumps(
+                {"source_hash": self._hash(code), "saved_at": saved_at},
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+        return TextDslDocument(
+            code=code,
+            source_hash=self._hash(code),
+            saved_at=saved_at,
+            validation=validation,
+        )
+
+    def reset(self) -> TextDslDocument:
+        self.active_path.unlink(missing_ok=True)
+        self.metadata_path.unlink(missing_ok=True)
+        return self.current()
+
+    def run(self, request: TextDslRunRequest) -> TextDslRunResult:
+        document = self.current()
+        if not document.validation.valid:
+            raise ValueError("DSL has validation errors")
+        tick_hours = document.validation.tick_hours or 1
+        ticks = round(request.days * 24 / tick_hours)
+        result = self.rust.run_text_dsl(
+            document.code,
+            seed=request.seed,
+            ticks=ticks,
+        )
+        run_id = uuid.uuid4().hex
+        created_at = datetime.now(UTC).isoformat()
+        reports = tuple(
+            TextDslReport.model_validate(report)
+            for report in result.get("reports", [])
+        )
+        baseline = (
+            self.get_run(request.baseline_run_id)
+            if request.baseline_run_id is not None
+            else None
+        )
+        agents = result.get("state", {}).get("agents", [])
+        adult_population = document.validation.adult_population or 0
+        response = TextDslRunResult(
+            run_id=run_id,
+            source_hash=document.source_hash,
+            seed=request.seed,
+            days=request.days,
+            ticks=ticks,
+            adult_population=adult_population,
+            total_agents=len(agents),
+            generated_children=max(0, len(agents) - adult_population),
+            results_title=str(result.get("results_title", "Results")),
+            results_subtitle=str(result.get("results_subtitle", "")),
+            reports=reports,
+            comparison=self._comparison(reports, baseline.reports if baseline else ()),
+            engine_version=str(result.get("engine_version", "unknown")),
+            created_at=created_at,
+            raw_result=result,
+        )
+        self._persist(response, result)
+        return response
+
+    def list_runs(self) -> tuple[TextDslRunSummary, ...]:
+        result = []
+        for path in sorted(self.runs_path.glob("*.json.gz"), reverse=True):
+            payload = self._read_run(path)
+            result.append(TextDslRunSummary.model_validate(payload["summary"]))
+        return tuple(result)
+
+    def get_run(self, run_id: str) -> TextDslRunResult:
+        path = self.runs_path / f"{run_id}.json.gz"
+        if not path.exists():
+            raise KeyError(run_id)
+        return TextDslRunResult.model_validate(self._read_run(path)["view"])
+
+    def _persist(self, view: TextDslRunResult, raw: dict[str, Any]) -> None:
+        summary = TextDslRunSummary(
+            run_id=view.run_id,
+            source_hash=view.source_hash,
+            seed=view.seed,
+            days=view.days,
+            ticks=view.ticks,
+            total_agents=view.total_agents,
+            created_at=view.created_at,
+        )
+        payload = {
+            "summary": summary.model_dump(mode="json"),
+            "view": view.model_dump(mode="json"),
+            "raw": raw,
+        }
+        path = self.runs_path / f"{view.run_id}.json.gz"
+        with gzip.open(path, "wt", encoding="utf-8") as handle:
+            json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+
+    def _read_run(self, path: Path) -> dict[str, Any]:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    @staticmethod
+    def _comparison(
+        current: tuple[TextDslReport, ...],
+        baseline: tuple[TextDslReport, ...],
+    ) -> tuple[TextDslReportDelta, ...]:
+        baseline_reports = {report.id: report for report in baseline}
+        result = []
+        for report in current:
+            previous_report = baseline_reports.get(report.id)
+            if not report.snapshots or previous_report is None or not previous_report.snapshots:
+                continue
+            previous_rows = {
+                row.group_id: row for row in previous_report.snapshots[-1].rows
+            }
+            for row in report.snapshots[-1].rows:
+                previous = previous_rows.get(row.group_id)
+                if previous is None:
+                    continue
+                values = {
+                    key: delta
+                    for key, value in row.values.items()
+                    if key in previous.values
+                    and (delta := TextDslService._value_delta(value, previous.values[key]))
+                    is not None
+                }
+                result.append(
+                    TextDslReportDelta(
+                        report_id=report.id,
+                        group_id=row.group_id,
+                        values=values,
+                    )
+                )
+        return tuple(result)
+
+    @staticmethod
+    def _value_delta(
+        current: TextDslReportValue,
+        baseline: TextDslReportValue,
+    ) -> TextDslReportValue | None:
+        if isinstance(current, (int, float)) and isinstance(baseline, (int, float)):
+            return float(current) - float(baseline)
+        if isinstance(current, dict) and isinstance(baseline, dict):
+            keys = current.keys() | baseline.keys()
+            return {
+                key: float(current.get(key, 0)) - float(baseline.get(key, 0))
+                for key in sorted(keys)
+            }
+        return None
+
+    def _code(self) -> str:
+        path = self.active_path if self.active_path.exists() else self.default_path
+        return path.read_text(encoding="utf-8")
+
+    def _metadata(self) -> dict[str, Any]:
+        if not self.metadata_path.exists():
+            return {}
+        return json.loads(self.metadata_path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _hash(code: str) -> str:
+        return "sha256:" + hashlib.sha256(code.encode()).hexdigest()
+
+    @staticmethod
+    def _write(path: Path, value: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=path.name, dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(value)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)

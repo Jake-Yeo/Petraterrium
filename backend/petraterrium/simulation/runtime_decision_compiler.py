@@ -888,7 +888,7 @@ def _evaluate_coefficient_module(
             f"decision module {module.id!r} edges"
         )
     outgoing_sources = {edge.from_node for edge in module.edges}
-    if len(outgoing_sources) != 1:
+    if len(outgoing_sources) != 1 and not all(edge.runtime_rules for edge in module.edges):
         raise RuntimeDecisionCompilationError(
             f"Default/fitted coefficient action {module.id!r} must contain one decision node"
         )
@@ -898,6 +898,11 @@ def _evaluate_coefficient_module(
             "from_state": edge.from_node,
             "to_state": edge.to_node,
             "rules": [
+                {**rule, "provenance": _coefficient_provenance(resolution, edge.id)}
+                for rule in edge.runtime_rules
+            ]
+            if edge.runtime_rules
+            else [
                 {
                     "conditions": [],
                     "probability": resolution.coefficients[edge.id],
@@ -920,7 +925,11 @@ def _evaluate_coefficient_module(
             source_place=resolution.source_place,
             resolution_status=resolution_status,
             evidence_state=resolution.evidence_state,
-            value=resolution.coefficients[edge.id],
+            value=(
+                edge.runtime_rules[0]["probability"]
+                if edge.runtime_rules
+                else resolution.coefficients[edge.id]
+            ),
             interval=resolution.intervals[edge.id],
             coefficient_set_id=resolution.coefficient_set_id,
             default_coefficient_set_id=resolution.default_coefficient_set_id,
@@ -987,7 +996,14 @@ def _compile_agent_program(
                 agent,
                 coefficient_registry,
             )
-            inputs: list[str] = []
+            inputs = sorted(
+                {
+                    condition["input"]
+                    for transition in transitions
+                    for rule in transition["rules"]
+                    for condition in rule["conditions"]
+                }
+            )
         else:
             template, evidence_edge_ids = _module_evidence_binding(
                 tree.id,
@@ -1016,6 +1032,14 @@ def _compile_agent_program(
     runtime_modules = []
     runtime_by_source: dict[str, str] = {}
     for _tree, module, transitions, profile, inputs, _receipts in compiled:
+        actions_by_node = {
+            node.id: node.action_id
+            for node in module.nodes
+            if node.kind == "action" and node.action_id is not None
+        }
+        for transition in transitions:
+            if transition["to_state"] in actions_by_node:
+                transition["action_id"] = actions_by_node[transition["to_state"]]
         module_id = _runtime_identifier(
             "decision",
             f"{program_id}:{module.id}:{profile}",

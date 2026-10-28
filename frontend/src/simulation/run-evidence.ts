@@ -1,6 +1,6 @@
 import './run-evidence.css';
 
-export type CoefficientEvidenceState = 'fitted' | 'default_estimated' | 'blocked';
+export type CoefficientEvidenceState = 'measured' | 'fitted' | 'default_estimated' | 'blocked';
 
 export interface CoefficientPlace {
   level: 'global' | 'region' | 'country' | 'city';
@@ -40,6 +40,7 @@ export interface ActionPlaceEvidenceSummary {
   action_id: string;
   place: CoefficientPlace;
   fitted_count: number;
+  measured_count?: number;
   default_estimated_count: number;
   blocked_count: number;
   coefficients: CoefficientReceipt[];
@@ -47,6 +48,7 @@ export interface ActionPlaceEvidenceSummary {
 
 export interface RunEvidenceSummary {
   fitted_count: number;
+  measured_count?: number;
   default_estimated_count: number;
   blocked_count: number;
   by_action_place: ActionPlaceEvidenceSummary[];
@@ -69,7 +71,10 @@ const escapeHtml = (value: unknown): string =>
     .replaceAll("'", '&#039;');
 
 const titleCase = (value: string): string =>
-  value.replaceAll('_', ' ').replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  value
+    .replaceAll('_', ' ')
+    .replaceAll('-', ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const percentage = (value: number): string =>
   value.toLocaleString('en', { style: 'percent', maximumFractionDigits: 2 });
@@ -100,13 +105,15 @@ export function runEvidenceMarkup(
   if (!summary) return '';
   const groups = summary.by_action_place
     .map(
-      (group) => `<details class="run-evidence-group" open><summary><span><strong>${escapeHtml(titleCase(group.action_id))}</strong><small>${escapeHtml(titleCase(group.place.level))} · ${escapeHtml(group.place.place_id)}</small></span><span>${group.default_estimated_count.toLocaleString('en')} default · ${group.fitted_count.toLocaleString('en')} fitted</span></summary><div>${group.coefficients.map(receiptMarkup).join('')}</div></details>`,
+      (group) =>
+        `<details class="run-evidence-group" open><summary><span><strong>${escapeHtml(titleCase(group.action_id))}</strong><small>${escapeHtml(titleCase(group.place.level))} · ${escapeHtml(group.place.place_id)}</small></span><span>${group.default_estimated_count.toLocaleString('en')} default · ${(group.measured_count ?? 0).toLocaleString('en')} measured · ${group.fitted_count.toLocaleString('en')} fitted</span></summary><div>${group.coefficients.map(receiptMarkup).join('')}</div></details>`,
     )
     .join('');
   const warningMarkup = (warnings ?? [])
     .map(
-      (warning) => `<li><strong>${escapeHtml(titleCase(warning.action_id))} · ${escapeHtml(warning.place.place_id)}</strong><span>${escapeHtml(warning.message)}</span></li>`,
+      (warning) =>
+        `<li><strong>${escapeHtml(titleCase(warning.action_id))} · ${escapeHtml(warning.place.place_id)}</strong><span>${escapeHtml(warning.message)}</span></li>`,
     )
     .join('');
-  return `<section class="run-evidence" role="region" aria-label="Run coefficient evidence"><header><div><span class="small-label">EXECUTION EVIDENCE</span><h3>Coefficient evidence</h3></div><div class="run-evidence-counts"><strong>${summary.default_estimated_count.toLocaleString('en')} default / estimated</strong><span>${summary.fitted_count.toLocaleString('en')} fitted</span>${summary.blocked_count ? `<span class="is-blocked">${summary.blocked_count.toLocaleString('en')} blocked</span>` : ''}</div></header>${warningMarkup ? `<ul class="run-evidence-warnings">${warningMarkup}</ul>` : ''}<div class="run-evidence-groups">${groups || '<p>No action coefficients were used by this run.</p>'}</div></section>`;
+  return `<section class="run-evidence" role="region" aria-label="Run coefficient evidence"><header><div><span class="small-label">EXECUTION EVIDENCE</span><h3>Coefficient evidence</h3></div><div class="run-evidence-counts"><strong>${summary.default_estimated_count.toLocaleString('en')} default / estimated</strong><span>${(summary.measured_count ?? 0).toLocaleString('en')} measured</span><span>${summary.fitted_count.toLocaleString('en')} fitted</span>${summary.blocked_count ? `<span class="is-blocked">${summary.blocked_count.toLocaleString('en')} blocked</span>` : ''}</div></header>${warningMarkup ? `<ul class="run-evidence-warnings">${warningMarkup}</ul>` : ''}<div class="run-evidence-groups">${groups || '<p>No action coefficients were used by this run.</p>'}</div></section>`;
 }

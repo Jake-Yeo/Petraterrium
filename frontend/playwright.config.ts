@@ -24,6 +24,7 @@ export default defineConfig({
         PETRATERRIUM_SIMULATION_REGISTRY_PATH: resolve('.playwright/simulation-registry.json'),
         PETRATERRIUM_SIMULATION_RUNS_PATH: resolve('.playwright/simulation-runs.sqlite3'),
         PETRATERRIUM_AI_SETTINGS_PATH: resolve('.playwright/ai-settings.json'),
+        PETRATERRIUM_TEXT_DSL_ROOT: resolve('.playwright/text-dsl'),
         PETRATERRIUM_RESEARCH_FIXTURE: resolve('tests/fixtures/research-empty.json'),
       },
     },

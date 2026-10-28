@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .agent_types import ConfirmedAgentTypeRegistry
+from .aggregate_statistics import AggregateStatisticsProgram
 from .finance_initialization import FinanceInitializationCatalog
 from .interaction_trees import InteractionTreeDefinition
 from .interactions import InteractionProgramDefinition
@@ -65,29 +66,78 @@ class DefaultSourceRecord(DefaultDslModel):
 
 
 class DefaultDurationDistribution(DefaultDslModel):
-    minimum_minutes: int = Field(ge=1)
-    typical_minutes: int = Field(ge=1)
-    maximum_minutes: int = Field(ge=1)
+    duration_min_hours: float = Field(ge=0, le=168, allow_inf_nan=False)
+    duration_median_hours: float = Field(gt=0, le=168, allow_inf_nan=False)
+    duration_max_hours: float = Field(gt=0, le=168, allow_inf_nan=False)
     shape: Literal["triangular", "uniform", "lognormal"]
+    shape_parameters: dict[str, float] = Field(default_factory=dict)
+    evidence: DefaultEvidence | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_minute_fields(cls, value):
+        if not isinstance(value, dict):
+            return value
+        migrated = dict(value)
+        if "minimum_minutes" in migrated:
+            migrated["duration_min_hours"] = migrated.pop("minimum_minutes") / 60
+            migrated["duration_median_hours"] = migrated.pop("typical_minutes") / 60
+            migrated["duration_max_hours"] = migrated.pop("maximum_minutes") / 60
+        evidence = migrated.get("evidence")
+        if isinstance(evidence, dict) and isinstance(evidence.get("source_ids"), list):
+            migrated["evidence"] = {
+                **evidence,
+                "source_ids": tuple(evidence["source_ids"]),
+            }
+        return migrated
 
     @model_validator(mode="after")
     def ordered_duration(self):
-        if not self.minimum_minutes <= self.typical_minutes <= self.maximum_minutes:
+        if not (self.duration_min_hours <= self.duration_median_hours <= self.duration_max_hours):
             raise ValueError("Default action duration bounds must be ordered")
+        if self.duration_max_hours <= self.duration_min_hours:
+            raise ValueError("Default action duration must be a non-fixed range")
+        if (
+            self.shape == "uniform"
+            and abs(
+                self.duration_median_hours - (self.duration_min_hours + self.duration_max_hours) / 2
+            )
+            > 1e-9
+        ):
+            raise ValueError("Uniform duration median must be the midpoint")
+        if self.shape == "lognormal" and self.shape_parameters.get("sigma", 0) <= 0:
+            raise ValueError("Lognormal duration requires a positive sigma")
         return self
 
 
 class DefaultEvidence(DefaultDslModel):
-    status: Literal["default_estimated"]
+    status: Literal["default_estimated", "measured"]
     explicit_default_reason: str = Field(min_length=1)
     uncertainty_low: float = Field(ge=0, le=1)
     uncertainty_high: float = Field(ge=0, le=1)
     source_ids: tuple[str, ...] = ()
+    editable_provenance: dict | None = None
 
     @model_validator(mode="after")
     def ordered_uncertainty(self):
         if self.uncertainty_low > self.uncertainty_high:
             raise ValueError("Default evidence uncertainty bounds must be ordered")
+        return self
+
+
+class DefaultDurationResolution(DefaultDslModel):
+    id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    place_level: Literal["city", "country", "region", "global"]
+    place_ids: tuple[str, ...] = Field(min_length=1)
+    agent_type_ids: tuple[str, ...] = ()
+    duration: DefaultDurationDistribution
+
+    @model_validator(mode="after")
+    def unique_selectors(self):
+        if len(set(self.place_ids)) != len(self.place_ids):
+            raise ValueError("Duration resolution place ids must be unique")
+        if len(set(self.agent_type_ids)) != len(self.agent_type_ids):
+            raise ValueError("Duration resolution agent type ids must be unique")
         return self
 
 
@@ -101,11 +151,14 @@ class DefaultRuntimeCondition(DefaultDslModel):
     input: str = Field(min_length=1)
     operator: Literal["eq", "ne", "gt", "gte", "lt", "lte"]
     value: float
+    categorical_value: str | None = None
 
 
 class DefaultRuntimeRule(DefaultDslModel):
     conditions: tuple[DefaultRuntimeCondition, ...] = ()
     probability: float = Field(ge=0, le=1)
+    evidence: DefaultEvidence | None = None
+    probability_time_unit_hours: float | None = Field(default=None, gt=0)
 
 
 class DefaultCashFlowFormula(DefaultDslModel):
@@ -153,6 +206,13 @@ class DefaultActionDefinition(DefaultDslModel):
     name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     duration: DefaultDurationDistribution
+    duration_resolutions: tuple[DefaultDurationResolution, ...] = ()
+    category: str = Field(default="other", min_length=1)
+    priority: int = 0
+    passive: bool = False
+    interruptibility: Literal["interruptible", "protected", "uninterruptible"] = "interruptible"
+    interruption_outcome: Literal["defer", "cancel"] = "defer"
+    emergency_interruptions: tuple[str, ...] = ()
     formula: str = Field(min_length=1)
     conditions: tuple[str, ...]
     place_requirements: tuple[str, ...]
@@ -184,10 +244,7 @@ class DefaultFinanceLedgerRule(DefaultDslModel):
     def valid_rule(self):
         if self.minimum is not None and self.maximum is not None and self.minimum > self.maximum:
             raise ValueError("Finance ledger-rule bounds must be ordered")
-        if any(
-            not name.startswith(("finance.", "cash_flow."))
-            for name in self.terms
-        ):
+        if any(not name.startswith(("finance.", "cash_flow.")) for name in self.terms):
             raise ValueError("Finance ledger-rule terms must name finance or cash-flow inputs")
         return self
 
@@ -299,8 +356,7 @@ def _condition_signature(
 ) -> tuple[tuple[str, str, float], ...]:
     return tuple(
         sorted(
-            (condition.input, condition.operator, condition.value)
-            for condition in rule.conditions
+            (condition.input, condition.operator, condition.value) for condition in rule.conditions
         )
     )
 
@@ -317,9 +373,7 @@ def _validate_exclusive_action_choices(
             raise ValueError(
                 f"Exclusive action choice group {group!r} requires at least two branches"
             )
-        probability_by_action: dict[
-            str, dict[tuple[tuple[str, str, float], ...], float]
-        ] = {}
+        probability_by_action: dict[str, dict[tuple[tuple[str, str, float], ...], float]] = {}
         for action in branches:
             if not action.runtime_rules:
                 raise ValueError(
@@ -345,8 +399,7 @@ def _validate_exclusive_action_choices(
             )
         for signature in expected_signatures:
             total = sum(
-                probabilities[signature]
-                for probabilities in probability_by_action.values()
+                probabilities[signature] for probabilities in probability_by_action.values()
             )
             if abs(total - 1.0) > 1e-9:
                 raise ValueError(
@@ -368,13 +421,27 @@ def _canonical_hash(value: Any) -> str:
 
 def _resolve_self_hash(value: Any, content_hash: str) -> Any:
     if isinstance(value, dict):
-        return {
-            key: _resolve_self_hash(item, content_hash)
-            for key, item in value.items()
-        }
+        return {key: _resolve_self_hash(item, content_hash) for key, item in value.items()}
     if isinstance(value, list):
         return [_resolve_self_hash(item, content_hash) for item in value]
     return content_hash if value == SELF_HASH else value
+
+
+def _restore_self_hash_placeholders(value: Any, version: str) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: (
+                SELF_HASH
+                if key == "default_dsl_hash"
+                else version
+                if key == "default_dsl_version"
+                else _restore_self_hash_placeholders(item, version)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_restore_self_hash_placeholders(item, version) for item in value]
+    return value
 
 
 def _section_ids(name: str, value: Any) -> tuple[str, ...]:
@@ -403,8 +470,7 @@ def _section_ids(name: str, value: Any) -> tuple[str, ...]:
         return tuple(sorted(str(item["id"]) for item in value))
     if name == "interaction_program":
         relationship_ids = (
-            f"relationship:{item['kind']}"
-            for item in value.get("relationship_evidence", [])
+            f"relationship:{item['kind']}" for item in value.get("relationship_evidence", [])
         )
         rule_ids = (f"rule:{item['id']}" for item in value.get("rules", []))
         return tuple(sorted((*relationship_ids, *rule_ids)))
@@ -424,9 +490,9 @@ def _section_ids(name: str, value: Any) -> tuple[str, ...]:
     if name == "finance_initialization":
         return tuple(sorted(str(item) for item in value.get("programs", {})))
     if name == "specialization_pipeline":
-        return tuple(
-            sorted(str(item["country_code"]) for item in value.get("countries", []))
-        )
+        return tuple(sorted(str(item["country_code"]) for item in value.get("countries", [])))
+    if name == "aggregate_statistics":
+        return (str(value.get("version", "")),)
     return ()
 
 
@@ -447,46 +513,34 @@ def _section_records(name: str, value: Any) -> dict[str, Any]:
         return {str(item["id"]): item for item in value}
     if name == "interaction_program":
         relationships = {
-            f"relationship:{item['kind']}": item
-            for item in value.get("relationship_evidence", [])
+            f"relationship:{item['kind']}": item for item in value.get("relationship_evidence", [])
         }
         rules = {f"rule:{item['id']}": item for item in value.get("rules", [])}
         return relationships | rules
     if name == "routines":
         return {str(item["id"]): item for item in value.get("routines", [])}
     if name == "decision_trees":
-        trees = {
-            f"tree:{item['id']}": item for item in value.get("trees", [])
-        }
-        modules = {
-            f"module:{item['id']}": item for item in value.get("modules", [])
-        }
+        trees = {f"tree:{item['id']}": item for item in value.get("trees", [])}
+        modules = {f"module:{item['id']}": item for item in value.get("modules", [])}
         return trees | modules
     if name == "initial_population":
         return {
-            str(item["agent_id"]): item
-            for item in value.get("population", {}).get("agents", [])
+            str(item["agent_id"]): item for item in value.get("population", {}).get("agents", [])
         }
     if name == "coefficient_registry":
-        defaults = {
-            f"default:{item['id']}": item for item in value.get("defaults", [])
-        }
-        fitted = {
-            f"fitted:{item['id']}": item for item in value.get("fitted", [])
-        }
+        defaults = {f"default:{item['id']}": item for item in value.get("defaults", [])}
+        fitted = {f"fitted:{item['id']}": item for item in value.get("fitted", [])}
         return defaults | fitted
     if name == "finance_rules":
         return {str(item["id"]): item for item in value.get("rules", [])}
     if name == "finance_initialization":
         return {
-            str(program_id): program
-            for program_id, program in value.get("programs", {}).items()
+            str(program_id): program for program_id, program in value.get("programs", {}).items()
         }
     if name == "specialization_pipeline":
-        return {
-            str(country["country_code"]): country
-            for country in value.get("countries", [])
-        }
+        return {str(country["country_code"]): country for country in value.get("countries", [])}
+    if name == "aggregate_statistics":
+        return {str(value.get("version", "")): value}
     return {}
 
 
@@ -501,6 +555,7 @@ def _validate_content(content: dict[str, Any]) -> None:
         for item in content["default_actions"]
     ]
     _validate_exclusive_action_choices(actions)
+    action_ids = {action.id for action in actions}
     for action in actions:
         unknown_sources = sorted(set(action.evidence.source_ids) - source_ids)
         if unknown_sources:
@@ -508,18 +563,29 @@ def _validate_content(content: dict[str, Any]) -> None:
                 f"Default action {action.id} references unknown sources: "
                 + ", ".join(unknown_sources)
             )
-    agent_types = ConfirmedAgentTypeRegistry.model_validate_json(
-        json.dumps(content["agent_types"])
-    )
+        duration_evidence = action.duration.evidence
+        unknown_duration_sources = sorted(
+            set(duration_evidence.source_ids if duration_evidence else ()) - source_ids
+        )
+        if unknown_duration_sources:
+            raise ValueError(
+                f"Default action {action.id} duration references unknown sources: "
+                + ", ".join(unknown_duration_sources)
+            )
+        unknown_interruptions = sorted(set(action.emergency_interruptions) - action_ids)
+        if unknown_interruptions:
+            raise ValueError(
+                f"Default action {action.id} references unknown emergency actions: "
+                + ", ".join(unknown_interruptions)
+            )
+    agent_types = ConfirmedAgentTypeRegistry.model_validate_json(json.dumps(content["agent_types"]))
     trees = DecisionTreeRegistryDefinition.model_validate_json(
         json.dumps(content["decision_trees"])
     )
     tree_validation = DecisionTreeModuleRegistry(trees).validation
     if not tree_validation.valid:
         raise ValueError("Shipped default decision trees are invalid")
-    routines = RoutineRegistryDefinition.model_validate_json(
-        json.dumps(content["routines"])
-    )
+    routines = RoutineRegistryDefinition.model_validate_json(json.dumps(content["routines"]))
     routine_validation = validate_routines(
         routines,
         {module.id for module in trees.modules},
@@ -536,9 +602,7 @@ def _validate_content(content: dict[str, Any]) -> None:
         DefaultSeedingRule.model_validate_json(json.dumps(item))
         for item in content["initial_seeding_rules"]
     ]
-    expected_agent_ids = {
-        agent_id for rule in rules for agent_id in rule.expected_agent_ids
-    }
+    expected_agent_ids = {agent_id for rule in rules for agent_id in rule.expected_agent_ids}
     actual_agent_ids = {agent.agent_id for agent in population.population.agents}
     if expected_agent_ids != actual_agent_ids:
         raise ValueError("Default seeding rules do not match the initial population")
@@ -550,9 +614,7 @@ def _validate_content(content: dict[str, Any]) -> None:
         InteractionTreeDefinition.model_validate_json(json.dumps(item))
         for item in content["interaction_trees"]
     ]
-    InteractionProgramDefinition.model_validate_json(
-        json.dumps(content["interaction_program"])
-    )
+    InteractionProgramDefinition.model_validate_json(json.dumps(content["interaction_program"]))
     try:
         from .agent_state import AgentStateCatalog
     except ImportError:
@@ -560,34 +622,31 @@ def _validate_content(content: dict[str, Any]) -> None:
     if AgentStateCatalog is not None:
         from .agent_state import RelationshipStateCatalog
 
-        state_catalog = AgentStateCatalog.model_validate_json(
-            json.dumps(content["agent_states"])
-        )
+        state_catalog = AgentStateCatalog.model_validate_json(json.dumps(content["agent_states"]))
         definition_ids = {definition.id for definition in state_catalog.definitions}
         runtime_targets = {rule.target_state_id for rule in state_catalog.runtime_rules}
         if runtime_targets != definition_ids:
-            raise ValueError(
-                "Shipped default agent states require one runtime rule per definition"
-            )
-        RelationshipStateCatalog.model_validate_json(
-            json.dumps(content["relationship_states"])
-        )
+            raise ValueError("Shipped default agent states require one runtime rule per definition")
+        RelationshipStateCatalog.model_validate_json(json.dumps(content["relationship_states"]))
     DefaultFinanceLedger.model_validate_json(json.dumps(content["finance_rules"]))
-    FinanceInitializationCatalog.model_validate_json(
-        json.dumps(content["finance_initialization"])
-    )
+    FinanceInitializationCatalog.model_validate_json(json.dumps(content["finance_initialization"]))
     if "specialization_pipeline" in content:
-        SpecializationCatalog.model_validate_json(
-            json.dumps(content["specialization_pipeline"])
+        SpecializationCatalog.model_validate_json(json.dumps(content["specialization_pipeline"]))
+    if "aggregate_statistics" in content:
+        aggregates = AggregateStatisticsProgram.model_validate_json(
+            json.dumps(content["aggregate_statistics"])
         )
+        declared_actions = {
+            contribution.action_id for contribution in aggregates.action_contributions
+        }
+        if declared_actions != {action.id for action in actions}:
+            raise ValueError("Default aggregate statistics must declare every default action")
     try:
         from .coefficient_evidence import ActionCoefficientRegistry
     except ImportError:
         ActionCoefficientRegistry = None
     if ActionCoefficientRegistry is not None:
-        ActionCoefficientRegistry.model_validate_json(
-            json.dumps(content["coefficient_registry"])
-        )
+        ActionCoefficientRegistry.model_validate_json(json.dumps(content["coefficient_registry"]))
     if "person" not in {item.id for item in agent_types.types}:
         raise ValueError("Shipped default DSL requires the base Person type")
 
@@ -596,9 +655,7 @@ def _inventory(content: dict[str, Any]) -> DefaultDslInventory:
     return DefaultDslInventory(
         agent_type_ids=_section_ids("agent_types", content["agent_types"]),
         state_ids=_section_ids("agent_states", content["agent_states"]),
-        relationship_state_ids=_section_ids(
-            "relationship_states", content["relationship_states"]
-        ),
+        relationship_state_ids=_section_ids("relationship_states", content["relationship_states"]),
         action_ids=_section_ids("default_actions", content["default_actions"]),
         routine_ids=_section_ids("routines", content["routines"]),
         decision_tree_ids=tuple(
@@ -606,20 +663,14 @@ def _inventory(content: dict[str, Any]) -> DefaultDslInventory:
             for item in _section_ids("decision_trees", content["decision_trees"])
             if item.startswith("tree:")
         ),
-        interaction_tree_ids=_section_ids(
-            "interaction_trees", content["interaction_trees"]
-        ),
-        initial_agent_ids=_section_ids(
-            "initial_population", content["initial_population"]
-        ),
+        interaction_tree_ids=_section_ids("interaction_trees", content["interaction_trees"]),
+        initial_agent_ids=_section_ids("initial_population", content["initial_population"]),
     )
 
 
 def load_shipped_default_dsl(path: str | Path | None = None) -> DefaultDslPackage:
     selected_path = Path(path or DEFAULT_DSL_PATH)
-    manifest = DefaultDslManifest.model_validate_json(
-        selected_path.read_text(encoding="utf-8")
-    )
+    manifest = DefaultDslManifest.model_validate_json(selected_path.read_text(encoding="utf-8"))
     calculated_hash = _canonical_hash(manifest.content)
     if calculated_hash != manifest.content_hash:
         raise ValueError(
@@ -659,6 +710,56 @@ class DefaultDslService:
 
     def add_reset_hook(self, hook: Callable[[], None]) -> None:
         self._reset_hooks.append(hook)
+
+    def adopt_installed(self) -> DefaultDslStatus:
+        payload = self.store.payload_snapshot()
+        receipt = self.store.default_dsl_receipt()
+        if receipt is None:
+            raise ValueError("Cannot adopt a default DSL before it is installed")
+        missing = [section for section in receipt.managed_sections if section not in payload]
+        if missing:
+            raise ValueError(
+                "Cannot adopt an incomplete default DSL; missing " + ", ".join(missing)
+            )
+        content = {section: deepcopy(payload[section]) for section in receipt.managed_sections}
+        _validate_content(content)
+        self.package = DefaultDslPackage(
+            receipt=receipt,
+            content=content,
+            inventory=_inventory(content),
+        )
+        return self.status()
+
+    def set_cached_pipeline_default(
+        self,
+        sections: dict[str, Any],
+        pipeline_version: int,
+    ) -> DefaultDslStatus:
+        unexpected = sorted(set(sections) - set(self.package.receipt.managed_sections))
+        if unexpected:
+            raise ValueError(
+                "Cached pipeline default contains unmanaged sections: " + ", ".join(unexpected)
+            )
+        content = deepcopy(self.package.content)
+        content.update(deepcopy(sections))
+        base_version = self.package.receipt.version.split("+pipeline-", 1)[0]
+        derived_version = f"{base_version}+pipeline-{pipeline_version}"
+        content = _restore_self_hash_placeholders(content, derived_version)
+        content_hash = _canonical_hash(content)
+        content = _resolve_self_hash(content, content_hash)
+        _validate_content(content)
+        receipt = self.package.receipt.model_copy(
+            update={
+                "version": derived_version,
+                "hash": content_hash,
+            }
+        )
+        self.package = DefaultDslPackage(
+            receipt=receipt,
+            content=content,
+            inventory=_inventory(content),
+        )
+        return self.status()
 
     def ensure(self) -> DefaultDslStatus:
         self.store.install_default_dsl_if_fresh(
@@ -716,22 +817,12 @@ class DefaultDslService:
                     current_ids=current_ids,
                     default_ids=default_ids,
                     restored_ids=(
-                        tuple(
-                            sorted(
-                                (set(default_ids) - set(current_ids))
-                                | changed_shared_ids
-                            )
-                        )
+                        tuple(sorted((set(default_ids) - set(current_ids)) | changed_shared_ids))
                         if disposition != "unchanged"
                         else ()
                     ),
                     replaced_ids=(
-                        tuple(
-                            sorted(
-                                (set(current_ids) - set(default_ids))
-                                | changed_shared_ids
-                            )
-                        )
+                        tuple(sorted((set(current_ids) - set(default_ids)) | changed_shared_ids))
                         if disposition == "replace"
                         else ()
                     ),

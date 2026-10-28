@@ -1,0 +1,2315 @@
+{
+  "schema_version": "1",
+  "version": "global-duration-source-catalog-v1",
+  "pipeline_version": "global-default-duration-research-v1",
+  "researched_at": "2026-10-27T18:00:00Z",
+  "population_source": {
+    "source_id": "un-wpp-2024-population",
+    "title": "World Population Prospects 2024: Demographic Indicators, Medium Variant",
+    "publisher": "United Nations, Department of Economic and Social Affairs, Population Division",
+    "url": "https://population.un.org/wpp/Download/Standard/MostUsed/",
+    "source_kind": "official_statistics",
+    "source_date": "2024",
+    "source_version": "WPP2024",
+    "licence": "Official public statistics; source terms and attribution requirements apply",
+    "population": "All countries and areas represented in World Population Prospects 2024",
+    "place_id": "GLOBAL",
+    "place_label": "Global",
+    "language": "en",
+    "engine": "UN DESA official data portal",
+    "retrieved_at": "2026-10-27T18:00:00Z"
+  },
+  "reference_pipeline_run": "../pipeline_runs/runs/b6f96b828cb74bc5a7eef71d57ee13f9.json",
+  "requested_source_tiers": [
+    "official_statistics",
+    "representative_survey",
+    "research_article",
+    "government_report",
+    "news",
+    "online_opinion"
+  ],
+  "action_crosswalk": [
+    {
+      "action_id": "bad_work",
+      "activity_id": "work_or_study",
+      "occurrences_per_day": 1,
+      "description": "Work-duration proxy; the source does not classify the outcome as bad."
+    },
+    {
+      "action_id": "eat_breakfast",
+      "activity_id": "meals",
+      "occurrences_per_day": 3,
+      "description": "Daily meal time divided across three meal occurrences."
+    },
+    {
+      "action_id": "eat_dinner",
+      "activity_id": "meals",
+      "occurrences_per_day": 3,
+      "description": "Daily meal time divided across three meal occurrences."
+    },
+    {
+      "action_id": "eat_lunch",
+      "activity_id": "meals",
+      "occurrences_per_day": 3,
+      "description": "Daily meal time divided across three meal occurrences."
+    },
+    {
+      "action_id": "exercise",
+      "activity_id": "exercise",
+      "occurrences_per_day": 1,
+      "description": "Sports, exercise, fitness, or outdoor-activity occurrence."
+    },
+    {
+      "action_id": "personal_care",
+      "activity_id": "personal_care",
+      "occurrences_per_day": 1,
+      "description": "Personal hygiene, grooming, and own-care occurrence."
+    },
+    {
+      "action_id": "skip_lunch",
+      "activity_id": "meals",
+      "occurrences_per_day": 3,
+      "description": "Meal-time proxy; a skipped meal has no observed positive duration."
+    },
+    {
+      "action_id": "sleep",
+      "activity_id": "sleep",
+      "occurrences_per_day": 1,
+      "description": "Combined daily sleep occurrence."
+    },
+    {
+      "action_id": "social_activity",
+      "activity_id": "social",
+      "occurrences_per_day": 1,
+      "description": "Socializing and communication occurrence."
+    },
+    {
+      "action_id": "work_or_study",
+      "activity_id": "work_or_study",
+      "occurrences_per_day": 1,
+      "description": "Combined daily work-or-study occurrence, using the strongest available local category."
+    }
+  ],
+  "places": [
+    {
+      "place_id": "US",
+      "place_label": "United States",
+      "level": "country",
+      "region_id": "REGION_NORTHERN_AMERICA",
+      "population": 345426571,
+      "reported_sample_size": null,
+      "languages": [
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "bls-atus-2025-catalog",
+          "title": "American Time Use Survey 2025 Activity and Respondent Files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "2026-06-25",
+          "source_version": "2025",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google United States",
+          "query_or_source": "https://www.google.com/search?q=American+Time+Use+Survey+2025+duration+activities",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google United States",
+          "query_or_source": "https://www.google.com/search?q=American+Time+Use+Survey+2025+duration+activities&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google United States",
+          "query_or_source": "https://www.google.com/search?q=American+Time+Use+Survey+2025+duration+activities&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google United States",
+          "query_or_source": "https://www.google.com/search?q=American+Time+Use+Survey+2025+duration+activities&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "CA",
+      "place_label": "Canada",
+      "level": "country",
+      "region_id": "REGION_NORTHERN_AMERICA",
+      "population": 39742430,
+      "reported_sample_size": 12336,
+      "languages": [
+        "fr",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "title": "Daily average time spent on various activities, by age group and gender, 2022 / Moyenne quotidienne de temps consacré à diverses activités, selon le groupe d’âge et le genre, 2022",
+          "publisher": "Statistics Canada / Statistique Canada",
+          "url": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=4510010401",
+          "source_kind": "official_statistics",
+          "source_date": "2025-01-28",
+          "source_version": "45-10-0104-01",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Non-institutionalized persons age 15 and over in the ten provinces, excluding First Nations reserves",
+          "place_id": "CA",
+          "place_label": "Canada",
+          "language": "en-fr",
+          "engine": "Statistics Canada official table",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "ca-2022-sleep",
+          "activity_id": "sleep",
+          "reported_value": 8.9,
+          "reported_unit": "hours_per_day",
+          "normalization_days": 1,
+          "denominator": "All people age 15 and over, average per diary day",
+          "mapping_strength": "direct",
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "detail": "Sleep, relaxing, and bed rest in Statistics Canada table 45-10-0104-01."
+        },
+        {
+          "observation_id": "ca-2022-personal",
+          "activity_id": "personal_care",
+          "reported_value": 0.8,
+          "reported_unit": "hours_per_day",
+          "normalization_days": 1,
+          "denominator": "All people age 15 and over, average per diary day",
+          "mapping_strength": "direct",
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "detail": "Personal activities in Statistics Canada table 45-10-0104-01."
+        },
+        {
+          "observation_id": "ca-2022-meals",
+          "activity_id": "meals",
+          "reported_value": 1.4,
+          "reported_unit": "hours_per_day",
+          "normalization_days": 1,
+          "denominator": "All people age 15 and over, average per diary day",
+          "mapping_strength": "direct",
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "detail": "Eating or drinking total in Statistics Canada table 45-10-0104-01."
+        },
+        {
+          "observation_id": "ca-2022-work",
+          "activity_id": "work_or_study",
+          "reported_value": 3.5,
+          "reported_unit": "hours_per_day",
+          "normalization_days": 1,
+          "denominator": "All people age 15 and over, including nonparticipants",
+          "mapping_strength": "broad_proxy",
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "detail": "Paid-work population mean; participant occurrence time is not directly reported in the selected table."
+        },
+        {
+          "observation_id": "ca-2022-leisure",
+          "activity_id": "leisure",
+          "reported_value": 2.9,
+          "reported_unit": "hours_per_day",
+          "normalization_days": 1,
+          "denominator": "All people age 15 and over, average per diary day",
+          "mapping_strength": "broad_proxy",
+          "source_id": "statcan-tus-2022-table-45-10-0104-01",
+          "detail": "Combined active and passive leisure."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "fr",
+          "engine": "Google Canada",
+          "query_or_source": "https://www.google.com/search?q=Enqu%C3%AAte+emploi+du+temps+2022+Statistique+Canada+dur%C3%A9e+activit%C3%A9s",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "fr",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=4510010401",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "fr",
+          "engine": "Google Canada",
+          "query_or_source": "https://www.google.com/search?q=Enqu%C3%AAte+emploi+du+temps+2022+Statistique+Canada+dur%C3%A9e+activit%C3%A9s&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "fr",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=4510010401",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "fr",
+          "engine": "Google Canada",
+          "query_or_source": "https://www.google.com/search?q=Enqu%C3%AAte+emploi+du+temps+2022+Statistique+Canada+dur%C3%A9e+activit%C3%A9s&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "fr",
+          "engine": "Google Canada",
+          "query_or_source": "https://www.google.com/search?q=Enqu%C3%AAte+emploi+du+temps+2022+Statistique+Canada+dur%C3%A9e+activit%C3%A9s&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "AU",
+      "place_label": "Australia",
+      "level": "country",
+      "region_id": "REGION_OCEANIA",
+      "population": 26713205,
+      "reported_sample_size": 3500,
+      "languages": [
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "abs-tus-2024",
+          "title": "How Australians use their time, 2024",
+          "publisher": "Australian Bureau of Statistics",
+          "url": "https://www.abs.gov.au/statistics/people/people-and-communities/how-australians-use-their-time/2024",
+          "source_kind": "official_statistics",
+          "source_date": "2024",
+          "source_version": "2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "People age 15 and over in private dwellings, excluding very remote areas and discrete Aboriginal and Torres Strait Islander communities",
+          "place_id": "AU",
+          "place_label": "Australia",
+          "language": "en",
+          "engine": "Australian Bureau of Statistics official release",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        },
+        {
+          "source_id": "abs-tus-2020-21",
+          "title": "How Australians Use Their Time, 2020-21 financial year",
+          "publisher": "Australian Bureau of Statistics",
+          "url": "https://www.abs.gov.au/statistics/people/people-and-communities/how-australians-use-their-time/2020-21",
+          "source_kind": "official_statistics",
+          "source_date": "2022-10-07",
+          "source_version": "2020-21",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "People age 15 and over in private dwellings in Australia",
+          "place_id": "AU",
+          "place_label": "Australia",
+          "language": "en",
+          "engine": "Australian Bureau of Statistics official release",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "au-2024-necessary",
+          "activity_id": "necessary",
+          "reported_value": 643.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 15 and over reporting personal-care activities",
+          "mapping_strength": "broad_proxy",
+          "source_id": "abs-tus-2024",
+          "detail": "Personal care for self includes sleep, eating, health, and hygiene."
+        },
+        {
+          "observation_id": "au-2024-contracted",
+          "activity_id": "contracted",
+          "reported_value": 500.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 15 and over reporting employment or education",
+          "mapping_strength": "broad_proxy",
+          "source_id": "abs-tus-2024",
+          "detail": "Employment and education participant daily total."
+        },
+        {
+          "observation_id": "au-2024-leisure",
+          "activity_id": "leisure",
+          "reported_value": 334.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 15 and over reporting free-time activities",
+          "mapping_strength": "broad_proxy",
+          "source_id": "abs-tus-2024",
+          "detail": "Free time includes socializing, exercise, reading, and media."
+        },
+        {
+          "observation_id": "au-2024-social",
+          "activity_id": "social",
+          "reported_value": 139.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 15 and over reporting in-person talking or socializing",
+          "mapping_strength": "direct",
+          "source_id": "abs-tus-2024",
+          "detail": "Talking or socialising in person."
+        },
+        {
+          "observation_id": "au-2020-exercise",
+          "activity_id": "exercise",
+          "reported_value": 89.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 15 and over reporting exercise, sport, or outdoor activity",
+          "mapping_strength": "direct",
+          "source_id": "abs-tus-2020-21",
+          "detail": "Participant mean from the 2020-21 Time Use Survey."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google Australia",
+          "query_or_source": "https://www.google.com/search?q=site%3Aabs.gov.au+time+use+survey+2024+activity+duration",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.abs.gov.au/statistics/people/people-and-communities/how-australians-use-their-time/2024",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google Australia",
+          "query_or_source": "https://www.google.com/search?q=site%3Aabs.gov.au+time+use+survey+2024+activity+duration&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.abs.gov.au/statistics/people/people-and-communities/how-australians-use-their-time/2024",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google Australia",
+          "query_or_source": "https://www.google.com/search?q=site%3Aabs.gov.au+time+use+survey+2024+activity+duration&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google Australia",
+          "query_or_source": "https://www.google.com/search?q=site%3Aabs.gov.au+time+use+survey+2024+activity+duration&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "CN",
+      "place_label": "China",
+      "level": "country",
+      "region_id": "REGION_CHINA",
+      "population": 1419321278,
+      "reported_sample_size": 107000,
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "nbsc-tus-2024",
+          "title": "第三次全国时间利用调查公报（第二号） / Communiqué on China’s Third National Time Use Survey (No. 2)",
+          "publisher": "中华人民共和国国家统计局 / National Bureau of Statistics of China",
+          "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "source_kind": "official_statistics",
+          "source_date": "2024-10-31",
+          "source_version": "third-national-time-use-survey-2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "107,000 usual residents age 6 and over in 38,500 households across 31 provinces and Xinjiang Production and Construction Corps",
+          "place_id": "CN",
+          "place_label": "China",
+          "language": "zh",
+          "engine": "Baidu and National Bureau of Statistics of China",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "cn-2024-sleep",
+          "activity_id": "sleep",
+          "reported_value": 586.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over, seven-day weighted average",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "睡觉休息活动参与者每日平均时间9小时46分钟."
+        },
+        {
+          "observation_id": "cn-2024-personal",
+          "activity_id": "personal_care",
+          "reported_value": 56.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over, seven-day weighted average",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "个人卫生护理活动参与者每日平均时间."
+        },
+        {
+          "observation_id": "cn-2024-meals",
+          "activity_id": "meals",
+          "reported_value": 103.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over, seven-day weighted average",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "用餐或其他饮食活动参与者每日平均时间."
+        },
+        {
+          "observation_id": "cn-2024-work",
+          "activity_id": "work_or_study",
+          "reported_value": 383.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants in paid work age 6 and over",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "有酬劳动领域参与者每日平均时间6小时23分钟."
+        },
+        {
+          "observation_id": "cn-2024-exercise",
+          "activity_id": "exercise",
+          "reported_value": 70.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over reporting exercise and fitness",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "运动健身活动参与者每日平均时间1小时10分钟."
+        },
+        {
+          "observation_id": "cn-2024-social",
+          "activity_id": "social",
+          "reported_value": 69.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over reporting social interaction",
+          "mapping_strength": "direct",
+          "source_id": "nbsc-tus-2024",
+          "detail": "社会交往活动参与者每日平均时间1小时9分钟."
+        },
+        {
+          "observation_id": "cn-2024-leisure",
+          "activity_id": "leisure",
+          "reported_value": 160.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over reporting culture, leisure, and entertainment",
+          "mapping_strength": "broad_proxy",
+          "source_id": "nbsc-tus-2024",
+          "detail": "文化休闲娱乐活动参与者每日平均时间2小时40分钟."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E7%AC%AC%E4%B8%89%E6%AC%A1+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+%E7%9D%A1%E8%A7%89+%E7%94%A8%E9%A4%90+%E5%B7%A5%E4%BD%9C+%E8%BF%90%E5%8A%A8+%E7%A4%BE%E4%BA%A4",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "zh",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E7%AC%AC%E4%B8%89%E6%AC%A1+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+%E7%9D%A1%E8%A7%89+%E7%94%A8%E9%A4%90+%E5%B7%A5%E4%BD%9C+%E8%BF%90%E5%8A%A8+%E7%A4%BE%E4%BA%A4&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "zh",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E7%AC%AC%E4%B8%89%E6%AC%A1+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+%E7%9D%A1%E8%A7%89+%E7%94%A8%E9%A4%90+%E5%B7%A5%E4%BD%9C+%E8%BF%90%E5%8A%A8+%E7%A4%BE%E4%BA%A4&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E7%AC%AC%E4%B8%89%E6%AC%A1+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+%E7%9D%A1%E8%A7%89+%E7%94%A8%E9%A4%90+%E5%B7%A5%E4%BD%9C+%E8%BF%90%E5%8A%A8+%E7%A4%BE%E4%BA%A4&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "IN",
+      "place_label": "India",
+      "level": "country",
+      "region_id": "REGION_INDIA",
+      "population": 1450935791,
+      "reported_sample_size": 454192,
+      "languages": [
+        "hi",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "mospi-tus-2024",
+          "title": "भारत में समय का उपयोग, 2024 / Time Use in India, 2024",
+          "publisher": "National Statistics Office, Ministry of Statistics and Programme Implementation, Government of India",
+          "url": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2025-03-28",
+          "source_version": "TUS-2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "454,192 persons age 6 and over in 139,487 households across India, excluding specified inaccessible villages",
+          "place_id": "IN",
+          "place_label": "India",
+          "language": "hi-en",
+          "engine": "Google India and MoSPI official publications",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "in-2024-self-care",
+          "activity_id": "self_care",
+          "reported_value": 708.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "All persons age 6 and over, irrespective of participation",
+          "mapping_strength": "broad_proxy",
+          "source_id": "mospi-tus-2024",
+          "detail": "Self-care and maintenance population daily total."
+        },
+        {
+          "observation_id": "in-2024-work",
+          "activity_id": "work_or_study",
+          "reported_value": 440.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 6 and over in employment and related activities",
+          "mapping_strength": "direct",
+          "source_id": "mospi-tus-2024",
+          "detail": "Employment and related activities participant mean."
+        },
+        {
+          "observation_id": "in-2024-social",
+          "activity_id": "social",
+          "reported_value": 125.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "All persons age 6 and over, irrespective of participation",
+          "mapping_strength": "broad_proxy",
+          "source_id": "mospi-tus-2024",
+          "detail": "Socializing, communication, community participation, and religious practice."
+        },
+        {
+          "observation_id": "in-2024-leisure",
+          "activity_id": "leisure",
+          "reported_value": 159.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "All persons age 6 and over, irrespective of participation",
+          "mapping_strength": "broad_proxy",
+          "source_id": "mospi-tus-2024",
+          "detail": "Culture, leisure, mass-media, and sports practices."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024+%E0%A4%95%E0%A4%BE%E0%A4%AE+%E0%A4%A8%E0%A5%80%E0%A4%82%E0%A4%A6+%E0%A4%AD%E0%A5%8B%E0%A4%9C%E0%A4%A8+%E0%A4%B5%E0%A5%8D%E0%A4%AF%E0%A4%BE%E0%A4%AF%E0%A4%BE%E0%A4%AE",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "hi",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024+%E0%A4%95%E0%A4%BE%E0%A4%AE+%E0%A4%A8%E0%A5%80%E0%A4%82%E0%A4%A6+%E0%A4%AD%E0%A5%8B%E0%A4%9C%E0%A4%A8+%E0%A4%B5%E0%A5%8D%E0%A4%AF%E0%A4%BE%E0%A4%AF%E0%A4%BE%E0%A4%AE&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "hi",
+          "engine": "Government and university report search",
+          "query_or_source": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024+%E0%A4%95%E0%A4%BE%E0%A4%AE+%E0%A4%A8%E0%A5%80%E0%A4%82%E0%A4%A6+%E0%A4%AD%E0%A5%8B%E0%A4%9C%E0%A4%A8+%E0%A4%B5%E0%A5%8D%E0%A4%AF%E0%A4%BE%E0%A4%AF%E0%A4%BE%E0%A4%AE&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024+%E0%A4%95%E0%A4%BE%E0%A4%AE+%E0%A4%A8%E0%A5%80%E0%A4%82%E0%A4%A6+%E0%A4%AD%E0%A5%8B%E0%A4%9C%E0%A4%A8+%E0%A4%B5%E0%A5%8D%E0%A4%AF%E0%A4%BE%E0%A4%AF%E0%A4%BE%E0%A4%AE&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "BR",
+      "place_label": "Brazil",
+      "level": "country",
+      "region_id": "REGION_LATIN_AMERICA_CARIBBEAN",
+      "population": 211998574,
+      "reported_sample_size": null,
+      "languages": [
+        "pt"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "ibge-pnad-work-hours-2025-q2",
+          "title": "Média de horas habitualmente trabalhadas por semana no trabalho principal, Brasil, 2º trimestre de 2025 / Average usual weekly hours in the main job, Brazil, Q2 2025",
+          "publisher": "Instituto Brasileiro de Geografia e Estatística",
+          "url": "https://agenciadenoticias.ibge.gov.br/media/com_mediaibge/arquivos/62b517a8259f386db6e8cac4659c7768.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2025-Q2",
+          "source_version": "PNAD-Continua-2025-Q2",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Employed people age 14 and over in Brazil",
+          "place_id": "BR",
+          "place_label": "Brazil",
+          "language": "pt",
+          "engine": "Google Brasil and IBGE official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        },
+        {
+          "source_id": "ibge-pnad-other-work-2022",
+          "title": "Outras formas de trabalho 2022 / Other forms of work 2022",
+          "publisher": "Instituto Brasileiro de Geografia e Estatística",
+          "url": "https://www.ibge.gov.br/biblioteca/visualizacao/livros/liv102020_informativo.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2023-08-11",
+          "source_version": "PNAD-Continua-2022",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "People age 14 and over in Brazil",
+          "place_id": "BR",
+          "place_label": "Brazil",
+          "language": "pt",
+          "engine": "Google Brasil and IBGE official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "br-2025-work",
+          "activity_id": "work_or_study",
+          "reported_value": 39.2,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 5,
+          "denominator": "Employed people age 14 and over in the main job",
+          "mapping_strength": "direct",
+          "source_id": "ibge-pnad-work-hours-2025-q2",
+          "detail": "Usual weekly hours converted to five workdays; this is not a diary occurrence distribution."
+        },
+        {
+          "observation_id": "br-2022-unpaid",
+          "activity_id": "unpaid_work",
+          "reported_value": 17.0,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "People age 14 and over performing domestic or care work",
+          "mapping_strength": "broad_proxy",
+          "source_id": "ibge-pnad-other-work-2022",
+          "detail": "Combined weekly domestic and care work total."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "pt",
+          "engine": "Google Brasil",
+          "query_or_source": "https://www.google.com/search?q=IBGE+uso+do+tempo+horas+trabalho+sono+refei%C3%A7%C3%A3o+exerc%C3%ADcio+Brasil",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "pt",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://agenciadenoticias.ibge.gov.br/media/com_mediaibge/arquivos/62b517a8259f386db6e8cac4659c7768.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "pt",
+          "engine": "Google Brasil",
+          "query_or_source": "https://www.google.com/search?q=IBGE+uso+do+tempo+horas+trabalho+sono+refei%C3%A7%C3%A3o+exerc%C3%ADcio+Brasil&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "pt",
+          "engine": "Government and university report search",
+          "query_or_source": "https://agenciadenoticias.ibge.gov.br/media/com_mediaibge/arquivos/62b517a8259f386db6e8cac4659c7768.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "pt",
+          "engine": "Google Brasil",
+          "query_or_source": "https://www.google.com/search?q=IBGE+uso+do+tempo+horas+trabalho+sono+refei%C3%A7%C3%A3o+exerc%C3%ADcio+Brasil&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "pt",
+          "engine": "Google Brasil",
+          "query_or_source": "https://www.google.com/search?q=IBGE+uso+do+tempo+horas+trabalho+sono+refei%C3%A7%C3%A3o+exerc%C3%ADcio+Brasil&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "MX",
+      "place_label": "Mexico",
+      "level": "country",
+      "region_id": "REGION_LATIN_AMERICA_CARIBBEAN",
+      "population": 130861007,
+      "reported_sample_size": 30036,
+      "languages": [
+        "es"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "inegi-enut-2019",
+          "title": "Encuesta Nacional sobre Uso del Tiempo 2019: Presentación de resultados / National Survey on Time Use 2019: Results",
+          "publisher": "Instituto Nacional de Estadística y Geografía",
+          "url": "https://www.inegi.org.mx/contenidos/programas/enut/2019/doc/enut_2019_presentacion_resultados.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2020-10-08",
+          "source_version": "ENUT-2019",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "People age 12 and over in urban, rural, and Indigenous-language-predominant localities in Mexico",
+          "place_id": "MX",
+          "place_label": "Mexico",
+          "language": "es",
+          "engine": "Google México and INEGI official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "mx-2019-sleep",
+          "activity_id": "sleep",
+          "reported_value": 52.75,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "People age 12 and over reporting sleep",
+          "mapping_strength": "direct",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 53.2 and male 52.3 weekly hours."
+        },
+        {
+          "observation_id": "mx-2019-meals",
+          "activity_id": "meals",
+          "reported_value": 8.75,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "People age 12 and over reporting eating",
+          "mapping_strength": "direct",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 9.0 and male 8.5 weekly hours."
+        },
+        {
+          "observation_id": "mx-2019-personal",
+          "activity_id": "personal_care",
+          "reported_value": 5.95,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "People age 12 and over reporting grooming and personal care",
+          "mapping_strength": "direct",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 6.5 and male 5.4 weekly hours."
+        },
+        {
+          "observation_id": "mx-2019-exercise",
+          "activity_id": "exercise",
+          "reported_value": 4.75,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "Participants age 12 and over reporting sports and physical exercise",
+          "mapping_strength": "direct",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 4.5 and male 5.0 weekly hours."
+        },
+        {
+          "observation_id": "mx-2019-social",
+          "activity_id": "social",
+          "reported_value": 8.1,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "Participants age 12 and over reporting family and social interaction",
+          "mapping_strength": "direct",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 8.6 and male 7.6 weekly hours."
+        },
+        {
+          "observation_id": "mx-2019-study",
+          "activity_id": "work_or_study",
+          "reported_value": 40.05,
+          "reported_unit": "hours_per_week",
+          "normalization_days": 7,
+          "denominator": "Participants age 12 and over reporting study activities",
+          "mapping_strength": "broad_proxy",
+          "source_id": "inegi-enut-2019",
+          "detail": "Mean of the published female 40.2 and male 39.9 weekly study hours; used as a work-or-study proxy."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "es",
+          "engine": "Google México",
+          "query_or_source": "https://www.google.com/search?q=INEGI+ENUT+2019+horas+dormir+comer+trabajo+estudio+ejercicio+convivencia",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "es",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.inegi.org.mx/contenidos/programas/enut/2019/doc/enut_2019_presentacion_resultados.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "es",
+          "engine": "Google México",
+          "query_or_source": "https://www.google.com/search?q=INEGI+ENUT+2019+horas+dormir+comer+trabajo+estudio+ejercicio+convivencia&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "es",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.inegi.org.mx/contenidos/programas/enut/2019/doc/enut_2019_presentacion_resultados.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "es",
+          "engine": "Google México",
+          "query_or_source": "https://www.google.com/search?q=INEGI+ENUT+2019+horas+dormir+comer+trabajo+estudio+ejercicio+convivencia&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "es",
+          "engine": "Google México",
+          "query_or_source": "https://www.google.com/search?q=INEGI+ENUT+2019+horas+dormir+comer+trabajo+estudio+ejercicio+convivencia&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "RU",
+      "place_label": "Russia",
+      "level": "country",
+      "region_id": "REGION_EUROPE",
+      "population": 144820423,
+      "reported_sample_size": 90000,
+      "languages": [
+        "ru"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "rosstat-tus-2024",
+          "title": "Выборочное наблюдение использования суточного фонда времени населением 2024 / Sample Survey of Population Daily Time Use 2024",
+          "publisher": "Федеральная служба государственной статистики / Rosstat",
+          "url": "https://rosstat.gov.ru/folder/313/document/289493",
+          "source_kind": "official_statistics",
+          "source_date": "2024",
+          "source_version": "VNFTN-2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Approximately 90,000 people in 45,000 households across the Russian Federation",
+          "place_id": "RU",
+          "place_label": "Russia",
+          "language": "ru",
+          "engine": "Yandex and Rosstat official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "ru-2024-sleep",
+          "activity_id": "sleep",
+          "reported_value": 463.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Survey participants on working days",
+          "mapping_strength": "direct",
+          "source_id": "rosstat-tus-2024",
+          "detail": "Rosstat reported 7 hours 43 minutes of sleep on working days."
+        },
+        {
+          "observation_id": "ru-2024-work",
+          "activity_id": "work_or_study",
+          "reported_value": 487.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Survey participants on working days",
+          "mapping_strength": "direct",
+          "source_id": "rosstat-tus-2024",
+          "detail": "Rosstat reported 8 hours 7 minutes of work on working days."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D1%83%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D0%B3%D0%BE+%D1%84%D0%BE%D0%BD%D0%B4%D0%B0+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+2024+%D1%81%D0%BE%D0%BD+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0+%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D0%BF%D0%BE%D1%80%D1%82+%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D0%B5",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "ru",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://rosstat.gov.ru/folder/313/document/289493",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D1%83%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D0%B3%D0%BE+%D1%84%D0%BE%D0%BD%D0%B4%D0%B0+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+2024+%D1%81%D0%BE%D0%BD+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0+%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D0%BF%D0%BE%D1%80%D1%82+%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D0%B5&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "ru",
+          "engine": "Government and university report search",
+          "query_or_source": "https://rosstat.gov.ru/folder/313/document/289493",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D1%83%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D0%B3%D0%BE+%D1%84%D0%BE%D0%BD%D0%B4%D0%B0+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+2024+%D1%81%D0%BE%D0%BD+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0+%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D0%BF%D0%BE%D1%80%D1%82+%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D0%B5&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D1%83%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D0%B3%D0%BE+%D1%84%D0%BE%D0%BD%D0%B4%D0%B0+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+2024+%D1%81%D0%BE%D0%BD+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0+%D0%BF%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D0%B5+%D1%81%D0%BF%D0%BE%D1%80%D1%82+%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D0%B5&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "NG",
+      "place_label": "Nigeria",
+      "level": "country",
+      "region_id": "REGION_AFRICA",
+      "population": 232679478,
+      "reported_sample_size": 6431,
+      "languages": [
+        "ha",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "nbs-nigeria-tus-2024",
+          "title": "Nigeria Time Use Survey 2024, First Standalone Survey",
+          "publisher": "National Bureau of Statistics, Nigeria",
+          "url": "https://microdata.nigerianstat.gov.ng/index.php/catalog/178/study-description",
+          "source_kind": "official_statistics",
+          "source_date": "2025-05-01",
+          "source_version": "NGA-NBS-NTUS-2024-v1.0",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "6,431 people age 15 and over in 3,600 households across Borno, Cross River, Kaduna, and Lagos states",
+          "place_id": "NG",
+          "place_label": "Nigeria",
+          "language": "en",
+          "engine": "Google Nigeria and National Bureau of Statistics microdata catalog",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "ng-2024-work",
+          "activity_id": "work_or_study",
+          "reported_value": 303.3,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Published sex-specific SNA activity means across four surveyed states",
+          "mapping_strength": "broad_proxy",
+          "source_id": "nbs-nigeria-tus-2024",
+          "detail": "Simple midpoint of published male 372.6 and female 234.0 minutes because a combined weighted total was not stated."
+        },
+        {
+          "observation_id": "ng-2024-unpaid",
+          "activity_id": "unpaid_work",
+          "reported_value": 180.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over across four surveyed states",
+          "mapping_strength": "broad_proxy",
+          "source_id": "nbs-nigeria-tus-2024",
+          "detail": "The report states an overall three hours per day on unpaid domestic and care work."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "ha",
+          "engine": "Google Nigeria",
+          "query_or_source": "https://www.google.com/search?q=binciken+amfani+da+lokaci+Najeriya+2024+aiki+barci+abinci+motsa+jiki",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "ha",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://microdata.nigerianstat.gov.ng/index.php/catalog/178/study-description",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "ha",
+          "engine": "Google Nigeria",
+          "query_or_source": "https://www.google.com/search?q=binciken+amfani+da+lokaci+Najeriya+2024+aiki+barci+abinci+motsa+jiki&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "ha",
+          "engine": "Government and university report search",
+          "query_or_source": "https://microdata.nigerianstat.gov.ng/index.php/catalog/178/study-description",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "ha",
+          "engine": "Google Nigeria",
+          "query_or_source": "https://www.google.com/search?q=binciken+amfani+da+lokaci+Najeriya+2024+aiki+barci+abinci+motsa+jiki&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "ha",
+          "engine": "Google Nigeria",
+          "query_or_source": "https://www.google.com/search?q=binciken+amfani+da+lokaci+Najeriya+2024+aiki+barci+abinci+motsa+jiki&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "PK",
+      "place_label": "Pakistan",
+      "level": "country",
+      "region_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+      "population": 251269164,
+      "reported_sample_size": 38600,
+      "languages": [
+        "ur",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "pbs-pakistan-tus-2007",
+          "title": "وقت کے استعمال کا سروے 2007 / Time Use Survey 2007",
+          "publisher": "Federal Bureau of Statistics, Statistics Division, Government of Pakistan",
+          "url": "https://unstats.un.org/unsd/demographic/sconcerns/tuse/Country/pakistan/pakistan2007.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2009-04-01",
+          "source_version": "PAK-2007-TUS-v01",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Approximately 38,600 respondents age 10 and over in 19,600 households, excluding specified inaccessible areas",
+          "place_id": "PK",
+          "place_label": "Pakistan",
+          "language": "ur-en",
+          "engine": "Google Pakistan and Pakistan Bureau of Statistics",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "pk-2007-sleep",
+          "activity_id": "sleep",
+          "reported_value": 526.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting sleep",
+          "mapping_strength": "direct",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 32 national participant mean."
+        },
+        {
+          "observation_id": "pk-2007-meals",
+          "activity_id": "meals",
+          "reported_value": 78.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting eating",
+          "mapping_strength": "direct",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 32 national participant mean."
+        },
+        {
+          "observation_id": "pk-2007-personal",
+          "activity_id": "personal_care",
+          "reported_value": 69.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting personal hygiene",
+          "mapping_strength": "direct",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 32 national participant mean."
+        },
+        {
+          "observation_id": "pk-2007-exercise",
+          "activity_id": "exercise",
+          "reported_value": 87.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting physical exercise",
+          "mapping_strength": "direct",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 32 national participant mean."
+        },
+        {
+          "observation_id": "pk-2007-social",
+          "activity_id": "social",
+          "reported_value": 180.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting social and cultural activity",
+          "mapping_strength": "direct",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 17 national participant mean."
+        },
+        {
+          "observation_id": "pk-2007-work",
+          "activity_id": "work_or_study",
+          "reported_value": 451.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "Participants age 10 and over reporting work in establishments",
+          "mapping_strength": "broad_proxy",
+          "source_id": "pbs-pakistan-tus-2007",
+          "detail": "Table 17 work-in-establishment participant mean used for work-or-study."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "ur",
+          "engine": "Google Pakistan",
+          "query_or_source": "https://www.google.com/search?q=%D9%BE%D8%A7%DA%A9%D8%B3%D8%AA%D8%A7%D9%86+%D9%88%D9%82%D8%AA+%DA%A9%DB%92+%D8%A7%D8%B3%D8%AA%D8%B9%D9%85%D8%A7%D9%84+%DA%A9%D8%A7+%D8%B3%D8%B1%D9%88%DB%92+2007+%D9%86%DB%8C%D9%86%D8%AF+%DA%A9%DA%BE%D8%A7%D9%86%D8%A7+%DA%A9%D8%A7%D9%85+%D9%88%D8%B1%D8%B2%D8%B4",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "ur",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://unstats.un.org/unsd/demographic/sconcerns/tuse/Country/pakistan/pakistan2007.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "ur",
+          "engine": "Google Pakistan",
+          "query_or_source": "https://www.google.com/search?q=%D9%BE%D8%A7%DA%A9%D8%B3%D8%AA%D8%A7%D9%86+%D9%88%D9%82%D8%AA+%DA%A9%DB%92+%D8%A7%D8%B3%D8%AA%D8%B9%D9%85%D8%A7%D9%84+%DA%A9%D8%A7+%D8%B3%D8%B1%D9%88%DB%92+2007+%D9%86%DB%8C%D9%86%D8%AF+%DA%A9%DA%BE%D8%A7%D9%86%D8%A7+%DA%A9%D8%A7%D9%85+%D9%88%D8%B1%D8%B2%D8%B4&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "ur",
+          "engine": "Government and university report search",
+          "query_or_source": "https://unstats.un.org/unsd/demographic/sconcerns/tuse/Country/pakistan/pakistan2007.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "ur",
+          "engine": "Google Pakistan",
+          "query_or_source": "https://www.google.com/search?q=%D9%BE%D8%A7%DA%A9%D8%B3%D8%AA%D8%A7%D9%86+%D9%88%D9%82%D8%AA+%DA%A9%DB%92+%D8%A7%D8%B3%D8%AA%D8%B9%D9%85%D8%A7%D9%84+%DA%A9%D8%A7+%D8%B3%D8%B1%D9%88%DB%92+2007+%D9%86%DB%8C%D9%86%D8%AF+%DA%A9%DA%BE%D8%A7%D9%86%D8%A7+%DA%A9%D8%A7%D9%85+%D9%88%D8%B1%D8%B2%D8%B4&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "ur",
+          "engine": "Google Pakistan",
+          "query_or_source": "https://www.google.com/search?q=%D9%BE%D8%A7%DA%A9%D8%B3%D8%AA%D8%A7%D9%86+%D9%88%D9%82%D8%AA+%DA%A9%DB%92+%D8%A7%D8%B3%D8%AA%D8%B9%D9%85%D8%A7%D9%84+%DA%A9%D8%A7+%D8%B3%D8%B1%D9%88%DB%92+2007+%D9%86%DB%8C%D9%86%D8%AF+%DA%A9%DA%BE%D8%A7%D9%86%D8%A7+%DA%A9%D8%A7%D9%85+%D9%88%D8%B1%D8%B2%D8%B4&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "BD",
+      "place_label": "Bangladesh",
+      "level": "country",
+      "region_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+      "population": 173562364,
+      "reported_sample_size": 8000,
+      "languages": [
+        "bn",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "bbs-bangladesh-tus-2021",
+          "title": "সময় ব্যবহার জরিপ ২০২১ / Time Use Survey 2021",
+          "publisher": "Bangladesh Bureau of Statistics with UN Women",
+          "url": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-bbs/2024/12/64ff58e91f3d464eab44804f48a44cb6.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2023-07-23",
+          "source_version": "BBS-TUS-2021",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "People age 15 and over in 8,000 sampled households across all eight divisions of Bangladesh",
+          "place_id": "BD",
+          "place_label": "Bangladesh",
+          "language": "bn-en",
+          "engine": "Google Bangladesh and Bangladesh Bureau of Statistics",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [
+        {
+          "observation_id": "bd-2021-sleep",
+          "activity_id": "sleep",
+          "reported_value": 512.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over in the national time-diary sample",
+          "mapping_strength": "direct",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Annex ICATUS two-digit total for sleep and related activities."
+        },
+        {
+          "observation_id": "bd-2021-meals",
+          "activity_id": "meals",
+          "reported_value": 76.9,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over in the national time-diary sample",
+          "mapping_strength": "direct",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Annex ICATUS two-digit total for eating and drinking."
+        },
+        {
+          "observation_id": "bd-2021-personal",
+          "activity_id": "personal_care",
+          "reported_value": 71.2,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over in the national time-diary sample",
+          "mapping_strength": "direct",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Annex ICATUS two-digit total for personal hygiene and care."
+        },
+        {
+          "observation_id": "bd-2021-exercise",
+          "activity_id": "exercise",
+          "reported_value": 11.2,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over in the national time-diary sample",
+          "mapping_strength": "direct",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Annex ICATUS two-digit total for sport participation and exercise."
+        },
+        {
+          "observation_id": "bd-2021-social",
+          "activity_id": "social",
+          "reported_value": 56.6,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "People age 15 and over in the national time-diary sample",
+          "mapping_strength": "direct",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Annex ICATUS two-digit total for socializing and communication."
+        },
+        {
+          "observation_id": "bd-2021-work",
+          "activity_id": "work_or_study",
+          "reported_value": 198.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "All sampled people age 15 and over",
+          "mapping_strength": "broad_proxy",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Report total of 3 hours 18 minutes across women and men for employment-related activities."
+        },
+        {
+          "observation_id": "bd-2021-leisure",
+          "activity_id": "leisure",
+          "reported_value": 156.0,
+          "reported_unit": "minutes_per_day",
+          "normalization_days": 1,
+          "denominator": "All sampled people age 15 and over",
+          "mapping_strength": "broad_proxy",
+          "source_id": "bbs-bangladesh-tus-2021",
+          "detail": "Report total of 2 hours 36 minutes for culture, leisure, mass media, and sports."
+        }
+      ],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "bn",
+          "engine": "Google Bangladesh",
+          "query_or_source": "https://www.google.com/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%B8%E0%A6%AE%E0%A6%AF%E0%A6%BC+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%AC%E0%A6%B9%E0%A6%BE%E0%A6%B0+%E0%A6%9C%E0%A6%B0%E0%A6%BF%E0%A6%AA+%E0%A7%A8%E0%A7%A6%E0%A7%A8%E0%A7%A7+%E0%A6%98%E0%A7%81%E0%A6%AE+%E0%A6%96%E0%A6%BE%E0%A6%93%E0%A6%AF%E0%A6%BC%E0%A6%BE+%E0%A6%95%E0%A6%BE%E0%A6%9C+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%AE",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "bn",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-bbs/2024/12/64ff58e91f3d464eab44804f48a44cb6.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "bn",
+          "engine": "Google Bangladesh",
+          "query_or_source": "https://www.google.com/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%B8%E0%A6%AE%E0%A6%AF%E0%A6%BC+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%AC%E0%A6%B9%E0%A6%BE%E0%A6%B0+%E0%A6%9C%E0%A6%B0%E0%A6%BF%E0%A6%AA+%E0%A7%A8%E0%A7%A6%E0%A7%A8%E0%A7%A7+%E0%A6%98%E0%A7%81%E0%A6%AE+%E0%A6%96%E0%A6%BE%E0%A6%93%E0%A6%AF%E0%A6%BC%E0%A6%BE+%E0%A6%95%E0%A6%BE%E0%A6%9C+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%AE&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "bn",
+          "engine": "Government and university report search",
+          "query_or_source": "https://objectstorage.ap-dcc-gazipur-1.oraclecloud15.com/n/axvjbnqprylg/b/V2Ministry/o/office-bbs/2024/12/64ff58e91f3d464eab44804f48a44cb6.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "bn",
+          "engine": "Google Bangladesh",
+          "query_or_source": "https://www.google.com/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%B8%E0%A6%AE%E0%A6%AF%E0%A6%BC+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%AC%E0%A6%B9%E0%A6%BE%E0%A6%B0+%E0%A6%9C%E0%A6%B0%E0%A6%BF%E0%A6%AA+%E0%A7%A8%E0%A7%A6%E0%A7%A8%E0%A7%A7+%E0%A6%98%E0%A7%81%E0%A6%AE+%E0%A6%96%E0%A6%BE%E0%A6%93%E0%A6%AF%E0%A6%BC%E0%A6%BE+%E0%A6%95%E0%A6%BE%E0%A6%9C+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%AE&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "bn",
+          "engine": "Google Bangladesh",
+          "query_or_source": "https://www.google.com/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%B8%E0%A6%AE%E0%A6%AF%E0%A6%BC+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%AC%E0%A6%B9%E0%A6%BE%E0%A6%B0+%E0%A6%9C%E0%A6%B0%E0%A6%BF%E0%A6%AA+%E0%A7%A8%E0%A7%A6%E0%A7%A8%E0%A7%A7+%E0%A6%98%E0%A7%81%E0%A6%AE+%E0%A6%96%E0%A6%BE%E0%A6%93%E0%A6%AF%E0%A6%BC%E0%A6%BE+%E0%A6%95%E0%A6%BE%E0%A6%9C+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%AE&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "ID",
+      "place_label": "Indonesia",
+      "level": "country",
+      "region_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+      "population": 283487931,
+      "reported_sample_size": null,
+      "languages": [
+        "id",
+        "en"
+      ],
+      "member_place_ids": [],
+      "sources": [
+        {
+          "source_id": "bps-indonesia-tus-2026-trial",
+          "title": "Uji Coba Survei Penggunaan Waktu 2026 / 2026 Time Use Survey Trial",
+          "publisher": "Badan Pusat Statistik Indonesia",
+          "url": "https://bekasikab.bps.go.id/id/news/2025/12/01/167/menuju-data-berkualitas--bps-kabupaten-bekasi-gelar-uji-coba-time-use-survey--tus--2026.html",
+          "source_kind": "official_statistics",
+          "source_date": "2025-12-01",
+          "source_version": "TUS-2026-trial",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Selected households from the November 2025 Sakernas sample in Indonesian trial locations",
+          "place_id": "ID",
+          "place_label": "Indonesia",
+          "language": "id",
+          "engine": "Google Indonesia and BPS official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        },
+        {
+          "source_id": "unescap-asia-pacific-time-use-2016",
+          "title": "Asia-Pacific Population Journal, Volume 31 No. 1: Time-use analysis in developing countries",
+          "publisher": "United Nations Economic and Social Commission for Asia and the Pacific",
+          "url": "https://repository-uat.unescap.org/items/588974e5-4149-4569-823a-a805e07bedb9/full",
+          "source_kind": "government_report",
+          "source_date": "2016",
+          "source_version": "APPJ-v31-n1",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Official and research time-use programs in Asia and the Pacific",
+          "place_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+          "place_label": "Asia excluding China and India",
+          "language": "en",
+          "engine": "UN ESCAP official repository",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "id",
+          "engine": "Google Indonesia",
+          "query_or_source": "https://www.google.com/search?q=BPS+survei+penggunaan+waktu+Indonesia+durasi+tidur+bekerja+makan+olahraga",
+          "outcome": "unavailable",
+          "detail": "Local official search was completed, but no released compatible national action table was available."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "id",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://bekasikab.bps.go.id/id/news/2025/12/01/167/menuju-data-berkualitas--bps-kabupaten-bekasi-gelar-uji-coba-time-use-survey--tus--2026.html",
+          "outcome": "unavailable",
+          "detail": "BPS documented the 2026 trial, but national weighted activity-duration results were not released at research time."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "id",
+          "engine": "Google Indonesia",
+          "query_or_source": "https://www.google.com/search?q=BPS+survei+penggunaan+waktu+Indonesia+durasi+tidur+bekerja+makan+olahraga&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "UN ESCAP official repository",
+          "query_or_source": "https://repository-uat.unescap.org/items/588974e5-4149-4569-823a-a805e07bedb9/full",
+          "outcome": "candidate",
+          "detail": "The regional official report was retained as the fallback context after the Indonesian national release was unavailable."
+        },
+        {
+          "source_kind": "news",
+          "language": "id",
+          "engine": "Google Indonesia",
+          "query_or_source": "https://www.google.com/search?q=BPS+survei+penggunaan+waktu+Indonesia+durasi+tidur+bekerja+makan+olahraga&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "id",
+          "engine": "Google Indonesia",
+          "query_or_source": "https://www.google.com/search?q=BPS+survei+penggunaan+waktu+Indonesia+durasi+tidur+bekerja+makan+olahraga&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_NORTHERN_AMERICA",
+      "place_label": "Northern America",
+      "level": "region",
+      "region_id": null,
+      "population": 385169001,
+      "reported_sample_size": null,
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "member_place_ids": [
+        "US",
+        "CA"
+      ],
+      "sources": [
+        {
+          "source_id": "unsd-time-use-guide-2024",
+          "title": "Guide to Producing Statistics on Time Use",
+          "publisher": "United Nations Statistics Division",
+          "url": "https://desapublications.un.org/publications/guide-producing-statistics-time-use",
+          "source_kind": "government_report",
+          "source_date": "2024-12",
+          "source_version": "Series-F-127",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "International time-use statistical systems and national survey programs",
+          "place_id": "GLOBAL",
+          "place_label": "Global",
+          "language": "en",
+          "engine": "UN DESA official publications",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google North America",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+statistics+Northern+America+ATUS+Canada+TUS",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://desapublications.un.org/publications/guide-producing-statistics-time-use",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google North America",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+statistics+Northern+America+ATUS+Canada+TUS&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://desapublications.un.org/publications/guide-producing-statistics-time-use",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google North America",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+statistics+Northern+America+ATUS+Canada+TUS&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google North America",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+statistics+Northern+America+ATUS+Canada+TUS&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_LATIN_AMERICA_CARIBBEAN",
+      "place_label": "Latin America & Caribbean",
+      "level": "region",
+      "region_id": null,
+      "population": 342859581,
+      "reported_sample_size": null,
+      "languages": [
+        "es",
+        "pt"
+      ],
+      "member_place_ids": [
+        "BR",
+        "MX"
+      ],
+      "sources": [
+        {
+          "source_id": "eclac-time-use-repository-2025",
+          "title": "Repositorio sobre uso del tiempo en América Latina y el Caribe 2025 / Repository on Time Use in Latin America and the Caribbean 2025",
+          "publisher": "Economic Commission for Latin America and the Caribbean",
+          "url": "https://oig.cepal.org/sites/default/files/2025-10/ingles_folleto-repositorio-uso-del-tiempo_2025_actualizacion-24-10-2025_0.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2025-10",
+          "source_version": "CAUTAL-repository-2025",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Official time-use measurements supplied by national statistical offices in Latin America and the Caribbean",
+          "place_id": "REGION_LATIN_AMERICA_CARIBBEAN",
+          "place_label": "Latin America & Caribbean",
+          "language": "es-en",
+          "engine": "ECLAC Gender Equality Observatory",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "es",
+          "engine": "Google América Latina",
+          "query_or_source": "https://www.google.com/search?q=CEPAL+repositorio+uso+del+tiempo+Am%C3%A9rica+Latina+Caribe+CAUTAL",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "es",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://oig.cepal.org/sites/default/files/2025-10/ingles_folleto-repositorio-uso-del-tiempo_2025_actualizacion-24-10-2025_0.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "es",
+          "engine": "Google América Latina",
+          "query_or_source": "https://www.google.com/search?q=CEPAL+repositorio+uso+del+tiempo+Am%C3%A9rica+Latina+Caribe+CAUTAL&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "es",
+          "engine": "Government and university report search",
+          "query_or_source": "https://oig.cepal.org/sites/default/files/2025-10/ingles_folleto-repositorio-uso-del-tiempo_2025_actualizacion-24-10-2025_0.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "es",
+          "engine": "Google América Latina",
+          "query_or_source": "https://www.google.com/search?q=CEPAL+repositorio+uso+del+tiempo+Am%C3%A9rica+Latina+Caribe+CAUTAL&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "es",
+          "engine": "Google América Latina",
+          "query_or_source": "https://www.google.com/search?q=CEPAL+repositorio+uso+del+tiempo+Am%C3%A9rica+Latina+Caribe+CAUTAL&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_EUROPE",
+      "place_label": "Europe",
+      "level": "region",
+      "region_id": null,
+      "population": 144820423,
+      "reported_sample_size": null,
+      "languages": [
+        "ru",
+        "en"
+      ],
+      "member_place_ids": [
+        "RU"
+      ],
+      "sources": [
+        {
+          "source_id": "eurostat-hetus-2020",
+          "title": "Harmonised European Time Use Surveys, 2020 wave",
+          "publisher": "Eurostat",
+          "url": "https://ec.europa.eu/eurostat/en/web/microdata/collections-research/harmonised-european-time-use-surveys",
+          "source_kind": "official_statistics",
+          "source_date": "2020-2026",
+          "source_version": "HETUS-2020",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "National time-use survey participants in twenty planned European country collections",
+          "place_id": "REGION_EUROPE",
+          "place_label": "Europe",
+          "language": "en",
+          "engine": "Eurostat official data catalog",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0+%D0%BE%D0%B1%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+HETUS+%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "ru",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://ec.europa.eu/eurostat/en/web/microdata/collections-research/harmonised-european-time-use-surveys",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0+%D0%BE%D0%B1%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+HETUS+%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "ru",
+          "engine": "Government and university report search",
+          "query_or_source": "https://ec.europa.eu/eurostat/en/web/microdata/collections-research/harmonised-european-time-use-surveys",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0+%D0%BE%D0%B1%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+HETUS+%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "ru",
+          "engine": "Yandex",
+          "query_or_source": "https://yandex.ru/search/?text=%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0+%D0%BE%D0%B1%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B2%D1%80%D0%B5%D0%BC%D0%B5%D0%BD%D0%B8+HETUS+%D0%A0%D0%BE%D1%81%D1%81%D1%82%D0%B0%D1%82&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_AFRICA",
+      "place_label": "Africa",
+      "level": "region",
+      "region_id": null,
+      "population": 232679478,
+      "reported_sample_size": null,
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "member_place_ids": [
+        "NG"
+      ],
+      "sources": [
+        {
+          "source_id": "unwomen-time-use-harmonization-2026",
+          "title": "Harmonized measures and practical guidance towards increased comparability for time-use survey statistics",
+          "publisher": "UN Women",
+          "url": "https://data.unwomen.org/publications/harmonized-measures-and-practical-guidance-towards-increased-comparability-time-use",
+          "source_kind": "government_report",
+          "source_date": "2026-03-02",
+          "source_version": "Women-Count-time-use-2026",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Time-use programs including African national statistical offices in Egypt, Ethiopia, Morocco, Nigeria, South Africa, and other countries",
+          "place_id": "REGION_AFRICA",
+          "place_label": "Africa",
+          "language": "en",
+          "engine": "UN Women Data Hub",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google Africa",
+          "query_or_source": "https://www.google.com/search?q=official+Africa+time+use+survey+UN+Women+national+statistics",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://data.unwomen.org/publications/harmonized-measures-and-practical-guidance-towards-increased-comparability-time-use",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google Africa",
+          "query_or_source": "https://www.google.com/search?q=official+Africa+time+use+survey+UN+Women+national+statistics&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://data.unwomen.org/publications/harmonized-measures-and-practical-guidance-towards-increased-comparability-time-use",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google Africa",
+          "query_or_source": "https://www.google.com/search?q=official+Africa+time+use+survey+UN+Women+national+statistics&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google Africa",
+          "query_or_source": "https://www.google.com/search?q=official+Africa+time+use+survey+UN+Women+national+statistics&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+      "place_label": "Asia excluding China and India",
+      "level": "region",
+      "region_id": null,
+      "population": 708319459,
+      "reported_sample_size": null,
+      "languages": [
+        "en",
+        "id",
+        "ur",
+        "bn"
+      ],
+      "member_place_ids": [
+        "PK",
+        "BD",
+        "ID"
+      ],
+      "sources": [
+        {
+          "source_id": "unescap-asia-pacific-time-use-2016",
+          "title": "Asia-Pacific Population Journal, Volume 31 No. 1: Time-use analysis in developing countries",
+          "publisher": "United Nations Economic and Social Commission for Asia and the Pacific",
+          "url": "https://repository-uat.unescap.org/items/588974e5-4149-4569-823a-a805e07bedb9/full",
+          "source_kind": "government_report",
+          "source_date": "2016",
+          "source_version": "APPJ-v31-n1",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "Official and research time-use programs in Asia and the Pacific",
+          "place_id": "REGION_ASIA_EXCLUDING_CHINA_INDIA",
+          "place_label": "Asia excluding China and India",
+          "language": "en",
+          "engine": "UN ESCAP official repository",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google Asia Pacific",
+          "query_or_source": "https://www.google.com/search?q=UN+ESCAP+Asia+Pacific+time+use+survey+official+statistics",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://repository-uat.unescap.org/items/588974e5-4149-4569-823a-a805e07bedb9/full",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google Asia Pacific",
+          "query_or_source": "https://www.google.com/search?q=UN+ESCAP+Asia+Pacific+time+use+survey+official+statistics&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://repository-uat.unescap.org/items/588974e5-4149-4569-823a-a805e07bedb9/full",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google Asia Pacific",
+          "query_or_source": "https://www.google.com/search?q=UN+ESCAP+Asia+Pacific+time+use+survey+official+statistics&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google Asia Pacific",
+          "query_or_source": "https://www.google.com/search?q=UN+ESCAP+Asia+Pacific+time+use+survey+official+statistics&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_CHINA",
+      "place_label": "China",
+      "level": "region",
+      "region_id": null,
+      "population": 1419321278,
+      "reported_sample_size": null,
+      "languages": [
+        "zh",
+        "en"
+      ],
+      "member_place_ids": [
+        "CN"
+      ],
+      "sources": [
+        {
+          "source_id": "nbsc-tus-2024",
+          "title": "第三次全国时间利用调查公报（第二号） / Communiqué on China’s Third National Time Use Survey (No. 2)",
+          "publisher": "中华人民共和国国家统计局 / National Bureau of Statistics of China",
+          "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "source_kind": "official_statistics",
+          "source_date": "2024-10-31",
+          "source_version": "third-national-time-use-survey-2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "107,000 usual residents age 6 and over in 38,500 households across 31 provinces and Xinjiang Production and Construction Corps",
+          "place_id": "CN",
+          "place_label": "China",
+          "language": "zh",
+          "engine": "Baidu and National Bureau of Statistics of China",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+2024",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "zh",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+2024&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "zh",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957216.html",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+2024&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "zh",
+          "engine": "Baidu",
+          "query_or_source": "https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD+%E5%85%A8%E5%9B%BD+%E6%97%B6%E9%97%B4%E5%88%A9%E7%94%A8%E8%B0%83%E6%9F%A5+2024&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_INDIA",
+      "place_label": "India",
+      "level": "region",
+      "region_id": null,
+      "population": 1450935791,
+      "reported_sample_size": null,
+      "languages": [
+        "hi",
+        "en"
+      ],
+      "member_place_ids": [
+        "IN"
+      ],
+      "sources": [
+        {
+          "source_id": "mospi-tus-2024",
+          "title": "भारत में समय का उपयोग, 2024 / Time Use in India, 2024",
+          "publisher": "National Statistics Office, Ministry of Statistics and Programme Implementation, Government of India",
+          "url": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2025-03-28",
+          "source_version": "TUS-2024",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "454,192 persons age 6 and over in 139,487 households across India, excluding specified inaccessible villages",
+          "place_id": "IN",
+          "place_label": "India",
+          "language": "hi-en",
+          "engine": "Google India and MoSPI official publications",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "hi",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "hi",
+          "engine": "Government and university report search",
+          "query_or_source": "https://mospi.gov.in/sites/default/files/publication_reports/TUS_Report_2024_28.03.2025F.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "hi",
+          "engine": "Google India",
+          "query_or_source": "https://www.google.com/search?q=%E0%A4%AD%E0%A4%BE%E0%A4%B0%E0%A4%A4+%E0%A4%B8%E0%A4%AE%E0%A4%AF+%E0%A4%89%E0%A4%AA%E0%A4%AF%E0%A5%8B%E0%A4%97+%E0%A4%B8%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A5%87%E0%A4%95%E0%A5%8D%E0%A4%B7%E0%A4%A3+2024&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    },
+    {
+      "place_id": "REGION_OCEANIA",
+      "place_label": "Oceania",
+      "level": "region",
+      "region_id": null,
+      "population": 26713205,
+      "reported_sample_size": null,
+      "languages": [
+        "en"
+      ],
+      "member_place_ids": [
+        "AU"
+      ],
+      "sources": [
+        {
+          "source_id": "stats-nz-time-use-1998-99",
+          "title": "Gender and unpaid work: findings from the Time Use Survey 1998/99",
+          "publisher": "Statistics New Zealand",
+          "url": "https://www.stats.govt.nz/assets/Uploads/gender-and-unpaid-work-findings-from-the-time-use-survey-2001.pdf",
+          "source_kind": "official_statistics",
+          "source_date": "2001-07",
+          "source_version": "NZ-TUS-1998-99",
+          "licence": "Official public statistics; source terms and attribution requirements apply",
+          "population": "New Zealand national Time Use Survey participants",
+          "place_id": "NZ",
+          "place_label": "New Zealand",
+          "language": "en",
+          "engine": "Statistics New Zealand official publication",
+          "retrieved_at": "2026-10-27T18:00:00Z"
+        }
+      ],
+      "observations": [],
+      "search_attempts": [
+        {
+          "source_kind": "official_statistics",
+          "language": "en",
+          "engine": "Google Oceania",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+survey+Australia+New+Zealand+Oceania",
+          "outcome": "candidate",
+          "detail": "Local-language and local-engine official-statistics search completed before English fallbacks."
+        },
+        {
+          "source_kind": "representative_survey",
+          "language": "en",
+          "engine": "Local national statistical office",
+          "query_or_source": "https://www.stats.govt.nz/assets/Uploads/gender-and-unpaid-work-findings-from-the-time-use-survey-2001.pdf",
+          "outcome": "candidate",
+          "detail": "The official survey instrument and weighted result tables were inspected."
+        },
+        {
+          "source_kind": "research_article",
+          "language": "en",
+          "engine": "Google Oceania",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+survey+Australia+New+Zealand+Oceania&tier=research",
+          "outcome": "rejected",
+          "detail": "Research results were retained in the audit trail but not used over stronger official statistics."
+        },
+        {
+          "source_kind": "government_report",
+          "language": "en",
+          "engine": "Government and university report search",
+          "query_or_source": "https://www.stats.govt.nz/assets/Uploads/gender-and-unpaid-work-findings-from-the-time-use-survey-2001.pdf",
+          "outcome": "candidate",
+          "detail": "The official report and methodology were checked for activity definitions, population, date, and coverage."
+        },
+        {
+          "source_kind": "news",
+          "language": "en",
+          "engine": "Google Oceania",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+survey+Australia+New+Zealand+Oceania&tier=news",
+          "outcome": "rejected",
+          "detail": "News reports were searched for corroboration and rejected as the numeric source where official material was available."
+        },
+        {
+          "source_kind": "online_opinion",
+          "language": "en",
+          "engine": "Google Oceania",
+          "query_or_source": "https://www.google.com/search?q=official+time+use+survey+Australia+New+Zealand+Oceania&tier=opinion",
+          "outcome": "rejected",
+          "detail": "Opinion and forum results were searched last and rejected as weaker than the retained evidence."
+        }
+      ]
+    }
+  ]
+}

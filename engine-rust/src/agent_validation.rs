@@ -3,6 +3,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::state_finance::{
     CashFlowColumns, FinanceColumns, StateColumns, advance_finance_columns, advance_state_columns,
 };
+use crate::time_budget::validate_duration_distribution;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
@@ -128,6 +129,17 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
             *exclusive_choice_groups
                 .entry(group.as_str())
                 .or_insert(0usize) += 1;
+            if action
+                .rules
+                .iter()
+                .any(|rule| rule.time_unit_hours.is_some())
+            {
+                return Err(CoreError::at(
+                    "INVALID_CATEGORICAL_TIME_UNIT",
+                    "Exclusive-choice probabilities are shares and cannot declare a time unit",
+                    format!("meaningful_actions.{action_index}.rules"),
+                ));
+            }
         }
         if action.rules.is_empty() {
             return Err(CoreError::at(
@@ -153,6 +165,7 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
             format!("meaningful_actions.exclusive_choice_group.{group}"),
         ));
     }
+    validate_time_execution(request)?;
     if let Some(network) = &request.network {
         network.validate("network")?;
         if network.rows != request.agents.state.len() || network.cols != request.agents.state.len()
@@ -188,6 +201,221 @@ pub fn validate_request(request: &AgentProgramRequest) -> CoreResult<()> {
         request.synchronization.weekly_leader_every_ticks,
         "synchronization.weekly_leader_every_ticks",
     )?;
+    Ok(())
+}
+
+fn validate_time_execution(request: &AgentProgramRequest) -> CoreResult<()> {
+    let continuation = request
+        .continuation
+        .as_ref()
+        .map(|value| &value.time_execution);
+    let Some(program) = request.state_dynamics.time_execution.as_ref() else {
+        if continuation.is_some_and(|value| {
+            !value.active_primary.is_empty()
+                || !value.deferred.is_empty()
+                || !value.pending_actions.is_empty()
+                || !value.occurrence_counts.is_empty()
+                || !value.daily_time.is_empty()
+        }) {
+            return Err(CoreError::at(
+                "MISSING_TIME_EXECUTION_PROGRAM",
+                "A continuation with timed actions requires its time execution program",
+                "state_dynamics.time_execution",
+            ));
+        }
+        return Ok(());
+    };
+    if program.idle_category.trim().is_empty() {
+        return Err(CoreError::at(
+            "INVALID_IDLE_CATEGORY",
+            "Time execution idle category cannot be empty",
+            "state_dynamics.time_execution.idle_category",
+        ));
+    }
+    if let Some(indices) = &program.receipt_agent_indices {
+        let unique = indices.iter().copied().collect::<BTreeSet<_>>();
+        if unique.len() != indices.len()
+            || indices
+                .iter()
+                .any(|index| *index >= request.agents.state.len())
+        {
+            return Err(CoreError::at(
+                "INVALID_TIME_RECEIPT_AGENTS",
+                "Time receipt agent indices must be unique and inside the population",
+                "state_dynamics.time_execution.receipt_agent_indices",
+            ));
+        }
+    }
+    let action_ids = program
+        .actions
+        .iter()
+        .map(|action| action.action_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if action_ids.len() != program.actions.len() {
+        return Err(CoreError::at(
+            "DUPLICATE_TIMED_ACTION",
+            "Timed action identifiers must be unique",
+            "state_dynamics.time_execution.actions",
+        ));
+    }
+    let meaningful_ids = request
+        .meaningful_actions
+        .iter()
+        .map(|action| action.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let missing = meaningful_ids
+        .difference(&action_ids)
+        .copied()
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        return Err(CoreError::at(
+            "MISSING_ACTION_DURATION",
+            format!(
+                "Meaningful actions require duration distributions: {}",
+                missing.join(", ")
+            ),
+            "state_dynamics.time_execution.actions",
+        ));
+    }
+    for (index, action) in program.actions.iter().enumerate() {
+        let path = format!("state_dynamics.time_execution.actions.{index}");
+        if action.action_id.trim().is_empty() || action.category.trim().is_empty() {
+            return Err(CoreError::at(
+                "INVALID_TIMED_ACTION",
+                "Timed actions require non-empty action and category identifiers",
+                &path,
+            ));
+        }
+        validate_duration_distribution(&action.duration, &format!("{path}.duration"))?;
+        let mut override_ids = BTreeSet::new();
+        let mut overridden_agents = BTreeSet::new();
+        for (override_index, duration_override) in action.duration_overrides.iter().enumerate() {
+            let override_path = format!("{path}.duration_overrides.{override_index}");
+            if duration_override.id.trim().is_empty()
+                || !override_ids.insert(duration_override.id.as_str())
+                || duration_override.eligible_agent_indices.is_empty()
+            {
+                return Err(CoreError::at(
+                    "INVALID_DURATION_OVERRIDE",
+                    "Duration overrides require a unique id and at least one eligible agent",
+                    &override_path,
+                ));
+            }
+            validate_duration_distribution(
+                &duration_override.duration,
+                &format!("{override_path}.duration"),
+            )?;
+            let unique_agents = duration_override
+                .eligible_agent_indices
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>();
+            if unique_agents.len() != duration_override.eligible_agent_indices.len()
+                || unique_agents
+                    .iter()
+                    .any(|agent| *agent >= request.agents.state.len())
+                || unique_agents
+                    .iter()
+                    .any(|agent| !overridden_agents.insert(*agent))
+            {
+                return Err(CoreError::at(
+                    "INVALID_DURATION_OVERRIDE",
+                    "Duration override agents must be unique, in range, and appear in one override",
+                    format!("{override_path}.eligible_agent_indices"),
+                ));
+            }
+        }
+        if !action.location_place_index_by_agent.is_empty()
+            && (action.location_place_index_by_agent.len() != request.agents.state.len()
+                || action
+                    .location_place_index_by_agent
+                    .iter()
+                    .flatten()
+                    .any(|place| *place >= request.places.len()))
+        {
+            return Err(CoreError::at(
+                "INVALID_TIMED_ACTION_LOCATIONS",
+                "Timed action locations must contain one valid optional place per agent",
+                format!("{path}.location_place_index_by_agent"),
+            ));
+        }
+        if !matches!(
+            action.interruptibility.as_str(),
+            "interruptible" | "protected" | "uninterruptible"
+        ) {
+            return Err(CoreError::at(
+                "INVALID_INTERRUPTIBILITY",
+                "Interruptibility must be interruptible, protected, or uninterruptible",
+                format!("{path}.interruptibility"),
+            ));
+        }
+        if !matches!(action.interruption_outcome.as_str(), "defer" | "cancel") {
+            return Err(CoreError::at(
+                "INVALID_INTERRUPTION_OUTCOME",
+                "Interruption outcome must be defer or cancel",
+                format!("{path}.interruption_outcome"),
+            ));
+        }
+        if action
+            .emergency_interruptions
+            .iter()
+            .any(|identity| !action_ids.contains(identity.as_str()))
+        {
+            return Err(CoreError::at(
+                "UNKNOWN_EMERGENCY_INTERRUPTION",
+                "Emergency interruption rules must reference a timed action",
+                format!("{path}.emergency_interruptions"),
+            ));
+        }
+    }
+    let Some(continuation) = continuation else {
+        return Ok(());
+    };
+    let agent_count = request.agents.state.len();
+    for (name, length) in [
+        ("active_primary", continuation.active_primary.len()),
+        ("occurrence_counts", continuation.occurrence_counts.len()),
+    ] {
+        if length != 0 && length != agent_count {
+            return Err(CoreError::at(
+                "INVALID_TIME_CONTINUATION",
+                format!("Time continuation {name} must have one row per agent"),
+                format!("continuation.time_execution.{name}"),
+            ));
+        }
+    }
+    if continuation
+        .deferred
+        .iter()
+        .any(|action| action.event.agent_index >= agent_count)
+    {
+        return Err(CoreError::at(
+            "INVALID_TIME_CONTINUATION",
+            "Deferred action references an agent outside the population",
+            "continuation.time_execution.deferred",
+        ));
+    }
+    if continuation.pending_actions.iter().any(|action| {
+        action.agent_index >= agent_count || !action_ids.contains(action.action.as_str())
+    }) {
+        return Err(CoreError::at(
+            "INVALID_TIME_CONTINUATION",
+            "Pending action references an unknown action or an agent outside the population",
+            "continuation.time_execution.pending_actions",
+        ));
+    }
+    if continuation.daily_time.iter().any(|day| {
+        day.agent_index >= agent_count
+            || !day.accounted_hours.is_finite()
+            || day.accounted_hours < 0.0
+            || day.accounted_hours > 24.0 + 1e-9
+    }) {
+        return Err(CoreError::at(
+            "INVALID_TIME_CONTINUATION",
+            "Daily time accounting references an invalid agent or exceeds 24 hours",
+            "continuation.time_execution.daily_time",
+        ));
+    }
     Ok(())
 }
 
@@ -552,6 +780,18 @@ fn validate_modules(request: &AgentProgramRequest) -> CoreResult<()> {
         ));
     }
     let module_ids: BTreeSet<_> = request.modules.iter().map(|module| &module.id).collect();
+    let action_ids = request
+        .state_dynamics
+        .time_execution
+        .as_ref()
+        .map(|program| {
+            program
+                .actions
+                .iter()
+                .map(|action| action.action_id.as_str())
+                .collect::<BTreeSet<_>>()
+        })
+        .unwrap_or_default();
     if module_ids.len() != request.modules.len() {
         return Err(CoreError::at(
             "DUPLICATE_MODULE",
@@ -657,6 +897,20 @@ fn validate_modules(request: &AgentProgramRequest) -> CoreResult<()> {
                     &transition_path,
                 ));
             }
+            if transition
+                .action_id
+                .as_deref()
+                .is_some_and(|action_id| !action_ids.contains(action_id))
+            {
+                return Err(CoreError::at(
+                    "UNKNOWN_TRANSITION_ACTION",
+                    format!(
+                        "Transition {} emits an unknown meaningful action",
+                        transition.id
+                    ),
+                    format!("{transition_path}.action_id"),
+                ));
+            }
             sources.insert(&transition.from_state);
             if transition.rules.is_empty() {
                 return Err(CoreError::at(
@@ -666,6 +920,13 @@ fn validate_modules(request: &AgentProgramRequest) -> CoreResult<()> {
                 ));
             }
             for (rule_index, rule) in transition.rules.iter().enumerate() {
+                if rule.time_unit_hours.is_some() {
+                    return Err(CoreError::at(
+                        "INVALID_CATEGORICAL_TIME_UNIT",
+                        "Module transition probabilities are shares and cannot declare a time unit",
+                        format!("{transition_path}.rules.{rule_index}.time_unit_hours"),
+                    ));
+                }
                 validate_rule(rule, &format!("{transition_path}.rules.{rule_index}"))?;
                 for condition in &rule.conditions {
                     if !input_names.contains(&condition.input) {
@@ -749,6 +1010,16 @@ fn validate_rule(rule: &ProbabilityRule, path: &str) -> CoreResult<()> {
             "INVALID_PROBABILITY",
             "Probability must be a finite value between 0 and 1",
             format!("{path}.probability"),
+        ));
+    }
+    if rule
+        .time_unit_hours
+        .is_some_and(|value| !value.is_finite() || value <= 0.0)
+    {
+        return Err(CoreError::at(
+            "INVALID_PROBABILITY_TIME_UNIT",
+            "Probability time unit must be a positive finite number of hours",
+            format!("{path}.time_unit_hours"),
         ));
     }
     let provenance = &rule.provenance;
@@ -892,6 +1163,18 @@ fn validate_schedules(request: &AgentProgramRequest) -> CoreResult<()> {
             "schedules",
         ));
     }
+    let timed_action_ids = request
+        .state_dynamics
+        .time_execution
+        .as_ref()
+        .map(|program| {
+            program
+                .actions
+                .iter()
+                .map(|action| action.action_id.as_str())
+                .collect::<BTreeSet<_>>()
+        })
+        .unwrap_or_default();
     for (index, schedule) in request.schedules.iter().enumerate() {
         let path = format!("schedules.{index}");
         if schedule.id.trim().is_empty() || schedule.action.trim().is_empty() {
@@ -900,6 +1183,37 @@ fn validate_schedules(request: &AgentProgramRequest) -> CoreResult<()> {
                 "Schedule identifiers and actions must be non-empty",
                 &path,
             ));
+        }
+        match (
+            schedule.timed_action_id.as_deref(),
+            schedule.timed_action_provenance.as_ref(),
+        ) {
+            (Some(action_id), Some(provenance)) if timed_action_ids.contains(action_id) => {
+                validate_rule(
+                    &ProbabilityRule {
+                        conditions: vec![],
+                        probability: Some(1.0),
+                        time_unit_hours: None,
+                        provenance: provenance.clone(),
+                    },
+                    &format!("{path}.timed_action_provenance"),
+                )?;
+            }
+            (None, None) => {}
+            (Some(_), Some(_)) => {
+                return Err(CoreError::at(
+                    "UNKNOWN_SCHEDULE_TIMED_ACTION",
+                    "Scheduled timed action must reference a declared duration",
+                    format!("{path}.timed_action_id"),
+                ));
+            }
+            _ => {
+                return Err(CoreError::at(
+                    "INVALID_SCHEDULE_TIMED_ACTION",
+                    "Scheduled timed action id and provenance must be supplied together",
+                    &path,
+                ));
+            }
         }
         if schedule.weekdays.is_empty() || schedule.weekdays.iter().any(|day| *day > 6) {
             return Err(CoreError::at(

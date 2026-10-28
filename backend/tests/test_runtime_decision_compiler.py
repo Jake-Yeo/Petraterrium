@@ -690,10 +690,10 @@ def test_assigned_tree_stays_idle_until_explicit_routine_activation_regardless_o
         assert before_output["transition_outcomes"] == []
 
         through_activation = deepcopy(prepared.rust_request)
-        through_activation["ticks"] = 10
+        through_activation["ticks"] = 11
         output = RustCoreClient().run_agents(through_activation)
         assert {(item["tick"], item["transition"]) for item in output["transition_outcomes"]} == {
-            (10, "become_sick")
+            (11, "become_sick")
         }
         outputs.append(output["transition_outcomes"])
 
@@ -725,7 +725,7 @@ def test_confirmed_registry_compiles_to_rust_and_records_agent_paths(tmp_path):
 
     assert set(paths) == {0, 1}
     assert all(len(path) == 1 for path in paths.values())
-    assert all({step["tick"] for step in path} == {2} for path in paths.values())
+    assert all({step["tick"] for step in path} == {3} for path in paths.values())
     assert {output["agents"]["state"][index] for index in paths} <= {
         "go_out",
         "stay_home",

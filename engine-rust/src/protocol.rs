@@ -4,6 +4,9 @@ use crate::csr::CsrMatvecRequest;
 use crate::error::{CoreError, CoreResult};
 use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
+use crate::text_dsl::{
+    DslRunRequest, TextDslProtocolRequest, TextDslValidateRequest, parse_program, run_program,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -19,6 +22,8 @@ pub enum Request {
     RunLocationTick(LocationTickRequest),
     RunInteractionTree(InteractionTreeRequest),
     CsrMatvec(CsrMatvecRequest),
+    ValidateTextDsl(TextDslValidateRequest),
+    RunTextDsl(TextDslProtocolRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -71,7 +76,37 @@ pub fn execute(request: Request) -> CoreResult<Value> {
             serialize(crate::interaction_trees::run(request).map_err(interaction_tree_error)?)
         }
         Request::CsrMatvec(request) => serialize(crate::csr::run_matvec(request)?),
+        Request::ValidateTextDsl(request) => match parse_program(&request.source) {
+            Ok(program) => Ok(json!({
+                "valid": true,
+                "program_id": program.id,
+                "version": program.version,
+                "tick_hours": program.tick_hours,
+                "adult_population": program.population.size,
+                "diagnostics": [],
+            })),
+            Err(error) => Ok(json!({
+                "valid": false,
+                "diagnostics": [error],
+            })),
+        },
+        Request::RunTextDsl(request) => {
+            let program = parse_program(&request.source).map_err(text_dsl_error)?;
+            serialize(
+                run_program(DslRunRequest {
+                    program,
+                    seed: request.seed,
+                    ticks: request.ticks,
+                    continuation: request.continuation,
+                })
+                .map_err(text_dsl_error)?,
+            )
+        }
     }
+}
+
+fn text_dsl_error(error: crate::text_dsl::DslError) -> CoreError {
+    CoreError::at(error.code, error.message, format!("line.{}", error.line))
 }
 
 fn location_error(error: LocationError) -> CoreError {

@@ -263,6 +263,16 @@ def test_agent_frame_projection_reads_only_the_requested_agent(tmp_path):
             "interaction_details": [[], [{"role": "initiator"}]],
             "decisions": [[], [{"node_id": "work"}]],
             "location_transitions": [[], [{"to": "office"}]],
+            "time_receipts": [[], [{"tick": 24, "used_hours": 1}]],
+            "daily_time": [
+                None,
+                {
+                    "day_index": 0,
+                    "complete": True,
+                    "accounted_hours": 24,
+                    "category_hours": {"work": 8, "idle": 16},
+                },
+            ],
             "live_places": [{"place_id": "office"}],
         },
         0,
@@ -275,4 +285,6 @@ def test_agent_frame_projection_reads_only_the_requested_agent(tmp_path):
     assert projected[0]["states"] == ["active"]
     assert projected[0]["memory"] == [{"energy": 0.5}]
     assert projected[0]["actions"] == [["work"]]
+    assert projected[0]["time_receipts"] == [[{"tick": 24, "used_hours": 1}]]
+    assert projected[0]["daily_time"][0]["accounted_hours"] == 24
     assert projected[0]["live_places"] == []

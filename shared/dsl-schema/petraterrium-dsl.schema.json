@@ -19,14 +19,46 @@
           "default": null,
           "title": "System"
         },
+        "category": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
         "probability": {
           "$ref": "#/$defs/ProbabilitySpec"
         },
+        "duration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DurationDistribution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "duration_minutes": {
-          "maximum": 1440,
-          "minimum": 0,
-          "title": "Duration Minutes",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 10080,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Minutes"
         },
         "priority": {
           "maximum": 10,
@@ -39,6 +71,11 @@
           "title": "Meaningful",
           "type": "boolean"
         },
+        "passive": {
+          "default": false,
+          "title": "Passive",
+          "type": "boolean"
+        },
         "interruptible": {
           "default": true,
           "title": "Interruptible",
@@ -48,6 +85,29 @@
           "default": false,
           "title": "Protected",
           "type": "boolean"
+        },
+        "interruption_outcome": {
+          "anyOf": [
+            {
+              "enum": [
+                "defer",
+                "cancel"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interruption Outcome"
+        },
+        "emergency_interruptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Emergency Interruptions",
+          "type": "array"
         },
         "reschedulable": {
           "default": true,
@@ -114,7 +174,6 @@
       "required": [
         "id",
         "probability",
-        "duration_minutes",
         "priority",
         "loser_outcome"
       ],
@@ -984,6 +1043,57 @@
         "provenance"
       ],
       "title": "Distribution",
+      "type": "object"
+    },
+    "DurationDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_min_hours": {
+          "maximum": 168,
+          "minimum": 0,
+          "title": "Duration Min Hours",
+          "type": "number"
+        },
+        "duration_median_hours": {
+          "exclusiveMinimum": 0,
+          "maximum": 168,
+          "title": "Duration Median Hours",
+          "type": "number"
+        },
+        "duration_max_hours": {
+          "exclusiveMinimum": 0,
+          "maximum": 168,
+          "title": "Duration Max Hours",
+          "type": "number"
+        },
+        "shape": {
+          "enum": [
+            "triangular",
+            "uniform",
+            "lognormal"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "shape_parameters": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Shape Parameters",
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Evidence"
+        }
+      },
+      "required": [
+        "duration_min_hours",
+        "duration_median_hours",
+        "duration_max_hours",
+        "shape",
+        "provenance"
+      ],
+      "title": "DurationDistribution",
       "type": "object"
     },
     "EventDefinition": {

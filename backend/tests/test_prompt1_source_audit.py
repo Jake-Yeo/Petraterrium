@@ -21,7 +21,7 @@ def test_audit_records_the_exact_global_demo_mix_and_artifact_receipts():
     assert report.schema_version == "prompt1-source-audit-v3"
     assert report.result == "incomplete"
     assert report.dsl_content_hash == (
-        "sha256:cca92c543f6835211ef7ae99065cc3b67eef18453adc6a8b27d29e434ff40a5f"
+        "sha256:22aa167c4234f9afa3d0ab8dac37ee56d48b27260c8b7d3367ee0dd5e1fbc448"
     )
     assert report.total_agents == 1_000
     assert report.country_agent_counts == {

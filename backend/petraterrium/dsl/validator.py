@@ -295,6 +295,17 @@ def validate_dsl(value) -> DSLValidationResult:
                     f"Role-gated action {action.id} has a target role but no actor role",
                 )
             )
+        unknown_interruptions = sorted(
+            set(action.emergency_interruptions) - set(action_by_id)
+        )
+        if unknown_interruptions:
+            errors.append(
+                issue(
+                    f"actions.{action_index}.emergency_interruptions",
+                    f"Action {action.id} references missing emergency actions "
+                    f"{unknown_interruptions}",
+                )
+            )
         if action.requires_role:
             role = next((item for item in config.roles if item.id == action.requires_role), None)
             if role and action.id not in role.actions:
@@ -591,6 +602,32 @@ def validate_dsl(value) -> DSLValidationResult:
                 )
             )
     warnings = []
+    for action_index, action in enumerate(config.actions):
+        path = f"actions.{action_index}.duration"
+        if action.duration is None:
+            warnings.append(
+                issue(
+                    path,
+                    f"Action {action.id} uses a legacy fixed duration; migrate it to "
+                    "minimum, median, maximum, shape, and provenance",
+                )
+            )
+            continue
+        if action.duration.duration_max_hours > config.tick.tick_hours:
+            warnings.append(
+                issue(
+                    path,
+                    f"Action {action.id} spans multiple ticks for some sampled durations",
+                )
+            )
+    if config.tick.tick_hours > 24:
+        warnings.append(
+            issue(
+                "tick.tick_hours",
+                "Tick duration exceeds one day; 24-hour accounting will split the "
+                "tick across calendar days",
+            )
+        )
     for parameter in config.parameters:
         if parameter.value is None or parameter.provenance.status in {
             "missing",

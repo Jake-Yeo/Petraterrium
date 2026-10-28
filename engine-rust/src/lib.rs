@@ -11,5 +11,7 @@ pub mod locations;
 pub mod protocol;
 pub mod random;
 pub mod state_finance;
+pub mod text_dsl;
+pub mod time_budget;
 
 pub use protocol::{ENGINE_VERSION, PROTOCOL_VERSION, Request, Response, execute, execute_json};

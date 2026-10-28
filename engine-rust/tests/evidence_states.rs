@@ -5,6 +5,7 @@ fn rule(status: &str) -> ProbabilityRule {
     ProbabilityRule {
         conditions: vec![],
         probability: Some(0.5),
+        time_unit_hours: None,
         provenance: ProbabilityProvenance {
             source: "Shipped default DSL".to_owned(),
             version: "foundation-v1".to_owned(),

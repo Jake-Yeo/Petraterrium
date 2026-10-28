@@ -1,0 +1,128 @@
+{
+  "schema_version": "1",
+  "version": "atus-2025-action-mapping-v1",
+  "source_title": "American Time Use Survey 2025 Activity Coding Lexicon",
+  "source_url": "https://www.bls.gov/tus/lexicons/lexiconwex2025.pdf",
+  "mappings": [
+    {
+      "action_id": "bad_work",
+      "code_prefixes": ["05"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "respondent_day",
+      "evidence_kind": "estimated",
+      "description": "Proxy estimate from ATUS tier-one 05 work episodes",
+      "assumptions": [
+        "ATUS records work time but does not classify whether its outcome was good or bad."
+      ]
+    },
+    {
+      "action_id": "eat_breakfast",
+      "code_prefixes": ["11"],
+      "start_hour_min": 4,
+      "start_hour_max": 11,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS eating episodes starting from 04:00 through 10:59",
+      "assumptions": [
+        "Eating episodes in the configured morning window are treated as breakfast."
+      ]
+    },
+    {
+      "action_id": "eat_dinner",
+      "code_prefixes": ["11"],
+      "start_hour_min": 16,
+      "start_hour_max": 24,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS eating episodes starting from 16:00 through 23:59",
+      "assumptions": [
+        "Eating episodes in the configured evening window are treated as dinner."
+      ]
+    },
+    {
+      "action_id": "eat_lunch",
+      "code_prefixes": ["11"],
+      "start_hour_min": 11,
+      "start_hour_max": 16,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS eating episodes starting from 11:00 through 15:59",
+      "assumptions": [
+        "Eating episodes in the configured midday window are treated as lunch."
+      ]
+    },
+    {
+      "action_id": "exercise",
+      "code_prefixes": ["1301"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS activity codes beginning 1301 for sports and exercise participation",
+      "assumptions": [
+        "Each coded sports or exercise episode is one action occurrence."
+      ]
+    },
+    {
+      "action_id": "personal_care",
+      "code_prefixes": ["0102"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS activity codes beginning 0102 for grooming and personal care",
+      "assumptions": [
+        "Each coded grooming or personal-care episode is one action occurrence."
+      ]
+    },
+    {
+      "action_id": "skip_lunch",
+      "code_prefixes": ["11"],
+      "start_hour_min": 11,
+      "start_hour_max": 16,
+      "aggregation": "episode",
+      "evidence_kind": "estimated",
+      "description": "Proxy estimate from ATUS eating episodes starting 11:00 through 15:59",
+      "assumptions": [
+        "ATUS records eating episodes and does not directly measure a skipped meal as an activity."
+      ]
+    },
+    {
+      "action_id": "sleep",
+      "code_prefixes": ["0101"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "respondent_day",
+      "evidence_kind": "measured",
+      "description": "ATUS activity codes beginning 0101 for sleeping",
+      "assumptions": [
+        "All sleep episodes in one respondent diary day are combined into one daily sleep occurrence."
+      ]
+    },
+    {
+      "action_id": "social_activity",
+      "code_prefixes": ["12"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "episode",
+      "evidence_kind": "measured",
+      "description": "ATUS tier-one 12 socializing, relaxing, and leisure episodes",
+      "assumptions": [
+        "Each coded socializing, relaxing, or leisure episode is one action occurrence."
+      ]
+    },
+    {
+      "action_id": "work_or_study",
+      "code_prefixes": ["05", "06"],
+      "start_hour_min": null,
+      "start_hour_max": null,
+      "aggregation": "respondent_day",
+      "evidence_kind": "measured",
+      "description": "ATUS tier-one 05 work and 06 education episodes",
+      "assumptions": [
+        "All work and education episodes in one respondent diary day are combined into one daily action."
+      ]
+    }
+  ]
+}

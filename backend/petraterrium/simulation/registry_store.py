@@ -180,6 +180,25 @@ class SimulationRegistryStore:
             payload["default_dsl"] = deepcopy(receipt)
             self._write(payload)
 
+    def restore_default_dsl_sections(
+        self,
+        sections: dict,
+        receipt: dict,
+    ) -> None:
+        with self._lock:
+            payload = self._payload()
+            managed_sections = set(receipt["managed_sections"])
+            unexpected = sorted(set(sections) - managed_sections)
+            if unexpected:
+                raise ValueError(
+                    "Default restore contains unmanaged sections: "
+                    + ", ".join(unexpected)
+                )
+            for section, value in sections.items():
+                payload[section] = deepcopy(value)
+            payload["default_dsl"] = deepcopy(receipt)
+            self._write(payload)
+
     def save_agent_types(self, registry: ConfirmedAgentTypeRegistry) -> ConfirmedAgentTypeRegistry:
         with self._lock:
             payload = self._payload()

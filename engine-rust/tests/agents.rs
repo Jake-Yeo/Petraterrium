@@ -23,6 +23,7 @@ fn rule(probability: f64) -> ProbabilityRule {
     ProbabilityRule {
         conditions: vec![],
         probability: Some(probability),
+        time_unit_hours: None,
         provenance: provenance(),
     }
 }
@@ -92,6 +93,7 @@ fn request(seed: u64) -> AgentProgramRequest {
                         id: "stay".to_owned(),
                         from_state: "decide".to_owned(),
                         to_state: "home".to_owned(),
+                        action_id: None,
                         rules: vec![rule(0.5)],
                         effects: vec![],
                     },
@@ -99,6 +101,7 @@ fn request(seed: u64) -> AgentProgramRequest {
                         id: "leave".to_owned(),
                         from_state: "decide".to_owned(),
                         to_state: "out".to_owned(),
+                        action_id: None,
                         rules: vec![rule(0.5)],
                         effects: vec![TransitionEffect {
                             target: "memory.social".to_owned(),
@@ -120,6 +123,7 @@ fn request(seed: u64) -> AgentProgramRequest {
                     id: "bar".to_owned(),
                     from_state: "choose".to_owned(),
                     to_state: "bar".to_owned(),
+                    action_id: None,
                     rules: vec![rule(1.0)],
                     effects: vec![],
                 }],
@@ -140,6 +144,8 @@ fn request(seed: u64) -> AgentProgramRequest {
         schedules: vec![ScheduleRow {
             id: "evening".to_owned(),
             action: "routine-evening".to_owned(),
+            timed_action_id: None,
+            timed_action_provenance: None,
             weekdays: vec![4],
             start_hour: 17.0,
             end_hour: 23.0,
@@ -450,6 +456,8 @@ fn scheduled_location_request() -> AgentProgramRequest {
         ScheduleRow {
             id: "work-shift".to_owned(),
             action: "work".to_owned(),
+            timed_action_id: None,
+            timed_action_provenance: None,
             weekdays: vec![4],
             start_hour: 8.0,
             end_hour: 17.0,
@@ -468,6 +476,8 @@ fn scheduled_location_request() -> AgentProgramRequest {
         ScheduleRow {
             id: "bar-visit".to_owned(),
             action: "socialize".to_owned(),
+            timed_action_id: None,
+            timed_action_provenance: None,
             weekdays: vec![4],
             start_hour: 17.0,
             end_hour: 20.0,
@@ -486,6 +496,8 @@ fn scheduled_location_request() -> AgentProgramRequest {
         ScheduleRow {
             id: "return-home".to_owned(),
             action: "at-home".to_owned(),
+            timed_action_id: None,
+            timed_action_provenance: None,
             weekdays: vec![4],
             start_hour: 20.0,
             end_hour: 24.0,
@@ -568,6 +580,8 @@ fn household_return_request(destination_place_by_agent: Vec<Option<usize>>) -> A
     configured.schedules = vec![ScheduleRow {
         id: "return-home".to_owned(),
         action: "at-home".to_owned(),
+        timed_action_id: None,
+        timed_action_provenance: None,
         weekdays: vec![4],
         start_hour: 20.0,
         end_hour: 24.0,
@@ -839,6 +853,207 @@ fn scheduled_actions_drive_evidence_backed_colocated_interactions() {
             .iter()
             .any(|blocked| blocked.reason.contains("same specific place"))
     );
+}
+
+#[test]
+fn active_primary_actions_hold_location_and_gate_schedules_modules_and_interactions() {
+    let mut configured = interaction_tree_request(true);
+    configured.ticks = 2;
+    configured.tick_hours = 1.0;
+    configured.meaningful_actions = vec![MeaningfulAction {
+        id: "protected-task".to_owned(),
+        exclusive_choice_group: None,
+        rules: vec![rule(1.0)],
+    }];
+    configured.schedules[0].timed_action_id = Some("routine-evening".to_owned());
+    configured.schedules[0].timed_action_provenance = Some(provenance());
+    configured.state_dynamics.time_execution = Some(TimeExecutionProgram {
+        actions: vec![
+            TimedActionDefinition {
+                action_id: "protected-task".to_owned(),
+                category: "protected".to_owned(),
+                duration: DurationDistribution {
+                    duration_min_hours: 3.0,
+                    duration_median_hours: 3.5,
+                    duration_max_hours: 4.0,
+                    shape: "triangular".to_owned(),
+                    shape_parameters: BTreeMap::new(),
+                    provenance: provenance(),
+                },
+                duration_overrides: vec![],
+                location_place_index_by_agent: vec![Some(0); 4],
+                priority: 10,
+                passive: false,
+                interruptibility: "protected".to_owned(),
+                interruption_outcome: "defer".to_owned(),
+                emergency_interruptions: vec![],
+            },
+            TimedActionDefinition {
+                action_id: "routine-evening".to_owned(),
+                category: "routine".to_owned(),
+                duration: DurationDistribution {
+                    duration_min_hours: 0.1,
+                    duration_median_hours: 0.2,
+                    duration_max_hours: 0.3,
+                    shape: "triangular".to_owned(),
+                    shape_parameters: BTreeMap::new(),
+                    provenance: provenance(),
+                },
+                duration_overrides: vec![],
+                location_place_index_by_agent: vec![],
+                priority: 0,
+                passive: false,
+                interruptibility: "interruptible".to_owned(),
+                interruption_outcome: "defer".to_owned(),
+                emergency_interruptions: vec![],
+            },
+        ],
+        idle_category: "idle".to_owned(),
+        receipt_agent_indices: None,
+    });
+
+    let result = run(configured).unwrap();
+
+    assert!(result.routine_actions.is_empty());
+    assert!(result.transition_outcomes.is_empty());
+    assert!(result.interactions.is_empty());
+    assert_eq!(result.agents.place, vec![0; 4]);
+    assert!(
+        result
+            .time_ticks
+            .iter()
+            .all(|receipt| receipt.primary_actions[0].action == "protected-task")
+    );
+}
+
+#[test]
+fn declared_schedule_actions_enter_the_sampled_time_budget() {
+    let mut configured = request(23);
+    configured.ticks = 1;
+    configured.tick_hours = 1.0;
+    configured.meaningful_actions.clear();
+    configured.interactions = InteractionProgram::default();
+    configured.schedules[0].timed_action_id = Some("routine-evening".to_owned());
+    configured.schedules[0].timed_action_provenance = Some(provenance());
+    configured.state_dynamics.time_execution = Some(TimeExecutionProgram {
+        actions: vec![TimedActionDefinition {
+            action_id: "routine-evening".to_owned(),
+            category: "routine".to_owned(),
+            duration: DurationDistribution {
+                duration_min_hours: 2.0,
+                duration_median_hours: 2.5,
+                duration_max_hours: 3.0,
+                shape: "triangular".to_owned(),
+                shape_parameters: BTreeMap::new(),
+                provenance: provenance(),
+            },
+            duration_overrides: vec![],
+            location_place_index_by_agent: vec![],
+            priority: 1,
+            passive: false,
+            interruptibility: "interruptible".to_owned(),
+            interruption_outcome: "defer".to_owned(),
+            emergency_interruptions: vec![],
+        }],
+        idle_category: "idle".to_owned(),
+        receipt_agent_indices: None,
+    });
+
+    let result = run(configured).unwrap();
+
+    assert_eq!(result.routine_actions.len(), 1);
+    assert_eq!(result.routine_actions[0].agent_indices, vec![0, 1, 2, 3]);
+    assert!(result.transition_outcomes.is_empty());
+    assert_eq!(result.events.len(), 4);
+    assert!(
+        result
+            .time_ticks
+            .iter()
+            .all(|receipt| receipt.used_hours == 1.0
+                && receipt.primary_actions[0].action == "routine-evening")
+    );
+}
+
+#[test]
+fn module_transition_action_is_queued_into_the_timed_action_runtime() {
+    fn configured_request(ticks: u64) -> AgentProgramRequest {
+        let mut configured = request(29);
+        configured.ticks = ticks;
+        configured.tick_hours = 1.0;
+        configured.schedules.clear();
+        configured.interactions = InteractionProgram::default();
+        configured.modules[0].exit_states = vec!["home".to_owned(), "out".to_owned()];
+        configured.modules[0].transitions = vec![ModuleTransition {
+            id: "choose-call".to_owned(),
+            from_state: "decide".to_owned(),
+            to_state: "home".to_owned(),
+            action_id: Some("call-friend".to_owned()),
+            rules: vec![rule(1.0)],
+            effects: vec![],
+        }];
+        configured.meaningful_actions[0].rules = vec![rule(0.0)];
+        configured.state_dynamics.time_execution = Some(TimeExecutionProgram {
+            actions: vec![TimedActionDefinition {
+                action_id: "call-friend".to_owned(),
+                category: "social".to_owned(),
+                duration: DurationDistribution {
+                    duration_min_hours: 0.1,
+                    duration_median_hours: 0.2,
+                    duration_max_hours: 0.3,
+                    shape: "triangular".to_owned(),
+                    shape_parameters: BTreeMap::new(),
+                    provenance: provenance(),
+                },
+                duration_overrides: vec![],
+                location_place_index_by_agent: vec![],
+                priority: 1,
+                passive: false,
+                interruptibility: "interruptible".to_owned(),
+                interruption_outcome: "defer".to_owned(),
+                emergency_interruptions: vec![],
+            }],
+            idle_category: "idle".to_owned(),
+            receipt_agent_indices: None,
+        });
+        configured
+    }
+
+    let result = run(configured_request(2)).unwrap();
+
+    assert_eq!(result.events.len(), 4);
+    assert!(
+        result
+            .events
+            .iter()
+            .all(|event| event.action == "call-friend" && event.tick == 2)
+    );
+    assert_eq!(
+        result
+            .time_ticks
+            .iter()
+            .filter(|receipt| !receipt.primary_actions.is_empty())
+            .count(),
+        4
+    );
+
+    let first = run(configured_request(1)).unwrap();
+    assert_eq!(first.continuation.time_execution.pending_actions.len(), 4);
+    let mut resumed = configured_request(1);
+    resumed.continuation = Some(first.continuation.clone());
+    let agent_ids = resumed.agents.agent_ids.clone();
+    resumed.agents = AgentColumnsInput {
+        agent_ids,
+        module: first.agents.module.clone(),
+        state: first.agents.state.clone(),
+        place: first.agents.place.clone(),
+        traits: first.agents.traits.clone(),
+        trait_dictionaries: first.agents.trait_dictionaries.clone(),
+        memory: first.agents.memory.clone(),
+    };
+    let second = run(resumed).unwrap();
+    assert_eq!(second.events, result.events);
+    assert_eq!(second.agents, result.agents);
+    assert_eq!(second.continuation, result.continuation);
 }
 
 #[test]
@@ -1393,6 +1608,7 @@ fn current_place_kind_selects_a_live_probability_rule() {
                     categorical_value: Some("home".to_owned()),
                 }],
                 probability: Some(home_probability),
+                time_unit_hours: None,
                 provenance: provenance(),
             },
             ProbabilityRule {
@@ -1403,6 +1619,7 @@ fn current_place_kind_selects_a_live_probability_rule() {
                     categorical_value: Some("bar".to_owned()),
                 }],
                 probability: Some(bar_probability),
+                time_unit_hours: None,
                 provenance: provenance(),
             },
         ];

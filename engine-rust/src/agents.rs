@@ -10,12 +10,17 @@ use crate::random::DeterministicRng;
 use crate::state_finance::{
     CashFlowColumns, FinanceColumns, StateColumns, advance_finance_columns, advance_state_columns,
 };
+use crate::time_budget::{
+    allocate_agent_tick, merge_daily_time, sample_duration_hours, scale_probability_to_tick,
+    summarize_daily_time,
+};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
 struct CompiledTransition {
     id: String,
     to_state: usize,
+    action_id: Option<String>,
     rules: Vec<ProbabilityRule>,
     effects: Vec<TransitionEffect>,
 }
@@ -114,6 +119,38 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
     };
     let mut synchronization = Vec::new();
     let mut state_ticks = Vec::new();
+    let timed_actions = request
+        .state_dynamics
+        .time_execution
+        .as_ref()
+        .map(|program| {
+            program
+                .actions
+                .iter()
+                .map(|action| (action.action_id.clone(), action.clone()))
+                .collect::<BTreeMap<_, _>>()
+        });
+    let mut time_execution = request
+        .continuation
+        .as_ref()
+        .map_or_else(TimeExecutionContinuation::default, |continuation| {
+            continuation.time_execution.clone()
+        });
+    if timed_actions.is_some() {
+        if time_execution.active_primary.is_empty() {
+            time_execution.active_primary = vec![None; current.len()];
+        }
+        if time_execution.occurrence_counts.is_empty() {
+            time_execution.occurrence_counts = vec![BTreeMap::new(); current.len()];
+        }
+    }
+    let receipt_agent_indices = request
+        .state_dynamics
+        .time_execution
+        .as_ref()
+        .and_then(|program| program.receipt_agent_indices.as_ref())
+        .map(|indices| indices.iter().copied().collect::<BTreeSet<_>>());
+    let mut time_ticks = Vec::new();
     for tick in completed_tick + 1..=final_tick {
         let elapsed_hours = (tick - 1) as f64 * request.tick_hours;
         let absolute_hour = request.start_hour + elapsed_hours;
@@ -121,7 +158,12 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
         let weekday = ((request.start_weekday as u64
             + (absolute_hour.div_euclid(24.0).floor() as u64))
             % 7) as u8;
-        let tick_routines = apply_schedules(
+        let active_at_start = time_execution
+            .active_primary
+            .iter()
+            .map(Option::is_some)
+            .collect::<Vec<_>>();
+        let mut tick_routines = apply_schedules(
             tick,
             absolute_hour,
             request.start_weekday,
@@ -130,13 +172,32 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             &program,
             &request.places,
             &request.schedules,
+            &active_at_start,
             &mut active_travel,
             &mut location_transitions,
             &mut routine_unavailable,
         )?;
         let neighbor_values = neighbor_state_values(&current, &program, request.network.as_ref())?;
         let decision_place_states = live_place_state_maps(&request.places, &current);
-        routine_actions.extend(tick_routines.clone());
+        let mut future_actions = Vec::new();
+        for action in std::mem::take(&mut time_execution.pending_actions) {
+            if action.tick <= tick {
+                event_queue.push(action);
+            } else {
+                future_actions.push(action);
+            }
+        }
+        time_execution.pending_actions = future_actions;
+        evaluate_scheduled_timed_actions(
+            tick,
+            absolute_hour,
+            request.start_weekday,
+            &current,
+            &program,
+            &request.schedules,
+            &active_at_start,
+            &mut event_queue,
+        )?;
         evaluate_meaningful_actions(
             tick,
             hour,
@@ -148,9 +209,45 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             &mut rng,
             &mut event_queue,
         )?;
-        let tick_events = event_queue.drain();
+        let proposed_tick_events = event_queue.drain();
+        let (tick_events, mut tick_time_receipts) = if let (Some(definitions), Some(program)) = (
+            timed_actions.as_ref(),
+            request.state_dynamics.time_execution.as_ref(),
+        ) {
+            execute_timed_actions(
+                tick,
+                request.seed,
+                request.tick_hours,
+                current.len(),
+                proposed_tick_events,
+                definitions,
+                &program.idle_category,
+                &mut time_execution,
+                &mut current,
+                &request.places,
+                &mut location_transitions,
+            )?
+        } else {
+            (proposed_tick_events, Vec::new())
+        };
+        let primary_busy = tick_time_receipts
+            .iter()
+            .map(|receipt| receipt.remaining_hours <= 1e-9 && receipt.used_hours > 1e-9)
+            .collect::<Vec<_>>();
+        tick_routines.extend(executed_timed_schedule_batches(
+            tick,
+            &request.schedules,
+            &tick_events,
+        ));
+        routine_actions.extend(tick_routines.clone());
+        if let Some(selected) = &receipt_agent_indices {
+            tick_time_receipts.retain(|receipt| selected.contains(&receipt.agent_index));
+        }
+        time_ticks.extend(tick_time_receipts);
         events.extend(tick_events.clone());
-        let (mut next, counts, outcomes) = apply_modules(
+        let neighbor_values = neighbor_state_values(&current, &program, request.network.as_ref())?;
+        let decision_place_states = live_place_state_maps(&request.places, &current);
+        let (mut next, counts, outcomes, transition_actions) = apply_modules(
             tick,
             hour,
             weekday,
@@ -160,8 +257,10 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             &neighbor_values,
             &decision_place_states,
             &mut rng,
+            &primary_busy,
             &mut routine_unavailable,
         )?;
+        time_execution.pending_actions.extend(transition_actions);
         location_transitions.extend(module_location_transitions(
             tick, &current, &next, &outcomes,
         ));
@@ -188,6 +287,7 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
                     agent_ids: interaction_agent_ids.clone(),
                     place: next.places.clone(),
                     actions: interaction_actions(current.len(), &tick_routines, &tick_events),
+                    primary_busy: primary_busy.clone(),
                     traits: next.traits.clone(),
                     states: next.memory.clone(),
                 },
@@ -202,7 +302,7 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             interaction_events.extend(result.events);
             blocked_interactions.extend(result.blocked);
         }
-        if let Some(receipt) = apply_state_dynamics(
+        if let Some(mut receipt) = apply_state_dynamics(
             tick,
             &current,
             &mut next,
@@ -211,6 +311,17 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             &outcomes,
             &request.state_dynamics,
         )? {
+            if let Some(selected) = &receipt_agent_indices {
+                receipt
+                    .event_effects
+                    .retain(|item| selected.contains(&item.agent_index));
+                receipt
+                    .agent_state_changes
+                    .retain(|item| selected.contains(&item.agent_index));
+                receipt
+                    .finance_changes
+                    .retain(|item| selected.contains(&item.agent_index));
+            }
             state_ticks.push(receipt);
         }
         transition_counts.extend(counts);
@@ -229,6 +340,9 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             agents: agents.len(),
         })
         .collect();
+    let daily_updates = summarize_daily_time(&time_ticks, request.start_hour);
+    merge_daily_time(&mut time_execution.daily_time, daily_updates);
+    let daily_time = time_execution.daily_time.clone();
     Ok(AgentProgramResult {
         seed: request.seed,
         ticks: final_tick,
@@ -238,6 +352,7 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
             active_travel,
             relationships: interaction_relationships.clone(),
             live_places: live_places.clone(),
+            time_execution,
         },
         agents: output_agents(current, &program),
         live_places,
@@ -254,7 +369,179 @@ pub fn run(request: AgentProgramRequest) -> CoreResult<AgentProgramResult> {
         synchronization,
         shard_populations,
         state_ticks,
+        time_ticks,
+        daily_time,
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_timed_actions(
+    tick: u64,
+    seed: u64,
+    tick_hours: f64,
+    agent_count: usize,
+    proposed_events: Vec<ActionEvent>,
+    definitions: &BTreeMap<String, TimedActionDefinition>,
+    idle_category: &str,
+    continuation: &mut TimeExecutionContinuation,
+    batch: &mut AgentBatch,
+    places: &[PlaceInput],
+    location_transitions: &mut Vec<LocationTransitionRecord>,
+) -> CoreResult<(Vec<ActionEvent>, Vec<TickTimeReceipt>)> {
+    let mut candidates_by_agent = vec![Vec::new(); agent_count];
+    for candidate in continuation.deferred.drain(..) {
+        candidates_by_agent[candidate.event.agent_index].push(candidate);
+    }
+    let mut proposed_identities = BTreeSet::new();
+    for event in proposed_events {
+        if !proposed_identities.insert((event.agent_index, event.action.clone())) {
+            continue;
+        }
+        let definition = definitions.get(&event.action).ok_or_else(|| {
+            CoreError::at(
+                "MISSING_ACTION_DURATION",
+                format!("Action {} has no duration distribution", event.action),
+                "state_dynamics.time_execution.actions",
+            )
+        })?;
+        let (definition, location_place_index) =
+            resolve_timed_action_definition(definition, event.agent_index)?;
+        let occurrence = continuation.occurrence_counts[event.agent_index]
+            .entry(event.action.clone())
+            .or_default();
+        let occurrence_index = *occurrence;
+        *occurrence += 1;
+        let sampled_duration_hours = sample_duration_hours(
+            &definition.duration,
+            seed,
+            event.agent_index,
+            &event.action,
+            occurrence_index,
+        )?;
+        candidates_by_agent[event.agent_index].push(SampledTimedAction {
+            definition,
+            event,
+            occurrence_index,
+            sampled_duration_hours,
+            remaining_duration_hours: sampled_duration_hours,
+            location_place_index,
+            emit_event: true,
+        });
+    }
+    let mut executed_events = Vec::new();
+    let mut receipts = Vec::with_capacity(agent_count);
+    let mut deferred = Vec::new();
+    for (agent_index, candidates) in candidates_by_agent.into_iter().enumerate() {
+        let active = continuation.active_primary[agent_index].take();
+        let locations = active
+            .iter()
+            .chain(candidates.iter())
+            .map(|action| {
+                (
+                    (action.definition.action_id.clone(), action.occurrence_index),
+                    action.location_place_index,
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut allocation = allocate_agent_tick(
+            agent_index,
+            tick,
+            tick_hours,
+            active,
+            candidates,
+            idle_category,
+        )?;
+        for receipt in &allocation.receipt.primary_actions {
+            let Some(destination) = locations
+                .get(&(receipt.action.clone(), receipt.occurrence_index))
+                .copied()
+                .flatten()
+            else {
+                continue;
+            };
+            if destination >= places.len() {
+                return Err(CoreError::at(
+                    "UNKNOWN_TIMED_ACTION_LOCATION",
+                    format!(
+                        "Action {} for agent {agent_index} references place {destination}",
+                        receipt.action
+                    ),
+                    "state_dynamics.time_execution.actions.location_place_index_by_agent",
+                ));
+            }
+            if batch.places[agent_index] != destination {
+                if let Some(reason) = arrival_unavailable_reason(batch, places, destination) {
+                    return Err(CoreError::at(
+                        "TIMED_ACTION_LOCATION_UNAVAILABLE",
+                        format!("Action {} cannot start: {reason}", receipt.action),
+                        "state_dynamics.time_execution.actions.location_place_index_by_agent",
+                    ));
+                }
+                let source = batch.places[agent_index];
+                batch.places[agent_index] = destination;
+                location_transitions.push(LocationTransitionRecord {
+                    tick,
+                    agent_index,
+                    source: receipt.action.clone(),
+                    phase: "timed_action_started".to_owned(),
+                    from_place_index: source,
+                    to_place_index: destination,
+                    destination_place_index: destination,
+                    provenance: Some(serde_json::to_value(&receipt.duration.provenance).map_err(
+                        |error| {
+                            CoreError::at(
+                                "SERIALIZATION_FAILED",
+                                format!("Could not serialize timed action provenance: {error}"),
+                                "state_dynamics.time_execution.actions.duration.provenance",
+                            )
+                        },
+                    )?),
+                });
+            }
+        }
+        for event in &mut allocation.executed_events {
+            event.place_index = batch.places[agent_index];
+        }
+        continuation.active_primary[agent_index] = allocation.active_primary;
+        deferred.extend(allocation.deferred);
+        executed_events.extend(allocation.executed_events);
+        receipts.push(allocation.receipt);
+    }
+    continuation.deferred = deferred;
+    Ok((executed_events, receipts))
+}
+
+fn resolve_timed_action_definition(
+    definition: &TimedActionDefinition,
+    agent_index: usize,
+) -> CoreResult<(TimedActionDefinition, Option<usize>)> {
+    let matching = definition
+        .duration_overrides
+        .iter()
+        .filter(|item| item.eligible_agent_indices.contains(&agent_index))
+        .collect::<Vec<_>>();
+    if matching.len() > 1 {
+        return Err(CoreError::at(
+            "AMBIGUOUS_ACTION_DURATION",
+            format!(
+                "Action {} has more than one duration override for agent {agent_index}",
+                definition.action_id
+            ),
+            "state_dynamics.time_execution.actions.duration_overrides",
+        ));
+    }
+    let mut resolved = definition.clone();
+    if let Some(selected) = matching.first() {
+        resolved.duration = selected.duration.clone();
+    }
+    resolved.duration_overrides.clear();
+    let location = if definition.location_place_index_by_agent.is_empty() {
+        None
+    } else {
+        definition.location_place_index_by_agent[agent_index]
+    };
+    resolved.location_place_index_by_agent.clear();
+    Ok((resolved, location))
 }
 
 fn apply_state_dynamics(
@@ -422,6 +709,10 @@ fn state_event_occurrences(
             .or_default()
             .push(outcome.agent_index);
     }
+    for agents in result.values_mut() {
+        agents.sort_unstable();
+        agents.dedup();
+    }
     result
 }
 
@@ -546,6 +837,30 @@ fn interaction_actions(
     actions
 }
 
+fn executed_timed_schedule_batches(
+    tick: u64,
+    schedules: &[ScheduleRow],
+    events: &[ActionEvent],
+) -> Vec<RoutineActionBatch> {
+    schedules
+        .iter()
+        .filter_map(|schedule| {
+            let timed_action_id = schedule.timed_action_id.as_deref()?;
+            let agent_indices = events
+                .iter()
+                .filter(|event| event.action == timed_action_id)
+                .map(|event| event.agent_index)
+                .collect::<Vec<_>>();
+            (!agent_indices.is_empty()).then(|| RoutineActionBatch {
+                tick,
+                schedule: schedule.id.clone(),
+                action: schedule.action.clone(),
+                agent_indices,
+            })
+        })
+        .collect()
+}
+
 fn transition_evidence(program: &CompiledProgram) -> Vec<TransitionEvidenceRecord> {
     let mut records = Vec::new();
     for module in &program.modules {
@@ -587,6 +902,7 @@ fn compile_program(request: &AgentProgramRequest) -> CoreResult<CompiledProgram>
             transitions[source].push(CompiledTransition {
                 id: transition.id.clone(),
                 to_state: state_indices[transition.to_state.as_str()],
+                action_id: transition.action_id.clone(),
                 rules: transition.rules.clone(),
                 effects: transition.effects.clone(),
             });
@@ -754,18 +1070,24 @@ fn apply_modules(
     neighbor_values: &BTreeMap<String, Vec<f64>>,
     place_states: &[BTreeMap<String, f64>],
     rng: &mut DeterministicRng,
+    primary_busy: &[bool],
     routine_unavailable: &mut Vec<RoutineUnavailableRecord>,
 ) -> CoreResult<(
     AgentBatch,
     Vec<TransitionCount>,
     Vec<AgentTransitionOutcome>,
+    Vec<ActionEvent>,
 )> {
     let mut next = current.clone();
     let mut counts: BTreeMap<(usize, String), u64> = BTreeMap::new();
     let mut outcomes = Vec::new();
+    let mut emitted_actions = Vec::new();
     for shard in current.shards(request.places.len()) {
         let mut partitions: BTreeMap<(usize, usize), Vec<usize>> = BTreeMap::new();
         for agent in shard {
+            if primary_busy.get(agent).copied().unwrap_or(false) {
+                continue;
+            }
             let module = &program.modules[current.modules[agent]];
             let place = &request.places[current.places[agent]];
             if !module_is_available(module, place) {
@@ -797,6 +1119,7 @@ fn apply_modules(
                     &transition.rules,
                     &agents,
                     hour,
+                    request.tick_hours,
                     weekday,
                     current,
                     &request.places,
@@ -812,7 +1135,7 @@ fn apply_modules(
                     .iter()
                     .map(|column| column[batch_index])
                     .collect();
-                let selected = rng.categorical(
+                let (selected, draw) = rng.categorical_with_draw(
                     &probabilities,
                     &format!("agents.{agent}.tick.{tick}.outgoing_probabilities"),
                 )?;
@@ -821,6 +1144,7 @@ fn apply_modules(
                     &transition.rules,
                     agent,
                     hour,
+                    request.tick_hours,
                     weekday,
                     current,
                     &request.places,
@@ -832,6 +1156,7 @@ fn apply_modules(
                 let probability = probability_rule
                     .probability
                     .expect("validated transition probability is present");
+                let provenance = probability_rule.provenance.clone();
                 outcomes.push(AgentTransitionOutcome {
                     tick,
                     agent_index: agent,
@@ -841,8 +1166,20 @@ fn apply_modules(
                     to_state: module.state_names[transition.to_state].clone(),
                     rule_index,
                     probability,
-                    provenance: probability_rule.provenance.clone(),
+                    provenance: provenance.clone(),
                 });
+                if let Some(action_id) = &transition.action_id {
+                    emitted_actions.push(ActionEvent {
+                        tick: tick.saturating_add(1),
+                        agent_index: agent,
+                        place_index: current.places[agent],
+                        action: action_id.clone(),
+                        rule_index,
+                        probability,
+                        draw,
+                        provenance,
+                    });
+                }
                 next.states[agent] = transition.to_state;
                 apply_effects(
                     tick,
@@ -868,7 +1205,7 @@ fn apply_modules(
             count,
         })
         .collect();
-    Ok((next, result, outcomes))
+    Ok((next, result, outcomes, emitted_actions))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -876,6 +1213,7 @@ fn resolve_transition_probability_batch(
     rules: &[ProbabilityRule],
     agents: &[usize],
     hour: f64,
+    tick_hours: f64,
     weekday: u8,
     batch: &AgentBatch,
     places: &[PlaceInput],
@@ -890,6 +1228,7 @@ fn resolve_transition_probability_batch(
                 rules,
                 *agent,
                 hour,
+                tick_hours,
                 weekday,
                 batch,
                 places,
@@ -907,6 +1246,7 @@ fn resolve_transition_probability(
     rules: &[ProbabilityRule],
     agent: usize,
     hour: f64,
+    tick_hours: f64,
     weekday: u8,
     batch: &AgentBatch,
     places: &[PlaceInput],
@@ -919,6 +1259,7 @@ fn resolve_transition_probability(
         rules,
         agent,
         hour,
+        tick_hours,
         weekday,
         batch,
         places,
@@ -945,6 +1286,7 @@ fn matching_probability_rule<'a>(
     rules: &'a [ProbabilityRule],
     agent: usize,
     hour: f64,
+    tick_hours: f64,
     weekday: u8,
     batch: &AgentBatch,
     places: &[PlaceInput],
@@ -958,6 +1300,7 @@ fn matching_probability_rule<'a>(
             &rule.conditions,
             agent,
             hour,
+            tick_hours,
             weekday,
             batch,
             places,
@@ -983,6 +1326,7 @@ fn conditions_match(
     conditions: &[NumericCondition],
     agent: usize,
     hour: f64,
+    tick_hours: f64,
     weekday: u8,
     batch: &AgentBatch,
     places: &[PlaceInput],
@@ -1019,7 +1363,11 @@ fn conditions_match(
             neighbor_values,
             &format!("{path}.{index}.input"),
         )?;
+        let hour_match = condition.input == "context.hour"
+            && hour_occurs_in_tick(hour, tick_hours, condition.value);
         let matches = match condition.operator.as_str() {
+            "eq" if condition.input == "context.hour" => hour_match,
+            "ne" if condition.input == "context.hour" => !hour_match,
             "eq" => (actual - condition.value).abs() <= 1e-12,
             "ne" => (actual - condition.value).abs() > 1e-12,
             "gt" => actual > condition.value,
@@ -1033,6 +1381,36 @@ fn conditions_match(
         }
     }
     Ok(true)
+}
+
+fn hour_occurs_in_tick(start_hour: f64, tick_hours: f64, target_hour: f64) -> bool {
+    if tick_hours >= 24.0 - 1e-12 {
+        return true;
+    }
+    let offset = (target_hour - start_hour).rem_euclid(24.0);
+    offset < tick_hours - 1e-12 || offset <= 1e-12
+}
+
+fn probability_provenance_for_tick(
+    rule: &ProbabilityRule,
+    tick_hours: f64,
+) -> CoreResult<ProbabilityProvenance> {
+    let mut provenance = rule.provenance.clone();
+    if let Some(low) = provenance.ci_low {
+        provenance.ci_low = Some(scale_probability_to_tick(
+            low,
+            rule.time_unit_hours,
+            tick_hours,
+        )?);
+    }
+    if let Some(high) = provenance.ci_high {
+        provenance.ci_high = Some(scale_probability_to_tick(
+            high,
+            rule.time_unit_hours,
+            tick_hours,
+        )?);
+    }
+    Ok(provenance)
 }
 
 fn categorical_input_value<'a>(
@@ -1223,6 +1601,63 @@ fn apply_routes(batch: &mut AgentBatch, program: &CompiledProgram) {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn evaluate_scheduled_timed_actions(
+    tick: u64,
+    absolute_hour: f64,
+    start_weekday: u8,
+    batch: &AgentBatch,
+    program: &CompiledProgram,
+    schedules: &[ScheduleRow],
+    active_at_start: &[bool],
+    queue: &mut EventQueue,
+) -> CoreResult<()> {
+    for schedule in schedules {
+        let Some(action_id) = &schedule.timed_action_id else {
+            continue;
+        };
+        if schedule_occurrence(schedule, absolute_hour, start_weekday).is_none() {
+            continue;
+        }
+        let provenance = schedule.timed_action_provenance.clone().ok_or_else(|| {
+            CoreError::at(
+                "MISSING_SCHEDULE_ACTION_PROVENANCE",
+                format!("Schedule {} timed action has no provenance", schedule.id),
+                "schedules.timed_action_provenance",
+            )
+        })?;
+        for agent in 0..batch.len() {
+            if active_at_start.get(agent).copied().unwrap_or(false)
+                || !schedule_is_eligible(schedule, agent)
+                || !schedule_matches_agent(schedule, agent, batch, program)
+            {
+                continue;
+            }
+            let destination = schedule_destination(schedule, agent);
+            let at_destination =
+                destination.is_none_or(|destination| batch.places[agent] == destination);
+            let at_required_place = schedule.required_place_indices.is_empty()
+                || schedule
+                    .required_place_indices
+                    .contains(&batch.places[agent]);
+            if !at_destination || !at_required_place {
+                continue;
+            }
+            queue.push(ActionEvent {
+                tick,
+                agent_index: agent,
+                place_index: batch.places[agent],
+                action: action_id.clone(),
+                rule_index: 0,
+                probability: 1.0,
+                draw: 0.0,
+                provenance: provenance.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 fn evaluate_meaningful_actions(
     tick: u64,
     hour: f64,
@@ -1259,6 +1694,7 @@ fn evaluate_meaningful_actions(
                 &action.rules,
                 agent,
                 hour,
+                request.tick_hours,
                 weekday,
                 batch,
                 &request.places,
@@ -1266,9 +1702,15 @@ fn evaluate_meaningful_actions(
                 neighbor_values,
                 &rule_path,
             )?;
-            let probability = matched
-                .and_then(|(_, rule)| rule.probability)
-                .unwrap_or(0.0);
+            let probability = if let Some((_, rule)) = matched {
+                scale_probability_to_tick(
+                    rule.probability.unwrap_or(0.0),
+                    rule.time_unit_hours,
+                    request.tick_hours,
+                )?
+            } else {
+                0.0
+            };
             let draw = rng.draw();
             if draw < probability {
                 let (rule_index, rule) = matched.expect("positive probability requires a rule");
@@ -1280,7 +1722,7 @@ fn evaluate_meaningful_actions(
                     rule_index,
                     probability,
                     draw,
-                    provenance: rule.provenance.clone(),
+                    provenance: probability_provenance_for_tick(rule, request.tick_hours)?,
                 });
             }
         }
@@ -1316,6 +1758,7 @@ fn evaluate_exclusive_action_group(
                 &action.rules,
                 agent,
                 hour,
+                request.tick_hours,
                 weekday,
                 batch,
                 &request.places,
@@ -1368,6 +1811,7 @@ fn apply_schedules(
     program: &CompiledProgram,
     places: &[PlaceInput],
     schedules: &[ScheduleRow],
+    primary_busy: &[bool],
     active_travel: &mut [Option<ActiveTravelState>],
     location_transitions: &mut Vec<LocationTransitionRecord>,
     routine_unavailable: &mut Vec<RoutineUnavailableRecord>,
@@ -1377,6 +1821,7 @@ fn apply_schedules(
         batch,
         places,
         active_travel,
+        primary_busy,
         location_transitions,
         routine_unavailable,
     );
@@ -1392,7 +1837,8 @@ fn apply_schedules(
         let starts_now = tick == 1 || previous_occurrence != Some(occurrence);
         let mut agent_indices = Vec::new();
         for agent in 0..batch.len() {
-            if !schedule_is_eligible(schedule, agent)
+            if primary_busy.get(agent).copied().unwrap_or(false)
+                || !schedule_is_eligible(schedule, agent)
                 || !schedule_matches_agent(schedule, agent, batch, program)
             {
                 continue;
@@ -1609,7 +2055,12 @@ fn apply_schedules(
                 agent_indices.push(agent);
             }
         }
-        if !agent_indices.is_empty() {
+        let availability_only = schedule.timed_action_id.is_none()
+            && schedule
+                .activate_module_by_agent
+                .iter()
+                .any(Option::is_some);
+        if schedule.timed_action_id.is_none() && !availability_only && !agent_indices.is_empty() {
             result.push(RoutineActionBatch {
                 tick,
                 schedule: schedule.id.clone(),
@@ -1692,14 +2143,16 @@ fn complete_scheduled_travel(
     batch: &mut AgentBatch,
     places: &[PlaceInput],
     active_travel: &mut [Option<ActiveTravelState>],
+    primary_busy: &[bool],
     location_transitions: &mut Vec<LocationTransitionRecord>,
     routine_unavailable: &mut Vec<RoutineUnavailableRecord>,
 ) -> Vec<Option<String>> {
     let mut arrivals = vec![None; batch.len()];
     for agent in 0..batch.len() {
-        if !active_travel[agent]
-            .as_ref()
-            .is_some_and(|travel| travel.arrival_tick <= tick)
+        if primary_busy.get(agent).copied().unwrap_or(false)
+            || !active_travel[agent]
+                .as_ref()
+                .is_some_and(|travel| travel.arrival_tick <= tick)
         {
             continue;
         }

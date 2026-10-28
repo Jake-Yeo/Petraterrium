@@ -20,19 +20,26 @@ RUNTIME_SOURCE_PATHS = (
     Path("engine-rust/src/state_finance.rs"),
 )
 ACTION_REQUIRED_FIELDS = (
+    "category",
     "formula",
     "conditions",
     "duration",
+    "priority",
+    "passive",
+    "interruptibility",
+    "interruption_outcome",
+    "emergency_interruptions",
     "place_requirements",
     "time_requirements",
     "state_inputs",
     "outcomes",
 )
 ACTION_DURATION_FIELDS = (
-    "minimum_minutes",
-    "typical_minutes",
-    "maximum_minutes",
+    "duration_min_hours",
+    "duration_median_hours",
+    "duration_max_hours",
     "shape",
+    "shape_parameters",
 )
 FINANCE_LEDGER_TARGETS = frozenset({"money", "income", "expenses", "savings", "debt"})
 FINANCE_RUNTIME_MARKERS = (

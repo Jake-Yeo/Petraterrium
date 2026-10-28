@@ -10,6 +10,7 @@ from typing import Any
 from ..atlas.evidence_receipts import AtlasEvidenceReceiptRegistry
 from ..population import AgentRecord
 from ..rust_core import RustCoreClient
+from .aggregate_statistics import AggregateStatisticsProgram, TimelineSubject
 from .coefficient_evidence import (
     load_coefficient_registry,
     load_default_dsl_identity,
@@ -82,6 +83,32 @@ class LazyRustCoreClient:
             client = self._client
         return client.run_interaction_tree(request)
 
+    def validate_text_dsl(self, source: str) -> dict[str, Any]:
+        with self._lock:
+            if self._client is None:
+                self._client = RustCoreClient()
+            client = self._client
+        return client.validate_text_dsl(source)
+
+    def run_text_dsl(
+        self,
+        source: str,
+        *,
+        seed: int,
+        ticks: int,
+        continuation: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        with self._lock:
+            if self._client is None:
+                self._client = RustCoreClient()
+            client = self._client
+        return client.run_text_dsl(
+            source,
+            seed=seed,
+            ticks=ticks,
+            continuation=continuation,
+        )
+
 
 def _text_trait(agent: AgentRecord, name: str) -> str:
     value = agent.traits.get(name)
@@ -146,6 +173,7 @@ def _mobility_provenance(evidence: MobilityEvidence) -> dict[str, Any]:
 
 def _routine_schedules(
     resolved: ResolvedRoutineRegistry | None,
+    timed_action_ids: Mapping[str, str],
     module_ids_by_agent_type: Mapping[str, tuple[str, ...]],
     agents: list[AgentRecord],
     runtime_place_indices: Mapping[str, int],
@@ -180,6 +208,10 @@ def _routine_schedules(
                 continue
             expected_origin_ids = list(initial_runtime_place_ids)
             for step in routine.steps:
+                existing_timed_action_id = timed_action_ids.get(
+                    step.activity.strip().casefold().replace("_", " ")
+                )
+                timed_action_id = existing_timed_action_id or step.activity
                 step_key = (routine.agent_type_id, routine.id, step.id)
                 scheduled_agents = scheduled_agents_by_step.setdefault(step_key, set())
                 step_agent_indices = [
@@ -277,6 +309,22 @@ def _routine_schedules(
                             f"{agent_type.agent_type_id}:{routine.id}:{step.id}",
                         ),
                         "action": step.activity,
+                        "timed_action_id": timed_action_id,
+                        "timed_action_provenance": (
+                            {
+                                "source": routine.evidence.source_title
+                                or routine.evidence.note
+                                or f"Routine {routine.id}",
+                                "version": routine.evidence.source_date or "undated",
+                                "status": "default_estimated",
+                                "uncertainty": 1.0,
+                                "source_date": routine.evidence.source_date,
+                                "evidence_id": f"routine:{routine.id}:{step.id}",
+                                "evidence_kind": routine.evidence.status,
+                            }
+                            if timed_action_id is not None
+                            else None
+                        ),
                         "weekdays": [WEEKDAY_INDEX[day] for day in step.schedule.days],
                         "start_hour": _hour(step.schedule.start_time),
                         "end_hour": _hour(step.schedule.end_time),
@@ -292,6 +340,100 @@ def _routine_schedules(
                 )
                 scheduled_agents.update(step_agent_indices)
     return schedules
+
+
+def _timed_action_locations(
+    store: SimulationRegistryStore,
+    state_program,
+    agents: list[AgentRecord],
+    runtime_place_indices: Mapping[str, int],
+    initial_runtime_place_ids: list[str],
+    routine_destination_ids: Mapping[tuple[int, str], str | None],
+) -> None:
+    time_execution = state_program.state_dynamics.get("time_execution")
+    if not isinstance(time_execution, dict):
+        return
+    compiled_actions = time_execution.get("actions")
+    if not isinstance(compiled_actions, list):
+        return
+    raw_actions = {
+        str(action.get("id")): action
+        for action in store.payload_snapshot().get("default_actions", [])
+        if isinstance(action, dict) and action.get("id")
+    }
+    for compiled in compiled_actions:
+        action_id = str(compiled.get("action_id", ""))
+        requirements = raw_actions.get(action_id, {}).get("place_requirements", [])
+        locations: list[int | None] = []
+        for agent_index, _agent in enumerate(agents):
+            destination_id = None
+            for raw_requirement in requirements:
+                requirement = str(raw_requirement).strip().casefold()
+                if requirement in CURRENT_PLACE_IDS:
+                    break
+                if requirement == "home":
+                    destination_id = initial_runtime_place_ids[agent_index]
+                else:
+                    destination_id = routine_destination_ids.get((agent_index, requirement))
+                if destination_id is not None:
+                    break
+            locations.append(
+                runtime_place_indices[destination_id]
+                if destination_id in runtime_place_indices
+                else None
+            )
+        compiled["location_place_index_by_agent"] = locations
+
+
+def _add_scheduled_timed_actions(
+    state_program,
+    schedules: list[dict[str, Any]],
+    agent_count: int,
+) -> None:
+    time_execution = state_program.state_dynamics.setdefault(
+        "time_execution",
+        {"idle_category": "idle", "actions": []},
+    )
+    actions = time_execution.setdefault("actions", [])
+    known_actions = {str(action.get("action_id")) for action in actions}
+    for schedule in schedules:
+        action_id = schedule.get("timed_action_id")
+        provenance = schedule.get("timed_action_provenance")
+        if not action_id or action_id in known_actions or not isinstance(provenance, dict):
+            continue
+        start = float(schedule["start_hour"])
+        end = float(schedule["end_hour"])
+        window = (end - start) % 24
+        if math.isclose(window, 0, abs_tol=1e-9):
+            window = 24.0
+        median = min(1.0, window / 2)
+        minimum = max(1 / 3600, median * 0.5)
+        maximum = min(window, max(median + 1 / 3600, median * 2))
+        locations = schedule.get("destination_place_by_agent", [])
+        if not isinstance(locations, list) or len(locations) != agent_count:
+            locations = [schedule.get("destination_place_index")] * agent_count
+        actions.append(
+            {
+                "action_id": action_id,
+                "category": "routine",
+                "duration": {
+                    "duration_min_hours": minimum,
+                    "duration_median_hours": median,
+                    "duration_max_hours": maximum,
+                    "shape": "triangular",
+                    "shape_parameters": {},
+                    "provenance": provenance,
+                },
+                "duration_overrides": [],
+                "location_place_index_by_agent": locations,
+                "priority": 0,
+                "passive": False,
+                "interruptibility": "interruptible",
+                "interruption_outcome": "defer",
+                "emergency_interruptions": [],
+            }
+        )
+        known_actions.add(str(action_id))
 
 
 def _program_version(
@@ -321,6 +463,7 @@ def _program_version(
         "interaction_program": (
             interaction_program.model_dump(mode="json") if interaction_program else None
         ),
+        "aggregate_statistics": registry_payload.get("aggregate_statistics"),
         "runtime_modules": dict(sorted(module_ids_by_agent_type.items())),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -1256,6 +1399,40 @@ def prepare_registry_run(
     mobility = _resolved_mobility(store)
     numeric_memory = _numeric_memory(agents)
     state_program = compile_runtime_state(store, agents, set(numeric_memory))
+    aggregate_payload = store.payload_snapshot().get("aggregate_statistics")
+    aggregate_statistics = (
+        AggregateStatisticsProgram.model_validate(aggregate_payload)
+        if aggregate_payload is not None
+        else None
+    )
+    if aggregate_statistics is not None:
+        selected_agent_ids = {agent.agent_id for agent in agents}
+        selected_timeline_subjects = tuple(
+            subject
+            for subject in aggregate_statistics.timeline_subjects
+            if subject.agent_id in selected_agent_ids
+        )
+        if not selected_timeline_subjects and agents:
+            selected_timeline_subjects = (
+                TimelineSubject(
+                    agent_id=agents[0].agent_id,
+                    role="spotlight",
+                    start_tick=1,
+                ),
+            )
+        aggregate_statistics = aggregate_statistics.model_copy(
+            update={"timeline_subjects": selected_timeline_subjects}
+        )
+        time_execution = state_program.state_dynamics.get("time_execution")
+        if isinstance(time_execution, dict):
+            timeline_agent_ids = {
+                subject.agent_id for subject in selected_timeline_subjects
+            }
+            time_execution["receipt_agent_indices"] = [
+                index
+                for index, agent in enumerate(agents)
+                if agent.agent_id in timeline_agent_ids
+            ]
     coefficient_registry = load_coefficient_registry(store)
     default_dsl_identity = load_default_dsl_identity(store)
     if coefficient_registry is not None:
@@ -1322,6 +1499,16 @@ def prepare_registry_run(
     )
     schedules = _routine_schedules(
         resolved_routines,
+        {
+            key: str(action["id"])
+            for action in store.payload_snapshot().get("default_actions", [])
+            if isinstance(action, dict) and action.get("id")
+            for key in (
+                str(action["id"]).strip().casefold().replace("_", " "),
+                str(action.get("name", "")).strip().casefold().replace("_", " "),
+            )
+            if key
+        },
         module_ids_by_agent_type,
         agents,
         runtime_place_indices,
@@ -1333,6 +1520,15 @@ def prepare_registry_run(
         mobility,
         config.tick_interval_hours,
     )
+    _timed_action_locations(
+        store,
+        state_program,
+        agents,
+        runtime_place_indices,
+        initial_runtime_place_ids,
+        routine_destination_ids,
+    )
+    _add_scheduled_timed_actions(state_program, schedules, len(agents))
     program_version = _program_version(store, module_ids_by_agent_type)
     interactions = _interaction_payload(
         store,
@@ -1428,4 +1624,5 @@ def prepare_registry_run(
         coefficient_evidence=coefficient_summary,
         evidence_warnings=evidence_warnings,
         global_demo_summary=global_demo_summary,
+        aggregate_statistics=aggregate_statistics,
     )

@@ -1,0 +1,394 @@
+import './text-dsl-editor.css';
+
+interface DslDiagnostic {
+  code: string;
+  line: number;
+  column: number;
+  message: string;
+}
+
+interface DslValidation {
+  valid: boolean;
+  program_id?: string | null;
+  version?: string | null;
+  tick_hours?: number | null;
+  adult_population?: number | null;
+  diagnostics: DslDiagnostic[];
+}
+
+interface DslDocument {
+  code: string;
+  source_hash: string;
+  saved_at?: string | null;
+  validation: DslValidation;
+}
+
+type ReportValue = number | string | Record<string, number>;
+
+interface ReportColumn {
+  id: string;
+  label: string;
+  format: string;
+  metric: unknown;
+  line: number;
+}
+
+interface ReportRow {
+  group_id: string;
+  values: Record<string, ReportValue>;
+}
+
+interface ReportSnapshot {
+  tick: number;
+  rows: ReportRow[];
+}
+
+interface Report {
+  id: string;
+  title: string;
+  group_by: string;
+  display: 'table' | 'cards';
+  record: 'tick' | 'daily' | 'final';
+  columns: ReportColumn[];
+  snapshots: ReportSnapshot[];
+}
+
+interface ReportDelta {
+  report_id: string;
+  group_id: string;
+  values: Record<string, ReportValue>;
+}
+
+interface DslRunResult {
+  run_id: string;
+  source_hash: string;
+  seed: number;
+  days: number;
+  ticks: number;
+  adult_population: number;
+  total_agents: number;
+  generated_children: number;
+  results_title: string;
+  results_subtitle: string;
+  reports: Report[];
+  comparison: ReportDelta[];
+  engine_version: string;
+  created_at: string;
+}
+
+export interface TextDslEditorOptions {
+  onError: (error: unknown) => void;
+}
+
+const escapeHtml = (value: string): string =>
+  value.replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]!,
+  );
+
+const requestJson = async <Value>(path: string, init?: RequestInit): Promise<Value> => {
+  const response = await fetch(`/api${path}`, init);
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? JSON.stringify((body as { detail: unknown }).detail)
+        : `Request failed (${response.status})`;
+    throw new Error(detail);
+  }
+  return body as Value;
+};
+
+const number = (value: number, digits = 2): string =>
+  new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(value);
+
+const signed = (value: number): string => `${value >= 0 ? '+' : ''}${number(value)}`;
+
+const isRates = (value: ReportValue): value is Record<string, number> =>
+  typeof value === 'object' && value !== null;
+
+export class TextDslEditor {
+  private document?: DslDocument;
+  private run?: DslRunResult;
+  private loaded = false;
+  private dirty = false;
+  private resetArmed = false;
+  private readonly root = document.createElement('section');
+  private readonly textarea = document.createElement('textarea');
+  private readonly gutter = document.createElement('pre');
+  private readonly status: HTMLElement;
+  private readonly diagnostics: HTMLElement;
+  private readonly results: HTMLElement;
+
+  constructor(
+    private readonly host: HTMLElement,
+    private readonly options: TextDslEditorOptions,
+  ) {
+    this.root.className = 'text-dsl-workspace';
+    this.root.innerHTML = `
+      <header class="text-dsl-heading">
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Small-town simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs. Every number is a wide-uncertainty demo placeholder.</p></div>
+        <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
+      </header>
+      <div class="text-dsl-toolbar">
+        <button type="button" class="button secondary" data-dsl-action="validate">Validate code</button>
+        <button type="button" class="button primary" data-dsl-action="save">Save DSL</button>
+        <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
+        <label>Seed<input type="number" min="0" step="1" value="1" data-dsl-seed></label>
+        <label>Days<input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
+        <button type="button" class="button primary" data-dsl-action="run">Run saved DSL</button>
+      </div>
+      <div class="text-dsl-status" role="status" data-dsl-status>Loading Rust DSL…</div>
+      <div class="text-dsl-code-frame" data-dsl-code-frame></div>
+      <div class="text-dsl-diagnostics" data-dsl-diagnostics></div>
+      <div class="text-dsl-results" data-dsl-results></div>`;
+    const frame = this.root.querySelector<HTMLElement>('[data-dsl-code-frame]')!;
+    this.gutter.className = 'text-dsl-gutter';
+    this.gutter.setAttribute('aria-hidden', 'true');
+    this.textarea.className = 'text-dsl-code';
+    this.textarea.setAttribute('aria-label', 'Simulation DSL code');
+    this.textarea.spellcheck = false;
+    this.textarea.wrap = 'off';
+    frame.append(this.gutter, this.textarea);
+    this.status = this.root.querySelector<HTMLElement>('[data-dsl-status]')!;
+    this.diagnostics = this.root.querySelector<HTMLElement>('[data-dsl-diagnostics]')!;
+    this.results = this.root.querySelector<HTMLElement>('[data-dsl-results]')!;
+    this.host.replaceChildren(this.root);
+    this.root.addEventListener('click', this.onClick);
+    this.textarea.addEventListener('input', this.onInput);
+    this.textarea.addEventListener('scroll', this.onScroll);
+  }
+
+  activate(): void {
+    if (!this.loaded) void this.load();
+  }
+
+  deactivate(): void {}
+
+  destroy(): void {
+    this.root.removeEventListener('click', this.onClick);
+    this.textarea.removeEventListener('input', this.onInput);
+    this.textarea.removeEventListener('scroll', this.onScroll);
+    this.root.remove();
+  }
+
+  private readonly onInput = (): void => {
+    this.dirty = this.textarea.value !== this.document?.code;
+    this.resetArmed = false;
+    this.renderLines();
+    this.status.textContent = this.dirty
+      ? 'Unsaved code. Validate and save before running.'
+      : 'Saved DSL is ready to run.';
+    this.updateButtons();
+  };
+
+  private readonly onScroll = (): void => {
+    this.gutter.scrollTop = this.textarea.scrollTop;
+  };
+
+  private readonly onClick = (event: MouseEvent): void => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('[data-dsl-action]');
+    if (!button) return;
+    const action = button.dataset.dslAction;
+    if (action === 'validate') void this.validate();
+    if (action === 'save') void this.save();
+    if (action === 'run') void this.runDsl();
+    if (action === 'reset') void this.reset(button);
+  };
+
+  private async load(): Promise<void> {
+    this.status.textContent = 'Loading the DSL source from the API…';
+    try {
+      this.document = await requestJson<DslDocument>('/simulation/text-dsl');
+      this.loaded = true;
+      this.textarea.value = this.document.code;
+      this.dirty = false;
+      this.renderLines();
+      this.renderDocument();
+      this.renderValidation(this.document.validation);
+    } catch (error) {
+      this.status.textContent = error instanceof Error ? error.message : String(error);
+      this.options.onError(error);
+    }
+  }
+
+  private async validate(): Promise<DslValidation | null> {
+    this.status.textContent = 'Rust is parsing and validating the DSL…';
+    try {
+      const validation = await requestJson<DslValidation>('/simulation/text-dsl/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: this.textarea.value }),
+      });
+      this.renderValidation(validation);
+      return validation;
+    } catch (error) {
+      this.options.onError(error);
+      this.status.textContent = error instanceof Error ? error.message : String(error);
+      return null;
+    }
+  }
+
+  private async save(): Promise<void> {
+    if (!this.document) return;
+    const validation = await this.validate();
+    if (!validation?.valid) return;
+    this.status.textContent = 'Saving the validated DSL source…';
+    try {
+      this.document = await requestJson<DslDocument>('/simulation/text-dsl', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: this.textarea.value,
+          expected_hash: this.document.source_hash,
+        }),
+      });
+      this.textarea.value = this.document.code;
+      this.dirty = false;
+      this.renderDocument();
+      this.renderValidation(this.document.validation);
+    } catch (error) {
+      this.options.onError(error);
+      this.status.textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private async reset(button: HTMLButtonElement): Promise<void> {
+    if (!this.resetArmed) {
+      this.resetArmed = true;
+      button.textContent = 'Click again to reset';
+      this.status.textContent = 'Reset will replace the active code with the shipped Rust DSL.';
+      return;
+    }
+    try {
+      this.document = await requestJson<DslDocument>('/simulation/text-dsl/reset', {
+        method: 'POST',
+      });
+      this.textarea.value = this.document.code;
+      this.dirty = false;
+      this.resetArmed = false;
+      button.textContent = 'Reset shipped DSL';
+      this.renderLines();
+      this.renderDocument();
+      this.renderValidation(this.document.validation);
+    } catch (error) {
+      this.options.onError(error);
+    }
+  }
+
+  private async runDsl(): Promise<void> {
+    if (!this.document || this.dirty || !this.document.validation.valid) return;
+    const seed = Number(
+      this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value,
+    );
+    const days = Number(
+      this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value,
+    );
+    this.status.textContent = `Running ${days} days in the Rust DSL engine…`;
+    try {
+      this.run = await requestJson<DslRunResult>('/simulation/text-dsl/runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seed,
+          days,
+          baseline_run_id: this.run?.run_id ?? null,
+        }),
+      });
+      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} ticks with ${this.run.total_agents.toLocaleString()} agents.`;
+      this.renderResults();
+    } catch (error) {
+      this.options.onError(error);
+      this.status.textContent = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  private renderDocument(): void {
+    if (!this.document) return;
+    this.root.querySelector<HTMLElement>('[data-dsl-hash]')!.textContent =
+      `${this.document.validation.program_id ?? 'DSL'} · ${this.document.source_hash.slice(0, 18)}…`;
+    this.status.textContent = this.document.validation.valid
+      ? 'This exact DSL source is saved and executable.'
+      : 'The saved DSL has validation errors.';
+    this.updateButtons();
+  }
+
+  private renderLines(): void {
+    const count = Math.max(1, this.textarea.value.split('\n').length);
+    this.gutter.textContent = Array.from({ length: count }, (_, index) => index + 1).join('\n');
+  }
+
+  private renderValidation(validation: DslValidation): void {
+    this.diagnostics.replaceChildren();
+    if (validation.valid) {
+      this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · ${number(validation.adult_population ?? 0, 0)} adults before generated children</span></div>`;
+      this.status.textContent = this.dirty
+        ? 'Code is valid. Save it to make it the executable source.'
+        : 'Saved DSL is valid and ready to run.';
+    } else {
+      this.diagnostics.innerHTML = `<div class="text-dsl-invalid"><strong>${validation.diagnostics.length} DSL error${validation.diagnostics.length === 1 ? '' : 's'}</strong>${validation.diagnostics
+        .map(
+          (item) =>
+            `<button type="button" data-dsl-error-line="${item.line}"><span>Line ${item.line} · ${escapeHtml(item.code)}</span><strong>${escapeHtml(item.message)}</strong></button>`,
+        )
+        .join('')}</div>`;
+      this.diagnostics
+        .querySelectorAll<HTMLButtonElement>('[data-dsl-error-line]')
+        .forEach((button) =>
+          button.addEventListener('click', () => this.focusLine(Number(button.dataset.dslErrorLine))),
+        );
+      this.status.textContent = 'Fix the DSL errors before saving or running.';
+    }
+    this.updateButtons(validation);
+  }
+
+  private focusLine(line: number): void {
+    const lines = this.textarea.value.split('\n');
+    const start = lines.slice(0, Math.max(0, line - 1)).reduce((sum, value) => sum + value.length + 1, 0);
+    const end = start + (lines[line - 1]?.length ?? 0);
+    this.textarea.focus();
+    this.textarea.setSelectionRange(start, end);
+  }
+
+  private updateButtons(validation = this.document?.validation): void {
+    const save = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="save"]')!;
+    const run = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
+    save.disabled = !this.dirty;
+    run.disabled = this.dirty || !validation?.valid;
+  }
+
+  private renderResults(): void {
+    if (!this.run) return;
+    const places = this.run.final_aggregates.filter((row) => row.group_kind === 'place');
+    const types = this.run.final_aggregates.filter((row) => row.group_kind === 'agent_type');
+    const deltaByKey = new Map(
+      this.run.comparison.map((row) => [`${row.group_kind}:${row.group_id}`, row]),
+    );
+    this.results.innerHTML = `
+      <header><div><span class="text-dsl-eyebrow">RECORDED RUST OUTPUT</span><h2>Small-group aggregates</h2><p>Run ${escapeHtml(this.run.run_id.slice(0, 8))} · seed ${this.run.seed} · ${this.run.days} days · ${this.run.engine_version}</p></div><div><strong>${this.run.total_agents}</strong><span>${this.run.adult_population} adults + ${this.run.generated_children} generated children</span></div></header>
+      ${this.table('Places', places, deltaByKey)}
+      ${this.table('Agent types', types, deltaByKey)}
+      <details><summary>Action and outcome totals</summary><pre>${escapeHtml(JSON.stringify({ actions: this.run.action_counts, outcomes: this.run.outcome_counts }, null, 2))}</pre></details>`;
+  }
+
+  private table(
+    heading: string,
+    rows: AggregateRow[],
+    deltas: Map<string, AggregateDelta>,
+  ): string {
+    return `<section class="text-dsl-result-table"><h3>${heading}</h3><div class="table-scroll"><table><thead><tr><th>Group</th><th>Population</th><th>Money</th><th>Health</th><th>Stress</th><th>Fights/day</th><th>Family size</th><th>Kids/family</th><th>Top action rates / 1,000</th></tr></thead><tbody>${rows
+      .map((row) => {
+        const delta = deltas.get(`${row.group_kind}:${row.group_id}`);
+        const deltaText = (value: number | undefined) =>
+          delta ? `<small>${signed(value ?? 0)} vs baseline</small>` : '';
+        const actions = Object.entries(row.action_rates_per_1000)
+          .sort((left, right) => right[1] - left[1])
+          .slice(0, 4)
+          .map(([name, rate]) => `${escapeHtml(name)} ${number(rate)}`)
+          .join(' · ');
+        return `<tr><th>${escapeHtml(row.group_id)}</th><td>${row.population}${deltaText(delta?.population)}</td><td>${number(row.mean_money)}${deltaText(delta?.mean_money)}</td><td>${number(row.mean_health)}${deltaText(delta?.mean_health)}</td><td>${number(row.mean_stress)}${deltaText(delta?.mean_stress)}</td><td>${row.fights_per_day}${deltaText(delta?.fights_per_day)}</td><td>${number(row.average_family_size)}</td><td>${number(row.average_kids_per_family)}</td><td>${actions || '0'}</td></tr>`;
+      })
+      .join('')}</tbody></table></div></section>`;
+  }
+}

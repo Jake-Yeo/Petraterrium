@@ -15,6 +15,17 @@ import {
   type RunEvidenceSummary,
   type RunEvidenceWarning,
 } from './run-evidence';
+import {
+  AgentTypeMixControl,
+  GLOBAL_AGENT_TYPES,
+  type GlobalAgentTypeMix,
+} from './agent-type-mix-control';
+import { SavedRunStatusList } from './saved-run-status-list';
+import {
+  AgentTimeAccountingView,
+  type AgentTimeAccountingData,
+  type AgentTimedActionOccurrence,
+} from './agent-time-accounting-view';
 
 export type SimulationRunStatus =
   'queued' | 'running' | 'cancelling' | 'cancelled' | 'completed' | 'failed';
@@ -72,6 +83,45 @@ export interface SimulationRun {
   evidence_summary?: RunEvidenceSummary;
   evidence_warnings?: RunEvidenceWarning[];
   global_demo_summary?: GlobalDemoSummaryData;
+  aggregate_record_count?: number;
+  aggregate_statistics_version?: string | null;
+}
+
+interface RunFinanceStatistic {
+  total: number | null;
+  mean: number | null;
+  median: number | null;
+  unit: string;
+  comparable: boolean;
+  basis: string;
+  evidence_status: 'measured' | 'estimated';
+}
+
+interface RunAggregateRecord {
+  day: number;
+  place_level: 'city' | 'country' | 'region' | 'global';
+  place_id: string;
+  place_label: string;
+  population: number;
+  agent_count: number;
+  agent_type_shares: Record<string, number>;
+  action_rates_per_1000: Record<string, number>;
+  finances: Record<string, RunFinanceStatistic>;
+  employment: {
+    employed: number;
+    unemployed: number;
+    labour_force: number;
+    unemployment_rate: number;
+    student_share: number;
+    caregiver_share: number;
+    retired_share: number;
+    worker_share: number;
+  } | null;
+}
+
+interface RunAggregatePage {
+  items: RunAggregateRecord[];
+  total: number;
 }
 
 export interface RunAgentSummary {
@@ -106,6 +156,53 @@ export interface AgentTimelinePoint {
   interaction_details?: AgentInteractionDetail[];
   decision_path: DecisionPathStep[];
   location_transitions: LocationTransitionStep[];
+  time_receipts?: TimeTickReceipt[];
+  daily_time?: DailyTimeReceipt | null;
+}
+
+interface TimeActionReceipt {
+  action: string;
+  category: string;
+  occurrence_index: number;
+  duration: {
+    duration_min_hours: number;
+    duration_median_hours: number;
+    duration_max_hours: number;
+    shape: 'uniform' | 'triangular' | 'lognormal';
+    shape_parameters: Record<string, number>;
+    provenance: {
+      source: string;
+      version: string;
+      status: string;
+      uncertainty: number;
+      source_date?: string | null;
+    };
+  };
+  sampled_duration_hours: number;
+  hours_this_tick: number;
+  remaining_hours: number;
+  status: string;
+  passive: boolean;
+}
+
+interface TimeTickReceipt {
+  tick: number;
+  budget_hours: number;
+  primary_actions: TimeActionReceipt[];
+  passive_actions: TimeActionReceipt[];
+  interruptions: Array<{
+    interrupted_action: string;
+    interrupting_action: string;
+    remaining_hours: number;
+    outcome: string;
+  }>;
+}
+
+interface DailyTimeReceipt {
+  day_index: number;
+  complete: boolean;
+  accounted_hours: number;
+  category_hours: Record<string, number>;
 }
 
 export interface StateTickReceipt {
@@ -292,6 +389,7 @@ export interface SimulationRunClient {
   agents(runId: string, search?: string, page?: number): Promise<RunAgentPage>;
   agent(runId: string, agentId: string): Promise<RunAgentDetail>;
   events(runId: string, kind?: string, page?: number): Promise<RunEventPage>;
+  statistics?(runId: string): Promise<RunAggregatePage>;
 }
 
 export interface SimulationRunPanelOptions {
@@ -424,6 +522,10 @@ export function createSimulationRunHttpClient(
         await requestJson(`${basePath}/${encodeURIComponent(runId)}/events?${query}`),
       );
     },
+    statistics: async (runId) =>
+      (await requestJson(
+        `${basePath}/${encodeURIComponent(runId)}/statistics?page_size=1000`,
+      )) as RunAggregatePage,
   };
 }
 
@@ -438,14 +540,21 @@ export class SimulationRunPanel {
   private agentPage: RunAgentPage | null = null;
   private agentDetail: RunAgentDetail | null = null;
   private eventPage: RunEventPage | null = null;
+  private aggregatePage: RunAggregatePage | null = null;
+  private aggregateError = '';
   private agentSearch = '';
   private eventKind = '';
   private interactionsView: InteractionsView | null = null;
   private locationsView: LocationsView | null = null;
   private globalDemoSummaryView: GlobalDemoSummaryView | null = null;
   private launchEvidencePreview: SimulationLaunchEvidencePreview | null = null;
+  private agentTypeMixControl: AgentTypeMixControl | null = null;
+  private savedRunStatusList: SavedRunStatusList | null = null;
+  private agentTimeAccountingView: AgentTimeAccountingView | null = null;
+  private agentTypeMixValid = true;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private requestVersion = 0;
+  private statisticsRequestVersion = 0;
   private disposed = false;
   private active = true;
   private draftConfig: SimulationRunConfig = {
@@ -487,6 +596,9 @@ export class SimulationRunPanel {
     this.locationsView?.dispose();
     this.globalDemoSummaryView?.destroy();
     this.launchEvidencePreview?.dispose();
+    this.agentTypeMixControl?.destroy();
+    this.savedRunStatusList?.destroy();
+    this.agentTimeAccountingView?.destroy();
   }
 
   activate(): void {
@@ -570,13 +682,7 @@ export class SimulationRunPanel {
     const data = new FormData(form);
     const scopeLevel = String(data.get('place_scope_level')) as
       'global' | 'region' | 'country' | 'city';
-    let agentTypeMix: Record<string, number>;
-    try {
-      agentTypeMix = this.parseAgentTypeMix(String(data.get('agent_type_mix') ?? ''));
-    } catch (error) {
-      this.renderMessage(error instanceof Error ? error.message : String(error));
-      return;
-    }
+    const agentTypeMix = this.agentTypeMixControl?.value() ?? this.globalAgentTypeMix({});
     const config: SimulationRunConfig = {
       population_size: Number(data.get('population_size')),
       seed: Number(data.get('seed')),
@@ -597,6 +703,9 @@ export class SimulationRunPanel {
     }
     if (!(await this.prepareLaunchEvidence(config))) return;
     const version = ++this.requestVersion;
+    this.statisticsRequestVersion += 1;
+    this.aggregatePage = null;
+    this.aggregateError = '';
     this.renderMessage('Preparing the Rust run…');
     try {
       this.run = await this.client.launch(config);
@@ -634,25 +743,47 @@ export class SimulationRunPanel {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(config.start_date)) return 'Choose a start date.';
     if (config.place_scope.level !== 'global' && !config.place_scope.identifier)
       return `Enter the ${config.place_scope.level} to simulate.`;
+    const typeIds = Object.keys(config.agent_type_mix).sort();
+    const requiredTypeIds = GLOBAL_AGENT_TYPES.map((item) => item.id).sort();
+    if (
+      typeIds.length !== requiredTypeIds.length ||
+      typeIds.some((typeId, index) => typeId !== requiredTypeIds[index])
+    )
+      return 'Set a share for each of the six global agent types.';
+    const typeMixTotal = Object.values(config.agent_type_mix).reduce(
+      (total, share) => total + share,
+      0,
+    );
+    if (Math.abs(typeMixTotal - 1) > 0.000001) return 'Agent type mix shares must total 100%.';
     return null;
   }
 
-  private parseAgentTypeMix(value: string): Record<string, number> {
-    const normalized = value.trim();
-    if (!normalized) return {};
-    const result: Record<string, number> = {};
-    for (const row of normalized.split(/\n|,/)) {
-      const [rawName, rawShare, ...extra] = row.split(':');
-      const name = rawName?.trim();
-      const share = Number(rawShare?.trim());
-      if (!name || extra.length || !Number.isFinite(share) || share <= 0 || share > 1) {
-        throw new Error('Agent type mix must use one Type: share entry per line.');
-      }
-      result[name] = share;
+  private globalAgentTypeMix(value: Record<string, number>): GlobalAgentTypeMix {
+    const configured = GLOBAL_AGENT_TYPES.some(
+      (agentType) => typeof value[agentType.id] === 'number',
+    );
+    const fallback: GlobalAgentTypeMix = configured
+      ? {
+          person: 0,
+          caregiver: 0,
+          student: 0,
+          worker: 0,
+          business_owner: 0,
+          working_student: 0,
+        }
+      : {
+          person: 0.2,
+          caregiver: 0.1,
+          student: 0.15,
+          worker: 0.35,
+          business_owner: 0.1,
+          working_student: 0.1,
+        };
+    for (const agentType of GLOBAL_AGENT_TYPES) {
+      const share = value[agentType.id];
+      if (typeof share === 'number' && Number.isFinite(share)) fallback[agentType.id] = share;
     }
-    const total = Object.values(result).reduce((sum, share) => sum + share, 0);
-    if (Math.abs(total - 1) > 1e-9) throw new Error('Agent type mix shares must sum to 1.');
-    return result;
+    return fallback;
   }
 
   private schedulePoll(): void {
@@ -672,6 +803,7 @@ export class SimulationRunPanel {
       this.upsertSavedRun(run);
       if (run.status === 'completed' && run.result) {
         this.snapshotIndex = run.result.snapshots.length - 1;
+        if (!this.aggregatePage) void this.loadStatistics();
       }
       if (this.active) {
         this.render();
@@ -703,6 +835,8 @@ export class SimulationRunPanel {
     this.agentPage = null;
     this.agentDetail = null;
     this.eventPage = null;
+    this.aggregatePage = null;
+    this.aggregateError = '';
     this.pendingDeleteRunId = null;
     this.render();
   }
@@ -733,9 +867,12 @@ export class SimulationRunPanel {
       this.agentPage = null;
       this.agentDetail = null;
       this.eventPage = null;
+      this.aggregatePage = null;
+      this.aggregateError = '';
       this.pendingDeleteRunId = null;
       this.upsertSavedRun(run);
       this.render();
+      if (run.status === 'completed') void this.loadStatistics();
       this.schedulePoll();
     } catch (error) {
       if (!this.disposed && version === this.requestVersion) this.renderRequestError(error);
@@ -753,6 +890,8 @@ export class SimulationRunPanel {
         this.agentPage = null;
         this.agentDetail = null;
         this.eventPage = null;
+        this.aggregatePage = null;
+        this.aggregateError = '';
       }
       this.render();
     } catch (error) {
@@ -772,6 +911,23 @@ export class SimulationRunPanel {
     this.render();
     if (view === 'agents' && !this.agentPage) void this.loadAgents(1);
     if (view === 'events' && !this.eventPage) void this.loadEvents(1);
+    if (view === 'overview' && !this.aggregatePage) void this.loadStatistics();
+  }
+
+  private async loadStatistics(): Promise<void> {
+    if (!this.run?.aggregate_statistics_version || !this.client.statistics) return;
+    const version = ++this.statisticsRequestVersion;
+    try {
+      const page = await this.client.statistics(this.run.run_id);
+      if (this.disposed || version !== this.statisticsRequestVersion) return;
+      this.aggregatePage = page;
+      this.aggregateError = '';
+      this.render();
+    } catch (error) {
+      if (this.disposed || version !== this.statisticsRequestVersion) return;
+      this.aggregateError = error instanceof Error ? error.message : String(error);
+      this.render();
+    }
   }
 
   private async loadAgents(page: number): Promise<void> {
@@ -822,7 +978,16 @@ export class SimulationRunPanel {
     this.globalDemoSummaryView = null;
     this.launchEvidencePreview?.dispose();
     this.launchEvidencePreview = null;
+    this.agentTypeMixControl?.destroy();
+    this.agentTypeMixControl = null;
+    this.savedRunStatusList?.destroy();
+    this.savedRunStatusList = null;
+    this.agentTimeAccountingView?.destroy();
+    this.agentTimeAccountingView = null;
     this.host.innerHTML = `${this.renderConfig()}${this.renderSavedRuns()}<div class="simulation-run-body">${this.renderRun()}</div>`;
+    this.mountAgentTypeMix();
+    this.mountSavedRuns();
+    this.mountAgentTimeAccounting();
     const launchPreviewHost = this.host.querySelector<HTMLElement>('[data-run-launch-preview]');
     if (launchPreviewHost && this.launchPreviewClient !== null) {
       this.launchEvidencePreview = this.launchPreviewClient
@@ -858,9 +1023,6 @@ export class SimulationRunPanel {
   private renderConfig(): string {
     const config = this.run?.config ?? this.draftConfig;
     const locked = this.run && ['queued', 'running', 'cancelling'].includes(this.run.status);
-    const typeMix = Object.entries(config.agent_type_mix)
-      .map(([name, share]) => `${name}: ${share}`)
-      .join('\n');
     return `
       <header class="simulation-run-heading">
         <div><span class="small-label">RUST NUMERIC CORE</span><h2>Run simulation</h2><p>Configure the confirmed population and decision modules, then inspect recorded engine output.</p></div>
@@ -873,10 +1035,32 @@ export class SimulationRunPanel {
         <label>Tick interval (hours)<input name="tick_interval_hours" type="number" min="0.0001" step="any" value="${config.tick_interval_hours}" ${locked ? 'disabled' : ''} /></label>
         <label>Place scope<select name="place_scope_level" ${locked ? 'disabled' : ''}>${['global', 'region', 'country', 'city'].map((level) => `<option value="${level}"${config.place_scope.level === level ? ' selected' : ''}>${display(level)}</option>`).join('')}</select></label>
         <label>Place<input name="place_scope_identifier" type="text" value="${escapeHtml(config.place_scope.identifier ?? '')}" placeholder="Required for region, country, or city" ${locked ? 'disabled' : ''} /></label>
-        <label class="simulation-run-type-mix">Agent type mix<textarea name="agent_type_mix" rows="2" placeholder="Blank uses Initial Agents mix" ${locked ? 'disabled' : ''}>${escapeHtml(typeMix)}</textarea></label>
-        <button class="button" type="submit" ${locked ? 'disabled' : ''}>Launch Rust simulation</button>
+        <div class="simulation-run-type-mix" data-agent-type-mix></div>
+        <p class="simulation-run-launch-policy">Runs execute one at a time. Starting another run while one is running adds the new run to the queue.</p>
+        <button class="button" type="submit" ${locked || !this.agentTypeMixValid ? 'disabled' : ''}>Launch Rust simulation</button>
       </form>
       <div data-run-launch-preview></div>`;
+  }
+
+  private mountAgentTypeMix(): void {
+    const host = this.host.querySelector<HTMLElement>('[data-agent-type-mix]');
+    if (!host) return;
+    const config = this.run?.config ?? this.draftConfig;
+    const locked = Boolean(
+      this.run && ['queued', 'running', 'cancelling'].includes(this.run.status),
+    );
+    this.agentTypeMixControl = new AgentTypeMixControl(host, {
+      initialMix: this.globalAgentTypeMix(config.agent_type_mix),
+      disabled: locked,
+      onChange: (state) => {
+        this.agentTypeMixValid = state.valid;
+        this.draftConfig = { ...this.draftConfig, agent_type_mix: state.mix };
+        const launch = this.host.querySelector<HTMLButtonElement>(
+          '[data-run-config] button[type="submit"]',
+        );
+        if (launch) launch.disabled = locked || !state.valid;
+      },
+    });
   }
 
   private async loadInitialPopulationDefaults(): Promise<void> {
@@ -917,21 +1101,45 @@ export class SimulationRunPanel {
     } else if (!this.savedRuns.length) {
       content = '<div class="simulation-saved-empty">No saved runs yet.</div>';
     } else {
-      content = `<div class="simulation-saved-list">${this.savedRuns
-        .map((run) => this.renderSavedRun(run))
+      content = `<div data-saved-run-status-list></div><div class="simulation-saved-list">${this.savedRuns
+        .map((run) => this.renderSavedRunDelete(run))
         .join('')}</div>`;
     }
     return `<section class="simulation-saved-runs" aria-label="Saved simulation runs"><header><div><span class="small-label">RECORDED OUTPUT</span><h3>Saved runs</h3></div><button class="button secondary" type="button" data-run-action="refresh-runs" ${this.savedRunsLoading ? 'disabled' : ''}>Refresh</button></header>${content}</section>`;
   }
 
-  private renderSavedRun(run: SimulationRun): string {
-    const selected = this.run?.run_id === run.run_id;
+  private mountSavedRuns(): void {
+    const host = this.host.querySelector<HTMLElement>('[data-saved-run-status-list]');
+    if (!host) return;
+    this.savedRunStatusList = new SavedRunStatusList(host, {
+      launchPolicy: 'queue',
+      onOpen: (runId) => void this.openSavedRun(runId),
+      runs: this.savedRuns.map((run) => ({
+        id: run.run_id,
+        status: run.status,
+        progress: run.progress,
+        completedTicks: run.completed_ticks,
+        totalTicks: run.total_ticks,
+        populationSize: run.config.population_size,
+        days: run.config.days,
+        error: run.error,
+        hashes: {
+          protocol: run.result?.protocol_version,
+          program: run.result?.program_version,
+          dsl: run.result?.default_dsl_hash,
+          input: run.result?.input_hash,
+          output: run.result?.output_hash,
+        },
+      })),
+    });
+  }
+
+  private renderSavedRunDelete(run: SimulationRun): string {
     const deleting = this.pendingDeleteRunId === run.run_id;
-    const place = run.config.place_scope.identifier ?? 'Global';
     if (deleting) {
       return `<article class="simulation-saved-row simulation-saved-confirm"><div><strong>Delete this recorded run?</strong><small>${escapeHtml(run.run_id)}</small></div><span>This removes its snapshots, timelines, and events.</span><div><button class="button secondary" type="button" data-run-action="cancel-delete">Keep run</button><button class="button danger" type="button" data-run-action="confirm-delete" data-run-id="${escapeHtml(run.run_id)}">Delete permanently</button></div></article>`;
     }
-    return `<article class="simulation-saved-row${selected ? ' is-selected' : ''}"><button type="button" data-run-action="open-run" data-run-id="${escapeHtml(run.run_id)}" aria-label="Open run ${escapeHtml(run.run_id)}"><span class="simulation-run-status">${escapeHtml(display(run.status))}</span><span><strong>${run.config.population_size.toLocaleString()} agents · ${run.config.days.toLocaleString()} days</strong><small>${escapeHtml(place)} · seed ${run.config.seed} · starts ${escapeHtml(run.config.start_date)}</small></span><b>›</b></button><button class="simulation-saved-delete" type="button" data-run-action="request-delete" data-run-id="${escapeHtml(run.run_id)}" aria-label="Delete run ${escapeHtml(run.run_id)}" ${['queued', 'running', 'cancelling'].includes(run.status) ? 'disabled title="Cancel the active run before deleting it"' : ''}>Delete</button></article>`;
+    return `<article class="simulation-saved-row simulation-saved-delete-row"><span>Run ${escapeHtml(run.run_id.slice(0, 8))}</span><button class="simulation-saved-delete" type="button" data-run-action="request-delete" data-run-id="${escapeHtml(run.run_id)}" aria-label="Delete run ${escapeHtml(run.run_id)}" ${['queued', 'running', 'cancelling'].includes(run.status) ? 'disabled title="Cancel the active run before deleting it"' : ''}>Delete</button></article>`;
   }
 
   private renderRun(): string {
@@ -980,13 +1188,17 @@ export class SimulationRunPanel {
   private renderResultHeader(): string {
     const result = this.run?.result;
     if (!result) return '';
-    const defaultDsl =
-      result.default_dsl_version && result.default_dsl_hash
-        ? `<small>Default DSL ${escapeHtml(result.default_dsl_version)} · <span title="${escapeHtml(result.default_dsl_hash)}">${escapeHtml(result.default_dsl_hash.slice(0, 18))}…</span></small>`
-        : '';
     return `<div class="simulation-result-heading">
-      <div><span class="simulation-run-status">Completed</span><strong>Rust ${escapeHtml(result.engine_version)}</strong><small>Protocol ${escapeHtml(result.protocol_version)} · data ${escapeHtml(result.data_version)} · program ${escapeHtml(result.program_version)}</small>${defaultDsl}</div>
-      <div class="simulation-run-hashes"><span title="${escapeHtml(result.input_hash)}">Input ${escapeHtml(result.input_hash.slice(0, 10))}</span><span title="${escapeHtml(result.output_hash)}">Output ${escapeHtml(result.output_hash.slice(0, 10))}</span></div>
+      <div><span class="simulation-run-status">Completed</span><strong>Finished Rust simulation</strong><small>${this.run?.config.population_size.toLocaleString()} agents · ${this.run?.config.days.toLocaleString()} days · recorded output is ready to inspect</small></div>
+      <details class="simulation-run-details"><summary>Technical details and reproducibility hashes</summary><dl>
+        <div><dt>Engine</dt><dd>${escapeHtml(result.engine_version)}</dd></div>
+        <div><dt>Protocol</dt><dd><code>${escapeHtml(result.protocol_version)}</code><small>Wire contract used to exchange run data.</small></dd></div>
+        <div><dt>Data</dt><dd><code>${escapeHtml(result.data_version)}</code><small>Atlas and population data version.</small></dd></div>
+        <div><dt>Program</dt><dd><code>${escapeHtml(result.program_version)}</code><small>Compiled numeric program interpreted by Rust.</small></dd></div>
+        <div><dt>DSL</dt><dd><code>${escapeHtml(result.default_dsl_hash ?? 'Not recorded')}</code><small>${escapeHtml(result.default_dsl_version ?? 'No default DSL version recorded')}</small></dd></div>
+        <div><dt>Input</dt><dd><code>${escapeHtml(result.input_hash)}</code><small>Normalized configuration and starting data.</small></dd></div>
+        <div><dt>Output</dt><dd><code>${escapeHtml(result.output_hash)}</code><small>Recorded result content for this completed run.</small></dd></div>
+      </dl></details>
     </div>`;
   }
 
@@ -1010,14 +1222,65 @@ export class SimulationRunPanel {
       return '<div class="simulation-run-empty">No Rust snapshots were recorded.</div>';
     const index = this.snapshotIndex >= 0 ? this.snapshotIndex : snapshots.length - 1;
     const snapshot = snapshots[Math.min(index, snapshots.length - 1)];
+    const aggregates = this.renderAggregateStatistics(snapshot.day);
     return `<section class="simulation-run-overview" aria-label="Recorded Rust snapshot">
       <div class="simulation-snapshot-toolbar"><label>Recorded day<select data-run-snapshot>${snapshots.map((item, snapshotIndex) => `<option value="${snapshotIndex}"${snapshotIndex === index ? ' selected' : ''}>Day ${item.day} · ${escapeHtml(item.date)}</option>`).join('')}</select></label><span>${snapshot.event_count} events · ${snapshot.interaction_count} interactions</span></div>
-      <div class="simulation-result-columns">
-        ${this.renderCounts('Agent states', snapshot.state_counts, 'agents')}
-        ${this.renderCounts('Locations', snapshot.place_counts, 'agents')}
-      </div>
+      ${aggregates || `<div class="simulation-result-columns">${this.renderCounts('Agent states', snapshot.state_counts, 'agents')}</div>`}
       ${this.renderDecisionOutcomes(snapshot)}
     </section>`;
+  }
+
+  private renderAggregateStatistics(day: number): string {
+    if (!this.run?.aggregate_statistics_version) return '';
+    if (this.aggregateError)
+      return `<div class="simulation-run-state simulation-run-error" role="alert">${escapeHtml(this.aggregateError)}</div>`;
+    if (!this.aggregatePage)
+      return '<div class="simulation-run-state" role="status">Loading country statistics…</div>';
+    const records = this.aggregatePage.items.filter((item) => item.day === day);
+    const global = records.find((item) => item.place_level === 'global');
+    const countries = records
+      .filter((item) => item.place_level === 'country')
+      .sort((left, right) => right.population - left.population);
+    const regions = records
+      .filter((item) => item.place_level === 'region')
+      .sort((left, right) => right.population - left.population);
+    if (!global || !countries.length)
+      return '<div class="simulation-run-state">No country statistics were recorded for this day.</div>';
+    return `<section class="simulation-aggregate-results" aria-label="Country and global statistics">
+      <header><div><span class="small-label">AGGREGATE STORE</span><h3>Country statistics</h3><p>${countries.length} countries · ${regions.length} regions · global · routine-agent action logging off</p></div><strong>${this.number(global.population)} represented people</strong></header>
+      <div class="simulation-aggregate-global">${this.aggregateSummary(global)}</div>
+      <div class="simulation-aggregate-table-wrap"><table><thead><tr><th>Country</th><th>Agents / population</th><th>Employment</th><th>Income</th><th>Expenses</th><th>Savings</th><th>Debt</th><th>Agent types</th><th>Top actions / 1,000</th></tr></thead><tbody>${countries.map((record) => this.aggregateRow(record)).join('')}</tbody></table></div>
+      <details class="simulation-region-statistics"><summary>Region totals (${regions.length})</summary><div>${regions.map((record) => this.aggregateSummary(record)).join('')}</div></details>
+    </section>`;
+  }
+
+  private aggregateSummary(record: RunAggregateRecord): string {
+    const income = record.finances.income;
+    const unemployment = record.employment?.unemployment_rate ?? 0;
+    return `<article><strong>${escapeHtml(record.place_label)}</strong><span>${record.agent_count.toLocaleString()} agents · ${this.number(record.population)} population</span><span>${this.number(unemployment * 100)}% unemployment</span><span>${this.financeValue(income, 'mean')} mean income</span></article>`;
+  }
+
+  private aggregateRow(record: RunAggregateRecord): string {
+    const employment = record.employment;
+    const types = Object.entries(record.agent_type_shares)
+      .sort((left, right) => right[1] - left[1])
+      .map(([name, share]) => `${display(name)} ${this.number(share * 100)}%`)
+      .join(' · ');
+    const actions = Object.entries(record.action_rates_per_1000)
+      .filter(([, rate]) => rate > 0)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([name, rate]) => `${display(name)} ${this.number(rate)}`)
+      .join(' · ');
+    return `<tr><th>${escapeHtml(record.place_label)}</th><td>${record.agent_count.toLocaleString()}<small>${this.number(record.population)} represented</small></td><td>${employment ? `${employment.unemployed.toLocaleString()} unemployed / ${employment.labour_force.toLocaleString()} labour force<small>${this.number(employment.unemployment_rate * 100)}%</small>` : 'Not recorded'}</td>${['income', 'expenses', 'savings', 'debt'].map((metric) => `<td>${this.financeValue(record.finances[metric], 'median')}</td>`).join('')}<td>${escapeHtml(types || 'No type mix')}</td><td>${escapeHtml(actions || 'No recorded actions')}</td></tr>`;
+  }
+
+  private financeValue(
+    statistic: RunFinanceStatistic | undefined,
+    value: 'mean' | 'median',
+  ): string {
+    if (!statistic || !statistic.comparable || statistic[value] === null) return 'Not comparable';
+    return `${this.number(statistic[value])} ${escapeHtml(statistic.unit)}<small>${escapeHtml(display(statistic.evidence_status))} · ${escapeHtml(statistic.basis)}</small>`;
   }
 
   private renderDecisionOutcomes(snapshot: SimulationSnapshot): string {
@@ -1065,8 +1328,88 @@ export class SimulationRunPanel {
       <div class="simulation-agent-state-pair"><div><small>Initial state</small><strong>${escapeHtml(agent.initial_module)} / ${escapeHtml(agent.initial_state)}</strong><span>${escapeHtml(agent.initial_location)}</span></div><b>→</b><div><small>Final state</small><strong>${escapeHtml(agent.final_module)} / ${escapeHtml(agent.final_state)}</strong><span>${escapeHtml(agent.final_location)}</span></div></div>
       ${this.renderInitialProfile(agent.initial_profile ?? {})}
       <div class="simulation-agent-data">${this.renderRecord('Final traits', agent.traits)}${this.renderRecord('Final memory', agent.memory)}</div>
+      <div data-agent-time-accounting></div>
       <section class="simulation-agent-timeline" aria-label="${escapeHtml(agent.agent_id)} timeline"><h3>Daily state, decisions, and locations</h3><div class="simulation-timeline-table"><div class="simulation-timeline-labels"><span>Day</span><span>State</span><span>Location</span><span>Recorded activity</span></div>${agent.timeline.map((point) => this.renderTimelinePoint(point)).join('')}</div></section>
     </section>`;
+  }
+
+  private mountAgentTimeAccounting(): void {
+    const host = this.host.querySelector<HTMLElement>('[data-agent-time-accounting]');
+    if (!host || !this.agentDetail) return;
+    this.agentTimeAccountingView = new AgentTimeAccountingView(
+      host,
+      this.timeAccountingData(this.agentDetail),
+    );
+  }
+
+  private timeAccountingData(agent: RunAgentDetail): AgentTimeAccountingData {
+    const tickHours = this.run?.config.tick_interval_hours ?? 1;
+    return {
+      agent_id: agent.agent_id,
+      agent_label: agent.agent_id,
+      days: agent.timeline.map((point) => ({
+        day: point.day,
+        date: point.date,
+        category_hours: point.daily_time?.category_hours ?? {},
+        ticks: (point.time_receipts ?? []).map((receipt) => ({
+          tick: receipt.tick,
+          day: point.day,
+          start_hour: ((receipt.tick - 1) * tickHours) % 24,
+          tick_hours: receipt.budget_hours,
+          interruptions: receipt.interruptions.map((item) => ({
+            ...item,
+            interrupted_action: display(item.interrupted_action),
+            interrupting_action: display(item.interrupting_action),
+            outcome: display(item.outcome),
+          })),
+          actions: [...receipt.primary_actions, ...receipt.passive_actions].map((action) =>
+            this.timedActionOccurrence(action, receipt),
+          ),
+        })),
+      })),
+    };
+  }
+
+  private timedActionOccurrence(
+    action: TimeActionReceipt,
+    receipt: TimeTickReceipt,
+  ): AgentTimedActionOccurrence {
+    const interruption = receipt.interruptions.find(
+      (item) => item.interrupted_action === action.action,
+    );
+    const status = action.duration.provenance.status;
+    return {
+      occurrence_id: `${action.action}-${action.occurrence_index}`,
+      action_id: action.action,
+      action_name: display(action.action),
+      category: action.category,
+      mode: action.passive ? 'passive' : 'primary',
+      duration: {
+        min_hours: action.duration.duration_min_hours,
+        median_hours: action.duration.duration_median_hours,
+        max_hours: action.duration.duration_max_hours,
+        shape: action.duration.shape,
+        shape_parameters: action.duration.shape_parameters,
+        evidence: {
+          status:
+            status === 'measured' || status === 'fitted' || status === 'estimated'
+              ? status
+              : 'default',
+          source: action.duration.provenance.source,
+          sourceVersion: action.duration.provenance.version,
+          sourceDate: action.duration.provenance.source_date,
+          uncertainty: action.duration.provenance.uncertainty,
+        },
+      },
+      sampled_duration_hours: action.sampled_duration_hours,
+      hours_in_tick: action.hours_this_tick,
+      remaining_duration_hours: action.remaining_hours,
+      continuing_to_next_tick: action.remaining_hours > 0,
+      interrupted: interruption !== undefined,
+      interruption_reason: interruption
+        ? `${display(interruption.interrupting_action)} · ${display(interruption.outcome)}`
+        : null,
+    };
   }
 
   private renderInitialProfile(profile: Record<string, unknown>): string {

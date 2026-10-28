@@ -1,0 +1,1583 @@
+{
+  "schema_version": "1",
+  "run_id": "a563fc702d6643af8510743d3f2e8276",
+  "version": 3,
+  "previous_run_id": "b6f96b828cb74bc5a7eef71d57ee13f9",
+  "pipeline_version": "default-duration-research-v1",
+  "created_at": "2026-10-28T02:02:18.527592Z",
+  "completed_at": "2026-10-28T02:02:21.611588Z",
+  "requests": [
+    {
+      "action_id": "bad_work",
+      "action_label": "Bad work outcome",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "eat_breakfast",
+      "action_label": "Eat breakfast",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "eat_dinner",
+      "action_label": "Eat dinner",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "eat_lunch",
+      "action_label": "Eat lunch",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "exercise",
+      "action_label": "Exercise",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "personal_care",
+      "action_label": "Personal care",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "skip_lunch",
+      "action_label": "Skip lunch",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "sleep",
+      "action_label": "Sleep",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "social_activity",
+      "action_label": "Social activity",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    },
+    {
+      "action_id": "work_or_study",
+      "action_label": "Work or study",
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "target_language": "en",
+      "requested_source_tiers": [
+        "official_statistics",
+        "representative_survey",
+        "research_article",
+        "government_report",
+        "news",
+        "online_opinion"
+      ]
+    }
+  ],
+  "search_log": [
+    {
+      "sequence": 1,
+      "action_ids": [
+        "bad_work",
+        "eat_breakfast",
+        "eat_dinner",
+        "eat_lunch",
+        "exercise",
+        "personal_care",
+        "skip_lunch",
+        "sleep",
+        "social_activity",
+        "work_or_study"
+      ],
+      "place_id": "US",
+      "place_label": "United States",
+      "language": "en",
+      "engine": "BLS official data catalog",
+      "source_kind": "official_statistics",
+      "query_or_source": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+      "searched_at": "2026-10-28T02:02:20.830541Z",
+      "outcome": "error",
+      "candidate_ids": [],
+      "detail": "Client error '403 Forbidden' for url 'https://www.bls.gov/tus/data/datafiles-2025.htm'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+    },
+    {
+      "sequence": 2,
+      "action_ids": [
+        "bad_work",
+        "eat_breakfast",
+        "eat_dinner",
+        "eat_lunch",
+        "exercise",
+        "personal_care",
+        "skip_lunch",
+        "sleep",
+        "social_activity",
+        "work_or_study"
+      ],
+      "place_id": "US",
+      "place_label": "United States",
+      "language": "en",
+      "engine": "BLS official data catalog",
+      "source_kind": "official_statistics",
+      "query_or_source": "https://www.bls.gov/tus/datafiles/atusact-2025.zip",
+      "searched_at": "2026-10-28T02:02:19.603558Z",
+      "outcome": "candidate",
+      "candidate_ids": [
+        "atus-2025-bad_work",
+        "atus-2025-eat_breakfast",
+        "atus-2025-eat_dinner",
+        "atus-2025-eat_lunch",
+        "atus-2025-exercise",
+        "atus-2025-personal_care",
+        "atus-2025-skip_lunch",
+        "atus-2025-sleep",
+        "atus-2025-social_activity",
+        "atus-2025-work_or_study"
+      ],
+      "detail": "ATUS activity episodes downloaded"
+    },
+    {
+      "sequence": 3,
+      "action_ids": [
+        "bad_work",
+        "eat_breakfast",
+        "eat_dinner",
+        "eat_lunch",
+        "exercise",
+        "personal_care",
+        "skip_lunch",
+        "sleep",
+        "social_activity",
+        "work_or_study"
+      ],
+      "place_id": "US",
+      "place_label": "United States",
+      "language": "en",
+      "engine": "BLS official data catalog",
+      "source_kind": "official_statistics",
+      "query_or_source": "https://www.bls.gov/tus/datafiles/atusresp-2025.zip",
+      "searched_at": "2026-10-28T02:02:19.708724Z",
+      "outcome": "candidate",
+      "candidate_ids": [],
+      "detail": "ATUS final respondent weights downloaded"
+    },
+    {
+      "sequence": 4,
+      "action_ids": [
+        "bad_work",
+        "eat_breakfast",
+        "eat_dinner",
+        "eat_lunch",
+        "exercise",
+        "personal_care",
+        "skip_lunch",
+        "sleep",
+        "social_activity",
+        "work_or_study"
+      ],
+      "place_id": "EUROPE",
+      "place_label": "Europe",
+      "language": "en",
+      "engine": "Eurostat official data catalog",
+      "source_kind": "official_statistics",
+      "query_or_source": "https://ec.europa.eu/eurostat/en/web/microdata/collections-research/harmonised-european-time-use-surveys",
+      "searched_at": "2026-10-28T02:02:20.830541Z",
+      "outcome": "error",
+      "candidate_ids": [],
+      "detail": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)"
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "atus-2025-bad_work",
+      "action_id": "bad_work",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 1.0,
+        "median_hours": 7.966666666666667,
+        "maximum_hours": 12.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 1985,
+      "effective_sample_size": 1200.8241196965864,
+      "denominator": "ATUS respondent diary-day total for the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: Proxy estimate from ATUS tier-one 05 work episodes",
+      "reasoning": "Weighted ATUS occurrence durations supply a related-activity estimate; the source does not directly identify this action outcome.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "ATUS records work time but does not classify whether its outcome was good or bad.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The mapped diary activity is related to the action but does not directly measure it.",
+        "Multiple mapped episodes for one respondent are summed across the diary day."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.5,
+          "upper_hours": 2.75
+        },
+        "median": {
+          "lower_hours": 7.5,
+          "upper_hours": 8.25
+        },
+        "maximum": {
+          "lower_hours": 10.75,
+          "upper_hours": 12.916666666666666
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-eat_breakfast",
+      "action_id": "eat_breakfast",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.08333333333333333,
+        "median_hours": 0.3333333333333333,
+        "maximum_hours": 1.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 3852,
+      "effective_sample_size": 1851.1082015398495,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS eating episodes starting from 04:00 through 10:59",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured morning window are treated as breakfast.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.08333333333333333,
+          "upper_hours": 0.16666666666666666
+        },
+        "median": {
+          "lower_hours": 0.3333333333333333,
+          "upper_hours": 0.5
+        },
+        "maximum": {
+          "lower_hours": 1.0,
+          "upper_hours": 1.5
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-eat_dinner",
+      "action_id": "eat_dinner",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.16666666666666666,
+        "median_hours": 0.5,
+        "maximum_hours": 1.5,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 4977,
+      "effective_sample_size": 2456.184447956487,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS eating episodes starting from 16:00 through 23:59",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured evening window are treated as dinner.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.08333333333333333,
+          "upper_hours": 0.25
+        },
+        "median": {
+          "lower_hours": 0.5,
+          "upper_hours": 0.5
+        },
+        "maximum": {
+          "lower_hours": 1.0,
+          "upper_hours": 2.0
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-eat_lunch",
+      "action_id": "eat_lunch",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.16666666666666666,
+        "median_hours": 0.5,
+        "maximum_hours": 1.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 3694,
+      "effective_sample_size": 1821.7406392975415,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS eating episodes starting from 11:00 through 15:59",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured midday window are treated as lunch.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.08333333333333333,
+          "upper_hours": 0.16666666666666666
+        },
+        "median": {
+          "lower_hours": 0.5,
+          "upper_hours": 0.5
+        },
+        "maximum": {
+          "lower_hours": 1.0,
+          "upper_hours": 1.5
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-exercise",
+      "action_id": "exercise",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.16666666666666666,
+        "median_hours": 0.8333333333333334,
+        "maximum_hours": 3.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 1870,
+      "effective_sample_size": 796.8180596762822,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS activity codes beginning 1301 for sports and exercise participation",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded sports or exercise episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.16666666666666666,
+          "upper_hours": 0.25
+        },
+        "median": {
+          "lower_hours": 0.6666666666666666,
+          "upper_hours": 1.0
+        },
+        "maximum": {
+          "lower_hours": 2.0,
+          "upper_hours": 3.716666666666667
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-personal_care",
+      "action_id": "personal_care",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.08333333333333333,
+        "median_hours": 0.3333333333333333,
+        "maximum_hours": 1.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 8616,
+      "effective_sample_size": 4293.2768499970925,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS activity codes beginning 0102 for grooming and personal care",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded grooming or personal-care episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.03333333333333333,
+          "upper_hours": 0.08333333333333333
+        },
+        "median": {
+          "lower_hours": 0.3333333333333333,
+          "upper_hours": 0.5
+        },
+        "maximum": {
+          "lower_hours": 1.0,
+          "upper_hours": 1.4166666666666667
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-skip_lunch",
+      "action_id": "skip_lunch",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.16666666666666666,
+        "median_hours": 0.5,
+        "maximum_hours": 1.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 3694,
+      "effective_sample_size": 1821.7406392975415,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: Proxy estimate from ATUS eating episodes starting 11:00 through 15:59",
+      "reasoning": "Weighted ATUS occurrence durations supply a related-activity estimate; the source does not directly identify this action outcome.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "ATUS records eating episodes and does not directly measure a skipped meal as an activity.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The mapped diary activity is related to the action but does not directly measure it."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.08333333333333333,
+          "upper_hours": 0.16666666666666666
+        },
+        "median": {
+          "lower_hours": 0.5,
+          "upper_hours": 0.5
+        },
+        "maximum": {
+          "lower_hours": 1.0,
+          "upper_hours": 1.5
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-sleep",
+      "action_id": "sleep",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 6.0,
+        "median_hours": 8.916666666666666,
+        "maximum_hours": 13.0,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 6139,
+      "effective_sample_size": 3064.181306422814,
+      "denominator": "ATUS respondent diary-day total for the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS activity codes beginning 0101 for sleeping",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "All sleep episodes in one respondent diary day are combined into one daily sleep occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "Multiple mapped episodes for one respondent are summed across the diary day."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 5.0,
+          "upper_hours": 6.633333333333334
+        },
+        "median": {
+          "lower_hours": 8.416666666666666,
+          "upper_hours": 9.283333333333333
+        },
+        "maximum": {
+          "lower_hours": 11.833333333333334,
+          "upper_hours": 14.2
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-social_activity",
+      "action_id": "social_activity",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 0.16666666666666666,
+        "median_hours": 1.0,
+        "maximum_hours": 4.5,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 18509,
+      "effective_sample_size": 8996.330144169235,
+      "denominator": "ATUS activity occurrences among respondents reporting the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS tier-one 12 socializing, relaxing, and leisure episodes",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded socializing, relaxing, or leisure episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.16666666666666666,
+          "upper_hours": 0.25
+        },
+        "median": {
+          "lower_hours": 1.0,
+          "upper_hours": 1.5
+        },
+        "maximum": {
+          "lower_hours": 3.5,
+          "upper_hours": 5.666666666666667
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    },
+    {
+      "candidate_id": "atus-2025-work_or_study",
+      "action_id": "work_or_study",
+      "evidence_kind": "measured",
+      "duration": {
+        "minimum_hours": 1.0,
+        "median_hours": 7.833333333333333,
+        "maximum_hours": 12.033333333333333,
+        "shape": "triangular"
+      },
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "sample_size": 2185,
+      "effective_sample_size": 1207.4996914763512,
+      "denominator": "ATUS respondent diary-day total for the mapped activity",
+      "units": "hours per occurrence",
+      "mapping": "atus-2025-action-mapping-v1: ATUS tier-one 05 work and 06 education episodes",
+      "reasoning": "Weighted occurrence-duration quantiles were calculated from the official ATUS Activity file joined to final respondent weights.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "All work and education episodes in one respondent diary day are combined into one daily action.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "Multiple mapped episodes for one respondent are summed across the diary day."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.5,
+          "upper_hours": 2.0
+        },
+        "median": {
+          "lower_hours": 7.366666666666666,
+          "upper_hours": 8.216666666666667
+        },
+        "maximum": {
+          "lower_hours": 10.916666666666666,
+          "upper_hours": 13.0
+        },
+        "method": "weighted quantile sensitivity bands",
+        "coverage": "2.5/10, 40/60, and 90/97.5 percentile brackets",
+        "limitations": [
+          "These are empirical sensitivity bands rather than replicate-weight confidence intervals.",
+          "ATUS covers the United States and people age 15 or older."
+        ]
+      }
+    }
+  ],
+  "chosen_results": [
+    {
+      "action_id": "bad_work",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.75,
+        "median_hours": 7.966666666666667,
+        "maximum_hours": 15.0,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-bad_work"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "ATUS records work time but does not classify whether its outcome was good or bad.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The mapped diary activity is related to the action but does not directly measure it.",
+        "Multiple mapped episodes for one respondent are summed across the diary day.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.0
+        },
+        "median": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.0
+        },
+        "maximum": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.0
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "eat_breakfast",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.05,
+        "median_hours": 0.3333333333333333,
+        "maximum_hours": 1.25,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-eat_breakfast"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured morning window are treated as breakfast.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "median": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "maximum": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "eat_dinner",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.11666666666666667,
+        "median_hours": 0.5,
+        "maximum_hours": 1.8833333333333333,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-eat_dinner"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured evening window are treated as dinner.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.8833333333333333
+        },
+        "median": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.8833333333333333
+        },
+        "maximum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.8833333333333333
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "eat_lunch",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.11666666666666667,
+        "median_hours": 0.5,
+        "maximum_hours": 1.25,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-eat_lunch"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Eating episodes in the configured midday window are treated as lunch.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "median": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "maximum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "exercise",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.11666666666666667,
+        "median_hours": 0.8333333333333334,
+        "maximum_hours": 3.75,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-exercise"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded sports or exercise episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 3.75
+        },
+        "median": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 3.75
+        },
+        "maximum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 3.75
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "personal_care",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.05,
+        "median_hours": 0.3333333333333333,
+        "maximum_hours": 1.25,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-personal_care"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded grooming or personal-care episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "median": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "maximum": {
+          "lower_hours": 0.05,
+          "upper_hours": 1.25
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "skip_lunch",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.11666666666666667,
+        "median_hours": 0.5,
+        "maximum_hours": 1.25,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-skip_lunch"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "ATUS records eating episodes and does not directly measure a skipped meal as an activity.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The mapped diary activity is related to the action but does not directly measure it.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "median": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "maximum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 1.25
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "sleep",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 4.5,
+        "median_hours": 8.916666666666666,
+        "maximum_hours": 16.25,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-sleep"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "All sleep episodes in one respondent diary day are combined into one daily sleep occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "Multiple mapped episodes for one respondent are summed across the diary day.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 4.5,
+          "upper_hours": 16.25
+        },
+        "median": {
+          "lower_hours": 4.5,
+          "upper_hours": 16.25
+        },
+        "maximum": {
+          "lower_hours": 4.5,
+          "upper_hours": 16.25
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "social_activity",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.11666666666666667,
+        "median_hours": 1.0,
+        "maximum_hours": 5.633333333333334,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-social_activity"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "Each coded socializing, relaxing, or leisure episode is one action occurrence.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 5.633333333333334
+        },
+        "median": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 5.633333333333334
+        },
+        "maximum": {
+          "lower_hours": 0.11666666666666667,
+          "upper_hours": 5.633333333333334
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    },
+    {
+      "action_id": "work_or_study",
+      "evidence_kind": "estimated",
+      "duration": {
+        "minimum_hours": 0.75,
+        "median_hours": 7.833333333333333,
+        "maximum_hours": 15.05,
+        "shape": "triangular"
+      },
+      "candidate_ids": [
+        "atus-2025-work_or_study"
+      ],
+      "source_provenance": [
+        {
+          "source_id": "atus-2025-activity-microdata",
+          "title": "American Time Use Survey 2025 Activity and Respondent files",
+          "publisher": "U.S. Bureau of Labor Statistics",
+          "url": "https://www.bls.gov/tus/data/datafiles-2025.htm",
+          "source_kind": "official_statistics",
+          "source_date": "Thu, 25 Jun 2026 13:24:03 GMT",
+          "source_version": "2025",
+          "licence": "U.S. government public data; BLS terms apply",
+          "population": "U.S. civilian noninstitutional population age 15 and over",
+          "place_id": "US",
+          "place_label": "United States",
+          "language": "en",
+          "engine": "BLS official data catalog",
+          "retrieved_at": "2026-10-28T02:02:19.708724Z"
+        }
+      ],
+      "target_place_id": "GLOBAL",
+      "target_place_label": "Global default",
+      "reasoning": "The pipeline used the United States occurrence distribution as related official evidence, widened its fitted bounds for a global default, and kept the result estimated because one country's diary sample is not a global measurement.",
+      "assumptions": [
+        "Each diary episode is weighted by the respondent final survey weight TUFINLWGT.",
+        "The fitted minimum and maximum are the weighted 5th and 95th percentiles.",
+        "The fitted median is the weighted 50th percentile.",
+        "The triangular shape approximates the three fitted quantiles.",
+        "All work and education episodes in one respondent diary day are combined into one daily action.",
+        "The action crosswalk is versioned as atus-2025-action-mapping-v1.",
+        "Multiple mapped episodes for one respondent are summed across the diary day.",
+        "The lower fitted bound is widened by 25 percent.",
+        "The upper fitted bound is widened by 25 percent and capped at 24 hours.",
+        "The triangular shape is an approximation from three weighted quantiles."
+      ],
+      "uncertainty": {
+        "minimum": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.05
+        },
+        "median": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.05
+        },
+        "maximum": {
+          "lower_hours": 0.75,
+          "upper_hours": 15.05
+        },
+        "method": "wide bounded estimate",
+        "coverage": "Full selected duration range",
+        "limitations": [
+          "Cross-country and within-country subgroup variation is not identified"
+        ]
+      }
+    }
+  ],
+  "snapshot": {
+    "snapshot_id": "e306d56e8c90e63cf11cfac391b1979705c8ed4626c7016c0c0ef6d9cfe70619",
+    "relative_path": "snapshots/e306d56e8c90e63cf11cfac391b1979705c8ed4626c7016c0c0ef6d9cfe70619.json.gz",
+    "content_hash": "sha256:e306d56e8c90e63cf11cfac391b1979705c8ed4626c7016c0c0ef6d9cfe70619",
+    "section_hashes": {
+      "agent_states": "sha256:f8cfc00ebdf45b658b0a075c4945b194c59e5b9c2f3816296c17b56c32acce9b",
+      "coefficient_registry": "sha256:9b326089625d30ac6bfb6a797c0aa90cf40467f4bffaf63a2ebcf857b98173e2",
+      "default_actions": "sha256:f2d836fef8a2d47a4178aee248b466e9392f9676d8a3245722413822589ce7c5",
+      "default_sources": "sha256:80d2df1b8d8c5a1450506c70de3ff4f25287c45a142a439f7b9e3d2fb547be4a",
+      "finance_initialization": "sha256:d1e6df8dc922569465be14a2000d7e540290604630e399d418f9739db82829ab",
+      "initial_population": "sha256:4ee2556d8553eeb109b882c0e5ce66a7f56b19a2ec78fcf8801742e514feec06",
+      "specialization_pipeline": "sha256:17bdf4bf7b99effcceaccd84f4caefcb71e262c4a7f0c9eac2c33d050685b812"
+    },
+    "section_counts": {
+      "agent_states": 31,
+      "coefficient_registry": 1,
+      "default_actions": 10,
+      "default_sources": 10,
+      "finance_initialization": 2,
+      "initial_population": 1000,
+      "specialization_pipeline": 12
+    },
+    "compressed_bytes": 2941552
+  },
+  "run_hash": "sha256:b3c638e9df77361e0500d0b71de0ef685a363b30b9eb207eac75eabd46bcaf3e"
+}

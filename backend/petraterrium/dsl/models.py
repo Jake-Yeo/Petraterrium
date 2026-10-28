@@ -1,3 +1,4 @@
+import math
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -246,6 +247,38 @@ class ProbabilitySpec(DSLModel):
         return self
 
 
+class DurationDistribution(DSLModel):
+    duration_min_hours: float = Field(ge=0, le=168, allow_inf_nan=False)
+    duration_median_hours: float = Field(gt=0, le=168, allow_inf_nan=False)
+    duration_max_hours: float = Field(gt=0, le=168, allow_inf_nan=False)
+    shape: Literal["triangular", "uniform", "lognormal"]
+    shape_parameters: dict[str, float] = Field(default_factory=dict)
+    provenance: Evidence
+
+    @model_validator(mode="after")
+    def valid_duration(self):
+        if not (
+            self.duration_min_hours
+            <= self.duration_median_hours
+            <= self.duration_max_hours
+        ):
+            raise ValueError("Duration bounds must be ordered minimum, median, maximum")
+        if self.duration_max_hours <= self.duration_min_hours:
+            raise ValueError("Duration maximum must exceed minimum; fixed durations are invalid")
+        if any(not math.isfinite(value) for value in self.shape_parameters.values()):
+            raise ValueError("Duration shape parameters must be finite")
+        if self.shape == "uniform" and abs(
+            self.duration_median_hours
+            - (self.duration_min_hours + self.duration_max_hours) / 2
+        ) > 1e-9:
+            raise ValueError("Uniform duration median must be the midpoint of its bounds")
+        if self.shape == "lognormal":
+            sigma = self.shape_parameters.get("sigma")
+            if sigma is None or sigma <= 0:
+                raise ValueError("Lognormal duration requires a positive sigma parameter")
+        return self
+
+
 class TransitionDefinition(DSLModel):
     id: str
     from_state: str
@@ -262,12 +295,22 @@ class SystemDefinition(DSLModel):
 class ActionDefinition(DSLModel):
     id: str
     system: str | None = None
+    category: str | None = Field(default=None, min_length=1)
     probability: ProbabilitySpec
-    duration_minutes: float = Field(ge=0, le=1440, allow_inf_nan=False)
+    duration: DurationDistribution | None = None
+    duration_minutes: float | None = Field(
+        default=None,
+        ge=0,
+        le=10_080,
+        allow_inf_nan=False,
+    )
     priority: int = Field(ge=0, le=10)
     meaningful: bool = True
+    passive: bool = False
     interruptible: bool = True
     protected: bool = False
+    interruption_outcome: Literal["defer", "cancel"] | None = None
+    emergency_interruptions: list[str] = Field(default_factory=list)
     reschedulable: bool = True
     compatible_with: list[str] = Field(default_factory=list)
     priority_modifiers: dict[str, int] = Field(default_factory=dict)
@@ -275,6 +318,46 @@ class ActionDefinition(DSLModel):
     target_requires_role: str | None = None
     loser_outcome: Literal["paused", "deferred", "cancelled", "relationship_cost", "continues"]
     effects: dict[str, float] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def one_duration_source(self):
+        if self.duration is None and self.duration_minutes is None:
+            raise ValueError("Action requires a duration distribution")
+        if self.duration is not None and self.duration_minutes is not None:
+            raise ValueError("Action duration must have one source of truth")
+        return self
+
+    @property
+    def canonical_duration_min_hours(self) -> float:
+        if self.duration is not None:
+            return self.duration.duration_min_hours
+        return float(self.duration_minutes or 0) / 60
+
+    @property
+    def canonical_duration_median_hours(self) -> float:
+        if self.duration is not None:
+            return self.duration.duration_median_hours
+        return float(self.duration_minutes or 0) / 60
+
+    @property
+    def canonical_duration_max_hours(self) -> float:
+        if self.duration is not None:
+            return self.duration.duration_max_hours
+        return float(self.duration_minutes or 0) / 60
+
+    @property
+    def runtime_interruptibility(self) -> Literal[
+        "interruptible", "protected", "uninterruptible"
+    ]:
+        if self.protected:
+            return "protected"
+        return "interruptible" if self.interruptible else "uninterruptible"
+
+    @property
+    def runtime_interruption_outcome(self) -> Literal["defer", "cancel"]:
+        if self.interruption_outcome is not None:
+            return self.interruption_outcome
+        return "defer" if self.loser_outcome in {"paused", "deferred"} else "cancel"
 
 
 class ChainBranch(DSLModel):

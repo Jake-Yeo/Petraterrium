@@ -37,6 +37,8 @@ AGENT_FRAME_FIELDS = (
     "interaction_details",
     "decisions",
     "location_transitions",
+    "time_receipts",
+    "daily_time",
 )
 
 
@@ -113,10 +115,18 @@ class SimulationRunRecorder:
             return self._load_frames(connection, run_id)
 
     def load_agent_frames(
-        self, run_id: str, agent_index: int
+        self, run_id: str, agent: str | int
     ) -> list[dict[str, Any]]:
         projected = []
         with self._lock, self._connection() as connection:
+            agent_id = str(agent) if isinstance(agent, str) else None
+            legacy_index = agent if isinstance(agent, int) else None
+            if agent_id is not None:
+                prepared = self._load_artifact(connection, run_id, "prepared")
+                if isinstance(prepared, dict):
+                    prepared_ids = prepared.get("agent_ids", [])
+                    if isinstance(prepared_ids, list) and agent_id in prepared_ids:
+                        legacy_index = prepared_ids.index(agent_id)
             rows = connection.execute(
                 "SELECT payload FROM simulation_run_frames "
                 "WHERE run_id = ? ORDER BY frame_index",
@@ -124,13 +134,28 @@ class SimulationRunRecorder:
             )
             for row in rows:
                 frame = self._decode(row[0])
+                stored_ids = frame.get("agent_ids")
+                if isinstance(stored_ids, list):
+                    if agent_id is None or agent_id not in stored_ids:
+                        continue
+                    agent_index = stored_ids.index(agent_id)
+                elif legacy_index is not None:
+                    agent_index = legacy_index
+                else:
+                    continue
                 selected = {
                     "day": frame["day"],
                     "date": frame["date"],
                     "tick": frame["tick"],
+                    "agent_ids": [agent_id or f"legacy-agent-{agent_index}"],
                     "live_places": [],
                 }
                 for field_name in AGENT_FRAME_FIELDS:
+                    if field_name not in frame:
+                        selected[field_name] = [
+                            None if field_name == "daily_time" else []
+                        ]
+                        continue
                     values = frame.get(field_name, [])
                     if not isinstance(values, list) or agent_index >= len(values):
                         raise ValueError(
@@ -140,12 +165,70 @@ class SimulationRunRecorder:
                 projected.append(selected)
         return projected
 
+    def load_aggregates(self, run_id: str) -> list[dict[str, Any]]:
+        with self._lock, self._connection() as connection:
+            rows = connection.execute(
+                "SELECT payload FROM simulation_run_aggregates "
+                "WHERE run_id = ? ORDER BY day, "
+                "CASE place_level WHEN 'country' THEN 0 WHEN 'region' THEN 1 ELSE 2 END, "
+                "place_id",
+                (run_id,),
+            ).fetchall()
+            return [self._decode(row[0]) for row in rows]
+
+    def load_aggregate_page(
+        self,
+        run_id: str,
+        *,
+        place_level: str | None,
+        place_id: str | None,
+        day: int | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        clauses = ["run_id = ?"]
+        values: list[Any] = [run_id]
+        if place_level is not None:
+            clauses.append("place_level = ?")
+            values.append(place_level)
+        if place_id is not None:
+            clauses.append("place_id = ?")
+            values.append(place_id)
+        if day is not None:
+            clauses.append("day = ?")
+            values.append(day)
+        where = " AND ".join(clauses)
+        with self._lock, self._connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM simulation_run_aggregates WHERE {where}",
+                    values,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"SELECT payload FROM simulation_run_aggregates WHERE {where} "
+                "ORDER BY day, "
+                "CASE place_level WHEN 'country' THEN 0 WHEN 'region' THEN 1 ELSE 2 END, "
+                "place_id LIMIT ? OFFSET ?",
+                [*values, page_size, (page - 1) * page_size],
+            ).fetchall()
+            return [self._decode(row[0]) for row in rows], total
+
     def load_latest_frame(self, run_id: str) -> dict[str, Any] | None:
         with self._lock, self._connection() as connection:
             row = connection.execute(
                 "SELECT payload FROM simulation_run_frames "
                 "WHERE run_id = ? ORDER BY frame_index DESC LIMIT 1",
                 (run_id,),
+            ).fetchone()
+            return self._decode(row[0]) if row is not None else None
+
+    def load_spatial_snapshot(self, run_id: str, day: int) -> dict[str, Any] | None:
+        with self._lock, self._connection() as connection:
+            row = connection.execute(
+                "SELECT payload FROM simulation_run_spatial_snapshots "
+                "WHERE run_id = ? AND day = ?",
+                (run_id, day),
             ).fetchone()
             return self._decode(row[0]) if row is not None else None
 
@@ -242,26 +325,58 @@ class SimulationRunRecorder:
         events: list[dict[str, Any]],
     ) -> None:
         with self._lock, self._connection() as connection:
-            connection.execute(
-                "INSERT INTO simulation_run_checkpoints (run_id, payload) VALUES (?, ?) "
-                "ON CONFLICT(run_id) DO UPDATE SET payload = excluded.payload",
-                (run_id, self._encode(metadata)),
+            self._append_checkpoint(
+                connection,
+                run_id,
+                metadata,
+                frame_index,
+                frame,
+                first_event_index,
+                events,
             )
-            connection.execute(
-                "INSERT INTO simulation_run_frames (run_id, frame_index, payload) "
-                "VALUES (?, ?, ?) ON CONFLICT(run_id, frame_index) "
-                "DO UPDATE SET payload = excluded.payload",
-                (run_id, frame_index, self._encode(frame)),
+
+    def append_checkpoint_with_aggregates(
+        self,
+        run_id: str,
+        metadata: dict[str, Any],
+        frame_index: int,
+        frame: dict[str, Any],
+        first_event_index: int,
+        events: list[dict[str, Any]],
+        aggregates: list[dict[str, Any]],
+        spatial_snapshot: dict[str, Any] | None = None,
+    ) -> None:
+        with self._lock, self._connection() as connection:
+            self._append_checkpoint(
+                connection,
+                run_id,
+                metadata,
+                frame_index,
+                frame,
+                first_event_index,
+                events,
             )
-            connection.executemany(
-                "INSERT INTO simulation_run_events (run_id, event_index, payload) "
-                "VALUES (?, ?, ?) ON CONFLICT(run_id, event_index) "
-                "DO UPDATE SET payload = excluded.payload",
-                [
-                    (run_id, first_event_index + offset, self._encode(event))
-                    for offset, event in enumerate(events)
-                ],
-            )
+            self._append_aggregates(connection, run_id, aggregates)
+            if spatial_snapshot is not None:
+                self._append_spatial_snapshot(connection, run_id, spatial_snapshot)
+
+    def append_aggregates(
+        self,
+        run_id: str,
+        aggregates: list[dict[str, Any]],
+    ) -> None:
+        if not aggregates:
+            return
+        with self._lock, self._connection() as connection:
+            self._append_aggregates(connection, run_id, aggregates)
+
+    def append_spatial_snapshot(
+        self,
+        run_id: str,
+        snapshot: dict[str, Any],
+    ) -> None:
+        with self._lock, self._connection() as connection:
+            self._append_spatial_snapshot(connection, run_id, snapshot)
 
     def delete(self, run_id: str) -> bool:
         with self._lock, self._connection() as connection:
@@ -282,6 +397,79 @@ class SimulationRunRecorder:
             (run_id,),
         ).fetchall()
         return [self._decode(row[0]) for row in rows]
+
+    def _append_checkpoint(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        metadata: dict[str, Any],
+        frame_index: int,
+        frame: dict[str, Any],
+        first_event_index: int,
+        events: list[dict[str, Any]],
+    ) -> None:
+        connection.execute(
+            "INSERT INTO simulation_run_checkpoints (run_id, payload) VALUES (?, ?) "
+            "ON CONFLICT(run_id) DO UPDATE SET payload = excluded.payload",
+            (run_id, self._encode(metadata)),
+        )
+        connection.execute(
+            "INSERT INTO simulation_run_frames (run_id, frame_index, payload) "
+            "VALUES (?, ?, ?) ON CONFLICT(run_id, frame_index) "
+            "DO UPDATE SET payload = excluded.payload",
+            (run_id, frame_index, self._encode(frame)),
+        )
+        connection.executemany(
+            "INSERT INTO simulation_run_events (run_id, event_index, payload) "
+            "VALUES (?, ?, ?) ON CONFLICT(run_id, event_index) "
+            "DO UPDATE SET payload = excluded.payload",
+            [
+                (run_id, first_event_index + offset, self._encode(event))
+                for offset, event in enumerate(events)
+            ],
+        )
+
+    def _append_aggregates(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        aggregates: list[dict[str, Any]],
+    ) -> None:
+        connection.executemany(
+            "INSERT INTO simulation_run_aggregates "
+            "(run_id, day, place_level, place_id, payload) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(run_id, day, place_level, place_id) "
+            "DO UPDATE SET payload = excluded.payload",
+            [
+                (
+                    run_id,
+                    int(item["day"]),
+                    str(item["place_level"]),
+                    str(item["place_id"]),
+                    self._encode(item),
+                )
+                for item in aggregates
+            ],
+        )
+
+    def _append_spatial_snapshot(
+        self,
+        connection: sqlite3.Connection,
+        run_id: str,
+        snapshot: dict[str, Any],
+    ) -> None:
+        connection.execute(
+            "INSERT INTO simulation_run_spatial_snapshots "
+            "(run_id, day, tick, payload) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(run_id, day) DO UPDATE SET "
+            "tick = excluded.tick, payload = excluded.payload",
+            (
+                run_id,
+                int(snapshot["day"]),
+                int(snapshot["tick"]),
+                self._encode(snapshot),
+            ),
+        )
 
     def _load_events(
         self,
@@ -336,6 +524,33 @@ class SimulationRunRecorder:
                 "payload TEXT NOT NULL, "
                 "PRIMARY KEY (run_id, artifact_kind)"
                 ")"
+            )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS simulation_run_aggregates ("
+                "run_id TEXT NOT NULL REFERENCES simulation_runs(run_id) ON DELETE CASCADE, "
+                "day INTEGER NOT NULL, "
+                "place_level TEXT NOT NULL, "
+                "place_id TEXT NOT NULL, "
+                "payload TEXT NOT NULL, "
+                "PRIMARY KEY (run_id, day, place_level, place_id)"
+                ")"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS simulation_run_aggregates_query "
+                "ON simulation_run_aggregates(run_id, place_level, place_id, day)"
+            )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS simulation_run_spatial_snapshots ("
+                "run_id TEXT NOT NULL REFERENCES simulation_runs(run_id) ON DELETE CASCADE, "
+                "day INTEGER NOT NULL, "
+                "tick INTEGER NOT NULL, "
+                "payload BLOB NOT NULL, "
+                "PRIMARY KEY (run_id, day)"
+                ")"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS simulation_run_spatial_snapshots_tick "
+                "ON simulation_run_spatial_snapshots(run_id, tick)"
             )
             self._migrate_embedded_artifacts(connection)
 

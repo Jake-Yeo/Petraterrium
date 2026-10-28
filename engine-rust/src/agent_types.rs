@@ -49,6 +49,8 @@ pub struct AgentContinuation {
     pub relationships: Vec<InteractionRelationship>,
     #[serde(default)]
     pub live_places: Vec<LivePlaceState>,
+    #[serde(default, skip_serializing_if = "TimeExecutionContinuation::is_empty")]
+    pub time_execution: TimeExecutionContinuation,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -195,6 +197,8 @@ pub struct ModuleTransition {
     pub id: String,
     pub from_state: String,
     pub to_state: String,
+    #[serde(default)]
+    pub action_id: Option<String>,
     pub rules: Vec<ProbabilityRule>,
     #[serde(default)]
     pub effects: Vec<TransitionEffect>,
@@ -206,6 +210,8 @@ pub struct ProbabilityRule {
     #[serde(default)]
     pub conditions: Vec<NumericCondition>,
     pub probability: Option<f64>,
+    #[serde(default)]
+    pub time_unit_hours: Option<f64>,
     pub provenance: ProbabilityProvenance,
 }
 
@@ -263,6 +269,10 @@ pub struct ModuleRoute {
 pub struct ScheduleRow {
     pub id: String,
     pub action: String,
+    #[serde(default)]
+    pub timed_action_id: Option<String>,
+    #[serde(default)]
+    pub timed_action_provenance: Option<ProbabilityProvenance>,
     pub weekdays: Vec<u8>,
     pub start_hour: f64,
     pub end_hour: f64,
@@ -309,6 +319,144 @@ pub struct MeaningfulAction {
     pub rules: Vec<ProbabilityRule>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DurationDistribution {
+    pub duration_min_hours: f64,
+    pub duration_median_hours: f64,
+    pub duration_max_hours: f64,
+    pub shape: String,
+    #[serde(default)]
+    pub shape_parameters: BTreeMap<String, f64>,
+    pub provenance: ProbabilityProvenance,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimedActionDurationOverride {
+    pub id: String,
+    pub eligible_agent_indices: Vec<usize>,
+    pub duration: DurationDistribution,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimedActionDefinition {
+    pub action_id: String,
+    pub category: String,
+    pub duration: DurationDistribution,
+    #[serde(default)]
+    pub duration_overrides: Vec<TimedActionDurationOverride>,
+    #[serde(default)]
+    pub location_place_index_by_agent: Vec<Option<usize>>,
+    pub priority: i32,
+    #[serde(default)]
+    pub passive: bool,
+    pub interruptibility: String,
+    pub interruption_outcome: String,
+    #[serde(default)]
+    pub emergency_interruptions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TimeExecutionProgram {
+    pub actions: Vec<TimedActionDefinition>,
+    #[serde(default = "default_idle_category")]
+    pub idle_category: String,
+    #[serde(default)]
+    pub receipt_agent_indices: Option<Vec<usize>>,
+}
+
+fn default_idle_category() -> String {
+    "idle".to_owned()
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SampledTimedAction {
+    pub definition: TimedActionDefinition,
+    pub event: ActionEvent,
+    pub occurrence_index: u64,
+    pub sampled_duration_hours: f64,
+    pub remaining_duration_hours: f64,
+    #[serde(default)]
+    pub location_place_index: Option<usize>,
+    pub emit_event: bool,
+}
+
+pub type InProgressTimedAction = SampledTimedAction;
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TimeExecutionContinuation {
+    #[serde(default)]
+    pub active_primary: Vec<Option<InProgressTimedAction>>,
+    #[serde(default)]
+    pub deferred: Vec<SampledTimedAction>,
+    #[serde(default)]
+    pub pending_actions: Vec<ActionEvent>,
+    #[serde(default)]
+    pub occurrence_counts: Vec<BTreeMap<String, u64>>,
+    #[serde(default)]
+    pub daily_time: Vec<DailyTimeAccounting>,
+}
+
+impl TimeExecutionContinuation {
+    pub fn is_empty(&self) -> bool {
+        self.active_primary.is_empty()
+            && self.deferred.is_empty()
+            && self.pending_actions.is_empty()
+            && self.occurrence_counts.is_empty()
+            && self.daily_time.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct ActionTimeReceipt {
+    pub action: String,
+    pub category: String,
+    pub occurrence_index: u64,
+    pub duration: DurationDistribution,
+    pub sampled_duration_hours: f64,
+    pub hours_this_tick: f64,
+    pub remaining_hours: f64,
+    pub status: String,
+    pub passive: bool,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct ActionInterruptionReceipt {
+    pub interrupted_action: String,
+    pub interrupting_action: String,
+    pub remaining_hours: f64,
+    pub outcome: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct TickTimeReceipt {
+    pub tick: u64,
+    pub agent_index: usize,
+    pub budget_hours: f64,
+    pub used_hours: f64,
+    pub remaining_hours: f64,
+    pub idle_category: String,
+    pub primary_actions: Vec<ActionTimeReceipt>,
+    pub passive_actions: Vec<ActionTimeReceipt>,
+    pub interruptions: Vec<ActionInterruptionReceipt>,
+    pub deferred_actions: Vec<String>,
+    pub continuing_action: Option<ActionTimeReceipt>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct DailyTimeAccounting {
+    pub agent_index: usize,
+    pub day_index: u64,
+    pub complete: bool,
+    pub accounted_hours: f64,
+    pub category_hours: BTreeMap<String, f64>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StateDynamicsProgram {
@@ -320,6 +468,8 @@ pub struct StateDynamicsProgram {
     pub finance: Option<FinanceRuntimeMetadata>,
     #[serde(default)]
     pub finance_rules: Vec<crate::state_finance::FinanceLedgerRule>,
+    #[serde(default)]
+    pub time_execution: Option<TimeExecutionProgram>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -428,6 +578,10 @@ pub struct AgentProgramResult {
     pub shard_populations: Vec<ShardPopulation>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub state_ticks: Vec<StateRuntimeTickReceipt>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub time_ticks: Vec<TickTimeReceipt>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub daily_time: Vec<DailyTimeAccounting>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -493,7 +647,7 @@ pub struct AgentTransitionOutcome {
     pub provenance: ProbabilityProvenance,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct ActionEvent {
     pub tick: u64,
     pub agent_index: usize,

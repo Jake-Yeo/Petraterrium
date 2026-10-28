@@ -97,6 +97,7 @@ fn request(seed: u64, places: Vec<usize>) -> InteractionRequest {
             ],
             place: places,
             actions: vec![vec!["talk".to_owned()], vec![], vec![]],
+            primary_busy: vec![false; 3],
             traits: BTreeMap::new(),
             states: BTreeMap::from([("mood".to_owned(), vec![0.0, 0.0, 0.0])]),
         },
@@ -125,6 +126,26 @@ fn request(seed: u64, places: Vec<usize>) -> InteractionRequest {
         trees: BTreeMap::new(),
         rules: vec![rule()],
     }
+}
+
+#[test]
+fn a_busy_target_only_accepts_the_interaction_that_matches_its_primary_action() {
+    let mut blocked = request(7, vec![0, 0, 1]);
+    blocked.agents.primary_busy[1] = true;
+    let blocked_result = run_interactions(blocked).unwrap();
+    assert!(blocked_result.events.is_empty());
+    assert!(
+        blocked_result
+            .blocked
+            .iter()
+            .any(|item| item.reason.contains("busy with another primary action"))
+    );
+
+    let mut participating = request(7, vec![0, 0, 1]);
+    participating.agents.primary_busy[1] = true;
+    participating.agents.actions[1] = vec!["talk".to_owned()];
+    let participating_result = run_interactions(participating).unwrap();
+    assert_eq!(participating_result.events.len(), 1);
 }
 
 fn tree_evidence() -> InteractionTransitionEvidence {

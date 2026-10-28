@@ -9,7 +9,6 @@ from .coefficient_evidence import (
     CoefficientEvidenceModel,
     CoefficientInterval,
     CoefficientPlace,
-    EvidenceState,
     HeldOutValidationReceipt,
 )
 
@@ -20,7 +19,7 @@ class RunCoefficientReceipt(CoefficientEvidenceModel):
     place: CoefficientPlace
     source_place: CoefficientPlace | None = None
     resolution_status: Literal["direct", "inherited", "imputed"] = "direct"
-    evidence_state: EvidenceState
+    evidence_state: Literal["measured", "fitted", "default_estimated", "blocked"]
     value: float = Field(ge=0, le=1, allow_inf_nan=False)
     interval: CoefficientInterval
     coefficient_set_id: str = Field(min_length=1)
@@ -40,6 +39,7 @@ class ActionPlaceEvidenceSummary(CoefficientEvidenceModel):
     action_id: str
     place: CoefficientPlace
     fitted_count: int = Field(ge=0)
+    measured_count: int = Field(default=0, ge=0)
     default_estimated_count: int = Field(ge=0)
     blocked_count: int = Field(ge=0)
     coefficients: tuple[RunCoefficientReceipt, ...]
@@ -47,6 +47,7 @@ class ActionPlaceEvidenceSummary(CoefficientEvidenceModel):
 
 class RunEvidenceSummary(CoefficientEvidenceModel):
     fitted_count: int = Field(ge=0)
+    measured_count: int = Field(default=0, ge=0)
     default_estimated_count: int = Field(ge=0)
     blocked_count: int = Field(ge=0)
     by_action_place: tuple[ActionPlaceEvidenceSummary, ...]
@@ -84,6 +85,7 @@ def evidence_summary(
             action_id=items[0].action_id,
             place=items[0].place,
             fitted_count=sum(item.evidence_state == "fitted" for item in items),
+            measured_count=sum(item.evidence_state == "measured" for item in items),
             default_estimated_count=sum(
                 item.evidence_state == "default_estimated" for item in items
             ),
@@ -107,6 +109,7 @@ def evidence_summary(
             )
     summary = RunEvidenceSummary(
         fitted_count=sum(item.evidence_state == "fitted" for item in merged),
+        measured_count=sum(item.evidence_state == "measured" for item in merged),
         default_estimated_count=sum(item.evidence_state == "default_estimated" for item in merged),
         blocked_count=sum(item.evidence_state == "blocked" for item in merged),
         by_action_place=tuple(action_places),

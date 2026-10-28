@@ -1,7 +1,8 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
+from .aggregate_statistics import RunAggregatePage
 from .run_service import (
     RunAgentDetail,
     RunAgentPage,
@@ -15,6 +16,7 @@ from .run_service import (
     SimulationRunService,
     SimulationRunView,
 )
+from .spatial_projection import MAX_SPATIAL_QUERY_LIMIT, SpatialPointPage
 
 
 def create_simulation_run_router(service: SimulationRunService) -> APIRouter:
@@ -112,5 +114,65 @@ def create_simulation_run_router(service: SimulationRunService) -> APIRouter:
             raise HTTPException(status_code=404, detail="Simulation run was not found") from error
         except RunNotReadyError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @router.get("/{run_id}/statistics", response_model=RunAggregatePage)
+    def list_statistics(
+        run_id: str,
+        place_level: Literal["city", "country", "region", "global"] | None = None,
+        place_id: str | None = None,
+        day: int | None = Query(default=None, ge=1),
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=500, ge=1, le=1_000),
+    ) -> RunAggregatePage:
+        try:
+            return service.statistics(
+                run_id,
+                place_level=place_level,
+                place_id=place_id,
+                day=day,
+                page=page,
+                page_size=page_size,
+            )
+        except RunNotFoundError as error:
+            raise HTTPException(
+                status_code=404, detail="Simulation run was not found"
+            ) from error
+
+    @router.get("/{run_id}/spatial-points", response_model=SpatialPointPage)
+    def list_spatial_points(
+        run_id: str,
+        day: int = Query(ge=1),
+        tick: int = Query(ge=1),
+        detail_level: Literal["city", "neighborhood"] = "city",
+        north: float = Query(ge=-90, le=90),
+        east: float = Query(ge=-180, le=180),
+        south: float = Query(ge=-90, le=90),
+        west: float = Query(ge=-180, le=180),
+        city_id: Annotated[list[str] | None, Query()] = None,
+        offset: int = Query(default=0, ge=0),
+        limit: int = Query(default=20_000, ge=1, le=MAX_SPATIAL_QUERY_LIMIT),
+    ) -> SpatialPointPage:
+        try:
+            return service.spatial_points(
+                run_id,
+                day=day,
+                tick=tick,
+                detail_level=detail_level,
+                north=north,
+                east=east,
+                south=south,
+                west=west,
+                city_ids=city_id or (),
+                offset=offset,
+                limit=limit,
+            )
+        except RunNotFoundError as error:
+            raise HTTPException(
+                status_code=404, detail="Simulation run was not found"
+            ) from error
+        except RunNotReadyError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
 
     return router

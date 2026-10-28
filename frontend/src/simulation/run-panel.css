@@ -478,6 +478,69 @@
   margin-top: 12px;
 }
 
+.simulation-aggregate-results {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.simulation-aggregate-results > header,
+.simulation-aggregate-global,
+.simulation-region-statistics > div {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.simulation-aggregate-results h3,
+.simulation-aggregate-results p {
+  margin: 0;
+}
+
+.simulation-aggregate-global article,
+.simulation-region-statistics article {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--run-raised);
+}
+
+.simulation-aggregate-table-wrap {
+  max-height: 560px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.simulation-aggregate-table-wrap table {
+  width: 100%;
+  min-width: 1260px;
+  border-collapse: collapse;
+}
+
+.simulation-aggregate-table-wrap th,
+.simulation-aggregate-table-wrap td {
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.simulation-aggregate-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--run-raised);
+}
+
+.simulation-aggregate-table-wrap small {
+  display: block;
+}
+
 .simulation-run-agents form {
   align-items: end;
   display: grid;

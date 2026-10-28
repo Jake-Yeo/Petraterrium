@@ -1,5 +1,107 @@
 import { expect, test } from '@playwright/test';
 
+test('run panel uses six constrained type controls and explains saved-run state', async ({
+  page,
+}) => {
+  await page.route('/api/simulation/initial-population', async (route) => {
+    await route.fulfill({
+      json: {
+        configured: true,
+        seed: 1,
+        agent_count: 1000,
+        agent_type_mix: {
+          person: 0.2,
+          caregiver: 0.1,
+          student: 0.15,
+          worker: 0.35,
+          business_owner: 0.1,
+          working_student: 0.1,
+        },
+      },
+    });
+  });
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const { SimulationRunPanel } = await import('/src/simulation/run-panel.ts');
+    const host = document.createElement('section');
+    host.id = 'prompt2-run-panel-test';
+    document.body.replaceChildren(host);
+    const savedRun = {
+      run_id: 'completed-global-run',
+      config: {
+        population_size: 1000,
+        seed: 1,
+        days: 30,
+        tick_interval_hours: 1,
+        start_date: '2026-10-27',
+        place_scope: { level: 'global', identifier: null },
+        agent_type_mix: {
+          person: 0.2,
+          caregiver: 0.1,
+          student: 0.15,
+          worker: 0.35,
+          business_owner: 0.1,
+          working_student: 0.1,
+        },
+      },
+      status: 'completed',
+      progress: 1,
+      completed_ticks: 720,
+      total_ticks: 720,
+      result: {
+        source: 'rust',
+        protocol_version: '1',
+        engine_version: '0.1.0',
+        data_version: 'atlas-v3',
+        program_version: 'global-default-v1',
+        default_dsl_version: 'base-v1',
+        default_dsl_hash: 'sha256:dsl',
+        input_hash: 'sha256:input',
+        output_hash: 'sha256:output',
+        snapshots: [],
+      },
+      error: null,
+    };
+    const client = {
+      launch: async () => savedRun,
+      list: async () => [savedRun],
+      get: async () => savedRun,
+      cancel: async () => savedRun,
+      delete: async () => undefined,
+      agents: async () => ({ items: [], total: 0, page: 1, page_size: 100, pages: 0 }),
+      agent: async () => {
+        throw new Error('not used');
+      },
+      events: async () => ({ items: [], total: 0, page: 1, page_size: 100, pages: 0 }),
+    };
+    new SimulationRunPanel(host, client, { launchPreviewClient: null });
+  });
+
+  const panel = page.locator('#prompt2-run-panel-test');
+  await expect(panel.locator('textarea[name="agent_type_mix"]')).toHaveCount(0);
+  await expect(panel.locator('input[type="range"][data-agent-type]')).toHaveCount(6);
+  await expect(panel.getByText('Mix is valid. All six shares total 100%.')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Launch Rust simulation' })).toBeEnabled();
+
+  await panel.getByRole('spinbutton', { name: 'Person share' }).fill('0.3');
+  await expect(panel.getByText(/Adjust the shares until the total is 100%/)).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Launch Rust simulation' })).toBeDisabled();
+  await panel.getByRole('spinbutton', { name: 'Person share' }).fill('0.2');
+  await expect(panel.getByRole('button', { name: 'Launch Rust simulation' })).toBeEnabled();
+
+  await expect(
+    panel.getByText('Finished. Its recorded output can be opened and inspected.'),
+  ).toBeVisible();
+  await expect(
+    panel.getByText('Starting another run while one is running adds the new run to the queue.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(panel.getByText('sha256:input')).toBeHidden();
+  await panel.getByText('Details and reproducibility hashes').click();
+  await expect(panel.getByText('sha256:input')).toBeVisible();
+});
+
 test('saved run summaries accept a nullable global demo summary', async ({ page }) => {
   await page.route('/api/simulation/runs', async (route) => {
     await route.fulfill({
@@ -78,6 +180,10 @@ test('run panel shows the executable decision evidence blocker without creating 
 test('run panel launches Rust, reports progress, and browses recorded agent timelines', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
+  await page.route('/api/simulation/initial-population', async (route) => {
+    await route.fulfill({ json: { configured: false, agent_count: 0, agent_type_mix: {} } });
+  });
   await page.route(/\/api\/simulation\/runs\/rust-run-1\/locations$/, async (route) => {
     await route.fulfill({
       json: {
@@ -339,6 +445,52 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
                 finance_formula: 'money[t+1] = money[t] + income - expenses',
               },
             ],
+            time_receipts: [
+              {
+                tick: 12,
+                budget_hours: 1,
+                primary_actions: [
+                  {
+                    action: 'bad_work',
+                    category: 'work',
+                    occurrence_index: 0,
+                    duration: {
+                      duration_min_hours: 0.5,
+                      duration_median_hours: 1,
+                      duration_max_hours: 2,
+                      shape: 'triangular',
+                      shape_parameters: {},
+                      provenance: {
+                        source: 'ATUS duration pipeline',
+                        version: '2025',
+                        status: 'default_estimated',
+                        uncertainty: 1,
+                      },
+                    },
+                    sampled_duration_hours: 1.4,
+                    hours_this_tick: 1,
+                    remaining_hours: 0.4,
+                    status: 'continuing',
+                    passive: false,
+                  },
+                ],
+                passive_actions: [],
+                interruptions: [
+                  {
+                    interrupted_action: 'work_or_study',
+                    interrupting_action: 'emergency_care',
+                    remaining_hours: 2.5,
+                    outcome: 'defer',
+                  },
+                ],
+              },
+            ],
+            daily_time: {
+              day_index: 0,
+              complete: true,
+              accounted_hours: 24,
+              category_hours: { work: 8, sleep: 8, idle: 8 },
+            },
             actions: ['meet-friend'],
             routine_actions: ['commute'],
             interactions: [],
@@ -549,10 +701,12 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
   await panel.getByLabel('Tick interval (hours)').fill('1');
   await panel.getByLabel('Place scope').selectOption('city');
   await panel.getByLabel('Place', { exact: true }).fill('Vancouver');
-  await panel.getByLabel('Agent type mix').fill('BusinessAgent: 0.5\nWorkerAgent: 0.5');
   await panel.getByRole('button', { name: 'Launch Rust simulation' }).click();
-  await expect(panel.locator('.simulation-result-heading').getByText('Completed')).toBeVisible();
-  await expect(panel).toContainText('Rust 0.1.0');
+  await expect(
+    panel.locator('.simulation-result-heading').getByText('Completed', { exact: true }),
+  ).toBeVisible();
+  await panel.getByText('Technical details and reproducibility hashes').click();
+  await expect(panel).toContainText('0.1.0');
   await expect(panel).toContainText('day / home');
   await expect(panel).toContainText('2 agents');
   await expect(panel).toContainText('day / return-home');
@@ -561,7 +715,14 @@ test('run panel launches Rust, reports progress, and browses recorded agent time
   await panel.getByRole('button', { name: 'Agents' }).click();
   await expect(panel.getByRole('button', { name: /Open agent-1/ })).toBeVisible();
   await panel.getByRole('button', { name: /Open agent-1/ }).click();
-  await expect(panel.getByRole('heading', { name: 'agent-1' })).toBeVisible();
+  await expect(panel.getByRole('heading', { name: 'agent-1', exact: true })).toBeVisible();
+  await expect(panel).toContainText('Recorded categories sum to exactly 24 hours.');
+  await expect(panel).toContainText('1.4 h');
+  await expect(panel).toContainText('Continues · 0.4 h remaining');
+  await expect(panel.getByLabel('Recorded interruptions')).toContainText(
+    'Work Or Study interrupted by Emergency Care',
+  );
+  await expect(panel.getByLabel('Recorded interruptions')).toContainText('2.5 h remaining');
   await expect(panel).toContainText('choose');
   await expect(panel).toContainText('Downtown bar');
   await expect(panel).toContainText('meet-friend');
@@ -738,7 +899,8 @@ test('run panel reopens and permanently deletes a saved run after inline confirm
   await expect(panel.getByRole('heading', { name: 'Saved runs' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Open run saved-rust-run' })).toBeVisible();
   await panel.getByRole('button', { name: 'Open run saved-rust-run' }).click();
-  await expect(panel).toContainText('Rust 0.1.0');
+  await panel.getByText('Technical details and reproducibility hashes').click();
+  await expect(panel).toContainText('0.1.0');
   await expect(panel).toContainText('250 agents');
 
   await panel.getByRole('button', { name: 'Delete run saved-rust-run' }).click();

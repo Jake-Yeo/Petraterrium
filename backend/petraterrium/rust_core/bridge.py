@@ -165,6 +165,27 @@ class RustCoreClient:
     def run_interaction_tree(self, request: Mapping[str, Any]) -> dict[str, Any]:
         return self.call({**request, "operation": "run_interaction_tree"})
 
+    def validate_text_dsl(self, source: str) -> dict[str, Any]:
+        return self.call({"operation": "validate_text_dsl", "source": source})
+
+    def run_text_dsl(
+        self,
+        source: str,
+        *,
+        seed: int,
+        ticks: int,
+        continuation: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        request: dict[str, Any] = {
+            "operation": "run_text_dsl",
+            "source": source,
+            "seed": seed,
+            "ticks": ticks,
+        }
+        if continuation is not None:
+            request["continuation"] = dict(continuation)
+        return self.call(request)
+
     def run_compiled_markov(
         self,
         program: Any,

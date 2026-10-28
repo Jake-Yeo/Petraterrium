@@ -117,6 +117,12 @@ def run_config(**updates) -> SimulationRunConfig:
     return SimulationRunConfig.model_validate(values)
 
 
+def test_agent_type_mix_accepts_explicit_zero_shares():
+    config = run_config(agent_type_mix={"person": 1.0, "caregiver": 0.0})
+
+    assert config.agent_type_mix == {"person": 1.0, "caregiver": 0.0}
+
+
 def test_launch_rejects_blocked_preparation_without_queueing_a_run():
     message = (
         "Run blocked: 1 selected agent has no applicable confirmed executable decision tree: "
@@ -732,7 +738,7 @@ def test_same_config_and_seed_produce_identical_rust_timelines():
     assert second_complete.result is not None
     assert first_complete.result.output_hash == second_complete.result.output_hash
     assert first_complete.result.snapshots == second_complete.result.snapshots
-    assert first_complete.result.engine_version == "0.1.0"
+    assert first_complete.result.engine_version == "0.2.1"
     assert first_complete.result.source == "rust"
     assert first_complete.default_dsl_version == "fixture-default-v1"
     assert first_complete.default_dsl_hash == f"sha256:{'a' * 64}"

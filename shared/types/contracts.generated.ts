@@ -37,12 +37,17 @@ export type AISourceProvenance = {
 export type ActionDefinition = {
   id: string;
   system?: string | null;
+  category?: string | null;
   probability: ProbabilitySpec;
-  duration_minutes: number;
+  duration?: DurationDistribution | null;
+  duration_minutes?: number | null;
   priority: number;
   meaningful?: boolean;
+  passive?: boolean;
   interruptible?: boolean;
   protected?: boolean;
+  interruption_outcome?: "defer" | "cancel" | null;
+  emergency_interruptions?: Array<string>;
   reschedulable?: boolean;
   compatible_with?: Array<string>;
   priority_modifiers?: {
@@ -80,6 +85,7 @@ export type ActionPlaceEvidenceSummary = {
   action_id: string;
   place: CoefficientPlace;
   fitted_count: number;
+  measured_count?: number;
   default_estimated_count: number;
   blocked_count: number;
   coefficients: Array<RunCoefficientReceipt>;
@@ -264,6 +270,12 @@ export type AgentTimelinePoint = {
   interaction_details?: Array<AgentInteractionDetail>;
   decision_path: Array<petraterrium__simulation__run_service__DecisionPathStep>;
   location_transitions: Array<LocationTransitionStep>;
+  time_receipts?: Array<{
+  [key: string]: unknown;
+}>;
+  daily_time?: {
+  [key: string]: unknown;
+} | null;
 };
 
 export type AgentTypeDefinition = {
@@ -1373,6 +1385,13 @@ export type DecisionTreeEdge = {
   condition?: string;
   decision_id?: string | null;
   evidence_edge_id?: string | null;
+  formula?: string | null;
+  probability?: number | null;
+  place_requirements?: Array<string>;
+  time_requirements?: Array<string>;
+  runtime_rules?: Array<{
+  [key: string]: unknown;
+}>;
 };
 
 export type DecisionTreeLink = {
@@ -1401,6 +1420,7 @@ export type DecisionTreeNode = {
   kind: "decision" | "action" | "terminal" | "module_reference";
   description?: string;
   target_module_id?: string | null;
+  action_id?: string | null;
 };
 
 export type DecisionTreeProposalAudit = {
@@ -1462,6 +1482,17 @@ export type DirectedRelationship = {
 
 export type Distribution = {
   values: {
+  [key: string]: number;
+};
+  provenance: Evidence;
+};
+
+export type DurationDistribution = {
+  duration_min_hours: number;
+  duration_median_hours: number;
+  duration_max_hours: number;
+  shape: "triangular" | "uniform" | "lognormal";
+  shape_parameters?: {
   [key: string]: number;
 };
   provenance: Evidence;
@@ -3106,7 +3137,7 @@ export type RunCoefficientReceipt = {
   place: CoefficientPlace;
   source_place?: CoefficientPlace | null;
   resolution_status?: "direct" | "inherited" | "imputed";
-  evidence_state: "fitted" | "default_estimated" | "blocked";
+  evidence_state: "measured" | "fitted" | "default_estimated" | "blocked";
   value: number;
   interval: CoefficientInterval;
   coefficient_set_id: string;
@@ -3209,6 +3240,7 @@ export type RunEventPage = {
 
 export type RunEvidenceSummary = {
   fitted_count: number;
+  measured_count?: number;
   default_estimated_count: number;
   blocked_count: number;
   by_action_place: Array<ActionPlaceEvidenceSummary>;
@@ -3298,6 +3330,9 @@ export type SimulationRunView = {
   evidence_summary?: RunEvidenceSummary;
   evidence_warnings?: Array<RunEvidenceWarning>;
   global_demo_summary?: InitialPopulationEvidenceSummary | null;
+  aggregate_record_count?: number;
+  aggregate_statistics_version?: string | null;
+  routine_agent_action_logging?: false;
 };
 
 export type SliderSpec = {
