@@ -109,6 +109,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 format!("Duplicate composition {}", composition.id),
             ));
         }
+        validate_graph_metadata(composition)?;
         if composition.entries.is_empty() || composition.outputs.is_empty() {
             return Err(DslError::new(
                 if legacy {
@@ -253,8 +254,12 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         for output in &composition.outputs {
             match &output.metric {
                 ReportMetric::Count => {}
-                ReportMetric::RepresentedCount if composition.represented_population.is_some() => {}
-                ReportMetric::RepresentedTotal if composition.authoritative_total.is_some() => {}
+                ReportMetric::RepresentedCount
+                    if composition.represented_population.is_some()
+                        || composition.slice.is_some() => {}
+                ReportMetric::RepresentedTotal
+                    if composition.authoritative_total.is_some() || composition.slice.is_some() => {
+                }
                 ReportMetric::Formula { expression }
                     if valid_formula_references(program, composition, output, expression) => {}
                 ReportMetric::Mean { field } | ReportMetric::Sum { field }
@@ -290,6 +295,18 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
     validate_composition_cycles(&compositions)?;
     for composition in &program.compositions {
         validate_composition_leaders(program, composition, &compositions)?;
+    }
+    let default_runs = program
+        .compositions
+        .iter()
+        .filter(|composition| composition.default_run)
+        .collect::<Vec<_>>();
+    if default_runs.len() > 1 {
+        return Err(DslError::new(
+            "MULTIPLE_DEFAULT_RUNS",
+            default_runs[1].line,
+            "Only one composition may declare default_run = true",
+        ));
     }
     validate_syncs(program, &compositions)?;
     validate_authoritative_allocations(program)?;
@@ -340,6 +357,40 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
     Ok(())
 }
 
+fn validate_graph_metadata(composition: &CompositionDefinition) -> DslResult<()> {
+    if composition.graph_group.is_some() && composition.slice.is_none() {
+        return Err(DslError::new(
+            "MISSING_COMPOSITION_SLICE",
+            composition.line,
+            "A graph-grouped composition needs slice = \"name\"",
+        ));
+    }
+    if let Some(group) = &composition.graph_group
+        && !matches!(group.as_str(), "main" | "coupled" | "lab" | "allocation")
+    {
+        return Err(DslError::new(
+            "INVALID_GRAPH_GROUP",
+            composition.line,
+            "graph_group must be main, coupled, lab, or allocation",
+        ));
+    }
+    if composition.slice.is_some() && !composition.entries.is_empty() {
+        let sum = composition
+            .entries
+            .iter()
+            .map(|entry| entry.weight)
+            .sum::<f64>();
+        if (sum - 1.0).abs() > 1e-9 {
+            return Err(DslError::new(
+                "INVALID_DISTRIBUTION_SUM",
+                composition.entries[0].line,
+                format!("Child probabilities sum to {sum}, expected 1"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_composition_leaders(
     program: &Program,
     composition: &CompositionDefinition,
@@ -376,7 +427,38 @@ fn validate_composition_leaders(
                 format!("Unknown leader role {}", leader.role),
             ));
         }
-        let actual = composition_role_count(program, composition, &leader.role, compositions);
+        let actual = if let Some(archetype_id) = &leader.archetype {
+            let archetype = program
+                .archetypes
+                .iter()
+                .find(|archetype| archetype.id == *archetype_id)
+                .ok_or_else(|| {
+                    DslError::new(
+                        "UNKNOWN_LEADER_ARCHETYPE",
+                        leader.line,
+                        format!("Unknown leader archetype {archetype_id}"),
+                    )
+                })?;
+            if let Some(source_id) = &leader.source_composition {
+                let source = compositions.get(source_id.as_str()).ok_or_else(|| {
+                    DslError::new(
+                        "UNKNOWN_LEADER_SOURCE",
+                        leader.line,
+                        format!("Unknown leader source composition {source_id}"),
+                    )
+                })?;
+                if !composition_contains_archetype(source, archetype_id, compositions) {
+                    return Err(DslError::new(
+                        "LEADER_SOURCE_MISMATCH",
+                        leader.line,
+                        format!("Composition {source_id} does not contain {archetype_id}"),
+                    ));
+                }
+            }
+            archetype_role_count(program, archetype, &leader.role)
+        } else {
+            composition_role_count(program, composition, &leader.role, compositions)
+        };
         if actual != leader.count {
             return Err(DslError::new(
                 "LEADER_COUNT_MISMATCH",
@@ -389,6 +471,19 @@ fn validate_composition_leaders(
         }
     }
     Ok(())
+}
+
+fn composition_contains_archetype(
+    composition: &CompositionDefinition,
+    archetype_id: &str,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> bool {
+    composition.entries.iter().any(|entry| {
+        entry.child == archetype_id
+            || compositions.get(entry.child.as_str()).is_some_and(|child| {
+                composition_contains_archetype(child, archetype_id, compositions)
+            })
+    })
 }
 
 fn composition_role_count(
@@ -828,14 +923,14 @@ fn validate_syncs(
             let Some(child_cache) = &child.cached else {
                 continue;
             };
-            if parent_cache.sync_days < child_cache.sync_days
-                || parent_cache.sync_days % child_cache.sync_days != 0
+            if parent_cache.sync_days % child_cache.sync_days != 0
+                && child_cache.sync_days % parent_cache.sync_days != 0
             {
                 return Err(DslError::new(
                     "INCOMPATIBLE_COMPOSITION_SYNC",
                     parent_cache.line,
                     format!(
-                        "Composition {} sync {} must be a multiple of child {} sync {}",
+                        "Composition {} sync {} and child {} sync {} must divide cleanly",
                         parent.id, parent_cache.sync_days, child.id, child_cache.sync_days
                     ),
                 ));

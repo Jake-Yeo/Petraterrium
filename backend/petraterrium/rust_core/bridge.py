@@ -174,6 +174,8 @@ class RustCoreClient:
         *,
         seed: int,
         ticks: int,
+        sample_budget: int | None = None,
+        role_parameters: Mapping[str, Mapping[str, float]] | None = None,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
         composition_id: str | None = None,
@@ -187,6 +189,12 @@ class RustCoreClient:
             "seed": seed,
             "ticks": ticks,
         }
+        if sample_budget is not None:
+            request["sample_budget"] = sample_budget
+        if role_parameters is not None:
+            request["role_parameters"] = {
+                role: dict(parameters) for role, parameters in role_parameters.items()
+            }
         if continuation is not None:
             request["continuation"] = dict(continuation)
         if population_id is not None:

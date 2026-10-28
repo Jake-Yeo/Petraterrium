@@ -98,15 +98,6 @@ fn apply_role_distributions(
     agents: &mut [DslAgentState],
 ) -> DslResult<()> {
     for distribution in &program.role_distributions {
-        let values = distribution
-            .parameters
-            .iter()
-            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
-            .collect::<BTreeMap<_, _>>();
-        let share = evaluate(&distribution.share, &values)?
-            .as_f64()
-            .unwrap_or(0.0)
-            .clamp(0.0, 1.0);
         let matching = agents
             .iter()
             .enumerate()
@@ -115,6 +106,19 @@ fn apply_role_distributions(
             })
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
+        let values = distribution
+            .parameters
+            .iter()
+            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .chain([(
+                "composition_population".to_owned(),
+                DslValue::Number(matching.len() as f64),
+            )])
+            .collect::<BTreeMap<_, _>>();
+        let share = evaluate(&distribution.share, &values)?
+            .as_f64()
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
         let target = (matching.len() as f64 * share).round() as usize;
         let existing = matching
             .iter()

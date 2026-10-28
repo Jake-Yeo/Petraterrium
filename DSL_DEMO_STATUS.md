@@ -619,3 +619,190 @@
 - Fast-forward starts collapsed. Opening it, choosing CorporateFinancialSystem, and evaluating twice
   produces a visible `cache_hit=true`, zero-tick warm result; Relearn detailed still executes and
   reports nonzero agent ticks.
+
+## Full-system structure, sampled population, and TSX graph
+
+### Implemented
+
+- The DSL now uses the field mechanism `slice = "..."` plus the generic presentation category
+  `graph_group = main|coupled|lab|allocation`. Slice values remain ordinary DSL strings; Rust has no
+  Physical, Media, Corporate, Financial, role, country, or company enum. Missing slice metadata on a
+  grouped composition and child probabilities that do not sum to one produce line-numbered errors.
+- All composition child weights in the shipped DSL are normalized probabilities. World is the only
+  physical represented root and retains `6,999,999,999`. Canada, USA, Mexico, communities, and every
+  lower physical node are seeded derived allocations rather than independent represented literals.
+- Population allocation uses sequential seeded binomial draws, which is an efficient multinomial
+  equivalent. It conserves every parent total, records conditional probability, expected and actual
+  represented/simulated allocation, seed, parent path, and full path, and gives the same result for
+  the same seed. Different seeds change actual counts while probabilities and expected counts stay
+  fixed.
+- Runtime `sample_budget` is accepted from the API and full-system UI up to 10,000. The old Town
+  `size = 100` is now `sample_budget = 100`; archetype `sample_households` declarations are now
+  explicitly named `default_sample_households`. An explicit runtime budget overrides those defaults.
+- Household integrity is preserved when packing sampled agent allocations. Therefore an requested
+  budget can tick slightly fewer agents when a household archetype has multiple members. The result
+  header reports both requested sample budget and agents actually ticked; result slice rows report
+  the actual packed count.
+- Toronto and Vancouver use path-instance sampling: each occurrence under Ontario,
+  BritishColumbia, California, Texas, CentralMexico, and NorthernMexico has a separate seeded count
+  and a full path label. Their definition card shows all six parents. Collapse state is keyed by full
+  path, so collapsing `World>Canada>Ontario>Toronto` does not collapse
+  `World>USA>California>Toronto`.
+- Agent definitions are leaves beneath archetypes. Graph edges attach each archetype to the root of
+  the referenced inheritance chain, then show inheritance edges such as Person → Student →
+  WorkingStudent. No agent definition is rendered as a main lane. The current orphan-agent list is
+  empty.
+- Role-distribution formulas use runtime `composition_population`, replacing the literal 10,000
+  denominator. Role numerators are named DSL parameters and can be overridden per run through the
+  generic `role_parameters` request. In the focused demand cohort, cashier assignments are 100/100,
+  500/1,000, and 500/10,000 as the actual cohort changes with no DSL edit.
+- Main leadership is explicit metadata on the parent composition. Canada links PresidentLeader;
+  USA links the new USAPresidentLeader/USALeadership; Texas and California link their governor
+  archetypes; BrandOne/BrandTwo link BrandLeader; FranchiseOne/FranchiseTwo link FranchiseLeader;
+  StoreA/B/C/D link StoreLeader; and PersonalFinance links InfluencerX. Every graph role carries a
+  direct/leader/inherited source, owner line, conditions, and action list.
+- InfluencerX is the main PersonalFinance influencer. CommunityInfluencer and CommunityLeadership
+  remain a lab demonstration. DallasLeadership also remains in Labs: Dallas mayor is not in the main
+  physical tree yet, because no Dallas municipality composition exists in this DSL.
+- `Petraterrium` is the new `default_run = true` coupled composition. It contains World, Reddit,
+  CorporateForest, ListedCorporateForest, FinancialEconomy, and UnifiedRolePopulation in one run ID.
+  Store-level and firm-level corporate roots remain separate granularities; their profits are not
+  summed into one double-counted output. Explicit store-profit and capital-allocation couplings link
+  the two roots.
+- Full-system couplings cover physical→media, media→physical, physical→store corporate,
+  store corporate→physical, store corporate↔firm corporate, firm corporate→financial,
+  financial→firm corporate, and trader→market. Daily channels fire at daily root sync; corporate and
+  market channels declare 90-day cadence and fire once at a shorter run's final partial interval.
+  A default run fails with a DSL error if any declared root coupling never fires.
+- Aggregate effects make every full-system direction executable: physical signal changes media
+  outrage/stress, media trend changes physical state, physical/store channels affect purchase/work
+  behavior and physical stress, and financial/corporate inputs affect money/stress and policies.
+- The primary UI has no system selector. It shows every included slice, distributions, planned
+  draws, represented totals, sync clocks, and all root couplings, followed by Days, Sample budget,
+  Advanced seed, and one `Run full system` button. Single-slice runs exist only in the collapsed
+  `Advanced > Debug single-slice runs` section with an explicit non-interacting warning.
+- Run results show one run ID with physical, media, store corporate, firm corporate, financial, and
+  trader rows, actual packed counts, represented counts, and a root-coupling summary with firing
+  count and first/last value. Existing reports, deltas, aggregate time series, validation, save,
+  two-step reset, and diagnostics remain available.
+- The graph and outline are React TSX components. React Flow owns viewport, background-only pan,
+  zoom, controls, minimap, selection, and edges; Dagre owns top-down DAG layout. React state owns
+  searchQuery, expandedPaths, selectedPath, viewport zoom/pan, sliceFilter, and roleFilter. Search
+  reports match count, focuses small result sets, and renders a named no-match state.
+- Labs and Allocation are collapsed by default. Current graph categories are: 76 main nodes across
+  Physical 28, Media 9, Corporate 25, and Financial 14; one coupled Full-system node; 50 lab/demo
+  nodes; seven allocation nodes; and zero orphan nodes. The generic graph contains 134 definitions,
+  223 structural/coupling edges, and 427 default population paths.
+
+### Implemented but narrower
+
+- The generic recursive composition engine still namespaces every child into one combined Rust
+  agent-state vector before ticking. Slice clocks and root coupling cadences are respected at sync
+  boundaries, but slice states are not stored as six physically separate vectors. This is narrower
+  than the requested independent per-slice state containers.
+- Whole-household packing means requested/actual full-system counts are 291/279, 1,000/981, and
+  10,000/9,841 for the measured seed. The multinomial allocation itself conserves the requested
+  budget; packing is shown rather than hidden.
+- Reddit's 8,000,000 represented users remain an explicit subset total independent of World 7B.
+  Corporate and financial modules currently have no represented-population total, so their result
+  rows show zero represented rather than inventing a shared-world share.
+- TexasStoreDistribution's contradictory literal 500 and its literal sample budget were removed,
+  but that isolated Allocation demo is not connected to a world-derived represented store count.
+  The cashier `store_count`, `workers_per_store`, and `cashier_share`, trader participants, and media
+  represented-user numerators remain explicit overridable DSL parameters because no evidence-backed
+  conversion from people to establishments/market participants exists in this prompt.
+- A 10,000-budget full-system run is practical for allocation and short-run testing but not for the
+  30-day demo gate: one day measured `14.5365s`, projecting beyond the five-minute focused-test
+  budget for 30 days. The 30-day 10k run was not executed and is not reported as passing.
+- Ontario's normalized probability migration changes one default household assignment between
+  HouseholdConservativeSuburban and HouseholdRuralMixed. Ontario state and derived non-population
+  metrics therefore are not byte-exact to Prompt 7. All other legacy gates below are exact. This is
+  a population-composition delta, but it still means the strict all-payload golden requirement is
+  not fully met.
+- There is no direct Media↔Corporate, Media↔Financial, or Physical↔Financial root coupling. Those
+  pairs interact only through the declared physical/corporate/financial chain and are explicitly
+  not claimed as direct links.
+- React/graph dependencies add a material browser cost. The previous production JS was about
+  56.3kB / 15.6kB gzip. The new split build is 241.0kB / 80.1kB gzip for `dsl-graph` and 271.1kB /
+  82.9kB gzip for the main chunk, about +456kB / +147kB gzip in total. TSX graph render measured
+  `1,310.4ms` versus the previous vanilla graph's `108.9ms`.
+
+### Deferred and not part of this prompt
+
+- LLM top-layer text and media UI top posts remain the saved Prompt 10.
+- Generic disease/ideology spread, research/data imports, fitted data, and calibration.
+- True DSL file/module splitting and visual drag/drop DSL editing.
+- Real California/Texas/Ontario municipality and neighbourhood geography. Toronto/Vancouver remain
+  visibly labeled placeholder path instances.
+- Independent municipality-size distributions beyond allocating the fixed 7B root through declared
+  child probabilities.
+- A separate vector/state container per slice, direct couplings for the three unlinked slice pairs,
+  and a 30-day 10k performance pass.
+- Globe work and result charts.
+
+### Focused verification
+
+- Rust graph/parser/metadata tests: `6 passed`. Population allocation and role-denominator tests:
+  `5 passed`. Full-system coupling/determinism tests: `2 passed`. Focused Python text-DSL API tests:
+  `6 passed`.
+- TSX graph/full-run/save-reset browser workflow: `3 passed` in `1.0m`. Existing code edit/run and
+  line-numbered parser-diagnostic browser regressions: `2 passed` in `50.9s`.
+- Frontend production build, Rust format/build, Ruff, generated-contract check, source greps, and
+  `git diff --check` pass at the final gate. Full suites were not run because this prompt explicitly
+  requires focused tests only.
+- Legacy exact checks at default seed/sample: Town 30/365, weighted households, neighbourhood,
+  municipality, country, World, finance, Reddit, coupled physical/media, CorporateForest, and
+  coupled physical/corporate have exact state, actions, and non-population report metrics against
+  Prompt 7 `9e29a7c` or Prompt 8 `81300ff`. Ontario division has the population-composition delta
+  described above. Corporate-financial retains a deterministic final digest `b232f1ec42128602`.
+- Legacy timings: Town 30/365 `0.4883s` / `4.1100s`; weighted `0.4849s`; neighbourhood `0.5381s`;
+  municipality `0.6617s`; division `0.7378s`; country `0.9381s`; World `1.6966s`; finance
+  `0.0447s`; Reddit `0.5839s`; coupled physical/media `1.2035s`; corporate `0.0522s`;
+  physical/corporate `0.0584s`; corporate-financial `0.0480s`.
+- Warm zero-tick cache hits: corporate `0.0291s`, physical/corporate `0.0344s`, physical/media
+  `0.0617s`, corporate-financial `0.0439s`.
+- The new DSL hash is
+  `sha256:9bf07c1ef28c2b0ec3bd6d01f449586294b1fee2269f11339a5845c5adec70d6`.
+  Engine version remains `0.12.0`. Nothing was committed or pushed.
+
+## Final graph TSX run
+
+- Exactly four main slice strings plus Full system are visible by default. Labs and Allocation are
+  collapsed. Person, WorkingStudent, User, Citizen, RetailPerson, and FinancialPerson render below
+  their referencing archetype/inheritance path and never become lanes.
+- Searching `president` returns USA and Canada; `trader` highlights MarketAlpha, FirmAlpha, and the
+  FinancialPerson trader path; `Toronto` returns six full paths; an unmatched query renders
+  `No nodes match 'xyz-no-match'`. Match counts are visible.
+- Collapsing the Ontario Toronto path survives clearing search and leaves the California Toronto path
+  expanded. Re-expanding restores only that path. Clicking FamilyStore exposes cashier, manager, and
+  owner roles. Clicking USA exposes president, `enact_policy`, source, probability, expected/actual
+  allocation, and exact code navigation.
+- Libraries: React `19.3.1`, React DOM `19.3.1`, React Flow `12.12.0`, and Dagre `3.1.3`.
+
+## Final population distribution run
+
+- World probability vector is Canada `0.208333`, USA `0.625`, Mexico `0.166667`. Seed 1 represented
+  allocation is 1,458,308,336 / 4,374,996,102 / 1,166,695,561, which sums exactly to
+  6,999,999,999 and eliminates the old 505M contradiction.
+- At budgets 180 / 1,000 / 10,000, seed-1 packed simulated country counts are respectively
+  Canada 39/225/2,172, USA 108/618/6,201, and Mexico 33/156/1,626. Actual shares approach the fixed
+  probabilities with larger samples. Budget 10,000 with seed 2 changes the counts to
+  2,118/6,273/1,608 while preserving probabilities, expectations, and the represented-total sum.
+- Same seed reproduces every count exactly. Different seed changes both represented and simulated
+  multinomial draws. All tested country, division, municipality, neighbourhood, archetype, and agent
+  parent allocations conserve their parent total before whole-household packing.
+- Scale timing: full system 291 requested / 279 ticked for 30 days `13.2553s`; 1,000 requested / 981
+  ticked for 30 days `37.1733s`; 10,000 requested / 9,841 ticked for one day `14.5365s`.
+
+## Final full-system run
+
+- Seed 1, 30 days, requested sample budget 291, 279 agents actually ticked, one run ID, deterministic
+  digest `4f97f8933ebf7203`, elapsed `13.6508s` at the final golden gate.
+- Packed slice counts are World 156, Reddit 103, CorporateForest 12, ListedCorporateForest 5,
+  FinancialEconomy 1, and UnifiedRolePopulation 2. World represents 6,999,999,999; Reddit represents
+  its independent 8,000,000-user subset; the other modules currently have no represented total.
+- Daily couplings fire 30 times: world→media `0.24→0.66`, media outrage→world
+  `0.024715→0.050972`, media sentiment→world `0.26203→0.3255`, world→store corporate
+  `1.000393→1.000031`, and trader→market `0.01→0`. The nine 90-day channels fire once at the final
+  partial interval: store→world `0.0221`, store→firms `22.1`, firm allocation→stores `1.09`, firm
+  profits→market `100/60`, and market price/cap→firms `31.25/3,125` and `18.75/1,500`.

@@ -58,6 +58,8 @@ class SaveTextDslRequest(TextDslModel):
 class TextDslRunRequest(TextDslModel):
     seed: int = Field(default=1, ge=0)
     days: int = Field(default=30, ge=1, le=365)
+    sample_budget: int | None = Field(default=None, ge=1, le=10_000)
+    role_parameters: dict[str, dict[str, float]] = Field(default_factory=dict)
     baseline_run_id: str | None = None
     population_id: str | None = None
     composition_id: str | None = None
@@ -112,6 +114,8 @@ class TextDslRunResult(TextDslModel):
     adult_population: int
     total_agents: int
     generated_children: int
+    sample_budget: int | None = None
+    population_allocations: tuple[dict[str, Any], ...] = ()
     population_id: str | None = None
     results_title: str
     results_subtitle: str
@@ -129,6 +133,7 @@ class TextDslRunSummary(TextDslModel):
     days: int
     ticks: int
     total_agents: int
+    sample_budget: int | None = None
     population_id: str | None = None
     created_at: str
 

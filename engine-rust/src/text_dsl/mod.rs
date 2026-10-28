@@ -17,6 +17,7 @@ mod expression;
 mod graph;
 mod model;
 mod parser;
+mod population_distribution;
 mod primitives;
 mod runtime;
 
@@ -26,8 +27,13 @@ pub use composition_cache::evaluate_cached_composition;
 pub use compositions::run_composition;
 pub use graph::{
     GraphAction, GraphAggregate, GraphAggregateInput, GraphBranch, GraphCoupling, GraphDecision,
-    GraphEdge, GraphNode, GraphRoleExposure, ProgramGraph, build_program_graph,
+    GraphEdge, GraphNode, GraphRoleExposure, GraphRoleSource, GraphSlice, ProgramGraph,
+    build_program_graph,
 };
 pub use model::*;
 pub use parser::parse_program;
+pub use population_distribution::{
+    PopulationAllocation, apply_actual_simulated_counts, build_population_plan,
+    sample_multinomial_counts,
+};
 pub use runtime::{run_program, sample_population};

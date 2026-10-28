@@ -6,9 +6,10 @@ use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
     AggregateEvaluationProtocolRequest, CachedCompositionProtocolRequest, DslRunRequest,
-    TextDslProtocolRequest, TextDslValidateRequest, build_program_graph,
-    evaluate_aggregate_function, evaluate_cached_composition, parse_program, run_composition,
-    run_program, run_weighted_population,
+    TextDslProtocolRequest, TextDslValidateRequest, apply_actual_simulated_counts,
+    build_population_plan, build_program_graph, evaluate_aggregate_function,
+    evaluate_cached_composition, parse_program, run_composition, run_program,
+    run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -113,7 +114,16 @@ pub fn execute(request: Request) -> CoreResult<Value> {
             })),
         },
         Request::RunTextDsl(request) => {
-            let program = parse_program(&request.source).map_err(text_dsl_error)?;
+            let mut program = parse_program(&request.source).map_err(text_dsl_error)?;
+            for (role, parameters) in &request.role_parameters {
+                if let Some(distribution) = program
+                    .role_distributions
+                    .iter_mut()
+                    .find(|distribution| distribution.role == *role)
+                {
+                    distribution.parameters.extend(parameters.clone());
+                }
+            }
             let requested_composition = request.composition_id.or(request.neighbourhood_id);
             let requested_composition_population = request
                 .composition_population_id
@@ -121,6 +131,19 @@ pub fn execute(request: Request) -> CoreResult<Value> {
             let composition_count = usize::from(request.population_id.is_some())
                 + usize::from(requested_composition.is_some())
                 + usize::from(requested_composition_population.is_some());
+            let mut population_allocations = requested_composition
+                .as_deref()
+                .map(|composition_id| {
+                    build_population_plan(
+                        &program,
+                        composition_id,
+                        request.seed,
+                        request.sample_budget,
+                    )
+                })
+                .transpose()
+                .map_err(text_dsl_error)?
+                .unwrap_or_default();
             let result = if composition_count > 1 {
                 return Err(CoreError::new(
                     "MULTIPLE_COMPOSITIONS",
@@ -142,6 +165,14 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                         "Composition runs do not accept a continuation checkpoint",
                     ));
                 }
+                if let Some(sample_budget) = request.sample_budget
+                    && let Some(composition) = program
+                        .compositions
+                        .iter_mut()
+                        .find(|composition| composition.id == composition_id)
+                {
+                    composition.sample_budget = Some(sample_budget);
+                }
                 run_composition(program, &composition_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
             } else if let Some(population_id) = requested_composition_population {
@@ -154,6 +185,9 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 run_composition(program, &population_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
             } else {
+                if let Some(sample_budget) = request.sample_budget {
+                    program.population.size = sample_budget as usize;
+                }
                 run_program(DslRunRequest {
                     program,
                     seed: request.seed,
@@ -162,7 +196,18 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 })
                 .map_err(text_dsl_error)?
             };
-            serialize(result)
+            apply_actual_simulated_counts(&mut population_allocations, &result.state);
+            let mut value = serde_json::to_value(result)
+                .map_err(|error| CoreError::new("SERIALIZATION_FAILED", error.to_string()))?;
+            if let Some(object) = value.as_object_mut() {
+                object.insert(
+                    "population_allocations".to_owned(),
+                    serde_json::to_value(population_allocations).map_err(|error| {
+                        CoreError::new("SERIALIZATION_FAILED", error.to_string())
+                    })?,
+                );
+            }
+            Ok(value)
         }
         Request::EvaluateAggregate(request) => {
             let program = parse_program(&request.source).map_err(text_dsl_error)?;

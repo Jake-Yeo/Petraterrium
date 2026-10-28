@@ -110,6 +110,17 @@ fn execute_composition_definition(
         &recorded_actions,
         &BTreeMap::new(),
     )?;
+    if composition.default_run && ticks > 0 {
+        for coupling in &composition.couplings {
+            if !flows.iter().any(|flow| flow.id == coupling.id) {
+                return Err(DslError::new(
+                    "DEFAULT_RUN_COUPLING_NOT_FIRED",
+                    coupling.line,
+                    format!("Default run coupling {} did not fire", coupling.id),
+                ));
+            }
+        }
+    }
     Ok(result)
 }
 
@@ -147,6 +158,7 @@ fn execute_coupled_chunks(
             action_aggregates,
             ticks_per_day,
             &mut previous_inputs,
+            ticks,
         )?;
         flows.extend(coupling_flows);
         actions.extend(result.actions.clone());
@@ -170,6 +182,7 @@ fn apply_detailed_couplings(
     action_aggregates: &BTreeMap<String, String>,
     ticks_per_day: u64,
     previous_inputs: &mut BTreeMap<String, BTreeMap<String, f64>>,
+    total_ticks: u64,
 ) -> DslResult<Vec<ExecutedFlow>> {
     let child_definitions = composition
         .entries
@@ -226,6 +239,15 @@ fn apply_detailed_couplings(
     let mut target_inputs = BTreeMap::<String, BTreeMap<String, f64>>::new();
     let mut executed = Vec::new();
     for coupling in &composition.couplings {
+        if let Some(days) = coupling.cadence_days
+            && days > 0
+        {
+            let cadence_ticks =
+                ((f64::from(days) * 24.0 / program.tick_hours).round() as u64).max(1);
+            if state.completed_ticks != total_ticks && state.completed_ticks % cadence_ticks != 0 {
+                continue;
+            }
+        }
         let value = evaluate(&coupling.value, &values)?
             .as_f64()
             .ok_or_else(|| {

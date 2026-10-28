@@ -14,7 +14,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      output: { manualChunks: { three: ['three'] } },
+      output: {
+        manualChunks: {
+          three: ['three'],
+          react: ['react', 'react-dom'],
+          'dsl-graph': ['@xyflow/react', '@dagrejs/dagre'],
+        },
+      },
     },
   },
 });

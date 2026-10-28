@@ -599,7 +599,11 @@ fn parse_population(lines: &[Line], start: usize) -> DslResult<(PopulationDefini
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        if let Some(value) = line.text.strip_prefix("size = ") {
+        if let Some(value) = line
+            .text
+            .strip_prefix("sample_budget = ")
+            .or_else(|| line.text.strip_prefix("size = "))
+        {
             size = Some(number_with_placeholder(value, line.number)? as usize);
             index += 1;
         } else if line.text == "mix:" {
@@ -715,9 +719,9 @@ fn parse_population(lines: &[Line], start: usize) -> DslResult<(PopulationDefini
         PopulationDefinition {
             size: size.ok_or_else(|| {
                 DslError::new(
-                    "MISSING_POPULATION_SIZE",
+                    "MISSING_POPULATION_BUDGET",
                     lines[start].number,
-                    "Population needs size",
+                    "Population needs sample_budget",
                 )
             })?,
             mix,
@@ -744,12 +748,16 @@ fn parse_archetype(
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        if let Some(value) = line.text.strip_prefix("sample_households = ") {
+        if let Some(value) = line
+            .text
+            .strip_prefix("default_sample_households = ")
+            .or_else(|| line.text.strip_prefix("sample_households = "))
+        {
             sample_households = Some(value.parse::<usize>().map_err(|_| {
                 DslError::new(
                     "INVALID_ARCHETYPE_SAMPLE",
                     line.number,
-                    "sample_households must be a positive integer",
+                    "default_sample_households must be a positive integer",
                 )
             })?);
             index += 1;
@@ -1876,10 +1884,14 @@ fn validate_program(program: &Program) -> DslResult<()> {
             .parameters
             .iter()
             .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .chain([(
+                "composition_population".to_owned(),
+                DslValue::Number(10_000.0),
+            )])
             .collect::<BTreeMap<_, _>>();
         let unknown_share = references(&distribution.share)
             .into_iter()
-            .filter(|reference| !distribution.parameters.contains_key(reference))
+            .filter(|reference| !parameter_values.contains_key(reference))
             .collect::<Vec<_>>();
         if !unknown_share.is_empty() {
             return Err(DslError::new(

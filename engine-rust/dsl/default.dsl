@@ -105,7 +105,7 @@ agent Child inherits Person:
     age ~ Uniform(min=0, max=17) placeholder
 
 population:
-  size = 100 placeholder
+  sample_budget = 100 placeholder
   mix:
     Student = 0.4 placeholder
     Worker = 0.6 placeholder
@@ -117,7 +117,7 @@ population:
       link = parent, household
 
 archetype HouseholdLiberalUrban:
-  sample_households = 20
+  default_sample_households = 20
   composition:
     adults count = 2 mix Worker:0.65, Student:0.35
     children count = 1 mix Child:1.0
@@ -140,7 +140,7 @@ archetype HouseholdLiberalUrban:
   output mean_kids_per_family = kids_per_family()
 
 archetype HouseholdConservativeSuburban:
-  sample_households = 20
+  default_sample_households = 20
   composition:
     adults count = 2 mix Worker:0.82, Student:0.18
     children count = 1 mix Child:1.0
@@ -163,7 +163,7 @@ archetype HouseholdConservativeSuburban:
   output mean_kids_per_family = kids_per_family()
 
 archetype HouseholdRuralMixed:
-  sample_households = 20
+  default_sample_households = 20
   composition:
     adults count = 2 mix Worker:0.74, Student:0.26
     children count = 1 mix Child:1.0
@@ -294,10 +294,12 @@ population SevenBillionHouseholds:
   HouseholdRuralMixed: weight = 583333333
 
 neighbourhood UrbanLiberal:
+  slice = "Physical"
+  graph_group = main
   households:
-    HouseholdLiberalUrban: weight = 60
-    HouseholdConservativeSuburban: weight = 20
-    HouseholdRuralMixed: weight = 20
+    HouseholdLiberalUrban: weight = 0.6
+    HouseholdConservativeSuburban: weight = 0.2
+    HouseholdRuralMixed: weight = 0.19999999999999996
   places = Home, Work, School, Bar, Cinema
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -307,10 +309,12 @@ neighbourhood UrbanLiberal:
   output fights_per_day = action_count(fights, window=day)
 
 neighbourhood SuburbanMixed:
+  slice = "Physical"
+  graph_group = main
   households:
-    HouseholdLiberalUrban: weight = 30
-    HouseholdConservativeSuburban: weight = 50
-    HouseholdRuralMixed: weight = 20
+    HouseholdLiberalUrban: weight = 0.3
+    HouseholdConservativeSuburban: weight = 0.5
+    HouseholdRuralMixed: weight = 0.19999999999999996
   places = Home, Work, School, Bar, Cinema
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -320,10 +324,12 @@ neighbourhood SuburbanMixed:
   output fights_per_day = action_count(fights, window=day)
 
 neighbourhood RuralMixed:
+  slice = "Physical"
+  graph_group = main
   households:
-    HouseholdLiberalUrban: weight = 10
-    HouseholdConservativeSuburban: weight = 30
-    HouseholdRuralMixed: weight = 60
+    HouseholdLiberalUrban: weight = 0.1
+    HouseholdConservativeSuburban: weight = 0.3
+    HouseholdRuralMixed: weight = 0.6
   places = Home, Work, School, Bar, Cinema
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -708,11 +714,13 @@ place Transit:
   state reliability = 0.76 range 0..1 placeholder
 
 composition Toronto:
+  slice = "Physical"
+  graph_group = main
   level = municipality
   children:
-    UrbanLiberal: weight = 120
-    SuburbanMixed: weight = 80
-    RuralMixed: weight = 40
+    UrbanLiberal: weight = 0.5
+    SuburbanMixed: weight = 0.333333333334
+    RuralMixed: weight = 0.166666666666
   institutions = Work, School, Bar, Cinema, SchoolDistrict, Hospital, ShoppingCentre, Transit
   parameters:
     policy_tax = 0.23
@@ -742,11 +750,13 @@ composition Toronto:
   output migration_rate = flow_rate(migrate_rural_suburban)
 
 composition Vancouver:
+  slice = "Physical"
+  graph_group = main
   level = municipality
   children:
-    UrbanLiberal: weight = 90
-    SuburbanMixed: weight = 60
-    RuralMixed: weight = 30
+    UrbanLiberal: weight = 0.5
+    SuburbanMixed: weight = 0.3333333333333333
+    RuralMixed: weight = 0.16666666666666674
   institutions = Work, School, Bar, Cinema, SchoolDistrict, Hospital, ShoppingCentre, Transit
   parameters:
     policy_tax = 0.21
@@ -776,10 +786,12 @@ composition Vancouver:
   output migration_rate = flow_rate(migrate_rural_suburban)
 
 composition Ontario:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Toronto: weight = 100
-    Vancouver: weight = 50
+    Toronto: weight = 0.6666666666666666
+    Vancouver: weight = 0.33333333333333337
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     provincial_policy_tax = 0.25
@@ -917,10 +929,12 @@ archetype CountryFederalDemocracy:
   output vote_liberal_share = mean(vote_liberal) where age >= 18 with sd
 
 composition BritishColumbia:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Vancouver: weight = 90
-    Toronto: weight = 10
+    Vancouver: weight = 0.9
+    Toronto: weight = 0.09999999999999998
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     policy_tax = 0.23
@@ -948,10 +962,12 @@ composition BritishColumbia:
   output gdp_proxy = sum(money)
 
 composition California:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Toronto: weight = 70
-    Vancouver: weight = 30
+    Toronto: weight = 0.7
+    Vancouver: weight = 0.30000000000000004
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     policy_tax = 0.24
@@ -967,6 +983,8 @@ composition California:
     sync = 5 days
     max_iterations = 1
     tolerance = 0.01
+  leaders:
+    governor: count = 1 archetype = CaliforniaGovernorLeader source = CaliforniaLeadership
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -979,10 +997,12 @@ composition California:
   output gdp_proxy = sum(money)
 
 composition Texas:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Toronto: weight = 30
-    Vancouver: weight = 70
+    Toronto: weight = 0.3
+    Vancouver: weight = 0.7
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     policy_tax = 0.2
@@ -998,6 +1018,8 @@ composition Texas:
     sync = 5 days
     max_iterations = 1
     tolerance = 0.01
+  leaders:
+    governor: count = 1 archetype = TexasGovernorLeader source = TexasLeadership
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
   output mean_stress = mean(stress) with sd
@@ -1010,10 +1032,12 @@ composition Texas:
   output gdp_proxy = sum(money)
 
 composition CentralMexico:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Toronto: weight = 45
-    Vancouver: weight = 55
+    Toronto: weight = 0.45
+    Vancouver: weight = 0.55
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     policy_tax = 0.19
@@ -1041,10 +1065,12 @@ composition CentralMexico:
   output gdp_proxy = sum(money)
 
 composition NorthernMexico:
+  slice = "Physical"
+  graph_group = main
   level = division
   children:
-    Toronto: weight = 35
-    Vancouver: weight = 65
+    Toronto: weight = 0.35
+    Vancouver: weight = 0.65
   institutions = Work, School, Bar, Cinema, Transit
   parameters:
     policy_tax = 0.18
@@ -1072,12 +1098,13 @@ composition NorthernMexico:
   output gdp_proxy = sum(money)
 
 composition Canada:
+  slice = "Physical"
+  graph_group = main
   level = country
   template = CountryFederalDemocracy
-  represented_population = 40000000
   children:
-    Ontario: weight = 100
-    BritishColumbia: weight = 50
+    Ontario: weight = 0.6666666666666666
+    BritishColumbia: weight = 0.33333333333333337
   institutions = Transit
   parameters:
     national_policy_tax = 0.25
@@ -1102,6 +1129,8 @@ composition Canada:
     tolerance = 0.01
     feedback:
       mean_stress -> economic_shock scale = 0.05
+  leaders:
+    president: count = 1 archetype = PresidentLeader source = CanadaLeadership
   output population = count()
   output represented_population = represented_count()
   output mean_income = mean(money) where age >= 18 with sd
@@ -1115,12 +1144,13 @@ composition Canada:
   output migration_rate = flow_rate(division_migration)
 
 composition USA:
+  slice = "Physical"
+  graph_group = main
   level = country
   template = CountryFederalDemocracy
-  represented_population = 335000000
   children:
-    California: weight = 100
-    Texas: weight = 80
+    California: weight = 0.5555555555555556
+    Texas: weight = 0.4444444444444444
   institutions = Transit
   parameters:
     national_policy_tax = 0.22
@@ -1145,6 +1175,8 @@ composition USA:
     tolerance = 0.01
     feedback:
       mean_stress -> economic_shock scale = 0.05
+  leaders:
+    president: count = 1 archetype = USAPresidentLeader source = USALeadership
   output population = count()
   output represented_population = represented_count()
   output mean_income = mean(money) where age >= 18 with sd
@@ -1158,12 +1190,13 @@ composition USA:
   output migration_rate = flow_rate(division_migration)
 
 composition Mexico:
+  slice = "Physical"
+  graph_group = main
   level = country
   template = CountryFederalDemocracy
-  represented_population = 130000000
   children:
-    CentralMexico: weight = 100
-    NorthernMexico: weight = 70
+    CentralMexico: weight = 0.5882352941176471
+    NorthernMexico: weight = 0.4117647058823529
   institutions = Transit
   parameters:
     national_policy_tax = 0.19
@@ -1201,12 +1234,14 @@ composition Mexico:
   output migration_rate = flow_rate(division_migration)
 
 composition World:
+  slice = "Physical"
+  graph_group = main
   level = world
   represented_population = 6999999999
   children:
-    Canada: weight = 100
-    USA: weight = 300
-    Mexico: weight = 80
+    Canada: weight = 0.20833333333333334
+    USA: weight = 0.625
+    Mexico: weight = 0.16666666666666663
   institutions = Transit
   parameters:
     global_interest_rate = 0.04
@@ -1542,6 +1577,7 @@ aggregate_function World:
   effects:
     field money *= 1 - global_interest_rate * 0.10 + economic_shock * 0.12
     field stress += economic_shock * 0.15 + infection_rate * 0.08
+    field vote_liberal += media_trend * 0.05
   outputs:
     population = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
     represented_population = formula(global_interest_rate, global_trade_policy, policy_tax, media_trend, economic_shock, unemployment_national, border_policy, tariff, infection_rate)
@@ -1650,7 +1686,7 @@ agent Citizen:
   routine = physical_day
 
 archetype UserActive:
-  sample_households = 25
+  default_sample_households = 25
   composition:
     users count = 1 mix User:1.0
   initial:
@@ -1672,7 +1708,7 @@ archetype UserActive:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 archetype UserLurker:
-  sample_households = 49
+  default_sample_households = 49
   composition:
     users count = 1 mix User:1.0
   initial:
@@ -1694,7 +1730,7 @@ archetype UserLurker:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 archetype UserPoster:
-  sample_households = 25
+  default_sample_households = 25
   composition:
     users count = 1 mix User:1.0
   initial:
@@ -1716,7 +1752,7 @@ archetype UserPoster:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 spotlight agent InfluencerX:
-  sample_households = 1
+  default_sample_households = 1
   composition:
     individual count = 1 mix InfluencerUser:1.0
   initial:
@@ -1739,7 +1775,7 @@ spotlight agent InfluencerX:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 archetype PhysicalMass:
-  sample_households = 100
+  default_sample_households = 100
   composition:
     people count = 1 mix Citizen:1.0
   initial:
@@ -1890,13 +1926,14 @@ action physical_idle:
     next = physical_day
 
 composition PersonalFinance:
+  slice = "Media"
+  graph_group = main
   level = community
-  represented_population = 5000000
   children:
-    UserActive: weight = 20
-    UserLurker: weight = 60
-    UserPoster: weight = 20
-    InfluencerX: weight = 1
+    UserActive: weight = 0.19801980198019803
+    UserLurker: weight = 0.594059405940594
+    UserPoster: weight = 0.19801980198019803
+    InfluencerX: weight = 0.00990099009900991
   places = Feed
   parameters:
     norm_strictness = 0.25
@@ -1910,6 +1947,8 @@ composition PersonalFinance:
     tolerance = 0.01
     feedback:
       mean_outrage -> feedback_signal scale = 0.10
+  leaders:
+    influencer: count = 1 archetype = InfluencerX
   output population = count()
   output represented_population = represented_count()
   output posting_rate = action_rate(posts, window=day)
@@ -1923,12 +1962,13 @@ composition PersonalFinance:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 composition CivicForum:
+  slice = "Media"
+  graph_group = main
   level = community
-  represented_population = 3000000
   children:
-    UserActive: weight = 15
-    UserLurker: weight = 65
-    UserPoster: weight = 20
+    UserActive: weight = 0.15
+    UserLurker: weight = 0.65
+    UserPoster: weight = 0.19999999999999996
   places = Feed
   parameters:
     norm_strictness = 0.85
@@ -1955,11 +1995,13 @@ composition CivicForum:
   output spotlight_posts = action_count(spotlight_posts, window=day)
 
 composition Reddit:
+  slice = "Media"
+  graph_group = main
   level = platform
   represented_population = 8000000
   children:
-    PersonalFinance: weight = 5
-    CivicForum: weight = 3
+    PersonalFinance: weight = 0.625
+    CivicForum: weight = 0.375
   places = Feed
   parameters:
     viral_threshold = 5
@@ -1988,9 +2030,11 @@ composition Reddit:
   output viral_spread = flow_rate(viral_spread)
 
 composition PhysicalTown:
+  slice = "Labs"
+  graph_group = lab
   level = physical_module
   children:
-    PhysicalMass: weight = 100
+    PhysicalMass: weight = 1.0
   places = Square
   cached:
     sync = 1 days
@@ -2003,10 +2047,12 @@ composition PhysicalTown:
   output vote_liberal_share = mean(vote_liberal) with sd
 
 composition CoupledTownMedia:
+  slice = "Labs"
+  graph_group = lab
   level = coupled_modules
   children:
-    PhysicalTown: weight = 1
-    Reddit: weight = 1
+    PhysicalTown: weight = 0.5
+    Reddit: weight = 0.5
   cached:
     sync = 1 days
     max_iterations = 5
@@ -2210,6 +2256,9 @@ aggregate_function Reddit:
     viral_threshold = 5 range 0..1000
   time = 30 days
   time_points = 1, 15, 30
+  effects:
+    field outrage += signal * 0.05
+    field stress += signal * 0.02
   outputs:
     population = formula(signal, feedback_signal, viral_threshold)
     represented_population = formula(signal, feedback_signal, viral_threshold)
@@ -2360,7 +2409,7 @@ agent FamilyOwner inherits StoreManager:
   routine = family_owner_day
 
 archetype StoreTeam:
-  sample_households = 1
+  default_sample_households = 1
   composition:
     customers count = 1 mix Customer:1.0
     cashiers count = 1 mix Cashier:1.0
@@ -2371,7 +2420,7 @@ archetype StoreTeam:
   output work_count = action_count(work_shifts, window=run)
 
 archetype ManagedStoreTeam:
-  sample_households = 1
+  default_sample_households = 1
   composition:
     customers count = 1 mix Customer:1.0
     cashiers count = 1 mix ManagedCashier:1.0
@@ -2383,7 +2432,7 @@ archetype ManagedStoreTeam:
   output work_count = action_count(work_shifts, window=run)
 
 archetype FamilyStoreTeam:
-  sample_households = 1
+  default_sample_households = 1
   composition:
     customers count = 1 mix Customer:1.0
     cashiers count = 1 mix ManagedCashier:1.0
@@ -2520,9 +2569,11 @@ action owner_payout:
     next = family_owner_day
 
 composition TransactionStore:
+  slice = "Labs"
+  graph_group = lab
   level = site
   children:
-    StoreTeam: weight = 1
+    StoreTeam: weight = 1.0
   places = Store
   output population = count()
   output mean_money = mean(money)
@@ -2533,10 +2584,12 @@ composition TransactionStore:
   output revenue = place_state(Store, revenue)
 
 composition StoreA:
+  slice = "Corporate"
+  graph_group = main
   level = site
   allocation_leaf = true
   children:
-    ManagedStoreTeam: weight = 1
+    ManagedStoreTeam: weight = 1.0
   places = Store
   parameters:
     revenue = 100
@@ -2549,6 +2602,8 @@ composition StoreA:
     sync = 1 days
     max_iterations = 2
     tolerance = 0.01
+  leaders:
+    manager: count = 1 archetype = StoreLeader source = StoreLeadership
   output population = count()
   output revenue = formula(revenue * price_policy)
   output wages = formula(wages * wage_policy)
@@ -2558,10 +2613,12 @@ composition StoreA:
   output cash = formula(0)
 
 composition StoreB:
+  slice = "Corporate"
+  graph_group = main
   level = site
   allocation_leaf = true
   children:
-    ManagedStoreTeam: weight = 1
+    ManagedStoreTeam: weight = 1.0
   places = Store
   parameters:
     revenue = 80
@@ -2574,6 +2631,8 @@ composition StoreB:
     sync = 1 days
     max_iterations = 2
     tolerance = 0.01
+  leaders:
+    manager: count = 1 archetype = StoreLeader source = StoreLeadership
   output population = count()
   output revenue = formula(revenue * price_policy)
   output wages = formula(wages * wage_policy)
@@ -2583,10 +2642,12 @@ composition StoreB:
   output cash = formula(0)
 
 composition FamilyStore:
+  slice = "Corporate"
+  graph_group = main
   level = site
   allocation_leaf = true
   children:
-    FamilyStoreTeam: weight = 1
+    FamilyStoreTeam: weight = 1.0
   places = Store
   parameters:
     revenue = 60
@@ -2609,10 +2670,12 @@ composition FamilyStore:
   output owner_payout = formula(profit)
 
 composition StoreC:
+  slice = "Corporate"
+  graph_group = main
   level = site
   allocation_leaf = true
   children:
-    ManagedStoreTeam: weight = 1
+    ManagedStoreTeam: weight = 1.0
   places = Store
   parameters:
     revenue = 90
@@ -2625,6 +2688,8 @@ composition StoreC:
     sync = 1 days
     max_iterations = 2
     tolerance = 0.01
+  leaders:
+    manager: count = 1 archetype = StoreLeader source = StoreLeadership
   output population = count()
   output revenue = formula(revenue * price_policy)
   output wages = formula(wages * wage_policy)
@@ -2634,10 +2699,12 @@ composition StoreC:
   output cash = formula(0)
 
 composition StoreD:
+  slice = "Corporate"
+  graph_group = main
   level = site
   allocation_leaf = true
   children:
-    ManagedStoreTeam: weight = 1
+    ManagedStoreTeam: weight = 1.0
   places = Store
   parameters:
     revenue = 70
@@ -2650,6 +2717,8 @@ composition StoreD:
     sync = 1 days
     max_iterations = 2
     tolerance = 0.01
+  leaders:
+    manager: count = 1 archetype = StoreLeader source = StoreLeadership
   output population = count()
   output revenue = formula(revenue * price_policy)
   output wages = formula(wages * wage_policy)
@@ -2659,10 +2728,12 @@ composition StoreD:
   output cash = formula(0)
 
 composition FranchiseOne:
+  slice = "Corporate"
+  graph_group = main
   level = branch
   children:
-    StoreA: weight = 1
-    StoreB: weight = 1
+    StoreA: weight = 0.5
+    StoreB: weight = 0.5
   parameters:
     costs = 7
     price_policy = 1
@@ -2671,6 +2742,8 @@ composition FranchiseOne:
     sync = 30 days
     max_iterations = 3
     tolerance = 0.01
+  leaders:
+    franchise_manager: count = 1 archetype = FranchiseLeader source = FranchiseLeadership
   output population = count()
   output revenue = formula(sum.revenue)
   output wages = formula(sum.wages)
@@ -2680,9 +2753,11 @@ composition FranchiseOne:
   output cash = formula(0)
 
 composition FranchiseTwo:
+  slice = "Corporate"
+  graph_group = main
   level = branch
   children:
-    StoreC: weight = 1
+    StoreC: weight = 1.0
   parameters:
     costs = 6
     price_policy = 1
@@ -2691,6 +2766,8 @@ composition FranchiseTwo:
     sync = 30 days
     max_iterations = 3
     tolerance = 0.01
+  leaders:
+    franchise_manager: count = 1 archetype = FranchiseLeader source = FranchiseLeadership
   output population = count()
   output revenue = formula(sum.revenue)
   output wages = formula(sum.wages)
@@ -2700,10 +2777,12 @@ composition FranchiseTwo:
   output cash = formula(0)
 
 composition BrandOne:
+  slice = "Corporate"
+  graph_group = main
   level = label
   children:
-    FranchiseOne: weight = 1
-    FranchiseTwo: weight = 1
+    FranchiseOne: weight = 0.5
+    FranchiseTwo: weight = 0.5
   parameters:
     costs = 9
     price_policy = 1
@@ -2712,6 +2791,8 @@ composition BrandOne:
     sync = 90 days
     max_iterations = 3
     tolerance = 0.01
+  leaders:
+    brand_manager: count = 1 archetype = BrandLeader source = BrandLeadership
   output population = count()
   output revenue = formula(sum.revenue)
   output wages = formula(sum.wages)
@@ -2721,9 +2802,11 @@ composition BrandOne:
   output cash = formula(0)
 
 composition BrandTwo:
+  slice = "Corporate"
+  graph_group = main
   level = label
   children:
-    StoreD: weight = 1
+    StoreD: weight = 1.0
   parameters:
     costs = 3
     price_policy = 1
@@ -2732,6 +2815,8 @@ composition BrandTwo:
     sync = 90 days
     max_iterations = 3
     tolerance = 0.01
+  leaders:
+    brand_manager: count = 1 archetype = BrandLeader source = BrandLeadership
   output population = count()
   output revenue = formula(sum.revenue)
   output wages = formula(sum.wages)
@@ -2741,10 +2826,12 @@ composition BrandTwo:
   output cash = formula(0)
 
 composition ConglomerateRoot:
+  slice = "Corporate"
+  graph_group = main
   level = parent
   children:
-    BrandOne: weight = 1
-    BrandTwo: weight = 1
+    BrandOne: weight = 0.5
+    BrandTwo: weight = 0.5
   parameters:
     costs = 11
     debt = 50
@@ -2764,10 +2851,12 @@ composition ConglomerateRoot:
   output market_cap = formula(profit * valuation_multiple - debt)
 
 composition CorporateForest:
+  slice = "Corporate"
+  graph_group = main
   level = forest
   children:
-    ConglomerateRoot: weight = 1
-    FamilyStore: weight = 1
+    ConglomerateRoot: weight = 0.5
+    FamilyStore: weight = 0.5
   parameters:
     price_policy = 1
     wage_policy = 1
@@ -2783,9 +2872,11 @@ composition CorporateForest:
   output independent_profit = formula(FamilyStore.profit)
 
 composition PhysicalRetail:
+  slice = "Labs"
+  graph_group = lab
   level = physical_module
   children:
-    StoreTeam: weight = 1
+    StoreTeam: weight = 1.0
   places = Store
   cached:
     sync = 1 days
@@ -2798,10 +2889,12 @@ composition PhysicalRetail:
   output mean_stress = mean(stress)
 
 composition CoupledPhysicalCorporate:
+  slice = "Labs"
+  graph_group = lab
   level = coupled_modules
   children:
-    PhysicalRetail: weight = 1
-    CorporateForest: weight = 1
+    PhysicalRetail: weight = 0.5
+    CorporateForest: weight = 0.5
   cached:
     sync = 90 days
     max_iterations = 5
@@ -2821,6 +2914,8 @@ composition CoupledPhysicalCorporate:
   output profit_to_demand = flow_rate(profit_to_demand)
 
 composition NorthStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = area
   children:
     StoreA: weight = 0.5 count = 2
@@ -2828,15 +2923,17 @@ composition NorthStores:
   output population = count()
 
 composition SouthStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = area
   children:
     FamilyStore: weight = 1.0 count = 3
   output population = count()
 
 composition RegionalStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = allocation
-  authoritative_total = 7
-  sample_budget = 3
   children:
     NorthStores: weight = 0.5
     SouthStores: weight = 0.5
@@ -2844,6 +2941,8 @@ composition RegionalStores:
   output represented_total = represented_total()
 
 composition DallasStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = municipality_allocation
   children:
     StoreA: weight = 0.5
@@ -2851,25 +2950,29 @@ composition DallasStores:
   output population = count()
 
 composition AustinStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = municipality_allocation
   children:
     StoreC: weight = 1.0
   output population = count()
 
 composition HoustonStores:
+  slice = "Allocation"
+  graph_group = allocation
   level = municipality_allocation
   children:
     StoreD: weight = 1.0
   output population = count()
 
 composition TexasStoreDistribution:
+  slice = "Allocation"
+  graph_group = allocation
   level = division_allocation
-  authoritative_total = 500
-  sample_budget = 30
   children:
-    DallasStores: weight = 0.40
-    AustinStores: weight = 0.30
-    HoustonStores: weight = 0.30
+    DallasStores: weight = 0.4
+    AustinStores: weight = 0.3
+    HoustonStores: weight = 0.30000000000000004
   output population = count()
   output represented_total = represented_total()
 
@@ -3175,6 +3278,7 @@ aggregate_function CorporateForest:
     independent_profit = formula(price_policy, wage_policy)
   effects:
     decision buy *= 2 - price_policy
+    decision work_cashier *= wage_policy
   cache:
     valid_for = 180 days
     inputs_hash = hash(price_policy, wage_policy)
@@ -3486,7 +3590,7 @@ action post_spotlight:
     next = at_sync
 
 archetype BuyerActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = trader
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3499,7 +3603,7 @@ archetype BuyerActor:
   output trade_count = action_count(secondary_buys, window=day)
 
 archetype SellerCounterparty:
-  sample_households = 1
+  default_sample_households = 1
   roles = trader
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3512,7 +3616,7 @@ archetype SellerCounterparty:
   output trade_count = action_count(secondary_buys, window=day)
 
 archetype SellerActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = trader
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3524,7 +3628,7 @@ archetype SellerActor:
   output mean_money = mean(money)
 
 archetype BuyerCounterparty:
-  sample_households = 1
+  default_sample_households = 1
   roles = trader
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3536,7 +3640,7 @@ archetype BuyerCounterparty:
   output mean_money = mean(money)
 
 archetype IssuerActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = trader, ceo
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3547,7 +3651,7 @@ archetype IssuerActor:
   output mean_money = mean(money)
 
 archetype BorrowerActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = ceo
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3557,7 +3661,7 @@ archetype BorrowerActor:
   output mean_money = mean(money)
 
 archetype InterestActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = ceo
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3567,7 +3671,7 @@ archetype InterestActor:
   output mean_money = mean(money)
 
 archetype RepayerActor:
-  sample_households = 1
+  default_sample_households = 1
   roles = ceo
   composition:
     people count = 1 mix FinancialPerson:1.0
@@ -3577,7 +3681,7 @@ archetype RepayerActor:
   output mean_money = mean(money)
 
 archetype LedgerCohort:
-  sample_households = 1
+  default_sample_households = 1
   composition:
     ledgers count = 1 mix FinancialLedgerState:1.0
   initial:
@@ -3585,10 +3689,12 @@ archetype LedgerCohort:
   output population = count()
 
 composition SecondaryBuyLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    BuyerActor: weight = 1
-    SellerCounterparty: weight = 1
+    BuyerActor: weight = 0.5
+    SellerCounterparty: weight = 0.5
   places = ExchangeA
   output population = count()
   output trader_money = sum(money)
@@ -3601,10 +3707,12 @@ composition SecondaryBuyLab:
   output total_money = formula(trader_money + firm_cash + lender_cash)
 
 composition SecondarySellLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    SellerActor: weight = 1
-    BuyerCounterparty: weight = 1
+    SellerActor: weight = 0.5
+    BuyerCounterparty: weight = 0.5
   places = ExchangeA
   output population = count()
   output trader_money = sum(money)
@@ -3617,9 +3725,11 @@ composition SecondarySellLab:
   output total_money = formula(trader_money + firm_cash + lender_cash)
 
 composition IssuanceLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    IssuerActor: weight = 1
+    IssuerActor: weight = 1.0
   places = ExchangeA
   output population = count()
   output trader_money = sum(money)
@@ -3632,9 +3742,11 @@ composition IssuanceLab:
   output total_money = formula(trader_money + firm_cash + lender_cash)
 
 composition BorrowLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    BorrowerActor: weight = 1
+    BorrowerActor: weight = 1.0
   places = ExchangeA
   output population = count()
   output trader_money = sum(money)
@@ -3647,18 +3759,22 @@ composition BorrowLab:
   output total_money = formula(trader_money + firm_cash + lender_cash)
 
 composition InterestLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    InterestActor: weight = 1
+    InterestActor: weight = 1.0
   places = ExchangeA
   output population = count()
   output firm_cash = place_state(ExchangeA, firm_cash)
   output debt = place_state(ExchangeA, firm_debt)
 
 composition RepayLab:
+  slice = "Labs"
+  graph_group = lab
   level = transaction_lab
   children:
-    RepayerActor: weight = 1
+    RepayerActor: weight = 1.0
   places = ExchangeA
   output population = count()
   output trader_money = sum(money)
@@ -3671,9 +3787,11 @@ composition RepayLab:
   output total_money = formula(trader_money + firm_cash + lender_cash)
 
 composition StockAlpha:
+  slice = "Financial"
+  graph_group = main
   level = stock
   children:
-    LedgerCohort: weight = 1
+    LedgerCohort: weight = 1.0
   parameters:
     profit = 100
     revenue = 500
@@ -3700,9 +3818,11 @@ composition StockAlpha:
   output debt = formula(debt)
 
 composition StockBeta:
+  slice = "Financial"
+  graph_group = main
   level = stock
   children:
-    LedgerCohort: weight = 1
+    LedgerCohort: weight = 1.0
   parameters:
     profit = 60
     revenue = 300
@@ -3749,80 +3869,103 @@ action ledger_wait:
     next = ledger_idle
 
 archetype CEOAlpha:
-  sample_households = 1
+  default_sample_households = 1
   roles = ceo
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype CEOBeta:
-  sample_households = 1
+  default_sample_households = 1
   roles = ceo
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype PresidentLeader:
-  sample_households = 1
+  default_sample_households = 1
+  roles = president
+  composition:
+    leaders count = 1 mix FinancialLeaderPerson:1.0
+  output population = count()
+
+archetype USAPresidentLeader:
+  default_sample_households = 1
   roles = president
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype TexasGovernorLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = governor
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype CaliforniaGovernorLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = governor
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype DallasMayorLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = mayor
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype BrandLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = brand_manager
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype FranchiseLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = franchise_manager
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 archetype StoreLeader:
-  sample_households = 1
+  default_sample_households = 1
   roles = manager
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 spotlight agent CommunityInfluencer:
-  sample_households = 1
+  default_sample_households = 1
   roles = influencer
   composition:
     leaders count = 1 mix FinancialLeaderPerson:1.0
   output population = count()
 
 composition CanadaLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = country_leadership
   children:
-    PresidentLeader: weight = 1
-    LedgerCohort: weight = 1
+    PresidentLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
+  parameters:
+    policy_effect = 0.10
+  leaders:
+    president: count = 1
+  output population = count()
+  output policy_effect = formula(policy_effect)
+
+composition USALeadership:
+  slice = "Labs"
+  graph_group = lab
+  level = country_leadership
+  children:
+    USAPresidentLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   parameters:
     policy_effect = 0.10
   leaders:
@@ -3831,10 +3974,12 @@ composition CanadaLeadership:
   output policy_effect = formula(policy_effect)
 
 composition TexasLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = division_leadership
   children:
-    TexasGovernorLeader: weight = 1
-    LedgerCohort: weight = 1
+    TexasGovernorLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   parameters:
     policy_effect = 0.20
   leaders:
@@ -3843,10 +3988,12 @@ composition TexasLeadership:
   output policy_effect = formula(policy_effect)
 
 composition CaliforniaLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = division_leadership
   children:
-    CaliforniaGovernorLeader: weight = 1
-    LedgerCohort: weight = 1
+    CaliforniaGovernorLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   parameters:
     policy_effect = 0.15
   leaders:
@@ -3855,10 +4002,12 @@ composition CaliforniaLeadership:
   output policy_effect = formula(policy_effect)
 
 composition DallasLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = municipality_leadership
   children:
-    DallasMayorLeader: weight = 1
-    LedgerCohort: weight = 1
+    DallasMayorLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   parameters:
     policy_effect = 0.05
   leaders:
@@ -3867,46 +4016,56 @@ composition DallasLeadership:
   output policy_effect = formula(policy_effect)
 
 composition BrandLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = brand_leadership
   children:
-    BrandLeader: weight = 1
-    LedgerCohort: weight = 1
+    BrandLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   leaders:
     brand_manager: count = 1
   output population = count()
 
 composition FranchiseLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = franchise_leadership
   children:
-    FranchiseLeader: weight = 1
-    LedgerCohort: weight = 1
+    FranchiseLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   leaders:
     franchise_manager: count = 1
   output population = count()
 
 composition StoreLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = store_leadership
   children:
-    StoreLeader: weight = 1
-    LedgerCohort: weight = 1
+    StoreLeader: weight = 0.5
+    LedgerCohort: weight = 0.5
   leaders:
     manager: count = 1
   output population = count()
 
 composition CommunityLeadership:
+  slice = "Labs"
+  graph_group = lab
   level = community_leadership
   children:
-    CommunityInfluencer: weight = 1
-    LedgerCohort: weight = 1
+    CommunityInfluencer: weight = 0.5
+    LedgerCohort: weight = 0.5
   leaders:
     influencer: count = 1
   output population = count()
 
 composition FirmAlpha:
+  slice = "Corporate"
+  graph_group = main
   level = conglomerate
   children:
-    LedgerCohort: weight = 1
-    CEOAlpha: weight = 1
+    LedgerCohort: weight = 0.5
+    CEOAlpha: weight = 0.5
   parameters:
     profit = 100
     revenue = 500
@@ -3937,10 +4096,12 @@ composition FirmAlpha:
   output price_policy = formula(1 + capital_allocation / 2000 + costs / 10000 - competitor_price / 1000)
 
 composition FirmBeta:
+  slice = "Corporate"
+  graph_group = main
   level = conglomerate
   children:
-    LedgerCohort: weight = 1
-    CEOBeta: weight = 1
+    LedgerCohort: weight = 0.5
+    CEOBeta: weight = 0.5
   parameters:
     profit = 60
     revenue = 300
@@ -3971,9 +4132,11 @@ composition FirmBeta:
   output price_policy = formula(1 + capital_allocation / 2000 + costs / 10000 - competitor_price / 1000)
 
 composition FamilyBusiness:
+  slice = "Corporate"
+  graph_group = main
   level = independent_business
   children:
-    LedgerCohort: weight = 1
+    LedgerCohort: weight = 1.0
   parameters:
     profit = 40
     cash = 40
@@ -3986,11 +4149,13 @@ composition FamilyBusiness:
   output cash = formula(cash)
 
 composition ListedCorporateForest:
+  slice = "Corporate"
+  graph_group = main
   level = corporate_forest
   children:
-    FirmAlpha: weight = 1
-    FirmBeta: weight = 1
-    FamilyBusiness: weight = 1
+    FirmAlpha: weight = 0.3333333333333333
+    FirmBeta: weight = 0.3333333333333333
+    FamilyBusiness: weight = 0.33333333333333337
   parameters:
     firm_a_price = 31
     firm_a_market_cap = 3100
@@ -4019,9 +4184,11 @@ composition ListedCorporateForest:
   output family_cash = formula(FamilyBusiness.cash)
 
 composition MarketAlpha:
+  slice = "Financial"
+  graph_group = main
   level = market
   children:
-    StockAlpha: weight = 1
+    StockAlpha: weight = 1.0
   cached:
     sync = 1 days
     max_iterations = 2
@@ -4036,9 +4203,11 @@ composition MarketAlpha:
   output alpha_firm_cash = formula(StockAlpha.firm_cash)
 
 composition MarketBeta:
+  slice = "Financial"
+  graph_group = main
   level = market
   children:
-    StockBeta: weight = 1
+    StockBeta: weight = 1.0
   cached:
     sync = 1 days
     max_iterations = 2
@@ -4053,9 +4222,11 @@ composition MarketBeta:
   output beta_firm_cash = formula(StockBeta.firm_cash)
 
 composition SectorAlpha:
+  slice = "Financial"
+  graph_group = main
   level = sector
   children:
-    MarketAlpha: weight = 1
+    MarketAlpha: weight = 1.0
   cached:
     sync = 1 days
     max_iterations = 2
@@ -4070,9 +4241,11 @@ composition SectorAlpha:
   output alpha_firm_cash = formula(MarketAlpha.alpha_firm_cash)
 
 composition SectorBeta:
+  slice = "Financial"
+  graph_group = main
   level = sector
   children:
-    MarketBeta: weight = 1
+    MarketBeta: weight = 1.0
   cached:
     sync = 1 days
     max_iterations = 2
@@ -4087,10 +4260,12 @@ composition SectorBeta:
   output beta_firm_cash = formula(MarketBeta.beta_firm_cash)
 
 composition FinancialEconomy:
+  slice = "Financial"
+  graph_group = main
   level = financial_economy
   children:
-    SectorAlpha: weight = 1
-    SectorBeta: weight = 1
+    SectorAlpha: weight = 0.5
+    SectorBeta: weight = 0.5
   parameters:
     firm_a_profit = 100
     firm_b_profit = 60
@@ -4112,10 +4287,12 @@ composition FinancialEconomy:
   output beta_firm_cash = formula(SectorBeta.beta_firm_cash)
 
 composition UnifiedRolePopulation:
+  slice = "Financial"
+  graph_group = main
   level = physical_population
   children:
-    BuyerActor: weight = 1
-    SellerCounterparty: weight = 1
+    BuyerActor: weight = 0.5
+    SellerCounterparty: weight = 0.5
   places = ExchangeA
   cached:
     sync = 1 days
@@ -4127,12 +4304,14 @@ composition UnifiedRolePopulation:
   output trade_count = action_count(secondary_buys, window=day)
 
 composition CorporateFinancialSystem:
+  slice = "Labs"
+  graph_group = lab
   level = coupled_corporate_financial
   report_descendants = true
   children:
-    ListedCorporateForest: weight = 1
-    FinancialEconomy: weight = 1
-    UnifiedRolePopulation: weight = 1
+    ListedCorporateForest: weight = 0.3333333333333333
+    FinancialEconomy: weight = 0.3333333333333333
+    UnifiedRolePopulation: weight = 0.33333333333333337
   parameters:
     macro_signal = 0
   cached:
@@ -4162,6 +4341,49 @@ composition CorporateFinancialSystem:
   output alpha_profit_to_market = flow_rate(alpha_profit_to_market)
   output alpha_price_to_corporate = flow_rate(alpha_price_to_corporate)
 
+composition Petraterrium:
+  slice = "Full system"
+  graph_group = coupled
+  default_run = true
+  level = full_system
+  report_descendants = true
+  children:
+    World: weight = 0.616438356164384
+    Reddit: weight = 0.342465753424658
+    CorporateForest: weight = 0.020547945205479
+    ListedCorporateForest: weight = 0.01027397260274
+    FinancialEconomy: weight = 0.003424657534247
+    UnifiedRolePopulation: weight = 0.006849315068492
+  parameters:
+    external_event = 0
+  cached:
+    sync = 1 days
+    max_iterations = 5
+    tolerance = 0.01
+  couplings:
+    world_to_media World -> Reddit input = signal value = formula(clamp(World_fights_per_day / 100 + external_event * 0.20, 0, 1)) cadence = sync
+    media_outrage_to_world Reddit -> World input = economic_shock value = formula(clamp(Reddit_mean_outrage * 0.10, -0.20, 0.20)) cadence = sync
+    media_sentiment_to_world Reddit -> World input = media_trend value = formula(clamp(Reddit_mean_sentiment, -1, 1)) cadence = sync
+    world_to_store_corporate World -> CorporateForest input = price_policy value = formula(clamp(1 + World_gdp_proxy / 1000000000, 0.5, 2)) cadence = sync
+    store_profit_to_world CorporateForest -> World input = economic_shock value = formula(clamp(CorporateForest_total_profit / 10000, -0.20, 0.20)) cadence = 90 days
+    store_profit_to_firms CorporateForest -> ListedCorporateForest input = firm_a_price value = formula(clamp(CorporateForest_total_profit / 10, 0, 10000)) cadence = 90 days
+    firm_allocation_to_stores ListedCorporateForest -> CorporateForest input = wage_policy value = formula(clamp(1 + ListedCorporateForest_firm_a_capital_allocation / 1000, 0.5, 2)) cadence = 90 days
+    alpha_profit_to_market ListedCorporateForest -> FinancialEconomy input = firm_a_profit value = formula(ListedCorporateForest_firm_a_profit) cadence = 90 days
+    beta_profit_to_market ListedCorporateForest -> FinancialEconomy input = firm_b_profit value = formula(ListedCorporateForest_firm_b_profit) cadence = 90 days
+    trader_signal_to_market UnifiedRolePopulation -> FinancialEconomy input = trader_signal value = formula(clamp(UnifiedRolePopulation_trade_count / 100, 0, 1)) cadence = sync
+    alpha_price_to_corporate FinancialEconomy -> ListedCorporateForest input = firm_a_price value = formula(FinancialEconomy_alpha_price) cadence = 90 days
+    alpha_cap_to_corporate FinancialEconomy -> ListedCorporateForest input = firm_a_market_cap value = formula(FinancialEconomy_alpha_market_cap) cadence = 90 days
+    beta_price_to_corporate FinancialEconomy -> ListedCorporateForest input = firm_b_price value = formula(FinancialEconomy_beta_price) cadence = 90 days
+    beta_cap_to_corporate FinancialEconomy -> ListedCorporateForest input = firm_b_market_cap value = formula(FinancialEconomy_beta_market_cap) cadence = 90 days
+  output population = count()
+  output physical_to_media = flow_rate(world_to_media)
+  output media_to_physical = flow_rate(media_outrage_to_world)
+  output physical_to_corporate = flow_rate(world_to_store_corporate)
+  output corporate_to_physical = flow_rate(store_profit_to_world)
+  output corporate_to_financial = flow_rate(alpha_profit_to_market)
+  output financial_to_corporate = flow_rate(alpha_price_to_corporate)
+  output trader_to_market = flow_rate(trader_signal_to_market)
+
 aggregate_function FinancialEconomy:
   inputs:
     firm_a_profit = 100 range 0..10000
@@ -4171,6 +4393,9 @@ aggregate_function FinancialEconomy:
     trader_signal = 0 range 0..1
   time = 30 days
   time_points = 1, 15, 30
+  effects:
+    field money += (firm_a_profit - 100) * 0.001 + (firm_b_profit - 60) * 0.001
+    field stress += trader_signal * 0.01
   outputs:
     population = formula(firm_a_profit, firm_b_profit, interest_rate, market_sentiment, trader_signal)
     alpha_price = formula(firm_a_profit, firm_b_profit, interest_rate, market_sentiment, trader_signal)
@@ -4200,6 +4425,8 @@ aggregate_function ListedCorporateForest:
     firm_b_market_cap = 1456 range 0..1000000
   time = 90 days
   time_points = 1, 30, 90
+  effects:
+    field money += (firm_a_price - 31) * 0.01 + (firm_b_price - 18.2) * 0.01
   outputs:
     population = formula(firm_a_price, firm_a_market_cap, firm_b_price, firm_b_market_cap)
     firm_a_profit = formula(firm_a_price, firm_a_market_cap, firm_b_price, firm_b_market_cap)
@@ -4568,32 +4795,28 @@ role_distribution cashier:
     store_count = 500
     workers_per_store = 4
     cashier_share = 0.25
-    population = 10000
-  share = formula(store_count * workers_per_store * cashier_share / population)
+  share = formula(store_count * workers_per_store * cashier_share / composition_population)
   when = age >= 18 and money >= 0
 
 role_distribution trader:
   agent = DemandRolePerson
   parameters:
     market_participants = 2000
-    population = 10000
-  share = formula(market_participants / population)
+  share = formula(market_participants / composition_population)
   when = age >= 18 and risk >= 0.4 and money >= 1000
 
 role_distribution redditor:
   agent = DemandRolePerson
   parameters:
     represented_users = 5000
-    population = 10000
-  share = formula(represented_users / population)
+  share = formula(represented_users / composition_population)
   when = age >= 13 and interest >= 0.3
 
 role_distribution tiktoker:
   agent = DemandRolePerson
   parameters:
     represented_users = 4000
-    population = 10000
-  share = formula(represented_users / population)
+  share = formula(represented_users / composition_population)
   when = age >= 13 and activity >= 0.3
 
 agent RoleDemoPerson inherits Person:
@@ -4633,7 +4856,7 @@ agent DemandRolePerson inherits RoleDemoPerson:
   scope = composition
 
 archetype NeitherRoleDemo:
-  sample_households = 10
+  default_sample_households = 10
   composition:
     people count = 1 mix RoleDemoPerson:1.0
   output population = count()
@@ -4641,7 +4864,7 @@ archetype NeitherRoleDemo:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 archetype RedditRoleDemo:
-  sample_households = 10
+  default_sample_households = 10
   roles = redditor
   composition:
     people count = 1 mix RoleDemoPerson:1.0
@@ -4650,7 +4873,7 @@ archetype RedditRoleDemo:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 archetype TikTokRoleDemo:
-  sample_households = 10
+  default_sample_households = 10
   roles = tiktoker
   composition:
     people count = 1 mix RoleDemoPerson:1.0
@@ -4659,7 +4882,7 @@ archetype TikTokRoleDemo:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 archetype BothRoleDemo:
-  sample_households = 10
+  default_sample_households = 10
   roles = redditor, tiktoker
   composition:
     people count = 1 mix RoleDemoPerson:1.0
@@ -4668,7 +4891,7 @@ archetype BothRoleDemo:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 archetype BothFeedRoleDemo:
-  sample_households = 10
+  default_sample_households = 10
   roles = redditor, tiktoker
   composition:
     people count = 1 mix FeedRoleDemoPerson:1.0
@@ -4677,7 +4900,7 @@ archetype BothFeedRoleDemo:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 archetype DemandRoleCohort:
-  sample_households = 100
+  default_sample_households = 100
   composition:
     people count = 1 mix DemandRolePerson:1.0
   output population = count()
@@ -4685,22 +4908,26 @@ archetype DemandRoleCohort:
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 composition RoleActionDemo:
+  slice = "Labs"
+  graph_group = lab
   level = role_action_demo
   children:
-    NeitherRoleDemo: weight = 1
-    RedditRoleDemo: weight = 1
-    TikTokRoleDemo: weight = 1
-    BothRoleDemo: weight = 1
-    BothFeedRoleDemo: weight = 1
+    NeitherRoleDemo: weight = 0.2
+    RedditRoleDemo: weight = 0.2
+    TikTokRoleDemo: weight = 0.2
+    BothRoleDemo: weight = 0.2
+    BothFeedRoleDemo: weight = 0.19999999999999996
   places = Home, Work, School, Bar, Cinema, Feed
   output population = count()
   output reddit_posts = action_count(role_reddit_posts, window=run)
   output tiktok_posts = action_count(role_tiktok_posts, window=run)
 
 composition RoleDemandDemo:
+  slice = "Labs"
+  graph_group = lab
   level = role_distribution_demo
   children:
-    DemandRoleCohort: weight = 1
+    DemandRoleCohort: weight = 1.0
   places = Home
   output population = count()
   output reddit_posts = action_count(role_reddit_posts, window=run)
@@ -4748,7 +4975,7 @@ action quit_reddit:
     next = at_home
 
 archetype RoleJoinerDemo:
-  sample_households = 10
+  default_sample_households = 10
   composition:
     people count = 1 mix RoleJoinerPerson:1.0
   initial:
@@ -4759,7 +4986,7 @@ archetype RoleJoinerDemo:
   output reddit_posts = action_count(role_reddit_posts, window=run)
 
 archetype RoleQuitterDemo:
-  sample_households = 10
+  default_sample_households = 10
   composition:
     people count = 1 mix RoleQuitterPerson:1.0
   initial:
@@ -4769,10 +4996,12 @@ archetype RoleQuitterDemo:
   output reddit_posts = action_count(role_reddit_posts, window=run)
 
 composition RoleChangeDemo:
+  slice = "Labs"
+  graph_group = lab
   level = role_change_demo
   children:
-    RoleJoinerDemo: weight = 1
-    RoleQuitterDemo: weight = 1
+    RoleJoinerDemo: weight = 0.5
+    RoleQuitterDemo: weight = 0.5
   places = Home, Work, School, Bar, Cinema, Feed
   output population = count()
   output role_changes = action_count(role_changes, window=run)

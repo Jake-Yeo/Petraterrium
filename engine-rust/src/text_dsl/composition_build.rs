@@ -2,6 +2,7 @@ use super::archetypes::{build_archetype_state, ensure_action_metric_report};
 use super::compositions::{CompositionBuild, ExecutedFlow};
 use super::expression::evaluate;
 use super::model::*;
+use super::population_distribution::sample_multinomial_counts;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -46,7 +47,13 @@ pub(super) fn build_composition_state(
         None,
         &mut leaves,
     );
-    let allocations = leaf_allocations(&leaves, &archetypes, composition.sample_budget);
+    let allocations = leaf_allocations(
+        &leaves,
+        &archetypes,
+        composition.sample_budget,
+        seed,
+        &composition.id,
+    )?;
     let mut combined = program.clone();
     combined.places.clear();
     combined.agents.clear();
@@ -331,24 +338,57 @@ fn leaf_allocations(
     leaves: &[CompositionLeaf],
     archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
     sample_budget: Option<u64>,
-) -> BTreeMap<String, usize> {
-    let total_samples = sample_budget.map_or_else(
-        || {
-            leaves
-                .iter()
-                .map(|leaf| leaf.archetype.as_str())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .map(|id| archetypes[id].sample_households)
-                .sum::<usize>()
-        },
-        |value| value as usize,
-    );
-    let minimum = usize::from(leaves.len() <= total_samples);
-    let mut allocations = leaves
+    seed: u64,
+    key: &str,
+) -> DslResult<BTreeMap<String, usize>> {
+    let Some(total_samples) = sample_budget else {
+        let total_households = leaves
+            .iter()
+            .map(|leaf| leaf.archetype.as_str())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .map(|id| archetypes[id].sample_households)
+            .sum::<usize>();
+        return Ok(deterministic_household_allocations(
+            leaves,
+            total_households,
+        ));
+    };
+    let household_weights = leaves
         .iter()
         .map(|leaf| {
-            let exact = total_samples as f64 * leaf.weight;
+            let per_household = archetypes[leaf.archetype.as_str()]
+                .composition
+                .iter()
+                .map(|group| group.count)
+                .sum::<usize>()
+                .max(1);
+            leaf.weight / per_household as f64
+        })
+        .collect::<Vec<_>>();
+    let household_weight_sum = household_weights.iter().sum::<f64>();
+    let probabilities = household_weights
+        .iter()
+        .map(|weight| weight / household_weight_sum)
+        .collect::<Vec<_>>();
+    let household_total = (total_samples as f64 * household_weight_sum).round() as u64;
+    let sampled = sample_multinomial_counts(household_total, &probabilities, seed, key)?;
+    Ok(leaves
+        .iter()
+        .zip(sampled)
+        .map(|(leaf, households)| (leaf.namespace.clone(), households as usize))
+        .collect())
+}
+
+fn deterministic_household_allocations(
+    leaves: &[CompositionLeaf],
+    total: usize,
+) -> BTreeMap<String, usize> {
+    let minimum = usize::from(leaves.len() <= total);
+    let mut values = leaves
+        .iter()
+        .map(|leaf| {
+            let exact = total as f64 * leaf.weight;
             (
                 leaf.namespace.clone(),
                 (exact.floor() as usize).max(minimum),
@@ -356,20 +396,17 @@ fn leaf_allocations(
             )
         })
         .collect::<Vec<_>>();
-    let assigned = allocations
-        .iter()
-        .map(|(_, count, _)| *count)
-        .sum::<usize>();
-    if assigned > total_samples {
-        allocations.sort_by(|left, right| {
+    let assigned = values.iter().map(|(_, count, _)| *count).sum::<usize>();
+    if assigned > total {
+        values.sort_by(|left, right| {
             left.2
                 .total_cmp(&right.2)
                 .then_with(|| right.0.cmp(&left.0))
         });
-        let mut extra = assigned - total_samples;
+        let mut extra = assigned - total;
         while extra > 0 {
             let mut changed = false;
-            for (_, count, _) in &mut allocations {
+            for (_, count, _) in &mut values {
                 if extra == 0 {
                     break;
                 }
@@ -384,15 +421,15 @@ fn leaf_allocations(
             }
         }
     } else {
-        let mut remaining = total_samples - assigned;
-        allocations.sort_by(|left, right| {
+        let mut remaining = total - assigned;
+        values.sort_by(|left, right| {
             right
                 .2
                 .total_cmp(&left.2)
                 .then_with(|| left.0.cmp(&right.0))
         });
         while remaining > 0 {
-            for (_, count, _) in &mut allocations {
+            for (_, count, _) in &mut values {
                 if remaining == 0 {
                     break;
                 }
@@ -401,7 +438,7 @@ fn leaf_allocations(
             }
         }
     }
-    allocations
+    values
         .into_iter()
         .map(|(id, count, _)| (id, count))
         .collect()

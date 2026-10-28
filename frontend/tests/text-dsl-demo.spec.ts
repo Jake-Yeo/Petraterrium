@@ -23,6 +23,17 @@ const openFastForward = async (page: Page): Promise<void> => {
   }
 };
 
+const openDebugRuns = async (page: Page): Promise<void> => {
+  const advanced = page.locator('.text-dsl-advanced');
+  if (!(await advanced.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await advanced.locator('summary').first().click();
+  }
+  const debug = page.locator('.text-dsl-debug-runs');
+  if (!(await debug.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await debug.locator('summary').click();
+  }
+};
+
 test.beforeEach(async ({ page, request }) => {
   await request.post('/api/simulation/text-dsl/reset');
   await page.goto('/');
@@ -41,8 +52,10 @@ test('shows exact DSL code, edits it, runs it, and compares place aggregates', a
   await expect(page.getByRole('tab', { name: 'Decision Trees' })).toHaveCount(0);
   await expect(page.locator('.text-dsl-gutter')).toContainText('100');
 
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('program:Town');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.getByRole('heading', { name: 'DSL-defined small-group statistics' }),
   ).toBeVisible();
@@ -73,7 +86,7 @@ test('shows exact DSL code, edits it, runs it, and compares place aggregates', a
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
   await expect(page.getByText('Saved DSL is valid and ready to run.')).toBeVisible();
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'Edited DSL statistics' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Location statistics' })).toBeVisible();
   await expect(page.locator('[data-report-id="places"].text-dsl-result-cards')).toBeVisible();
@@ -96,16 +109,17 @@ test('shows Rust parser diagnostics with source line numbers', async ({ page }) 
 
   await expect(page.getByText('UNORDERED_DURATION')).toBeVisible();
   await expect(page.getByText(/Line \d+/).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Run simulation' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Run full system' })).toBeDisabled();
 });
 
 test('edits a household weight and changes weighted archetype output', async ({ page }) => {
   const editor = page.getByLabel('Simulation DSL code');
   await expect(editor).toHaveValue(/archetype HouseholdLiberalUrban:/);
   await expect(editor).toHaveValue(/population TownHouseholds:/);
-  await page.getByLabel('What to run').selectOption('TownHouseholds');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('TownHouseholds');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.getByRole('heading', { name: 'TownHouseholds weighted archetype aggregates' }),
   ).toBeVisible();
@@ -119,8 +133,9 @@ test('edits a household weight and changes weighted archetype output', async ({ 
   await page.getByRole('button', { name: 'Validate code' }).click();
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('TownHouseholds');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('TownHouseholds');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.locator('[data-report-id="weighted_summary"] dd').filter({ hasText: /^420/ }),
   ).toBeVisible();
@@ -159,9 +174,10 @@ test('learns, reuses, and invalidates an aggregate cache from DSL text', async (
 test('runs shared-place neighbourhoods and their cached aggregate', async ({ page }) => {
   const editor = page.getByLabel('Simulation DSL code');
   await expect(editor).toHaveValue(/neighbourhood UrbanLiberal:/);
-  await page.getByLabel('What to run').selectOption('composition:UrbanLiberal');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:UrbanLiberal');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.getByRole('heading', { name: 'UrbanLiberal neighbourhood aggregates' }),
   ).toBeVisible();
@@ -174,8 +190,9 @@ test('runs shared-place neighbourhoods and their cached aggregate', async ({ pag
   );
   await page.getByRole('button', { name: 'Validate code' }).click();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('composition:UrbanLiberal');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:UrbanLiberal');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
   await openFastForward(page);
@@ -197,10 +214,13 @@ test('runs and edits generic municipality and division compositions', async ({ p
   await expect(editor).toHaveValue(/composition Ontario:/);
   await expect(editor).toHaveValue(/level = division/);
 
-  await page.getByLabel('What to run').selectOption('composition:Toronto');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Toronto');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  await expect(page.getByRole('heading', { name: 'Toronto municipality aggregates' })).toBeVisible();
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Toronto municipality aggregates' }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Composition boundary flows' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Cross-composition interactions' })).toBeVisible();
   await expect(page.getByText('commute_urban_suburban', { exact: true })).toBeVisible();
@@ -210,12 +230,14 @@ test('runs and edits generic municipality and division compositions', async ({ p
   await page.getByRole('button', { name: 'Validate code' }).click();
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('composition:Toronto');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Toronto');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
-  await page.getByLabel('What to run').selectOption('composition:Ontario');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Ontario');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'Ontario division aggregates' })).toBeVisible();
 
   await openFastForward(page);
@@ -236,19 +258,26 @@ test('shows recursive cache metadata, branch invalidation, feedback, and evolvin
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
 
-  await page.getByLabel('What to run').selectOption('composition:Province');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Province');
   await page.getByLabel('Days').fill('2');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  await expect(page.getByRole('heading', { name: 'Province synthetic_division aggregates' })).toBeVisible();
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Province synthetic_division aggregates' }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Cross-composition interactions' })).toBeVisible();
 
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('Province');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/);
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+  );
   await expect(page.getByRole('heading', { name: 'Composition cache hierarchy' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Composition feedback convergence' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Composition feedback convergence' }),
+  ).toBeVisible();
   await expect(page.getByRole('rowheader', { name: 'NorthOne', exact: true })).toBeVisible();
   await expect(page.getByRole('rowheader', { name: 'MetroNorth', exact: true })).toBeVisible();
 
@@ -274,19 +303,24 @@ test('shows recursive cache metadata, branch invalidation, feedback, and evolvin
   await page.getByLabel('tax').fill('0.35');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText(/Hierarchy updated|Branch relearn/);
-  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Cached composition boundary flows' }),
+  ).toBeVisible();
 });
 
-test('runs the shipped division detailed and from its recursive zero-tick cache', async ({ page }) => {
+test('runs the shipped division detailed and from its recursive zero-tick cache', async ({
+  page,
+}) => {
   test.setTimeout(90_000);
   const editor = page.getByLabel('Simulation DSL code');
   await expect(editor).toHaveValue(/composition Ontario:/);
   await expect(editor).toHaveValue(/cached:/);
   await expect(editor).toHaveValue(/intermunicipal_visit Toronto -> Vancouver/);
 
-  await page.getByLabel('What to run').selectOption('composition:Ontario');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Ontario');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'Ontario division aggregates' })).toBeVisible();
 
   await openFastForward(page);
@@ -300,7 +334,9 @@ test('runs the shipped division detailed and from its recursive zero-tick cache'
   }
   await expect(status).toContainText('Cache hit · 0 agent ticks', { timeout: 30_000 });
   const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
-  await expect(hierarchy.getByRole('heading', { name: 'Composition cache hierarchy' })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('heading', { name: 'Composition cache hierarchy' }),
+  ).toBeVisible();
   await expect(hierarchy.getByRole('rowheader', { name: 'Ontario', exact: true })).toBeVisible();
   await expect(hierarchy.getByRole('rowheader', { name: 'Toronto', exact: true })).toBeVisible();
   await expect(
@@ -319,7 +355,9 @@ test('runs the shipped division detailed and from its recursive zero-tick cache'
   await expect(day30).toBeVisible();
   await expect(day90).toBeVisible();
   expect(await day90.textContent()).not.toBe(await day30.textContent());
-  await expect(page.getByRole('heading', { name: 'Cached cross-composition interactions' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Cached cross-composition interactions' }),
+  ).toBeVisible();
 });
 
 test('runs synthetic countries and a world through the generic detailed and cached UI', async ({
@@ -333,14 +371,16 @@ test('runs synthetic countries and a world through the generic detailed and cach
   await expect(editor).toHaveValue(/archetype GenericFederation:/);
   await expect(editor).toHaveValue(/composition TestWorld:/);
 
-  await page.getByLabel('What to run').selectOption('composition:NationA');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:NationA');
   await page.getByLabel('Days').fill('2');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'NationA country aggregates' })).toBeVisible();
   await expect(page.getByText('country_exchange', { exact: true })).toBeVisible();
 
-  await page.getByLabel('What to run').selectOption('composition:TestWorld');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:TestWorld');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'TestWorld world aggregates' })).toBeVisible();
   await expect(page.getByText('trade_a_b', { exact: true })).toBeVisible();
   await expect(page.getByText('infection_a_b', { exact: true })).toBeVisible();
@@ -350,15 +390,18 @@ test('runs synthetic countries and a world through the generic detailed and cach
   await page.getByRole('button', { name: 'Validate code' }).click();
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('composition:TestWorld');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:TestWorld');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('TestWorld');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/);
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+  );
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
   const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
@@ -401,24 +444,25 @@ test('runs media and physical coupling from editable DSL code', async ({ page })
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
 
-  await page.getByLabel('What to run').selectOption('composition:Reddit');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Reddit');
   await page.getByLabel('Days').fill('2');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('heading', { name: 'Reddit platform aggregates' })).toBeVisible();
   await expect(page.getByText('viral_spread', { exact: true })).toBeVisible();
 
   const source = await editor.inputValue();
-  await editor.fill(
-    source.replace('place.engagement * 0.001', 'place.engagement * 0.004'),
-  );
+  await editor.fill(source.replace('place.engagement * 0.001', 'place.engagement * 0.004'));
   await page.getByRole('button', { name: 'Validate code' }).click();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('composition:Reddit');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:Reddit');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
-  await page.getByLabel('What to run').selectOption('composition:CoupledTownMedia');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:CoupledTownMedia');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.getByRole('heading', { name: 'CoupledTownMedia coupled_modules aggregates' }),
   ).toBeVisible();
@@ -431,9 +475,12 @@ test('runs media and physical coupling from editable DSL code', async ({ page })
   await page.getByLabel('Learned aggregate function').selectOption('Reddit');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
-    timeout: 30_000,
-  });
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+    {
+      timeout: 30_000,
+    },
+  );
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
   const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
@@ -445,10 +492,15 @@ test('runs media and physical coupling from editable DSL code', async ({ page })
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('CoupledTownMedia');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
-    timeout: 30_000,
-  });
-  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+    {
+      timeout: 30_000,
+    },
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Cached composition boundary flows' }),
+  ).toBeVisible();
   await expect(page.getByRole('rowheader', { name: /physical_to_media/ }).first()).toBeVisible();
   await expect(
     page.getByRole('rowheader', { name: /media_outage_to_physical/ }).first(),
@@ -465,10 +517,13 @@ test('runs detailed, cached, and physically coupled corporate DSL code', async (
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
 
-  await page.getByLabel('What to run').selectOption('composition:CorporateForest');
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:CorporateForest');
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  await expect(page.getByRole('heading', { name: 'CorporateForest forest aggregates' })).toBeVisible();
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'CorporateForest forest aggregates' }),
+  ).toBeVisible();
   await expect(page.getByText('total profit', { exact: true }).first()).toBeVisible();
 
   const source = await editor.inputValue();
@@ -480,29 +535,39 @@ test('runs detailed, cached, and physically coupled corporate DSL code', async (
   );
   await page.getByRole('button', { name: 'Validate code' }).click();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await page.getByLabel('What to run').selectOption('composition:CorporateForest');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await openDebugRuns(page);
+  await page.getByLabel('Debug target').selectOption('composition:CorporateForest');
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('CorporateForest');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
-    timeout: 30_000,
-  });
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+    {
+      timeout: 30_000,
+    },
+  );
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
   const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
-  await expect(hierarchy.getByRole('rowheader', { name: 'CorporateForest', exact: true })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'CorporateForest', exact: true }),
+  ).toBeVisible();
   await expect(hierarchy.getByRole('rowheader', { name: 'BrandOne', exact: true })).toBeVisible();
-  await expect(hierarchy.getByRole('rowheader', { name: 'FamilyStore', exact: true })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'FamilyStore', exact: true }),
+  ).toBeVisible();
 
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('CoupledPhysicalCorporate');
   await page.getByLabel('Days').fill('180');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Cached composition boundary flows' }),
+  ).toBeVisible();
   await expect(page.getByRole('rowheader', { name: /demand_to_price/ }).first()).toBeVisible();
   await expect(page.getByRole('rowheader', { name: /profit_to_demand/ }).first()).toBeVisible();
 });
@@ -518,9 +583,11 @@ test('runs corporate-financial peers and mutable role-owned decisions from DSL c
   await expect(editor).toHaveValue(/role ceo:/);
   await expect(editor).toHaveValue(/role_distribution trader:/);
 
-  await population.selectOption({ label: 'coupled corporate financial · CorporateFinancialSystem' });
+  await population.selectOption({
+    label: 'coupled corporate financial · CorporateFinancialSystem',
+  });
   await page.getByLabel('Days').fill('1');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(
     page.getByRole('heading', {
       name: 'CorporateFinancialSystem coupled_corporate_financial aggregates',
@@ -529,9 +596,15 @@ test('runs corporate-financial peers and mutable role-owned decisions from DSL c
   await expect(page.getByText('alpha price', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('alpha dividend', { exact: true }).first()).toBeVisible();
   const compositionHierarchy = page.locator('[data-report-id="composition_hierarchy"]');
-  await expect(compositionHierarchy.getByRole('rowheader', { name: 'FirmAlpha', exact: true })).toBeVisible();
-  await expect(compositionHierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true })).toBeVisible();
-  await expect(compositionHierarchy.getByRole('rowheader', { name: 'SectorAlpha', exact: true })).toBeVisible();
+  await expect(
+    compositionHierarchy.getByRole('rowheader', { name: 'FirmAlpha', exact: true }),
+  ).toBeVisible();
+  await expect(
+    compositionHierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true }),
+  ).toBeVisible();
+  await expect(
+    compositionHierarchy.getByRole('rowheader', { name: 'SectorAlpha', exact: true }),
+  ).toBeVisible();
 
   const source = await editor.inputValue();
   await editor.fill(
@@ -541,46 +614,56 @@ test('runs corporate-financial peers and mutable role-owned decisions from DSL c
         'composition FirmAlpha:\n  level = conglomerate\n  children:\n    LedgerCohort: weight = 1\n    CEOAlpha: weight = 1\n  parameters:\n    profit = 140',
       )
       .replaceAll('interest_rate = 0.05', 'interest_rate = 0.08')
-      .replace(
-        'risk ~ Uniform(min=0.5, max=0.5)',
-        'risk ~ Uniform(min=0.8, max=0.8)',
-      )
+      .replace('risk ~ Uniform(min=0.5, max=0.5)', 'risk ~ Uniform(min=0.8, max=0.8)')
       .replace('roles = redditor, tiktoker', 'roles = redditor'),
   );
   await page.getByRole('button', { name: 'Validate code' }).click();
   await expect(page.getByText('Valid Rust DSL')).toBeVisible();
   await page.getByRole('button', { name: 'Save DSL' }).click();
-  await population.selectOption({ label: 'coupled corporate financial · CorporateFinancialSystem' });
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await population.selectOption({
+    label: 'coupled corporate financial · CorporateFinancialSystem',
+  });
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByText('vs baseline').first()).toBeVisible();
 
   await population.selectOption({ label: 'transaction lab · SecondaryBuyLab' });
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  await expect(page.getByRole('heading', { name: 'SecondaryBuyLab transaction_lab aggregates' })).toBeVisible();
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'SecondaryBuyLab transaction_lab aggregates' }),
+  ).toBeVisible();
   await expect(page.getByText('firm cash', { exact: true }).first()).toBeVisible();
 
   await population.selectOption({ label: 'role action demo · RoleActionDemo' });
   await page.getByLabel('Days').fill('5');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
+  await page.getByRole('button', { name: 'Run full system' }).click();
   await expect(page.getByRole('rowheader', { name: 'NeitherRoleDemo', exact: true })).toBeVisible();
   await expect(page.getByRole('rowheader', { name: 'BothRoleDemo', exact: true })).toBeVisible();
 
   await population.selectOption({ label: 'country leadership · CanadaLeadership' });
   await page.getByLabel('Days').fill('2');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  await expect(page.getByRole('heading', { name: 'CanadaLeadership country_leadership aggregates' })).toBeVisible();
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'CanadaLeadership country_leadership aggregates' }),
+  ).toBeVisible();
 
   await openFastForward(page);
   await page.getByLabel('Learned aggregate function').selectOption('CorporateFinancialSystem');
   await page.getByLabel('Days').fill('90');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
-    timeout: 30_000,
-  });
+  await expect(page.getByRole('status')).toContainText(
+    /Branch relearn|Hierarchy updated|Cache hit/,
+    {
+      timeout: 30_000,
+    },
+  );
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
   await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
   const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
   await expect(hierarchy.getByRole('rowheader', { name: 'FirmAlpha', exact: true })).toBeVisible();
-  await expect(hierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true })).toBeVisible();
-  await expect(hierarchy.getByRole('rowheader', { name: 'FamilyBusiness', exact: true })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'MarketAlpha', exact: true }),
+  ).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'FamilyBusiness', exact: true }),
+  ).toBeVisible();
 });

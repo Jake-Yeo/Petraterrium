@@ -247,6 +247,7 @@ pub struct CompositionCouplingDefinition {
     pub target_input: String,
     pub value: Expr,
     pub cadence: String,
+    pub cadence_days: Option<u32>,
     pub line: usize,
 }
 
@@ -271,6 +272,8 @@ pub struct CompositionFeedbackDefinition {
 pub struct CompositionLeaderDefinition {
     pub role: String,
     pub count: usize,
+    pub archetype: Option<String>,
+    pub source_composition: Option<String>,
     pub line: usize,
 }
 
@@ -297,6 +300,9 @@ pub struct CompositionArchetypeDefinition {
 pub struct CompositionDefinition {
     pub id: String,
     pub level: String,
+    pub slice: Option<String>,
+    pub graph_group: Option<String>,
+    pub default_run: bool,
     pub template: Option<String>,
     pub represented_population: Option<u64>,
     pub authoritative_total: Option<u64>,
@@ -745,6 +751,10 @@ pub struct TextDslProtocolRequest {
     pub source: String,
     pub seed: u64,
     pub ticks: u64,
+    #[serde(default)]
+    pub sample_budget: Option<u64>,
+    #[serde(default)]
+    pub role_parameters: BTreeMap<String, BTreeMap<String, f64>>,
     #[serde(default)]
     pub continuation: Option<DslRunState>,
     #[serde(default)]

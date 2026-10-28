@@ -159,10 +159,6 @@
   gap: 3px;
 }
 
-.text-dsl-run-controls > label:first-child {
-  flex: 1 1 390px;
-}
-
 .text-dsl-run-controls input,
 .text-dsl-run-controls select,
 .text-dsl-aggregate-toolbar input,
@@ -184,6 +180,84 @@
 
 .text-dsl-run-controls input[type='number'] {
   width: 90px;
+}
+
+.text-dsl-full-summary {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 7px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.text-dsl-full-summary > div,
+.text-dsl-slice-results > div {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.text-dsl-full-summary article,
+.text-dsl-slice-results article {
+  border: 1px solid var(--dsl-line);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+}
+
+.text-dsl-full-summary article span,
+.text-dsl-full-summary article small {
+  color: var(--dsl-muted);
+}
+
+.text-dsl-full-summary details ul,
+.text-dsl-coupling-results ul {
+  color: var(--dsl-muted);
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+
+.text-dsl-debug-runs {
+  margin-top: 8px;
+}
+
+.text-dsl-debug-runs p {
+  color: #d89b61;
+  margin: 7px 0;
+  max-width: 360px;
+}
+
+.text-dsl-slice-results,
+.text-dsl-coupling-results {
+  display: grid;
+  gap: 8px;
+}
+
+.text-dsl-slice-results h3,
+.text-dsl-coupling-results h3 {
+  margin: 0;
+}
+
+.text-dsl-slice-results dl {
+  display: grid;
+  gap: 3px;
+  margin: 4px 0 0;
+}
+
+.text-dsl-slice-results dl > div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.text-dsl-slice-results dt {
+  color: var(--dsl-muted);
+  font-size: 10px;
+}
+
+.text-dsl-slice-results dd {
+  margin: 0;
 }
 
 .text-dsl-run-button {
@@ -696,6 +770,201 @@
 .dsl-graph-detail li button small {
   color: var(--dsl-muted);
   margin-top: 3px;
+}
+
+.dsl-react-graph {
+  display: grid;
+}
+
+.dsl-auxiliary-groups {
+  align-items: center;
+  border-bottom: 1px solid var(--dsl-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.dsl-auxiliary-groups details {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 5px;
+  color: var(--dsl-muted);
+  font-size: 10px;
+  padding: 5px 8px;
+}
+
+.dsl-match-count {
+  color: var(--dsl-accent);
+  font-size: 11px;
+  min-width: 100px;
+  padding: 10px;
+  text-align: right;
+}
+
+.dsl-react-flow {
+  background: var(--dsl-bg);
+  min-height: min(72vh, 840px);
+  position: relative;
+}
+
+.dsl-react-flow .react-flow {
+  min-height: min(72vh, 840px);
+}
+
+.dsl-no-match {
+  background: color-mix(in srgb, var(--dsl-bg) 90%, transparent);
+  inset: 72px 20% auto;
+  pointer-events: none;
+  position: absolute;
+  z-index: 10;
+}
+
+.dsl-react-flow .react-flow__node {
+  pointer-events: all;
+  z-index: 5 !important;
+}
+
+.dsl-react-flow .react-flow__pane {
+  z-index: 0;
+}
+
+.dsl-react-lanes {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+}
+
+.dsl-react-lanes > div {
+  border-bottom: 2px solid var(--dsl-accent);
+  color: var(--dsl-text);
+  padding: 12px;
+  position: absolute;
+  text-align: center;
+}
+
+.dsl-react-node {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+  border-radius: 8px;
+  box-shadow: 0 7px 20px rgb(0 0 0 / 14%);
+  color: var(--dsl-text);
+  cursor: pointer;
+  display: grid;
+  font-size: 10px;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 240px;
+  overflow: auto;
+  padding: 11px;
+  width: 282px;
+}
+
+.dsl-react-node:hover,
+.dsl-react-node.selected {
+  border-color: var(--dsl-accent);
+}
+
+.dsl-react-node.highlighted {
+  box-shadow:
+    0 0 0 3px var(--dsl-accent),
+    0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.dsl-react-node.dimmed {
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.dsl-react-node > header {
+  align-items: center;
+  color: var(--dsl-muted);
+  display: flex;
+  font-size: 9px;
+  justify-content: space-between;
+  text-transform: uppercase;
+}
+
+.dsl-react-node > small,
+.dsl-react-node > p {
+  color: var(--dsl-muted);
+  margin: 0;
+}
+
+.dsl-react-node .dsl-shared {
+  color: #d89b61;
+}
+
+.dsl-react-node dl {
+  display: grid;
+  gap: 3px;
+  margin: 2px 0;
+}
+
+.dsl-react-node dl > div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dsl-react-node dt {
+  color: var(--dsl-muted);
+}
+
+.dsl-react-node dd {
+  margin: 0;
+}
+
+.dsl-react-node p button {
+  background: transparent;
+  border: 0;
+  color: var(--dsl-accent);
+  cursor: pointer;
+  padding: 0;
+}
+
+.dsl-react-node .dsl-collapse {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 4px;
+  color: var(--dsl-text);
+  cursor: pointer;
+  padding: 5px;
+}
+
+.dsl-react-flow .react-flow__edge.parent-child path {
+  stroke: color-mix(in srgb, var(--dsl-accent) 70%, var(--dsl-line));
+  stroke-width: 1.5;
+}
+
+.dsl-react-flow .react-flow__edge.coupling path {
+  stroke: #d89b61;
+  stroke-width: 2;
+}
+
+.dsl-react-flow .react-flow__edge-text {
+  fill: #d89b61;
+  font-size: 9px;
+}
+
+.dsl-react-flow .react-flow__edge-textbg {
+  fill: var(--dsl-bg);
+}
+
+.dsl-react-flow .react-flow__controls,
+.dsl-react-flow .react-flow__minimap {
+  background: var(--dsl-panel);
+  border: 1px solid var(--dsl-line);
+}
+
+.dsl-react-flow .react-flow__controls-button {
+  background: var(--dsl-panel);
+  border-color: var(--dsl-line);
+  color: var(--dsl-text);
+}
+
+.dsl-react-flow .react-flow__minimap-mask {
+  fill: color-mix(in srgb, var(--dsl-bg) 65%, transparent);
 }
 
 .text-dsl-valid,

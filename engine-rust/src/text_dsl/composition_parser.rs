@@ -110,6 +110,9 @@ fn parse_composition_body(
 ) -> DslResult<(CompositionDefinition, usize)> {
     identifier(name, lines[start].number)?;
     let mut level = compatibility_level.map(str::to_owned);
+    let mut slice = None;
+    let mut graph_group = None;
+    let mut default_run = false;
     let mut template = None;
     let mut represented_population = None;
     let mut authoritative_total = None;
@@ -141,6 +144,16 @@ fn parse_composition_body(
                 ));
             }
             level = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("slice = ") {
+            slice = Some(parse_quoted(value, line.number)?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("graph_group = ") {
+            identifier(value, line.number)?;
+            graph_group = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("default_run = ") {
+            default_run = parse_boolean(value, line.number, "INVALID_DEFAULT_RUN")?;
             index += 1;
         } else if let Some(value) = line.text.strip_prefix("template = ") {
             identifier(value, line.number)?;
@@ -325,7 +338,7 @@ fn parse_composition_body(
             while index < lines.len() && lines[index].indent > 2 {
                 let entry = &lines[index];
                 require_indent(entry, 4)?;
-                let (role, count) = entry.text.split_once(": count = ").ok_or_else(|| {
+                let (role, detail) = entry.text.split_once(": count = ").ok_or_else(|| {
                     DslError::new(
                         "INVALID_COMPOSITION_LEADER",
                         entry.number,
@@ -333,15 +346,13 @@ fn parse_composition_body(
                     )
                 })?;
                 identifier(role, entry.number)?;
+                let (count, archetype, source_composition) =
+                    parse_leader_detail(detail, entry.number)?;
                 leaders.push(CompositionLeaderDefinition {
                     role: role.to_owned(),
-                    count: count.parse::<usize>().map_err(|_| {
-                        DslError::new(
-                            "INVALID_COMPOSITION_LEADER",
-                            entry.number,
-                            "Composition leader count must be a positive integer",
-                        )
-                    })?,
+                    count,
+                    archetype,
+                    source_composition,
                     line: entry.number,
                 });
                 index += 1;
@@ -376,6 +387,9 @@ fn parse_composition_body(
                     "Composition needs level = identifier",
                 )
             })?,
+            slice,
+            graph_group,
+            default_run,
             template,
             represented_population,
             authoritative_total,
@@ -415,6 +429,67 @@ fn parse_composition_body(
         },
         index,
     ))
+}
+
+fn parse_quoted(value: &str, line: usize) -> DslResult<String> {
+    value
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| DslError::new("INVALID_SLICE", line, "Slice must be a quoted string"))
+}
+
+fn parse_boolean(value: &str, line: usize, code: &str) -> DslResult<bool> {
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(DslError::new(code, line, "Expected true or false")),
+    }
+}
+
+fn parse_leader_detail(
+    detail: &str,
+    line: usize,
+) -> DslResult<(usize, Option<String>, Option<String>)> {
+    let mut parts = detail.split_whitespace();
+    let count = parts
+        .next()
+        .and_then(|value| value.parse::<usize>().ok())
+        .ok_or_else(|| {
+            DslError::new(
+                "INVALID_COMPOSITION_LEADER",
+                line,
+                "Composition leader count must be a positive integer",
+            )
+        })?;
+    let mut archetype = None;
+    let mut source_composition = None;
+    let remaining = parts.collect::<Vec<_>>();
+    let mut index = 0;
+    while index < remaining.len() {
+        if index + 2 >= remaining.len() || remaining[index + 1] != "=" {
+            return Err(DslError::new(
+                "INVALID_COMPOSITION_LEADER",
+                line,
+                "Leader linkage uses archetype = Name and source = Composition",
+            ));
+        }
+        identifier(remaining[index + 2], line)?;
+        match remaining[index] {
+            "archetype" => archetype = Some(remaining[index + 2].to_owned()),
+            "source" => source_composition = Some(remaining[index + 2].to_owned()),
+            _ => {
+                return Err(DslError::new(
+                    "INVALID_COMPOSITION_LEADER",
+                    line,
+                    "Leader linkage supports archetype and source",
+                ));
+            }
+        }
+        index += 3;
+    }
+    Ok((count, archetype, source_composition))
 }
 
 fn parse_boundary(line: &Line) -> DslResult<CompositionBoundaryDefinition> {
@@ -478,13 +553,25 @@ fn parse_coupling(line: &Line) -> DslResult<CompositionCouplingDefinition> {
     identifier(source, line.number)?;
     identifier(target, line.number)?;
     identifier(target_input, line.number)?;
-    if !matches!(cadence, "sync" | "immediate") {
+    let cadence_days = if cadence == "sync" {
+        None
+    } else if cadence == "immediate" {
+        Some(0)
+    } else if let Some(value) = cadence.strip_suffix(" days") {
+        Some(value.parse::<u32>().map_err(|_| {
+            DslError::new(
+                "INVALID_COMPOSITION_COUPLING_CADENCE",
+                line.number,
+                "Coupling cadence days must be an integer",
+            )
+        })?)
+    } else {
         return Err(DslError::new(
             "INVALID_COMPOSITION_COUPLING_CADENCE",
             line.number,
-            "Coupling cadence must be sync or immediate",
+            "Coupling cadence must be sync, immediate, or number days",
         ));
-    }
+    };
     Ok(CompositionCouplingDefinition {
         id: id.to_owned(),
         source: source.to_owned(),
@@ -498,6 +585,7 @@ fn parse_coupling(line: &Line) -> DslResult<CompositionCouplingDefinition> {
             line.number,
         )?,
         cadence: cadence.to_owned(),
+        cadence_days,
         line: line.number,
     })
 }

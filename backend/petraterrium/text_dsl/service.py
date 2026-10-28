@@ -155,6 +155,11 @@ class TextDslService:
         composition_population_id = getattr(request, "composition_population_id", None)
         neighbourhood_id = getattr(request, "neighbourhood_id", None)
         neighbourhood_population_id = getattr(request, "neighbourhood_population_id", None)
+        run_options: dict[str, Any] = {}
+        if getattr(request, "sample_budget", None) is not None:
+            run_options["sample_budget"] = request.sample_budget
+        if getattr(request, "role_parameters", None):
+            run_options["role_parameters"] = request.role_parameters
         result = self.rust.run_text_dsl(
             document.code,
             seed=request.seed,
@@ -164,6 +169,7 @@ class TextDslService:
             composition_population_id=composition_population_id,
             neighbourhood_id=neighbourhood_id,
             neighbourhood_population_id=neighbourhood_population_id,
+            **run_options,
         )
         run_id = uuid.uuid4().hex
         created_at = datetime.now(UTC).isoformat()
@@ -195,6 +201,10 @@ class TextDslService:
             adult_population=adult_population,
             total_agents=len(agents),
             generated_children=max(0, len(agents) - adult_population),
+            sample_budget=getattr(request, "sample_budget", None),
+            population_allocations=tuple(
+                dict(value) for value in result.get("population_allocations", [])
+            ),
             population_id=(
                 population_id
                 if composition_id is None
@@ -336,6 +346,7 @@ class TextDslService:
             days=view.days,
             ticks=view.ticks,
             total_agents=view.total_agents,
+            sample_budget=view.sample_budget,
             population_id=view.population_id,
             created_at=view.created_at,
         )

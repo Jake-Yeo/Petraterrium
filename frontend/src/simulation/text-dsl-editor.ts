@@ -100,6 +100,19 @@ interface DslRunResult {
   adult_population: number;
   total_agents: number;
   generated_children: number;
+  sample_budget?: number | null;
+  population_allocations: Array<{
+    path: string;
+    parent_path?: string | null;
+    node_id: string;
+    vertical_slice: string;
+    probability: number;
+    expected_represented: number;
+    actual_represented: number;
+    expected_simulated: number;
+    actual_simulated: number;
+    seed: number;
+  }>;
   population_id?: string | null;
   results_title: string;
   results_subtitle: string;
@@ -205,7 +218,7 @@ export class TextDslEditor {
   private resetArmed = false;
   private view: 'code' | 'graph' = 'code';
   private lastRunElapsedMs = 0;
-  private selectedRunLabel = 'Town';
+  private selectedRunLabel = 'Petraterrium full system';
   private readonly root = document.createElement('section');
   private readonly textarea = document.createElement('textarea');
   private readonly gutter = document.createElement('pre');
@@ -235,13 +248,13 @@ export class TextDslEditor {
         <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
       </div>
       <section class="text-dsl-run-panel">
-        <header><div><span class="text-dsl-eyebrow">RUN SIMULATION</span><h2>Choose a run</h2><p>Town is ready by default. Change only what matters, then run the saved DSL.</p></div></header>
+        <header><div><span class="text-dsl-eyebrow">RUN FULL SYSTEM</span><h2>Petraterrium</h2><p>Physical, media, corporate, and financial slices run together under one run ID and exchange DSL-defined coupling values.</p></div></header>
+        <div class="text-dsl-full-summary" data-full-system-summary></div>
         <div class="text-dsl-run-controls">
-          <label>What to run <span class="dsl-help" title="Choose a population or composition; Town is the default detailed demo.">?</span><select data-dsl-population aria-label="What to run"><option value="">Town — default detailed demo</option></select></label>
           <label>Days <span class="dsl-help" title="Days controls how long the simulation runs; the default is 30.">?</span><input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
-          <details class="text-dsl-all-runs"><summary>All runs</summary><label>Population or composition <span class="dsl-help" title="A population samples agents; a composition combines reusable hierarchy branches.">?</span><select data-dsl-all-runs aria-label="All runs"><option value="">Choose another run</option></select></label></details>
-          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Seed <span class="dsl-help" title="Seed = the same number gives the same random results; change it to get a different run.">?</span><input type="number" min="0" step="1" value="1" data-dsl-seed></label></details>
-          <button type="button" class="button primary text-dsl-run-button" data-dsl-action="run">Run simulation</button>
+          <label>Sample budget <span class="dsl-help" title="Sample budget = how many agents to actually simulate, drawn from the population distribution. More samples means less sampling noise and a slower run; represented total does not change.">?</span><input type="number" min="1" max="10000" step="1" value="292" data-dsl-sample-budget></label>
+          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Seed <span class="dsl-help" title="Seed = the same number gives the same random results; change it to get a different run.">?</span><input type="number" min="0" step="1" value="1" data-dsl-seed></label><details class="text-dsl-debug-runs"><summary>Debug single-slice runs</summary><p>Debug only — single slice, NOT the full system, slices do NOT interact in this mode.</p><label>Debug target <span class="dsl-help" title="A debug target runs one population or composition in isolation.">?</span><select data-dsl-population aria-label="Debug target"><option value="">Full system</option></select></label><label>All debug runs<select data-dsl-all-runs aria-label="All debug runs"><option value="">Choose debug run</option></select></label></details></details>
+          <button type="button" class="button primary text-dsl-run-button" data-dsl-action="run">Run full system</button>
         </div>
       </section>
       <details class="text-dsl-fast-forward" data-fast-forward>
@@ -371,12 +384,13 @@ export class TextDslEditor {
     }
     primary.value = select.value;
     this.selectedRunLabel = selected.text;
-    this.root.querySelector<HTMLDetailsElement>('.text-dsl-all-runs')!.open = false;
   };
 
   private readonly onRunSelectionChange = (event: Event): void => {
     const select = event.target as HTMLSelectElement;
-    this.selectedRunLabel = select.selectedOptions[0]?.text ?? 'Town';
+    this.selectedRunLabel = select.value
+      ? (select.selectedOptions[0]?.text ?? 'Debug run')
+      : 'Petraterrium full system';
   };
 
   private setView(view: 'code' | 'graph'): void {
@@ -481,9 +495,16 @@ export class TextDslEditor {
     const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
     const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
     const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
+    const sampleBudget = Number(
+      this.root.querySelector<HTMLInputElement>('[data-dsl-sample-budget]')!.value,
+    );
+    const defaultRunId = this.document.validation.graph?.default_run_id ?? null;
+    const programRun = populationId === 'program:Town';
     const compositionId = populationId.startsWith('composition:')
       ? populationId.slice('composition:'.length)
-      : null;
+      : populationId
+        ? null
+        : defaultRunId;
     const compositionPopulationId = populationId.startsWith('composition_population:')
       ? populationId.slice('composition_population:'.length)
       : null;
@@ -494,9 +515,16 @@ export class TextDslEditor {
       ? populationId.slice('neighbourhood_population:'.length)
       : null;
     const weightedPopulationId =
-      compositionId || compositionPopulationId || neighbourhoodId || neighbourhoodPopulationId
+      compositionId ||
+      compositionPopulationId ||
+      neighbourhoodId ||
+      neighbourhoodPopulationId ||
+      programRun
         ? null
         : populationId || null;
+    const selectionKey = programRun
+      ? null
+      : populationId || (defaultRunId ? `composition:${defaultRunId}` : null);
     const ticks = Math.round((days * 24) / (this.document.validation.tick_hours || 1));
     const runButton = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
     runButton.disabled = true;
@@ -510,8 +538,8 @@ export class TextDslEditor {
         body: JSON.stringify({
           seed,
           days,
-          baseline_run_id:
-            this.run?.population_id === (populationId || null) ? this.run.run_id : null,
+          sample_budget: sampleBudget,
+          baseline_run_id: this.run?.population_id === selectionKey ? this.run.run_id : null,
           population_id: weightedPopulationId,
           composition_id: compositionId,
           composition_population_id: compositionPopulationId,
@@ -520,13 +548,13 @@ export class TextDslEditor {
         }),
       });
       this.lastRunElapsedMs = performance.now() - started;
-      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks.`;
+      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks for one full-system run.`;
       this.renderResults();
     } catch (error) {
       this.options.onError(error);
       this.status.textContent = this.plainError(error, 'The simulation could not run');
     } finally {
-      runButton.textContent = 'Run simulation';
+      runButton.textContent = 'Run full system';
       this.updateButtons();
     }
   }
@@ -644,10 +672,11 @@ export class TextDslEditor {
       validation.graph ?? undefined,
       validation.adult_population ?? 0,
     );
+    this.renderFullSystemSummary(validation.graph ?? undefined);
     this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
     if (validation.valid) {
-      this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · ${number(validation.adult_population ?? 0, 0)} adults before generated children</span></div>`;
+      this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · Town default sample budget ${number(validation.adult_population ?? 0, 0)} before generated children</span></div>`;
       this.status.textContent = this.dirty
         ? 'Code is valid. Save it to make it the executable source.'
         : 'Saved DSL is valid and ready to run.';
@@ -703,25 +732,19 @@ export class TextDslEditor {
         `composition:${composition.id}`,
       );
     };
-    const quickLevels = ['world', 'platform', 'coupled_corporate_financial'];
-    const quick = quickLevels
-      .map((level) => availableCompositions.find((composition) => composition.level === level))
-      .filter((composition): composition is { id: string; level: string; cached?: boolean } =>
-        Boolean(composition),
-      );
-    select.replaceChildren(
-      new Option(
-        `Town — ${adultPopulation.toLocaleString()} adults plus generated children, detailed, 30 days, the default demo`,
-        '',
-      ),
-    );
-    for (const composition of quick) select.add(compositionOption(composition));
-    allRuns.replaceChildren(new Option('Choose another run', ''));
+    select.replaceChildren(new Option('Full system', ''));
+    allRuns.replaceChildren(new Option('Choose debug run', ''));
     const allOptions = [
+      new Option(
+        `Town — Physical only, ${adultPopulation.toLocaleString()} adults default sample budget`,
+        'program:Town',
+      ),
       ...populations.map(
         (population) => new Option(`Weighted population — ${population}`, population),
       ),
-      ...availableCompositions.map(compositionOption),
+      ...availableCompositions
+        .filter((composition) => composition.id !== graph?.default_run_id)
+        .map(compositionOption),
       ...availableCompositionPopulations.map(
         (population) =>
           new Option(
@@ -731,16 +754,57 @@ export class TextDslEditor {
       ),
     ];
     for (const option of allOptions) {
-      allRuns.add(option);
-      if (![...select.options].some((candidate) => candidate.value === option.value)) {
-        const hidden = new Option(option.text, option.value);
-        hidden.hidden = true;
-        select.add(hidden);
-      }
+      allRuns.add(new Option(option.text, option.value));
+      select.add(option);
     }
     const values = ['', ...allOptions.map((option) => option.value)];
     select.value = values.includes(selected) ? selected : '';
-    this.selectedRunLabel = select.selectedOptions[0]?.text ?? 'Town';
+    this.selectedRunLabel = select.value
+      ? (select.selectedOptions[0]?.text ?? 'Debug run')
+      : 'Petraterrium full system';
+    const defaultRun = graph?.nodes.find((node) => node.id === graph.default_run_id);
+    if (defaultRun?.actual_simulated) {
+      this.root.querySelector<HTMLInputElement>('[data-dsl-sample-budget]')!.value = String(
+        defaultRun.actual_simulated,
+      );
+    }
+  }
+
+  private renderFullSystemSummary(graph: ProgramGraph | undefined): void {
+    const host = this.root.querySelector<HTMLElement>('[data-full-system-summary]')!;
+    const root = graph?.nodes.find((node) => node.id === graph.default_run_id);
+    if (!graph || !root) {
+      host.innerHTML = '<p>Validate the DSL to load the full-system slice summary.</p>';
+      return;
+    }
+    const children = graph.edges
+      .filter((edge) => edge.kind === 'parent_child' && edge.from_id === root.id)
+      .map((edge) => graph.nodes.find((node) => node.id === edge.to_id))
+      .filter((node): node is NonNullable<typeof node> => Boolean(node));
+    const allocations = new Map(
+      graph.population_paths
+        .filter((row) => row.parent_path === root.id)
+        .map((row) => [row.node_id, row]),
+    );
+    const slices = new Map<string, typeof children>();
+    for (const child of children) {
+      const values = slices.get(child.vertical_slice) ?? [];
+      values.push(child);
+      slices.set(child.vertical_slice, values);
+    }
+    host.innerHTML = `<div>${[...slices]
+      .map(
+        ([slice, nodes]) =>
+          `<article><strong>${escapeHtml(slice)}</strong><span>${nodes.map((node) => escapeHtml(node.id)).join(' + ')}</span><small>${nodes
+            .map((node) => {
+              const allocation = allocations.get(node.id);
+              return `${number(allocation?.probability ?? 0, 6)} distribution · ${number(allocation?.actual_simulated ?? node.actual_simulated ?? node.simulated_count ?? 0, 0)} planned draws · ${number(allocation?.actual_represented ?? node.actual_represented ?? node.represented_count ?? 0, 0)} represented · ${node.sync_interval_days ? (node.sync_interval_days === 1 ? 'daily sync' : `${node.sync_interval_days}-day sync`) : 'no aggregate sync'}`;
+            })
+            .join(' · ')}</small></article>`,
+      )
+      .join(
+        '',
+      )}</div><details><summary>Couplings · ${root.couplings.length}</summary><ul>${root.couplings.map((coupling) => `<li><strong>${escapeHtml(coupling.id)}</strong> · ${escapeHtml(coupling.source)} → ${escapeHtml(coupling.target)} · ${coupling.sync_interval_days === 1 ? 'daily' : `${coupling.sync_interval_days ?? 'immediate'}-day`} sync</li>`).join('')}</ul></details>`;
   }
 
   private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
@@ -810,16 +874,46 @@ export class TextDslEditor {
     const deltaByKey = new Map(
       this.run.comparison.map((row) => [`${row.report_id}:${row.group_id}`, row]),
     );
-    const selected = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
-    const compositionId = selected.startsWith('composition:')
-      ? selected.slice('composition:'.length)
-      : undefined;
-    const node = this.document?.validation.graph?.nodes.find(
-      (candidate) => candidate.id === compositionId,
+    const defaultRunId = this.document?.validation.graph?.default_run_id;
+    const sliceRows = this.run.population_allocations.filter(
+      (row) => row.parent_path === defaultRunId,
     );
-    const represented = node?.represented_count ?? this.run.total_agents;
+    const sliceSummary = sliceRows.length
+      ? `<section class="text-dsl-slice-results"><h3>Population slices</h3><div>${sliceRows
+          .map(
+            (row) =>
+              `<article><strong>${escapeHtml(row.vertical_slice)}</strong><span>${escapeHtml(row.node_id)}</span><dl><div><dt>Distribution</dt><dd>${number(row.probability, 6)}</dd></div><div><dt>Expected simulated</dt><dd>${number(row.expected_simulated, 2)}</dd></div><div><dt>Actual simulated</dt><dd>${number(row.actual_simulated, 0)}</dd></div><div><dt>Expected represented</dt><dd>${number(row.expected_represented, 2)}</dd></div><div><dt>Actual represented</dt><dd>${number(row.actual_represented, 0)}</dd></div></dl></article>`,
+          )
+          .join('')}</div></section>`
+      : '';
+    const rootCouplingIds = new Set(
+      this.document?.validation.graph?.nodes
+        .find((node) => node.id === defaultRunId)
+        ?.couplings.map((coupling) => coupling.id) ?? [],
+    );
+    const flowRows = this.run.reports
+      .find((report) => report.id === 'composition_flows')
+      ?.snapshots.at(-1)
+      ?.rows.filter((row) => rootCouplingIds.has(row.group_id));
+    const couplingRows = new Map<string, ReportRow[]>();
+    for (const row of flowRows ?? []) {
+      const values = couplingRows.get(row.group_id) ?? [];
+      values.push(row);
+      couplingRows.set(row.group_id, values);
+    }
+    const couplingSummary = flowRows?.length
+      ? `<section class="text-dsl-coupling-results"><h3>Coupling summary</h3><ul>${[...couplingRows]
+          .map(([id, rows]) => {
+            const first = rows[0];
+            const last = rows.at(-1)!;
+            return `<li><strong>${escapeHtml(id)}</strong> · fired ${rows.length} time${rows.length === 1 ? '' : 's'} · value ${this.value(first.values.rate, 'decimal')} → ${this.value(last.values.rate, 'decimal')} · ${this.value(last.values.agents, 'integer')} affected agents</li>`;
+          })
+          .join('')}</ul></section>`
+      : `<section class="text-dsl-coupling-results"><h3>Coupling summary</h3><p>No coupling fired. This run is incomplete as a full-system run.</p></section>`;
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>What to run: ${escapeHtml(this.selectedRunLabel)} · ${this.run.days} days · seed ${this.run.seed} · ${this.run.ticks.toLocaleString()} ticks <span class="dsl-help" title="Ticks are the engine's fixed simulation steps across the selected days.">?</span> · ${this.run.total_agents.toLocaleString()} simulated <span class="dsl-help" title="Simulated agents are computed directly; represented agents are the real population their weighted sample stands for.">?</span> · ${represented.toLocaleString()} represented · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms · detailed run</p><p>Deltas below compare this run to the previous run of the same What to run, if any.</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
+      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>System: ${escapeHtml(this.selectedRunLabel)} · ${this.run.days} days · seed ${this.run.seed} · sample budget ${number(this.run.sample_budget ?? this.run.total_agents, 0)} · ${this.run.ticks.toLocaleString()} ticks <span class="dsl-help" title="Ticks are the engine's fixed simulation steps across the selected days.">?</span> · ${this.run.total_agents.toLocaleString()} agents actually ticked <span class="dsl-help" title="Simulated agents are computed directly; represented agents are the weighted population their samples stand for.">?</span> · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms · cache_hit=false</p><p>Deltas below compare this run to the previous run of the same system, if any.</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
+      ${sliceSummary}
+      ${couplingSummary}
       ${this.run.reports.map((report) => this.report(report, deltaByKey)).join('')}`;
   }
 

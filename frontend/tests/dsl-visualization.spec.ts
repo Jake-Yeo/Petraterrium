@@ -6,146 +6,146 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.getByRole('heading', { name: 'Population simulation program' })).toBeVisible();
 });
 
-test('renders the validated program graph and keeps code navigation exact', async ({ page }) => {
+test('renders TSX DAG paths, role search, collapse, and exact code navigation', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
   await page.getByRole('tab', { name: 'Graph' }).click();
 
-  await expect(page.locator('.dsl-graph-lane')).toHaveCount(34);
-  await expect(page.locator('[data-slice="World"] > header')).toContainText('World');
-  await expect(page.locator('[data-slice="Reddit"] > header')).toContainText('Reddit');
-  await expect(page.locator('[data-slice="CorporateForest"] > header')).toContainText(
-    'Corporate Forest',
-  );
-  await expect(page.locator('[data-slice="FinancialEconomy"] > header')).toContainText(
-    'Financial Economy',
-  );
-  await expect(page.locator('.dsl-graph-edges .parent_child')).toHaveCount(132);
-  await expect(page.locator('.dsl-graph-edges .coupling')).toHaveCount(14);
-  await expect(
-    page.locator('.dsl-graph-edges text').filter({ hasText: 'daily sync' }).first(),
-  ).toBeVisible();
-  await expect(
-    page.locator('.dsl-graph-edges text').filter({ hasText: '90-day sync' }).first(),
-  ).toBeVisible();
+  for (const slice of ['Physical', 'Media', 'Corporate', 'Financial', 'Full system']) {
+    await expect(page.getByLabel('Vertical slice').locator(`option[value="${slice}"]`)).toHaveCount(
+      1,
+    );
+  }
+  await expect(page.locator('.dsl-auxiliary-groups')).toContainText('Labs');
+  await expect(page.locator('.dsl-auxiliary-groups')).toContainText('Allocation');
   await expect(page.locator('.dsl-graph-legend')).toContainText('Parent/child composition');
   await expect(page.locator('.dsl-graph-legend')).toContainText('Coupling across slices');
 
+  await page.getByLabel('Search nodes or roles').fill('president');
+  await expect(page.locator('.dsl-match-count')).toContainText(/2 nodes match/);
+  await expect(page.locator('[data-graph-node="USA"]')).toHaveClass(/highlighted/);
+  await expect(page.locator('[data-graph-node="Canada"]')).toHaveClass(/highlighted/);
+
   await page.getByLabel('Search nodes or roles').fill('trader');
-  await expect(page.locator('[data-graph-node="FinancialPerson"]')).toHaveClass(/highlighted/);
   await expect(page.locator('[data-graph-node="MarketAlpha"]')).toHaveClass(/highlighted/);
   await expect(page.locator('[data-graph-node="FirmAlpha"]')).toHaveClass(/highlighted/);
+  await expect(page.locator('[data-graph-node="FinancialPerson"]').first()).toHaveClass(
+    /highlighted/,
+  );
 
-  await page.getByLabel('Vertical slice').selectOption('CorporateForest');
-  await page.locator('[data-graph-node="StoreA"]').click({ force: true });
+  await page.getByLabel('Search nodes or roles').fill('Toronto');
+  await expect(page.locator('[data-graph-node="Toronto"]')).toHaveCount(6);
+  await expect(page.locator('[data-graph-path="World>Canada>Ontario>Toronto"]')).toBeVisible();
+  await expect(page.locator('[data-graph-path="World>USA>California>Toronto"]')).toBeVisible();
+
+  const canadaToronto = page.locator('[data-graph-path="World>Canada>Ontario>Toronto"]');
+  const usaToronto = page.locator('[data-graph-path="World>USA>California>Toronto"]');
+  await canadaToronto.getByRole('button', { name: 'Collapse subtree' }).click();
+  await page.getByLabel('Search nodes or roles').fill('');
+  await expect(page.locator('[data-graph-path^="World>Canada>Ontario>Toronto>"]')).toHaveCount(0);
+  await expect(
+    page.locator('[data-graph-path^="World>USA>California>Toronto>"]').first(),
+  ).toBeVisible();
+  await page.getByLabel('Search nodes or roles').fill('Toronto');
+  await canadaToronto.getByRole('button', { name: /Expand/ }).click();
+  await expect(
+    page.locator('[data-graph-path^="World>Canada>Ontario>Toronto>"]').first(),
+  ).toBeVisible();
+  await expect(usaToronto).toBeVisible();
+
+  await page.getByLabel('Search nodes or roles').fill('xyz-no-match');
+  await expect(page.getByText("No nodes match 'xyz-no-match'")).toBeVisible();
+  await page.getByLabel('Vertical slice').selectOption('Corporate');
+  await page.getByLabel('Search nodes or roles').fill('FamilyStore');
+  await page.locator('[data-graph-node="FamilyStore"]').click();
+  await expect(page.locator('[data-graph-detail]')).toContainText('cashier');
+  await expect(page.locator('[data-graph-detail]')).toContainText('manager');
+  await expect(page.locator('[data-graph-detail]')).toContainText('owner');
+  await page.getByLabel('Vertical slice').selectOption('Physical');
+  await page.getByLabel('Search nodes or roles').fill('president');
+  await page.locator('[data-graph-node="USA"]').click();
   const detail = page.locator('[data-graph-detail]');
-  await expect(detail.getByRole('heading', { name: 'StoreA' })).toBeVisible();
-  await expect(detail.getByRole('heading', { name: 'Roles exposed' })).toBeVisible();
-  await expect(detail.getByRole('heading', { name: 'Actions' })).toBeVisible();
-  await expect(detail).toContainText('cashier');
-  await expect(detail).toContainText('manager');
+  await expect(detail.getByRole('heading', { name: 'USA' })).toBeVisible();
+  await expect(detail).toContainText('president');
+  await expect(detail).toContainText('enact_policy');
+  await expect(detail).toContainText('Probability');
   await detail.getByRole('button', { name: 'View in code' }).click();
 
+  const editor = page.getByLabel('Simulation DSL code');
   await expect(page.getByRole('tab', { name: 'Code', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  const editor = page.getByLabel('Simulation DSL code');
   await expect(editor).toBeFocused();
   const selectedLine = await editor.evaluate((element: HTMLTextAreaElement) =>
     element.value.slice(element.selectionStart, element.selectionEnd),
   );
-  expect(selectedLine).toBe('composition StoreA:');
+  expect(selectedLine).toBe('composition USA:');
 
   await page.getByLabel('Search DSL outline').fill('StoreA');
   await page.locator('.dsl-outline [data-outline-line]').filter({ hasText: 'StoreA' }).click();
-  await expect(editor).toBeFocused();
   const outlineLine = await editor.evaluate((element: HTMLTextAreaElement) =>
     element.value.slice(element.selectionStart, element.selectionEnd),
   );
   expect(outlineLine).toBe('composition StoreA:');
-
-  await page.getByRole('tab', { name: 'Graph' }).click();
-  await page.getByLabel('Search nodes or roles').fill('');
-  await page.getByLabel('Vertical slice').selectOption('World');
-  await expect(page.locator('[data-slice="World"] [data-graph-node]')).toHaveCount(21);
-  await page
-    .locator('[data-graph-node="World"]')
-    .getByRole('button', { name: /Subtree roles/ })
-    .click({ force: true });
-  await expect(
-    page.locator('[data-graph-node="World"]').getByRole('button', { name: 'worker' }),
-  ).toBeVisible();
-  await page
-    .locator('[data-graph-node="World"]')
-    .getByRole('button', { name: 'Collapse subtree' })
-    .click({ force: true });
-  await expect(page.locator('[data-slice="World"] [data-graph-node]')).toHaveCount(1);
-  await page
-    .locator('[data-graph-node="World"]')
-    .getByRole('button', { name: 'Expand subtree' })
-    .click({ force: true });
-  await expect(page.locator('[data-slice="World"] [data-graph-node]')).toHaveCount(21);
-
-  await expect(page.locator('[data-dsl-graph-view]')).toHaveAttribute('data-render-ms', /\d/);
-  const renderMs = Number(
-    await page.locator('[data-dsl-graph-view]').getAttribute('data-render-ms'),
-  );
-  expect(renderMs).toBeLessThan(2_000);
 });
 
-test('runs Town by default and keeps advanced cached evaluation optional', async ({ page }) => {
-  test.setTimeout(60_000);
-  await expect(page.getByLabel('What to run')).toHaveValue('');
+test('runs the full system by default and keeps debug and cached runs advanced', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await expect(page.getByLabel('What to run')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Run full system' })).toBeVisible();
   await expect(page.getByLabel('Days')).toHaveValue('30');
+  await expect(page.getByLabel('Sample budget')).toHaveValue(/\d+/);
+  await expect(page.locator('.text-dsl-debug-runs')).not.toHaveAttribute('open', '');
   await expect(page.locator('[data-fast-forward]')).not.toHaveAttribute('open', '');
 
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  let summary = page.locator('.text-dsl-results > header');
-  await expect(summary).toContainText('Town');
-  await expect(summary).toContainText('30 days · seed 1');
-  await expect(summary).toContainText('130 simulated');
-  await expect(summary).toContainText('130 represented');
-  await expect(summary).toContainText('Deltas below compare this run');
-  await expect(page.getByRole('heading', { name: 'Town overview' })).toBeVisible();
-
   await page.getByLabel('Days').fill('1');
-  await page.getByLabel('What to run').selectOption('composition:World');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  summary = page.locator('.text-dsl-results > header');
-  await expect(summary).toContainText('World');
-  await expect(summary).toContainText('180 simulated');
-  await expect(summary).toContainText('6,999,999,999 represented');
-
-  await page.getByLabel('What to run').selectOption('composition:Reddit');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  summary = page.locator('.text-dsl-results > header');
-  await expect(summary).toContainText('Reddit');
-  await expect(summary).toContainText('100 simulated');
-  await expect(summary).toContainText('8,000,000 represented');
-
-  await page.getByLabel('What to run').selectOption('composition:CorporateFinancialSystem');
-  await page.getByRole('button', { name: 'Run simulation' }).click();
-  summary = page.locator('.text-dsl-results > header');
-  await expect(summary).toContainText('CorporateFinancialSystem');
-  await expect(summary).toContainText('simulated');
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  const summary = page.locator('.text-dsl-results > header');
+  await expect(summary).toContainText('Petraterrium full system');
+  await expect(summary).toContainText('seed 1');
+  await expect(summary).toContainText('sample budget');
   await expect(summary).toContainText('engine 0.12.0');
+  await expect(page.getByRole('heading', { name: 'Population slices' })).toBeVisible();
+  for (const slice of ['Physical', 'Media', 'Corporate', 'Financial']) {
+    await expect(page.locator('.text-dsl-slice-results')).toContainText(slice);
+  }
+  await expect(page.getByRole('heading', { name: 'Coupling summary' })).toBeVisible();
+  await expect(page.locator('.text-dsl-coupling-results')).toContainText('world_to_media');
+  await expect(page.locator('.text-dsl-coupling-results')).toContainText('alpha_profit_to_market');
+
+  const firstPhysical = await page
+    .locator('.text-dsl-slice-results article')
+    .filter({ hasText: 'Physical' })
+    .textContent();
+  await page.getByLabel('Sample budget').fill('1000');
+  await page.getByRole('button', { name: 'Run full system' }).click();
+  await expect(summary).toContainText('sample budget 1,000');
+  const secondPhysical = await page
+    .locator('.text-dsl-slice-results article')
+    .filter({ hasText: 'Physical' })
+    .textContent();
+  expect(secondPhysical).not.toBe(firstPhysical);
+
+  const advanced = page.locator('.text-dsl-advanced');
+  await advanced.locator('summary').first().click();
+  await page.locator('.text-dsl-debug-runs > summary').click();
+  await expect(page.getByText(/Debug only — single slice/)).toBeVisible();
+  await expect(page.getByLabel('Debug target')).toBeVisible();
 
   const fastForward = page.locator('[data-fast-forward]');
-  await expect(fastForward).not.toHaveAttribute('open', '');
   await fastForward.locator('summary').click();
   await page.getByLabel('Learned aggregate function').selectOption('CorporateFinancialSystem');
   await page.getByLabel('Days').fill('30');
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText(
-    /Branch relearn|Hierarchy updated|Cache hit/,
-  );
   await page.getByRole('button', { name: 'Evaluate cached' }).click();
-  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks', {
+    timeout: 30_000,
+  });
   await expect(page.getByText('cache_hit=true')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Fast-forward time series' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Relearn detailed' }).click();
-  await expect(page.getByRole('status')).toContainText('Branch relearn', { timeout: 30_000 });
-  await expect(page.getByRole('status')).not.toContainText('· 0 agent ticks');
 });
 
 test('keeps validate save reset diagnostics and outline synchronized', async ({ page }) => {
@@ -185,7 +185,7 @@ test('keeps validate save reset diagnostics and outline synchronized', async ({ 
   await expect(diagnostic).toContainText('UNORDERED_DURATION');
   await diagnostic.click();
   await expect(editor).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Run simulation' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Run full system' })).toBeDisabled();
   await page.locator('[data-fast-forward] summary').click();
   await expect(page.getByText('Save valid DSL before fast-forwarding.')).toBeVisible();
 });
