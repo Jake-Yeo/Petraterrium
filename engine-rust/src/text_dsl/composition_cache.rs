@@ -4,6 +4,7 @@ use super::composition_cache_artifacts::{
     leaf_invalidation_reason, resolve_inputs,
 };
 use super::composition_cache_reports::cached_reports;
+use super::composition_couplings::apply_cached_couplings;
 use super::expression::evaluate;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) struct CachedNodeState {
     weights: BTreeMap<String, f64>,
     feedback_inputs: BTreeMap<String, f64>,
+    pub(super) coupling_inputs: BTreeMap<String, f64>,
 }
 
 #[derive(Clone)]
@@ -184,7 +186,7 @@ fn evaluate_node_day(
         &composition.parameters,
         inherited_inputs,
         context.request.branch_inputs.get(&composition.id),
-        &BTreeMap::new(),
+        &context.states[&composition.id].coupling_inputs,
     )?;
     let memo_key = format!(
         "{}:{day}:{}:{record}",
@@ -255,14 +257,25 @@ fn evaluate_node_day(
     context.states = states;
     let mut outputs = combine_outputs(context.program, composition, &node_inputs, &children)?;
     let flows = if sync_due {
-        apply_cached_flows(
+        let mut points = apply_cached_flows(
             context,
             composition,
             day,
             &node_inputs,
             &children,
             &mut outputs,
-        )?
+        )?;
+        let coupling_points = apply_cached_couplings(
+            context,
+            composition,
+            day,
+            &node_inputs,
+            &children,
+            &mut outputs,
+            &points,
+        )?;
+        points.extend(coupling_points);
+        points
     } else {
         Vec::new()
     };
@@ -312,7 +325,19 @@ fn evaluate_node_once(
     context.states = states;
     let mut outputs = combine_outputs(context.program, composition, inputs, &children)?;
     let flows = if sync_due {
-        apply_cached_flows(context, composition, day, inputs, &children, &mut outputs)?
+        let mut points =
+            apply_cached_flows(context, composition, day, inputs, &children, &mut outputs)?;
+        let coupling_points = apply_cached_couplings(
+            context,
+            composition,
+            day,
+            inputs,
+            &children,
+            &mut outputs,
+            &points,
+        )?;
+        points.extend(coupling_points);
+        points
     } else {
         Vec::new()
     };
@@ -499,7 +524,6 @@ fn combine_outputs(
     inputs: &BTreeMap<String, f64>,
     children: &[(String, f64, BTreeMap<String, LearnedMetricSummary>)],
 ) -> DslResult<BTreeMap<String, LearnedMetricSummary>> {
-    let total_weight = children.iter().map(|(_, weight, _)| *weight).sum::<f64>();
     let mut outputs = BTreeMap::new();
     for output in &composition.outputs {
         if matches!(
@@ -569,13 +593,18 @@ fn combine_outputs(
             ReportMetric::Sum { .. } | ReportMetric::ActionCount { .. }
         ) {
             let parent_population = composition_sample_population(program, composition) as f64;
+            let matched_weight = children
+                .iter()
+                .filter(|(_, _, child_outputs)| child_outputs.contains_key(&output.id))
+                .map(|(_, weight, _)| *weight)
+                .sum::<f64>();
             let scaled = children
                 .iter()
                 .filter_map(|(child_id, weight, child_outputs)| {
                     let summary = child_outputs.get(&output.id)?;
                     let child_population = child_sample_population(program, child_id) as f64;
                     (child_population > 0.0).then_some((
-                        parent_population * weight / total_weight / child_population,
+                        parent_population * weight / matched_weight / child_population,
                         summary,
                     ))
                 })
@@ -597,18 +626,19 @@ fn combine_outputs(
             );
             continue;
         }
+        let matched_weight = values.iter().map(|(weight, _)| *weight).sum::<f64>();
         let mean = values
             .iter()
             .map(|(weight, summary)| weight * summary.mean)
             .sum::<f64>()
-            / total_weight;
+            / matched_weight;
         let variance = values
             .iter()
             .map(|(weight, summary)| {
                 weight * (summary.standard_deviation.powi(2) + (summary.mean - mean).powi(2))
             })
             .sum::<f64>()
-            / total_weight;
+            / matched_weight;
         outputs.insert(
             output.id.clone(),
             LearnedMetricSummary {
@@ -706,14 +736,24 @@ fn apply_parent_effects(
     outputs: &mut BTreeMap<String, LearnedMetricSummary>,
 ) -> DslResult<()> {
     let function = aggregate_function(program, &composition.id)?;
-    let values = inputs
+    let values = composition
+        .parameters
         .iter()
         .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+        .chain(
+            inputs
+                .iter()
+                .map(|(id, value)| (id.clone(), DslValue::Number(*value))),
+        )
         .collect::<BTreeMap<_, _>>();
-    for effect in &function.effects {
-        let AggregateEffectTarget::Field(field) = &effect.target else {
-            continue;
-        };
+    let effects = function.effects.iter().chain(
+        composition
+            .policies
+            .iter()
+            .filter_map(|id| context_policy(program, id))
+            .flat_map(|policy| &policy.effects),
+    );
+    for effect in effects {
         let value = evaluate(&effect.value, &values)?.as_f64().ok_or_else(|| {
             DslError::new(
                 "INVALID_AGGREGATE_EFFECT",
@@ -721,20 +761,56 @@ fn apply_parent_effects(
                 "Cached aggregate effect must resolve to a number",
             )
         })?;
-        for output in &composition.outputs {
-            if !matches!(&output.metric, ReportMetric::Mean { field: output_field } | ReportMetric::Sum { field: output_field } if output_field.as_str() == field.as_str())
-            {
-                continue;
+        match &effect.target {
+            AggregateEffectTarget::Field(field) => {
+                for output in &composition.outputs {
+                    if !matches!(&output.metric, ReportMetric::Mean { field: output_field } | ReportMetric::Sum { field: output_field } if output_field.as_str() == field.as_str())
+                    {
+                        continue;
+                    }
+                    if let Some(summary) = outputs.get_mut(&output.id) {
+                        summary.mean = apply_number(summary.mean, &effect.operation, value)?;
+                        if let Some(bounds) = program
+                            .agents
+                            .iter()
+                            .find_map(|agent| agent.state_bounds.get(field))
+                        {
+                            summary.mean = summary.mean.clamp(bounds.minimum, bounds.maximum);
+                        }
+                        if effect.operation == "*=" {
+                            summary.standard_deviation *= value.abs();
+                        }
+                    }
+                }
             }
-            if let Some(summary) = outputs.get_mut(&output.id) {
-                summary.mean = apply_number(summary.mean, &effect.operation, value)?;
-                if effect.operation == "*=" {
-                    summary.standard_deviation *= value.abs();
+            AggregateEffectTarget::Decision(action) => {
+                let aggregate = program
+                    .actions
+                    .iter()
+                    .find(|definition| definition.id == *action)
+                    .map(|definition| definition.aggregate.as_str());
+                for output in &composition.outputs {
+                    let matches = matches!(
+                        &output.metric,
+                        ReportMetric::ActionCount { aggregate: output_aggregate, .. }
+                            | ReportMetric::ActionRate { aggregate: output_aggregate, .. }
+                            if Some(output_aggregate.as_str()) == aggregate
+                    );
+                    if matches && let Some(summary) = outputs.get_mut(&output.id) {
+                        summary.mean = apply_number(summary.mean, &effect.operation, value)?;
+                        if effect.operation == "*=" {
+                            summary.standard_deviation *= value.abs();
+                        }
+                    }
                 }
             }
         }
     }
     Ok(())
+}
+
+fn context_policy<'a>(program: &'a Program, id: &str) -> Option<&'a PolicyDefinition> {
+    program.policies.iter().find(|policy| policy.id == id)
 }
 
 fn apply_cached_flows(
@@ -894,6 +970,7 @@ fn ensure_node_state(context: &mut HierarchyContext<'_>, composition: &Compositi
                 .map(|entry| (entry.child.clone(), entry.weight as f64))
                 .collect(),
             feedback_inputs: BTreeMap::new(),
+            coupling_inputs: BTreeMap::new(),
         });
 }
 
@@ -911,6 +988,6 @@ fn apply_number(current: f64, operation: &str, value: f64) -> DslResult<f64> {
     }
 }
 
-fn stable_number(value: f64) -> f64 {
+pub(super) fn stable_number(value: f64) -> f64 {
     (value * 1_000_000_000_000.0).round() / 1_000_000_000_000.0
 }

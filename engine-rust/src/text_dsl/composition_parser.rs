@@ -115,8 +115,11 @@ fn parse_composition_body(
     let mut entries = Vec::new();
     let mut places = Vec::new();
     let mut parameters = BTreeMap::new();
+    let mut policies = Vec::new();
     let mut adjacency = Vec::new();
     let mut flows = Vec::new();
+    let mut couplings = Vec::new();
+    let mut boundaries = Vec::new();
     let mut cached = None;
     let mut outputs = Vec::new();
     let mut index = start + 1;
@@ -219,6 +222,9 @@ fn parse_composition_body(
                 parameters.insert(id.to_owned(), value);
                 index += 1;
             }
+        } else if let Some(value) = line.text.strip_prefix("policies = ") {
+            policies.extend(value.split(',').map(|item| item.trim().to_owned()));
+            index += 1;
         } else if line.text == "adjacency:" {
             index += 1;
             while index < lines.len() && lines[index].indent > 2 {
@@ -233,6 +239,22 @@ fn parse_composition_body(
                 let entry = &lines[index];
                 require_indent(entry, 4)?;
                 flows.push(parse_flow(entry)?);
+                index += 1;
+            }
+        } else if line.text == "couplings:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                couplings.push(parse_coupling(entry)?);
+                index += 1;
+            }
+        } else if line.text == "boundaries:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let entry = &lines[index];
+                require_indent(entry, 4)?;
+                boundaries.push(parse_boundary(entry)?);
                 index += 1;
             }
         } else if line.text == "cached:" {
@@ -270,8 +292,11 @@ fn parse_composition_body(
             entries,
             places,
             parameters,
+            policies,
             adjacency,
             flows,
+            couplings,
+            boundaries,
             cached,
             outputs,
             report_id: if compatibility {
@@ -296,6 +321,99 @@ fn parse_composition_body(
         },
         index,
     ))
+}
+
+fn parse_boundary(line: &Line) -> DslResult<CompositionBoundaryDefinition> {
+    let Some((id, value)) = line.text.split_once(' ') else {
+        return Err(invalid_boundary(line.number));
+    };
+    identifier(id, line.number)?;
+    let Some((source, value)) = value.split_once(" -> ") else {
+        return Err(invalid_boundary(line.number));
+    };
+    let Some((target, fields)) = value.split_once(" fields = ") else {
+        return Err(invalid_boundary(line.number));
+    };
+    identifier(source, line.number)?;
+    identifier(target, line.number)?;
+    let fields = fields
+        .split(',')
+        .map(|field| {
+            let field = field.trim();
+            identifier(field, line.number)?;
+            Ok(field.to_owned())
+        })
+        .collect::<DslResult<Vec<_>>>()?;
+    if fields.is_empty() {
+        return Err(invalid_boundary(line.number));
+    }
+    Ok(CompositionBoundaryDefinition {
+        id: id.to_owned(),
+        source: source.to_owned(),
+        target: target.to_owned(),
+        fields,
+        line: line.number,
+    })
+}
+
+fn invalid_boundary(line: usize) -> DslError {
+    DslError::new(
+        "INVALID_COMPOSITION_BOUNDARY",
+        line,
+        "Boundary uses id Source -> Target fields = field, field",
+    )
+}
+
+fn parse_coupling(line: &Line) -> DslResult<CompositionCouplingDefinition> {
+    let Some((id, value)) = line.text.split_once(' ') else {
+        return Err(invalid_coupling(line.number));
+    };
+    identifier(id, line.number)?;
+    let Some((source, value)) = value.split_once(" -> ") else {
+        return Err(invalid_coupling(line.number));
+    };
+    let Some((target, value)) = value.split_once(" input = ") else {
+        return Err(invalid_coupling(line.number));
+    };
+    let Some((target_input, value)) = value.split_once(" value = ") else {
+        return Err(invalid_coupling(line.number));
+    };
+    let Some((expression, cadence)) = value.split_once(" cadence = ") else {
+        return Err(invalid_coupling(line.number));
+    };
+    identifier(source, line.number)?;
+    identifier(target, line.number)?;
+    identifier(target_input, line.number)?;
+    if !matches!(cadence, "sync" | "immediate") {
+        return Err(DslError::new(
+            "INVALID_COMPOSITION_COUPLING_CADENCE",
+            line.number,
+            "Coupling cadence must be sync or immediate",
+        ));
+    }
+    Ok(CompositionCouplingDefinition {
+        id: id.to_owned(),
+        source: source.to_owned(),
+        target: target.to_owned(),
+        target_input: target_input.to_owned(),
+        value: parse_expression(
+            expression
+                .strip_prefix("formula(")
+                .and_then(|value| value.strip_suffix(')'))
+                .unwrap_or(expression),
+            line.number,
+        )?,
+        cadence: cadence.to_owned(),
+        line: line.number,
+    })
+}
+
+fn invalid_coupling(line: usize) -> DslError {
+    DslError::new(
+        "INVALID_COMPOSITION_COUPLING",
+        line,
+        "Coupling uses id Source -> Target input = name value = formula(expression) cadence = sync|immediate",
+    )
 }
 
 fn parse_adjacency(line: &Line) -> DslResult<CompositionAdjacency> {

@@ -111,18 +111,11 @@ pub fn run_expanded_archetype_population(
             occurrence_counts: BTreeMap::new(),
         })
         .collect();
+    let places = places_for_agents(&program, &agents);
     let state = DslRunState {
         completed_ticks: 0,
         agents,
-        places: program
-            .places
-            .iter()
-            .filter(|place| place.scope == "program")
-            .map(|place| DslPlaceState {
-                id: place.id.clone(),
-                states: place.states.clone(),
-            })
-            .collect(),
+        places,
         relationships,
         time,
     };
@@ -208,23 +201,32 @@ pub(super) fn build_archetype_state(
             occurrence_counts: BTreeMap::new(),
         })
         .collect();
+    let places = places_for_agents(program, &agents);
     let state = DslRunState {
         completed_ticks: 0,
         agents,
-        places: program
-            .places
-            .iter()
-            .filter(|place| place.scope == "program")
-            .map(|place| DslPlaceState {
-                id: place.id.clone(),
-                states: place.states.clone(),
-            })
-            .collect(),
+        places,
         relationships,
         time,
     };
     let population_per_household = archetype.composition.iter().map(|group| group.count).sum();
     Ok((prepared, state, population_per_household))
+}
+
+fn places_for_agents(program: &Program, agents: &[DslAgentState]) -> Vec<DslPlaceState> {
+    let used = agents
+        .iter()
+        .filter_map(|agent| agent.place())
+        .collect::<BTreeSet<_>>();
+    program
+        .places
+        .iter()
+        .filter(|place| place.scope == "program" || used.contains(place.id.as_str()))
+        .map(|place| DslPlaceState {
+            id: place.id.clone(),
+            states: place.states.clone(),
+        })
+        .collect()
 }
 
 fn agent_has_role(program: &Program, agent_type: &str, role: &str) -> bool {
@@ -284,7 +286,50 @@ fn prepare_archetype_program(program: &Program, archetype: &ArchetypeDefinition)
             };
         }
     }
+    ensure_action_metric_report(&mut prepared, &archetype.outputs);
     prepared
+}
+
+pub(super) fn ensure_action_metric_report(
+    program: &mut Program,
+    outputs: &[ArchetypeOutputDefinition],
+) {
+    let existing = program
+        .reports
+        .iter()
+        .flat_map(|report| &report.columns)
+        .map(|column| column.metric.clone())
+        .collect::<Vec<_>>();
+    let mut ids = BTreeSet::new();
+    let columns = outputs
+        .iter()
+        .filter(|output| {
+            matches!(
+                output.metric,
+                ReportMetric::ActionCount { .. } | ReportMetric::ActionRate { .. }
+            ) && !existing.iter().any(|metric| metric == &output.metric)
+                && ids.insert(output.id.clone())
+        })
+        .map(|output| ReportColumnDefinition {
+            id: output.id.clone(),
+            label: output.id.replace('_', " "),
+            format: "decimal".to_owned(),
+            metric: output.metric.clone(),
+            line: output.line,
+        })
+        .collect::<Vec<_>>();
+    if columns.is_empty() {
+        return;
+    }
+    program.reports.push(ReportDefinition {
+        id: "__action_metrics".to_owned(),
+        title: "Action metrics".to_owned(),
+        group_by: "all".to_owned(),
+        display: "table".to_owned(),
+        record: "final".to_owned(),
+        columns,
+        line: 1,
+    });
 }
 
 fn merge_declared_fields(target: &mut Program, source: &Program) {
@@ -324,6 +369,16 @@ pub(super) fn calculate_output_definitions(
                     .filter(|agent| output_filter(output, agent).unwrap_or(false))
                     .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
                     .collect::<Vec<_>>(),
+                ReportMetric::StandardDeviation { field } => {
+                    let values = result
+                        .state
+                        .agents
+                        .iter()
+                        .filter(|agent| output_filter(output, agent).unwrap_or(false))
+                        .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
+                        .collect::<Vec<_>>();
+                    vec![standard_deviation(&values)]
+                }
                 ReportMetric::Sum { field } => vec![
                     result
                         .state
@@ -333,7 +388,9 @@ pub(super) fn calculate_output_definitions(
                         .sum(),
                 ],
                 ReportMetric::KidsPerFamily => kids_per_family_values(&result.state),
-                ReportMetric::ActionCount { .. } => report_metric_values(result, &output.metric),
+                ReportMetric::ActionCount { .. } | ReportMetric::ActionRate { .. } => {
+                    report_metric_values(result, &output.metric)
+                }
                 ReportMetric::PlaceState { place, field } => result
                     .state
                     .places
@@ -347,7 +404,15 @@ pub(super) fn calculate_output_definitions(
                 ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
                 _ => Vec::new(),
             };
-            if values.is_empty() && matches!(output.metric, ReportMetric::ActionCount { .. }) {
+            if values.is_empty()
+                && matches!(
+                    output.metric,
+                    ReportMetric::ActionCount { .. }
+                        | ReportMetric::ActionRate { .. }
+                        | ReportMetric::FlowCount { .. }
+                        | ReportMetric::FlowRate { .. }
+                )
+            {
                 values.push(0.0);
             }
             if values.is_empty() {
@@ -426,6 +491,15 @@ pub(super) fn calculate_aggregate_metric(
             .iter()
             .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
             .collect::<Vec<_>>(),
+        ReportMetric::StandardDeviation { field } => {
+            let values = result
+                .state
+                .agents
+                .iter()
+                .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
+                .collect::<Vec<_>>();
+            vec![standard_deviation(&values)]
+        }
         ReportMetric::Sum { field } => vec![
             result
                 .state
@@ -434,7 +508,9 @@ pub(super) fn calculate_aggregate_metric(
                 .filter_map(|agent| agent.value(field).and_then(DslValue::as_f64))
                 .sum(),
         ],
-        ReportMetric::ActionCount { .. } => report_metric_values(result, metric),
+        ReportMetric::ActionCount { .. } | ReportMetric::ActionRate { .. } => {
+            report_metric_values(result, metric)
+        }
         ReportMetric::PlaceState { place, field } => result
             .state
             .places
@@ -448,7 +524,15 @@ pub(super) fn calculate_aggregate_metric(
         ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
         _ => Vec::new(),
     };
-    if values.is_empty() && matches!(metric, ReportMetric::ActionCount { .. }) {
+    if values.is_empty()
+        && matches!(
+            metric,
+            ReportMetric::ActionCount { .. }
+                | ReportMetric::ActionRate { .. }
+                | ReportMetric::FlowCount { .. }
+                | ReportMetric::FlowRate { .. }
+        )
+    {
         values.push(0.0);
     }
     if values.is_empty() {
@@ -468,6 +552,19 @@ pub(super) fn calculate_aggregate_metric(
         mean,
         standard_deviation: variance.sqrt(),
     })
+}
+
+fn standard_deviation(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    (values
+        .iter()
+        .map(|value| (value - mean).powi(2))
+        .sum::<f64>()
+        / values.len() as f64)
+        .sqrt()
 }
 
 fn output_filter(output: &ArchetypeOutputDefinition, agent: &DslAgentState) -> DslResult<bool> {

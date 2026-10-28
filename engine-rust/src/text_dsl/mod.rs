@@ -6,6 +6,7 @@ mod composition_build;
 mod composition_cache;
 mod composition_cache_artifacts;
 mod composition_cache_reports;
+mod composition_couplings;
 mod composition_parser;
 mod composition_reports;
 mod composition_validation;
@@ -13,6 +14,7 @@ mod compositions;
 mod expression;
 mod model;
 mod parser;
+mod primitives;
 mod runtime;
 
 pub use aggregate_cache::evaluate_aggregate_function;

@@ -72,6 +72,11 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         .iter()
         .map(|item| item.aggregate.as_str())
         .collect::<BTreeSet<_>>();
+    let policies = program
+        .policies
+        .iter()
+        .map(|policy| (policy.id.as_str(), policy))
+        .collect::<BTreeMap<_, _>>();
     let mut ids = BTreeSet::new();
     let mut archetype_ids = BTreeSet::new();
     for archetype in &program.composition_archetypes {
@@ -164,6 +169,42 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 "Composition children must be unique",
             ));
         }
+        let mut policy_ids = BTreeSet::new();
+        for policy_id in &composition.policies {
+            if !policy_ids.insert(policy_id.as_str()) {
+                return Err(DslError::new(
+                    "DUPLICATE_COMPOSITION_POLICY",
+                    composition.line,
+                    format!("Composition {} repeats policy {policy_id}", composition.id),
+                ));
+            }
+            let policy = policies.get(policy_id.as_str()).ok_or_else(|| {
+                DslError::new(
+                    "UNKNOWN_COMPOSITION_POLICY",
+                    composition.line,
+                    format!(
+                        "Composition {} uses unknown policy {policy_id}",
+                        composition.id
+                    ),
+                )
+            })?;
+            let unknown = policy
+                .effects
+                .iter()
+                .flat_map(|effect| references(&effect.value))
+                .filter(|reference| !composition.parameters.contains_key(reference))
+                .collect::<BTreeSet<_>>();
+            if !unknown.is_empty() {
+                return Err(DslError::new(
+                    "UNKNOWN_COMPOSITION_POLICY_VALUE",
+                    policy.line,
+                    format!(
+                        "Policy references unknown values: {}",
+                        unknown.into_iter().collect::<Vec<_>>().join(", ")
+                    ),
+                ));
+            }
+        }
         for entry in &composition.entries {
             if !archetypes.contains(entry.child.as_str())
                 && !compositions.contains_key(entry.child.as_str())
@@ -205,6 +246,8 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
         validate_adjacency(composition, &child_ids)?;
         validate_flows(program, composition, &child_ids)?;
+        validate_couplings(program, composition, &child_ids)?;
+        validate_boundaries(composition, &child_ids, &base_fields)?;
         validate_cached_composition(program, composition)?;
         for output in &composition.outputs {
             match &output.metric {
@@ -212,8 +255,10 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 ReportMetric::RepresentedCount if composition.represented_population.is_some() => {}
                 ReportMetric::Mean { field } | ReportMetric::Sum { field }
                     if base_fields.contains(field) => {}
+                ReportMetric::StandardDeviation { field } if base_fields.contains(field) => {}
                 ReportMetric::KidsPerFamily => {}
                 ReportMetric::ActionCount { aggregate, window }
+                | ReportMetric::ActionRate { aggregate, window }
                     if aggregates.contains(aggregate.as_str())
                         && matches!(window.as_str(), "tick" | "day" | "run") => {}
                 ReportMetric::PlaceState { place, field }
@@ -222,7 +267,8 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                         .iter()
                         .any(|item| item.id == *place && item.states.contains_key(field)) => {}
                 ReportMetric::FlowCount { flow } | ReportMetric::FlowRate { flow }
-                    if composition.flows.iter().any(|item| item.id == *flow) => {}
+                    if composition.flows.iter().any(|item| item.id == *flow)
+                        || composition.couplings.iter().any(|item| item.id == *flow) => {}
                 _ => {
                     return Err(DslError::new(
                         if legacy {
@@ -282,6 +328,169 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 ));
             }
         }
+    }
+    Ok(())
+}
+
+fn validate_boundaries(
+    composition: &CompositionDefinition,
+    child_ids: &BTreeSet<&str>,
+    fields: &BTreeSet<String>,
+) -> DslResult<()> {
+    let mut ids = BTreeSet::new();
+    for boundary in &composition.boundaries {
+        if !ids.insert(boundary.id.as_str()) {
+            return Err(DslError::new(
+                "DUPLICATE_COMPOSITION_BOUNDARY",
+                boundary.line,
+                format!("Duplicate composition boundary {}", boundary.id),
+            ));
+        }
+        if boundary.source == boundary.target
+            || !child_ids.contains(boundary.source.as_str())
+            || !child_ids.contains(boundary.target.as_str())
+        {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_BOUNDARY_CHILD",
+                boundary.line,
+                "Boundary endpoints must be different direct composition children",
+            ));
+        }
+        let mut boundary_fields = BTreeSet::new();
+        for field in &boundary.fields {
+            if !boundary_fields.insert(field.as_str()) || !fields.contains(field) {
+                return Err(DslError::new(
+                    "UNKNOWN_COMPOSITION_BOUNDARY_FIELD",
+                    boundary.line,
+                    format!("Boundary references unknown or duplicate field {field}"),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_couplings(
+    program: &Program,
+    composition: &CompositionDefinition,
+    child_ids: &BTreeSet<&str>,
+) -> DslResult<()> {
+    let function = program
+        .aggregate_functions
+        .iter()
+        .find(|item| item.id == composition.id);
+    let mut allowed = composition
+        .parameters
+        .keys()
+        .cloned()
+        .chain(
+            function
+                .into_iter()
+                .flat_map(|item| item.inputs.iter().map(|input| input.id.clone())),
+        )
+        .chain(composition.outputs.iter().map(|output| output.id.clone()))
+        .collect::<BTreeSet<_>>();
+    for entry in &composition.entries {
+        if let Some(child) = program
+            .compositions
+            .iter()
+            .find(|item| item.id == entry.child)
+        {
+            for parameter in child.parameters.keys() {
+                allowed.insert(format!("{}_{}", entry.child, parameter));
+                allowed.insert(format!("{}.{}", entry.child, parameter));
+            }
+            for output in &child.outputs {
+                allowed.insert(format!("{}_{}", entry.child, output.id));
+                allowed.insert(format!("{}.{}", entry.child, output.id));
+            }
+        }
+    }
+    allowed.extend(composition.flows.iter().map(|flow| flow.id.clone()));
+    let mut ids = BTreeSet::new();
+    for coupling in &composition.couplings {
+        if !ids.insert(coupling.id.as_str()) {
+            return Err(DslError::new(
+                "DUPLICATE_COMPOSITION_COUPLING",
+                coupling.line,
+                format!("Duplicate composition coupling {}", coupling.id),
+            ));
+        }
+        if !child_ids.contains(coupling.source.as_str())
+            || !child_ids.contains(coupling.target.as_str())
+        {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_COUPLING_CHILD",
+                coupling.line,
+                "Coupling endpoints must be direct composition children",
+            ));
+        }
+        let target_function = program
+            .aggregate_functions
+            .iter()
+            .find(|function| function.id == coupling.target)
+            .ok_or_else(|| {
+                DslError::new(
+                    "UNKNOWN_COMPOSITION_COUPLING_TARGET",
+                    coupling.line,
+                    format!(
+                        "Coupling target {} has no aggregate function",
+                        coupling.target
+                    ),
+                )
+            })?;
+        if !target_function
+            .inputs
+            .iter()
+            .any(|input| input.id == coupling.target_input)
+        {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_COUPLING_INPUT",
+                coupling.line,
+                format!(
+                    "Coupling target {} has no input {}",
+                    coupling.target, coupling.target_input
+                ),
+            ));
+        }
+        let coupling_references = references(&coupling.value);
+        let unknown = coupling_references
+            .iter()
+            .filter(|reference| !allowed.contains(*reference))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !unknown.is_empty() {
+            return Err(DslError::new(
+                "UNKNOWN_COMPOSITION_COUPLING_VALUE",
+                coupling.line,
+                format!("Coupling references unknown values: {}", unknown.join(", ")),
+            ));
+        }
+        let source = program
+            .compositions
+            .iter()
+            .find(|child| child.id == coupling.source)
+            .unwrap();
+        let reads_source_output = source.outputs.iter().any(|output| {
+            coupling_references.contains(&format!("{}_{}", source.id, output.id))
+                || coupling_references.contains(&format!("{}.{}", source.id, output.id))
+        });
+        if !reads_source_output {
+            return Err(DslError::new(
+                "MISSING_COMPOSITION_COUPLING_SOURCE_OUTPUT",
+                coupling.line,
+                format!(
+                    "Coupling {} must read a declared source output; references: {}",
+                    coupling.id,
+                    coupling_references
+                        .iter()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            ));
+        }
+        allowed.insert(coupling.id.clone());
     }
     Ok(())
 }

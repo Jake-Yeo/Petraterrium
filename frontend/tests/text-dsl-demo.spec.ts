@@ -10,6 +10,7 @@ const countryWorldDsl = readFileSync(
   resolve(process.cwd(), '../engine-rust/dsl/country_world_test.dsl'),
   'utf8',
 );
+const mediaDsl = readFileSync(resolve(process.cwd(), '../engine-rust/dsl/media_test.dsl'), 'utf8');
 
 test.beforeEach(async ({ page, request }) => {
   await request.post('/api/simulation/text-dsl/reset');
@@ -367,4 +368,69 @@ test('runs synthetic countries and a world through the generic detailed and cach
   await expect(day30).toBeVisible();
   await expect(day90).toBeVisible();
   expect(await day90.textContent()).not.toBe(await day30.textContent());
+});
+
+test('runs media and physical coupling from editable DSL code', async ({ page }) => {
+  test.setTimeout(90_000);
+  const editor = page.getByLabel('Simulation DSL code');
+  await expect(editor).toHaveValue(/entity Post:/);
+  await expect(editor).toHaveValue(/spotlight agent InfluencerX:/);
+  await expect(editor).toHaveValue(/composition Reddit:/);
+  await expect(editor).toHaveValue(/couplings:/);
+
+  await editor.fill(mediaDsl);
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await expect(page.getByText('Valid Rust DSL')).toBeVisible();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+
+  await page.getByLabel('Population').selectOption('composition:Reddit');
+  await page.getByLabel('Days').fill('2');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByRole('heading', { name: 'Reddit platform aggregates' })).toBeVisible();
+  await expect(page.getByText('viral_spread', { exact: true })).toBeVisible();
+
+  const source = await editor.inputValue();
+  await editor.fill(
+    source.replace('place.engagement * 0.001', 'place.engagement * 0.004'),
+  );
+  await page.getByRole('button', { name: 'Validate code' }).click();
+  await page.getByRole('button', { name: 'Save DSL' }).click();
+  await page.getByLabel('Population').selectOption('composition:Reddit');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(page.getByText('vs baseline').first()).toBeVisible();
+
+  await page.getByLabel('Population').selectOption('composition:CoupledTownMedia');
+  await page.getByRole('button', { name: 'Run saved DSL' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'CoupledTownMedia coupled_modules aggregates' }),
+  ).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: /physical_to_media/ }).first()).toBeVisible();
+  await expect(
+    page.getByRole('rowheader', { name: /media_outage_to_physical/ }).first(),
+  ).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('Reddit');
+  await page.getByLabel('Days').fill('30');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText('Cache hit · 0 agent ticks');
+  const hierarchy = page.locator('[data-report-id="cache_hierarchy"]');
+  await expect(hierarchy.getByRole('rowheader', { name: 'Reddit', exact: true })).toBeVisible();
+  await expect(
+    hierarchy.getByRole('rowheader', { name: 'PersonalFinance', exact: true }),
+  ).toBeVisible();
+
+  await page.getByLabel('Aggregate function').selectOption('CoupledTownMedia');
+  await page.getByRole('button', { name: 'Evaluate cached' }).click();
+  await expect(page.getByRole('status')).toContainText(/Branch relearn|Hierarchy updated|Cache hit/, {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('heading', { name: 'Cached composition boundary flows' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: /physical_to_media/ }).first()).toBeVisible();
+  await expect(
+    page.getByRole('rowheader', { name: /media_outage_to_physical/ }).first(),
+  ).toBeVisible();
 });

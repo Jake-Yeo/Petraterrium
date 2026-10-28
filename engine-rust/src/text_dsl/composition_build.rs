@@ -1,4 +1,4 @@
-use super::archetypes::build_archetype_state;
+use super::archetypes::{build_archetype_state, ensure_action_metric_report};
 use super::compositions::{CompositionBuild, ExecutedFlow};
 use super::expression::evaluate;
 use super::model::*;
@@ -98,6 +98,14 @@ pub(super) fn build_composition_state(
         relationships.extend(state.relationships);
         time.extend(state.time);
     }
+    let metric_outputs = leaves
+        .iter()
+        .map(|leaf| leaf.archetype.as_str())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .flat_map(|id| archetypes[id].outputs.clone())
+        .collect::<Vec<_>>();
+    ensure_action_metric_report(&mut combined, &metric_outputs);
     let mut state = DslRunState {
         completed_ticks: 0,
         agents,
@@ -107,6 +115,7 @@ pub(super) fn build_composition_state(
     };
     let mut nodes = Vec::new();
     collect_composition_nodes(composition, &compositions, &[], &mut nodes);
+    apply_policies(program, &nodes, &mut combined, &mut state, &agent_paths)?;
     let flows = apply_flows(
         program,
         composition,
@@ -123,6 +132,113 @@ pub(super) fn build_composition_state(
         agent_groups,
         flows,
     })
+}
+
+fn apply_policies(
+    program: &Program,
+    nodes: &[CompositionNode<'_>],
+    combined: &mut Program,
+    state: &mut DslRunState,
+    agent_paths: &BTreeMap<String, Vec<String>>,
+) -> DslResult<()> {
+    let policies = program
+        .policies
+        .iter()
+        .map(|policy| (policy.id.as_str(), policy))
+        .collect::<BTreeMap<_, _>>();
+    for node in nodes {
+        let values = node
+            .definition
+            .parameters
+            .iter()
+            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .collect::<BTreeMap<_, _>>();
+        let prefix = node.path.join("__");
+        for policy_id in &node.definition.policies {
+            for effect in &policies[policy_id.as_str()].effects {
+                let value = evaluate(&effect.value, &values)?.as_f64().ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_POLICY_EFFECT",
+                        effect.line,
+                        "Policy effect must resolve to a number",
+                    )
+                })?;
+                match &effect.target {
+                    AggregateEffectTarget::Decision(action) => {
+                        for branch in combined
+                            .decisions
+                            .iter_mut()
+                            .flat_map(|decision| &mut decision.branches)
+                            .filter(|branch| scoped_identifier(&branch.action, &prefix, action))
+                        {
+                            branch.probability = policy_expression(
+                                branch.probability.clone(),
+                                &effect.operation,
+                                value,
+                            );
+                        }
+                    }
+                    AggregateEffectTarget::Field(field) => {
+                        for agent in &mut state.agents {
+                            let in_scope = node.path.is_empty()
+                                || agent_paths
+                                    .get(&agent.id)
+                                    .is_some_and(|path| path.starts_with(node.path.as_slice()));
+                            if !in_scope {
+                                continue;
+                            }
+                            let current = agent
+                                .states
+                                .get_mut(field)
+                                .or_else(|| agent.traits.get_mut(field));
+                            if let Some(current) = current
+                                && let Some(number) = current.as_f64()
+                            {
+                                *current = DslValue::Number(apply_policy_number(
+                                    number,
+                                    &effect.operation,
+                                    value,
+                                    effect.line,
+                                )?);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn scoped_identifier(value: &str, prefix: &str, id: &str) -> bool {
+    (prefix.is_empty() || value.starts_with(&format!("{prefix}__")))
+        && (value == id || value.ends_with(&format!("__{id}")))
+}
+
+fn policy_expression(current: Expr, operation: &str, value: f64) -> Expr {
+    if operation == "=" {
+        Expr::Value(DslValue::Number(value))
+    } else {
+        Expr::Binary {
+            operation: operation.trim_end_matches('=').to_owned(),
+            left: Box::new(current),
+            right: Box::new(Expr::Value(DslValue::Number(value))),
+        }
+    }
+}
+
+fn apply_policy_number(current: f64, operation: &str, value: f64, line: usize) -> DslResult<f64> {
+    match operation {
+        "=" => Ok(value),
+        "+=" => Ok(current + value),
+        "-=" => Ok(current - value),
+        "*=" => Ok(current * value),
+        _ => Err(DslError::new(
+            "INVALID_POLICY_EFFECT",
+            line,
+            format!("Unsupported policy operation {operation}"),
+        )),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

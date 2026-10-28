@@ -13,6 +13,9 @@ interface DslValidation {
   version?: string | null;
   tick_hours?: number | null;
   adult_population?: number | null;
+  entities: string[];
+  policies: string[];
+  spotlights: string[];
   archetypes: string[];
   composition_archetypes: Array<{ id: string; level: string; child_level: string }>;
   weighted_populations: string[];
@@ -206,7 +209,7 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that the Rust engine parses and runs, from agent archetypes through neighbourhood, municipality, division, country, and world compositions.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Edit the exact Python-like DSL that Rust runs across physical and media peer modules, from individual agents through community, platform, country, and world compositions.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-toolbar">

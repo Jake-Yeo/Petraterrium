@@ -6,6 +6,7 @@ use super::composition_parser::{
 use super::composition_validation::{apply_composition_archetypes, validate_compositions};
 use super::expression::{evaluate, parse_expression, references};
 use super::model::*;
+use super::primitives::{parse_entity, parse_policy};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -28,6 +29,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
     let mut results_title = None;
     let mut results_subtitle = None;
     let mut places = Vec::new();
+    let mut entities = Vec::new();
+    let mut policies = Vec::new();
     let mut agents = Vec::new();
     let mut population = None;
     let mut decisions = Vec::new();
@@ -86,6 +89,18 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             let (value, next) = parse_place(&lines, index, name)?;
             places.push(value);
             index = next;
+        } else if let Some(name) = block_name(&line.text, "entity") {
+            let (value, next) = parse_entity(&lines, index, name)?;
+            entities.push(value);
+            index = next;
+        } else if let Some(name) = block_name(&line.text, "policy") {
+            let (value, next) = parse_policy(&lines, index, name)?;
+            policies.push(value);
+            index = next;
+        } else if let Some(name) = spotlight_header(&line.text) {
+            let (value, next) = parse_archetype(&lines, index, name, true)?;
+            archetypes.push(value);
+            index = next;
         } else if let Some((name, parent)) = agent_header(&line.text) {
             let (value, next) = parse_agent(&lines, index, name, parent)?;
             agents.push(value);
@@ -103,7 +118,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
                 composition_archetypes.push(value);
                 index = next;
             } else {
-                let (value, next) = parse_archetype(&lines, index, name)?;
+                let (value, next) = parse_archetype(&lines, index, name, false)?;
                 archetypes.push(value);
                 index = next;
             }
@@ -191,6 +206,8 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             )
         })?,
         places,
+        entities,
+        policies,
         agents,
         population: population.ok_or_else(|| {
             DslError::new(
@@ -357,6 +374,7 @@ fn parse_agent(
     parent: Option<String>,
 ) -> DslResult<(AgentDefinition, usize)> {
     identifier(name, lines[start].number)?;
+    let mut scope = "program".to_owned();
     let mut roles = BTreeSet::new();
     let mut traits = BTreeSet::new();
     let mut states = BTreeSet::new();
@@ -367,7 +385,17 @@ fn parse_agent(
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        if let Some(value) = line.text.strip_prefix("role ") {
+        if let Some(value) = line.text.strip_prefix("scope = ") {
+            if !matches!(value, "program" | "composition") {
+                return Err(DslError::new(
+                    "INVALID_AGENT_SCOPE",
+                    line.number,
+                    "Agent scope must be program or composition",
+                ));
+            }
+            scope = value.to_owned();
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("role ") {
             identifier(value, line.number)?;
             roles.insert(value.to_owned());
             index += 1;
@@ -416,6 +444,7 @@ fn parse_agent(
     Ok((
         AgentDefinition {
             id: name.to_owned(),
+            scope,
             parent,
             roles,
             traits,
@@ -683,6 +712,7 @@ fn parse_archetype(
     lines: &[Line],
     start: usize,
     name: &str,
+    spotlight: bool,
 ) -> DslResult<(ArchetypeDefinition, usize)> {
     identifier(name, lines[start].number)?;
     let mut sample_households = None;
@@ -758,6 +788,7 @@ fn parse_archetype(
     Ok((
         ArchetypeDefinition {
             id: name.to_owned(),
+            spotlight,
             sample_households: sample_households.ok_or_else(|| {
                 DslError::new(
                     "MISSING_ARCHETYPE_SAMPLE",
@@ -954,6 +985,7 @@ fn parse_action(lines: &[Line], start: usize, name: &str) -> DslResult<(ActionDe
     let mut long = false;
     let mut aggregate = None;
     let mut target = None;
+    let mut record_fields = Vec::new();
     let mut outcomes = Vec::new();
     let mut index = start + 1;
     while index < lines.len() && lines[index].indent > 0 {
@@ -974,6 +1006,12 @@ fn parse_action(lines: &[Line], start: usize, name: &str) -> DslResult<(ActionDe
             index += 1;
         } else if let Some(value) = line.text.strip_prefix("target = ") {
             target = Some(parse_target(value, line.number)?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("record = ") {
+            record_fields = value
+                .split(',')
+                .map(|field| field.trim().to_owned())
+                .collect();
             index += 1;
         } else if line.text.starts_with("outcome ") {
             let (outcome, next) = parse_outcome(lines, index)?;
@@ -1014,6 +1052,7 @@ fn parse_action(lines: &[Line], start: usize, name: &str) -> DslResult<(ActionDe
             duration,
             long,
             target,
+            record_fields,
             outcomes,
             line: lines[start].number,
         },
@@ -1166,6 +1205,9 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
         "mean" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Mean {
             field: positional[0].to_owned(),
         }),
+        "sd" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::StandardDeviation {
+            field: positional[0].to_owned(),
+        }),
         "sum" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::Sum {
             field: positional[0].to_owned(),
         }),
@@ -1183,6 +1225,12 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
         }),
         "action_count" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
             Ok(ReportMetric::ActionCount {
+                aggregate: positional[0].to_owned(),
+                window: window(),
+            })
+        }
+        "action_rate" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
+            Ok(ReportMetric::ActionRate {
                 aggregate: positional[0].to_owned(),
                 window: window(),
             })
@@ -1497,6 +1545,14 @@ fn validate_program(program: &Program) -> DslResult<()> {
         program.places.iter().map(|item| (&item.id, item.line)),
     )?;
     unique_ids(
+        "entity",
+        program.entities.iter().map(|item| (&item.id, item.line)),
+    )?;
+    unique_ids(
+        "policy",
+        program.policies.iter().map(|item| (&item.id, item.line)),
+    )?;
+    unique_ids(
         "agent",
         program.agents.iter().map(|item| (&item.id, item.line)),
     )?;
@@ -1563,6 +1619,58 @@ fn validate_program(program: &Program) -> DslResult<()> {
         .into_iter()
         .flatten()
         .collect::<BTreeSet<_>>();
+    for entity in &program.entities {
+        if entity.fields.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_ENTITY",
+                entity.line,
+                format!("Entity {} needs fields", entity.id),
+            ));
+        }
+        unique_ids(
+            "entity field",
+            entity.fields.iter().map(|field| (&field.id, field.line)),
+        )?;
+        if entity
+            .owner_field
+            .as_ref()
+            .is_some_and(|owner| !entity.fields.iter().any(|field| field.id == *owner))
+        {
+            return Err(DslError::new(
+                "UNKNOWN_ENTITY_OWNER_FIELD",
+                entity.line,
+                format!("Entity {} owner field is not declared", entity.id),
+            ));
+        }
+    }
+    for policy in &program.policies {
+        if policy.effects.is_empty() {
+            return Err(DslError::new(
+                "EMPTY_POLICY",
+                policy.line,
+                format!("Policy {} needs effects", policy.id),
+            ));
+        }
+        for effect in &policy.effects {
+            match &effect.target {
+                AggregateEffectTarget::Field(field) if !all_agent_fields.contains(field) => {
+                    return Err(DslError::new(
+                        "UNKNOWN_POLICY_FIELD",
+                        effect.line,
+                        format!("Policy effect references unknown field {field}"),
+                    ));
+                }
+                AggregateEffectTarget::Decision(action) if !actions.contains(action.as_str()) => {
+                    return Err(DslError::new(
+                        "UNKNOWN_POLICY_ACTION",
+                        effect.line,
+                        format!("Policy effect references unknown action {action}"),
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
     for agent in &program.agents {
         if let Some(parent) = &agent.parent
             && !agents.contains_key(parent.as_str())
@@ -1633,6 +1741,26 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 action.line,
                 format!("Action {} needs outcomes", action.id),
             ));
+        }
+        for field in &action.record_fields {
+            let valid = matches!(field.as_str(), "agent" | "source" | "target" | "tick")
+                || all_agent_fields.contains(field)
+                || field
+                    .strip_prefix("target.")
+                    .is_some_and(|value| all_agent_fields.contains(value))
+                || field.strip_prefix("place.").is_some_and(|value| {
+                    program
+                        .places
+                        .iter()
+                        .any(|place| place.states.contains_key(value))
+                });
+            if !valid {
+                return Err(DslError::new(
+                    "UNKNOWN_ACTION_RECORD_FIELD",
+                    action.line,
+                    format!("Action {} records unknown field {field}", action.id),
+                ));
+            }
         }
         if let Some(target) = &action.target {
             let target_place = match target {
@@ -1757,7 +1885,9 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 ));
             }
             match &column.metric {
-                ReportMetric::Mean { field } | ReportMetric::Sum { field }
+                ReportMetric::Mean { field }
+                | ReportMetric::StandardDeviation { field }
+                | ReportMetric::Sum { field }
                     if !all_agent_fields.contains(field) =>
                 {
                     return Err(DslError::new(
@@ -1766,7 +1896,8 @@ fn validate_program(program: &Program) -> DslResult<()> {
                         format!("Output column references undeclared field {field}"),
                     ));
                 }
-                ReportMetric::ActionCount { aggregate, window } => {
+                ReportMetric::ActionCount { aggregate, window }
+                | ReportMetric::ActionRate { aggregate, window } => {
                     if !aggregates.contains(aggregate.as_str()) {
                         return Err(DslError::new(
                             "UNKNOWN_OUTPUT_ACTION",
@@ -1843,6 +1974,24 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 ),
             ));
         }
+        if archetype.spotlight
+            && (archetype.sample_households != 1
+                || archetype
+                    .composition
+                    .iter()
+                    .map(|group| group.count)
+                    .sum::<usize>()
+                    != 1)
+        {
+            return Err(DslError::new(
+                "INVALID_SPOTLIGHT_AGENT",
+                archetype.line,
+                format!(
+                    "Spotlight {} must define exactly one sampled agent",
+                    archetype.id
+                ),
+            ));
+        }
         if archetype.composition.is_empty() {
             return Err(DslError::new(
                 "EMPTY_ARCHETYPE_COMPOSITION",
@@ -1905,10 +2054,12 @@ fn validate_program(program: &Program) -> DslResult<()> {
         for output in &archetype.outputs {
             match &output.metric {
                 ReportMetric::Count => {}
-                ReportMetric::Mean { field } if archetype_fields.contains(field) => {}
+                ReportMetric::Mean { field } | ReportMetric::StandardDeviation { field }
+                    if archetype_fields.contains(field) => {}
                 ReportMetric::Sum { field } if archetype_fields.contains(field) => {}
                 ReportMetric::KidsPerFamily => {}
                 ReportMetric::ActionCount { aggregate, window }
+                | ReportMetric::ActionRate { aggregate, window }
                     if aggregates.contains(aggregate.as_str()) =>
                 {
                     validate_report_window(window, output.line)?;
@@ -2171,6 +2322,10 @@ fn agent_header(value: &str) -> Option<(&str, Option<String>)> {
     }
 }
 
+fn spotlight_header(value: &str) -> Option<&str> {
+    value.strip_prefix("spotlight agent ")?.strip_suffix(':')
+}
+
 pub(super) fn identifier(value: &str, line: usize) -> DslResult<()> {
     if value.is_empty()
         || !value
@@ -2202,13 +2357,16 @@ pub(super) fn require_indent(line: &Line, expected: usize) -> DslResult<()> {
 }
 
 fn remove_placeholder<'a>(value: &'a str, line: usize) -> DslResult<&'a str> {
-    value.strip_suffix(" placeholder").ok_or_else(|| {
-        DslError::new(
-            "MISSING_PLACEHOLDER_LABEL",
-            line,
-            "Every demo value must end with placeholder",
-        )
-    })
+    value
+        .strip_suffix(" placeholder")
+        .or_else(|| value.strip_suffix(" estimated"))
+        .ok_or_else(|| {
+            DslError::new(
+                "MISSING_PLACEHOLDER_LABEL",
+                line,
+                "Every demo value must end with placeholder or estimated",
+            )
+        })
 }
 
 fn number_with_placeholder(value: &str, line: usize) -> DslResult<f64> {
@@ -2244,17 +2402,20 @@ fn literal_with_placeholder(value: &str, line: usize) -> DslResult<DslValue> {
 }
 
 fn split_range(value: &str, line: usize) -> DslResult<(String, Option<ValueBounds>)> {
-    let core = remove_placeholder(value, line)?;
+    let core = value
+        .strip_suffix(" estimated")
+        .map(Ok)
+        .unwrap_or_else(|| remove_placeholder(value, line))?;
     if let Some((literal, bounds)) = core.split_once(" range ") {
         return Ok((
             format!("{literal} placeholder"),
             Some(parse_bounds(bounds, line)?),
         ));
     }
-    Ok((value.to_owned(), None))
+    Ok((format!("{core} placeholder"), None))
 }
 
-fn parse_bounds(value: &str, line: usize) -> DslResult<ValueBounds> {
+pub(super) fn parse_bounds(value: &str, line: usize) -> DslResult<ValueBounds> {
     let Some((minimum, maximum)) = value.split_once("..") else {
         return Err(DslError::new(
             "INVALID_STATE_RANGE",

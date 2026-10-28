@@ -84,6 +84,9 @@ class TextDslService:
             version=result.get("version"),
             tick_hours=result.get("tick_hours"),
             adult_population=result.get("adult_population"),
+            entities=tuple(str(value) for value in result.get("entities", [])),
+            policies=tuple(str(value) for value in result.get("policies", [])),
+            spotlights=tuple(str(value) for value in result.get("spotlights", [])),
             archetypes=tuple(str(value) for value in result.get("archetypes", [])),
             composition_archetypes=tuple(
                 dict(value) for value in result.get("composition_archetypes", [])
@@ -242,7 +245,7 @@ class TextDslService:
                 branch_inputs=request.branch_inputs,
                 input_schedule=list(request.input_schedule),
                 events=list(request.events),
-                artifacts=self._hierarchy_artifact_catalog(),
+                artifacts=self._hierarchy_artifact_catalog(request.function_id),
                 force_relearn=request.force_relearn,
             )
         else:
@@ -358,8 +361,22 @@ class TextDslService:
                 result[path.name] = artifact
         return result
 
-    def _hierarchy_artifact_catalog(self) -> dict[str, dict[str, Any]]:
+    def _hierarchy_artifact_catalog(
+        self,
+        function_id: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
         result = self._aggregate_artifact_catalog()
+        if function_id is not None and function_id in result:
+            selected: dict[str, dict[str, Any]] = {}
+            pending = [function_id]
+            while pending:
+                current = pending.pop()
+                if current in selected or current not in result:
+                    continue
+                artifact = result[current]
+                selected[current] = artifact
+                pending.extend(str(value) for value in artifact.get("dependencies", {}))
+            result = selected
         for artifact in result.values():
             artifact["points"] = [
                 {**point, "reports": []} for point in artifact.get("points", [])

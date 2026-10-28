@@ -12,6 +12,7 @@ pub(super) fn decorate_composition_result(
     ticks: u64,
     tick_hours: f64,
     record_actions: bool,
+    recorded_actions: &BTreeSet<String>,
 ) -> DslResult<()> {
     let legacy = composition.report_id == "neighbourhoods";
     if !flows.is_empty() {
@@ -49,7 +50,9 @@ pub(super) fn decorate_composition_result(
         format!("{} {} aggregates", composition.id, composition.level)
     };
     if !record_actions {
-        result.actions.clear();
+        result
+            .actions
+            .retain(|record| recorded_actions.contains(&record.action));
     }
     Ok(())
 }
@@ -158,9 +161,19 @@ fn child_composition_report(
             .map(|agent| agent.id.as_str())
             .collect::<BTreeSet<_>>();
         let filtered = filtered_result(result, &ids);
-        let mut outputs = calculate_composition_outputs(composition, &filtered, 0.0)?;
+        let mut values = BTreeMap::from([(
+            "population".to_owned(),
+            DslReportValue::Number(filtered.state.agents.len() as f64),
+        )]);
         for output in &composition.outputs {
-            if let ReportMetric::ActionCount { aggregate, window } = &output.metric {
+            let summary = if matches!(output.metric, ReportMetric::RepresentedCount) {
+                Some(MetricSummary {
+                    mean: 0.0,
+                    standard_deviation: 0.0,
+                })
+            } else if let ReportMetric::ActionCount { aggregate, window }
+            | ReportMetric::ActionRate { aggregate, window } = &output.metric
+            {
                 let first_tick = match window.as_str() {
                     "tick" => ticks,
                     "day" => ticks.saturating_sub((24.0 / tick_hours).round() as u64 - 1),
@@ -175,27 +188,48 @@ fn child_composition_report(
                             == Some(aggregate.as_str())
                     })
                     .count() as f64;
-                outputs.insert(
-                    output.id.clone(),
-                    MetricSummary {
-                        mean: count,
-                        standard_deviation: 0.0,
-                    },
-                );
-            }
-        }
-        let mut values = BTreeMap::from([(
-            "population".to_owned(),
-            DslReportValue::Number(filtered.state.agents.len() as f64),
-        )]);
-        for output in &composition.outputs {
-            let summary = &outputs[&output.id];
-            values.insert(output.id.clone(), DslReportValue::Number(summary.mean));
-            if output.spread {
+                let value = if matches!(output.metric, ReportMetric::ActionRate { .. }) {
+                    count / filtered.state.agents.len().max(1) as f64
+                } else {
+                    count
+                };
+                Some(MetricSummary {
+                    mean: value,
+                    standard_deviation: 0.0,
+                })
+            } else {
+                match calculate_output_definitions(std::slice::from_ref(output), &filtered) {
+                    Ok(mut output_values) => output_values.remove(&output.id),
+                    Err(error)
+                        if matches!(
+                            error.code.as_str(),
+                            "EMPTY_ARCHETYPE_METRIC" | "EMPTY_AGGREGATE_METRIC"
+                        ) =>
+                    {
+                        None
+                    }
+                    Err(error) => return Err(error),
+                }
+            };
+            if let Some(summary) = summary {
+                values.insert(output.id.clone(), DslReportValue::Number(summary.mean));
+                if output.spread {
+                    values.insert(
+                        format!("{}_sd", output.id),
+                        DslReportValue::Number(summary.standard_deviation),
+                    );
+                }
+            } else {
                 values.insert(
-                    format!("{}_sd", output.id),
-                    DslReportValue::Number(summary.standard_deviation),
+                    output.id.clone(),
+                    DslReportValue::Text("not_applicable".to_owned()),
                 );
+                if output.spread {
+                    values.insert(
+                        format!("{}_sd", output.id),
+                        DslReportValue::Text("not_applicable".to_owned()),
+                    );
+                }
             }
         }
         rows.push(DslReportRow {

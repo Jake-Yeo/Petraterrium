@@ -77,6 +77,7 @@ pub struct InitialAssignment {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AgentDefinition {
     pub id: String,
+    pub scope: String,
     pub parent: Option<String>,
     pub roles: BTreeSet<String>,
     pub traits: BTreeSet<String>,
@@ -93,6 +94,21 @@ pub struct PlaceDefinition {
     pub scope: String,
     pub states: BTreeMap<String, DslValue>,
     pub state_bounds: BTreeMap<String, ValueBounds>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct EntityFieldDefinition {
+    pub id: String,
+    pub bounds: Option<ValueBounds>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct EntityDefinition {
+    pub id: String,
+    pub fields: Vec<EntityFieldDefinition>,
+    pub owner_field: Option<String>,
     pub line: usize,
 }
 
@@ -153,6 +169,7 @@ pub struct ArchetypeOutputDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ArchetypeDefinition {
     pub id: String,
+    pub spotlight: bool,
     pub sample_households: usize,
     pub composition: Vec<ArchetypeCompositionGroup>,
     pub initial: Vec<InitialAssignment>,
@@ -202,6 +219,26 @@ pub struct CompositionFlowDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionCouplingDefinition {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    pub target_input: String,
+    pub value: Expr,
+    pub cadence: String,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CompositionBoundaryDefinition {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    pub fields: Vec<String>,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CompositionFeedbackDefinition {
     pub output: String,
     pub input: String,
@@ -237,8 +274,11 @@ pub struct CompositionDefinition {
     pub entries: Vec<CompositionEntry>,
     pub places: Vec<String>,
     pub parameters: BTreeMap<String, f64>,
+    pub policies: Vec<String>,
     pub adjacency: Vec<CompositionAdjacency>,
     pub flows: Vec<CompositionFlowDefinition>,
+    pub couplings: Vec<CompositionCouplingDefinition>,
+    pub boundaries: Vec<CompositionBoundaryDefinition>,
     pub cached: Option<CachedCompositionDefinition>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
     pub report_id: String,
@@ -277,6 +317,13 @@ pub struct AggregateInputDefinition {
 pub enum AggregateEffectTarget {
     Field(String),
     Decision(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PolicyDefinition {
+    pub id: String,
+    pub effects: Vec<AggregateInputEffect>,
+    pub line: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -384,6 +431,7 @@ pub struct ActionDefinition {
     pub duration: DurationSpec,
     pub long: bool,
     pub target: Option<TargetSelector>,
+    pub record_fields: Vec<String>,
     pub outcomes: Vec<OutcomeDefinition>,
     pub line: usize,
 }
@@ -394,10 +442,17 @@ pub enum ReportMetric {
     Mean {
         field: String,
     },
+    StandardDeviation {
+        field: String,
+    },
     Sum {
         field: String,
     },
     ActionCount {
+        aggregate: String,
+        window: String,
+    },
+    ActionRate {
         aggregate: String,
         window: String,
     },
@@ -456,6 +511,8 @@ pub struct Program {
     pub results_title: String,
     pub results_subtitle: String,
     pub places: Vec<PlaceDefinition>,
+    pub entities: Vec<EntityDefinition>,
+    pub policies: Vec<PolicyDefinition>,
     pub agents: Vec<AgentDefinition>,
     pub population: PopulationDefinition,
     pub decisions: Vec<DecisionDefinition>,
@@ -596,6 +653,8 @@ pub struct DslActionRecord {
     pub outcome: String,
     pub place: String,
     pub target_id: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub values: BTreeMap<String, DslValue>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

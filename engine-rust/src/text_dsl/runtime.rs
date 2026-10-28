@@ -272,6 +272,8 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
                 .place()
                 .unwrap_or("Unknown")
                 .to_owned();
+            let values =
+                recorded_action_values(action.definition, &state, agent_index, target, tick);
             action_records.push(DslActionRecord {
                 tick,
                 agent_id: state.agents[agent_index].id.clone(),
@@ -279,6 +281,7 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
                 outcome: outcome.id.clone(),
                 place,
                 target_id: target.map(|index| state.agents[index].id.clone()),
+                values,
             });
         }
         for (index, decision) in target_decisions
@@ -318,12 +321,53 @@ pub fn run_program(request: DslRunRequest) -> DslResult<DslRunResult> {
         actions: if program.record_actions {
             action_records
         } else {
-            Vec::new()
+            action_records
+                .into_iter()
+                .filter(|record| {
+                    program.actions.iter().any(|action| {
+                        action.id == record.action && !action.record_fields.is_empty()
+                    })
+                })
+                .collect()
         },
         results_title: program.results_title.clone(),
         results_subtitle: program.results_subtitle.clone(),
         reports,
     })
+}
+
+fn recorded_action_values(
+    action: &ActionDefinition,
+    state: &DslRunState,
+    source_index: usize,
+    target_index: Option<usize>,
+    tick: u64,
+) -> BTreeMap<String, DslValue> {
+    let source = &state.agents[source_index];
+    let target = target_index.map(|index| &state.agents[index]);
+    let place = state
+        .places
+        .iter()
+        .find(|place| source.place() == Some(place.id.as_str()));
+    action
+        .record_fields
+        .iter()
+        .filter_map(|field| {
+            let value = match field.as_str() {
+                "agent" | "source" => Some(DslValue::Text(source.id.clone())),
+                "target" => target.map(|agent| DslValue::Text(agent.id.clone())),
+                "tick" => Some(DslValue::Number(tick as f64)),
+                value if value.starts_with("target.") => target
+                    .and_then(|agent| agent.value(value.trim_start_matches("target.")))
+                    .cloned(),
+                value if value.starts_with("place.") => place
+                    .and_then(|place| place.states.get(value.trim_start_matches("place.")))
+                    .cloned(),
+                value => source.value(value).cloned(),
+            }?;
+            Some((field.clone(), value))
+        })
+        .collect()
 }
 
 fn target_scoped_decision(decision: &str, target_agent_type: &str) -> String {
@@ -1181,6 +1225,13 @@ fn report_groups(
         "agent_type" => program
             .agents
             .iter()
+            .filter(|agent_type| {
+                agent_type.scope == "program"
+                    || state
+                        .agents
+                        .iter()
+                        .any(|agent| agent.agent_type == agent_type.id)
+            })
             .map(|agent_type| {
                 (
                     agent_type.id.clone(),
@@ -1226,6 +1277,10 @@ fn report_value(
                 values.iter().sum::<f64>() / values.len() as f64
             })
         }
+        ReportMetric::StandardDeviation { field } => {
+            let values = numeric_values(state, indices, field);
+            DslReportValue::Number(standard_deviation(&values))
+        }
         ReportMetric::Sum { field } => {
             DslReportValue::Number(numeric_values(state, indices, field).iter().sum::<f64>())
         }
@@ -1246,6 +1301,28 @@ fn report_value(
                     .filter(|record| action_aggregate(program, record) == aggregate)
                     .count() as f64,
             )
+        }
+        ReportMetric::ActionRate { aggregate, window } => {
+            let selected = selected_actions(
+                definition,
+                actions,
+                tick,
+                run_start_tick,
+                ticks_per_day,
+                window,
+                group_id,
+                &ids,
+            );
+            let count = selected
+                .iter()
+                .filter(|record| action_aggregate(program, record) == aggregate)
+                .count() as f64;
+            let eligible = eligible_action_population(program, state, indices, aggregate);
+            DslReportValue::Number(if eligible == 0 {
+                0.0
+            } else {
+                count / eligible as f64
+            })
         }
         ReportMetric::OutcomeCount {
             action,
@@ -1317,6 +1394,46 @@ fn report_value(
             DslReportValue::Number(0.0)
         }
     }
+}
+
+fn eligible_action_population(
+    program: &Program,
+    state: &DslRunState,
+    indices: &[usize],
+    aggregate: &str,
+) -> usize {
+    indices
+        .iter()
+        .filter(|index| {
+            let agent = &state.agents[**index];
+            program
+                .decisions
+                .iter()
+                .find(|decision| decision.id == agent.current_decision)
+                .is_some_and(|decision| {
+                    decision.branches.iter().any(|branch| {
+                        program
+                            .actions
+                            .iter()
+                            .find(|action| action.id == branch.action)
+                            .is_some_and(|action| action.aggregate == aggregate)
+                    })
+                })
+        })
+        .count()
+}
+
+fn standard_deviation(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    (values
+        .iter()
+        .map(|value| (value - mean).powi(2))
+        .sum::<f64>()
+        / values.len() as f64)
+        .sqrt()
 }
 
 fn numeric_values(state: &DslRunState, indices: &[usize], field: &str) -> Vec<f64> {
@@ -1478,6 +1595,7 @@ mod tests {
                 outcome: "outcome".to_owned(),
                 place: "place".to_owned(),
                 target_id: None,
+                values: BTreeMap::new(),
             })
             .collect::<Vec<_>>();
 

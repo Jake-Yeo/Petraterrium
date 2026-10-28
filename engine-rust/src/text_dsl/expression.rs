@@ -422,6 +422,8 @@ fn collect_references(expression: &Expr, result: &mut BTreeSet<String>) {
                 .chars()
                 .next()
                 .is_some_and(|character| character.is_lowercase())
+                || value.contains('_')
+                || value.contains('.')
             {
                 result.insert(value.clone());
             }

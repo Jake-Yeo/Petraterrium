@@ -163,6 +163,7 @@ fn learn_aggregate_function(
                     target_ticks,
                     prepared.tick_hours,
                     true,
+                    &BTreeSet::new(),
                 )?;
             }
             let mut detailed_outputs = if let Some(archetype) = archetype {

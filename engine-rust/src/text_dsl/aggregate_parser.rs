@@ -41,7 +41,7 @@ pub(super) fn parse_aggregate_function(
             while index < lines.len() && lines[index].indent > 2 {
                 let entry = &lines[index];
                 require_indent(entry, 4)?;
-                effects.push(parse_effect(entry)?);
+                effects.push(parse_aggregate_effect(entry)?);
                 index += 1;
             }
         } else if line.text == "outputs:" {
@@ -191,7 +191,7 @@ fn parse_input(line: &Line) -> DslResult<AggregateInputDefinition> {
     })
 }
 
-fn parse_effect(line: &Line) -> DslResult<AggregateInputEffect> {
+pub(super) fn parse_aggregate_effect(line: &Line) -> DslResult<AggregateInputEffect> {
     let (target, value) = if let Some(value) = line.text.strip_prefix("field ") {
         let Some((field, value)) = value.split_once(' ') else {
             return Err(DslError::new(
@@ -462,9 +462,12 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
             if let Some(metric) = &output.metric {
                 match metric {
                     ReportMetric::Count => {}
-                    ReportMetric::Mean { field } | ReportMetric::Sum { field }
+                    ReportMetric::Mean { field }
+                    | ReportMetric::StandardDeviation { field }
+                    | ReportMetric::Sum { field }
                         if fields.contains(field) => {}
                     ReportMetric::ActionCount { aggregate, window }
+                    | ReportMetric::ActionRate { aggregate, window }
                         if aggregates.contains(aggregate.as_str())
                             && matches!(window.as_str(), "tick" | "day" | "run") => {}
                     ReportMetric::PlaceState { place, field }
