@@ -252,6 +252,9 @@ fn prepare_archetype_program(program: &Program, archetype: &ArchetypeDefinition)
         .collect::<BTreeSet<_>>();
     for agent in &mut prepared.agents {
         for assignment in &archetype.initial {
+            if assignment.field == "age" && agent_has_role(program, &agent.id, "child") {
+                continue;
+            }
             if !agent.states.contains(&assignment.field)
                 && !agent.traits.contains(&assignment.field)
             {

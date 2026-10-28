@@ -7,8 +7,8 @@ use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
     AggregateEvaluationProtocolRequest, CachedCompositionProtocolRequest, DslRunRequest,
     TextDslProtocolRequest, TextDslValidateRequest, apply_actual_simulated_counts,
-    build_population_plan, build_program_graph, evaluate_aggregate_function,
-    evaluate_cached_composition, parse_program, run_composition, run_program,
+    build_population_plan, build_program_graph, configure_pool_run, evaluate_aggregate_function,
+    evaluate_cached_composition, parse_program, pool_run_summary, run_composition, run_program,
     run_weighted_population,
 };
 use serde::{Deserialize, Serialize};
@@ -102,8 +102,6 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "aggregate_functions": program.aggregate_functions,
                 "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level, "cached": item.cached.is_some()})).collect::<Vec<_>>(),
                 "composition_populations": program.composition_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
-                "neighbourhoods": program.compositions.iter().filter(|item| item.report_id == "neighbourhoods").map(|item| &item.id).collect::<Vec<_>>(),
-                "neighbourhood_populations": program.composition_populations.iter().filter(|population| population.entries.iter().all(|entry| program.compositions.iter().any(|item| item.id == entry.composition && item.report_id == "neighbourhoods"))).map(|item| &item.id).collect::<Vec<_>>(),
                 "graph": graph,
                 "diagnostics": [],
                 }))
@@ -124,26 +122,45 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                     distribution.parameters.extend(parameters.clone());
                 }
             }
-            let requested_composition = request.composition_id.or(request.neighbourhood_id);
-            let requested_composition_population = request
-                .composition_population_id
-                .or(request.neighbourhood_population_id);
+            let requested_composition = request.composition_id.clone();
+            let requested_composition_population = request.composition_population_id.clone();
             let composition_count = usize::from(request.population_id.is_some())
                 + usize::from(requested_composition.is_some())
                 + usize::from(requested_composition_population.is_some());
-            let mut population_allocations = requested_composition
-                .as_deref()
-                .map(|composition_id| {
-                    build_population_plan(
-                        &program,
+            let mut pool_id = None;
+            let pool_root = requested_composition.as_deref().and_then(|composition_id| {
+                program
+                    .compositions
+                    .iter()
+                    .find(|composition| composition.id == composition_id)
+                    .filter(|composition| composition.agent_pool.is_some())
+                    .map(|composition| composition.id.clone())
+                    .or_else(|| {
+                        program
+                            .compositions
+                            .iter()
+                            .find(|composition| composition.default_run)
+                            .map(|composition| composition.id.clone())
+                    })
+            });
+            if let Some(composition_id) = pool_root.as_deref() {
+                pool_id = Some(
+                    configure_pool_run(
+                        &mut program,
                         composition_id,
-                        request.seed,
-                        request.sample_budget,
+                        request.total_represented_pool.unwrap_or(6_999_999_999),
+                        request.detail.as_deref(),
                     )
-                })
+                    .map_err(text_dsl_error)?,
+                );
+            }
+            let mut population_allocations = pool_id
+                .as_deref()
+                .map(|id| build_population_plan(&program, id, request.seed, None))
                 .transpose()
                 .map_err(text_dsl_error)?
                 .unwrap_or_default();
+            let summary_program = program.clone();
             let result = if composition_count > 1 {
                 return Err(CoreError::new(
                     "MULTIPLE_COMPOSITIONS",
@@ -158,36 +175,32 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 }
                 run_weighted_population(program, &population_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
-            } else if let Some(composition_id) = requested_composition {
+            } else if requested_composition.is_some() {
                 if request.continuation.is_some() {
                     return Err(CoreError::new(
                         "COMPOSITION_CONTINUATION_UNSUPPORTED",
                         "Composition runs do not accept a continuation checkpoint",
                     ));
                 }
-                if let Some(sample_budget) = request.sample_budget
-                    && let Some(composition) = program
-                        .compositions
-                        .iter_mut()
-                        .find(|composition| composition.id == composition_id)
-                {
-                    composition.sample_budget = Some(sample_budget);
-                }
-                run_composition(program, &composition_id, request.seed, request.ticks)
-                    .map_err(text_dsl_error)?
-            } else if let Some(population_id) = requested_composition_population {
+                run_composition(
+                    program,
+                    pool_root
+                        .as_deref()
+                        .unwrap_or(requested_composition.as_deref().unwrap()),
+                    request.seed,
+                    request.ticks,
+                )
+                .map_err(text_dsl_error)?
+            } else if let Some(population_id) = requested_composition_population.as_deref() {
                 if request.continuation.is_some() {
                     return Err(CoreError::new(
                         "COMPOSITION_POPULATION_CONTINUATION_UNSUPPORTED",
                         "Weighted composition runs do not accept a continuation checkpoint",
                     ));
                 }
-                run_composition(program, &population_id, request.seed, request.ticks)
+                run_composition(program, population_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
             } else {
-                if let Some(sample_budget) = request.sample_budget {
-                    program.population.size = sample_budget as usize;
-                }
                 run_program(DslRunRequest {
                     program,
                     seed: request.seed,
@@ -197,6 +210,9 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 .map_err(text_dsl_error)?
             };
             apply_actual_simulated_counts(&mut population_allocations, &result.state);
+            let pool_summary = pool_id
+                .as_ref()
+                .map(|_| pool_run_summary(&summary_program, &result.state));
             let mut value = serde_json::to_value(result)
                 .map_err(|error| CoreError::new("SERIALIZATION_FAILED", error.to_string()))?;
             if let Some(object) = value.as_object_mut() {
@@ -205,6 +221,15 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                     serde_json::to_value(population_allocations).map_err(|error| {
                         CoreError::new("SERIALIZATION_FAILED", error.to_string())
                     })?,
+                );
+                object.insert("pool_summary".to_owned(), json!(pool_summary));
+                object.insert(
+                    "total_represented_pool".to_owned(),
+                    json!(request.total_represented_pool.unwrap_or(6_999_999_999)),
+                );
+                object.insert(
+                    "detail".to_owned(),
+                    json!(request.detail.unwrap_or_else(|| "medium".to_owned())),
                 );
             }
             Ok(value)

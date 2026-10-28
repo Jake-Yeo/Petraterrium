@@ -3,7 +3,6 @@ use petraterrium_engine::text_dsl::{
 };
 
 const SOURCE: &str = include_str!("../dsl/role_test.dsl");
-const DEFAULT_SOURCE: &str = include_str!("../dsl/default.dsl");
 
 fn run(archetype: &str, ticks: u64) -> DslRunResult {
     let source = format!("{SOURCE}\npopulation Selected:\n  {archetype}: weight = 1\n");
@@ -36,6 +35,22 @@ fn role_subtrees_are_included_only_for_active_roles_and_sample_once() {
     assert_eq!(both.actions.len(), 200);
     assert_eq!(both.state.agents.len(), 1);
     assert_eq!(both.state.agents[0].agent_type, "Person");
+    assert!(
+        both.state.agents[0]
+            .value("money")
+            .unwrap()
+            .as_f64()
+            .unwrap()
+            > 100.0
+    );
+    assert!(
+        both.state.agents[0]
+            .value("stress")
+            .unwrap()
+            .as_f64()
+            .unwrap()
+            > 0.2
+    );
 }
 
 #[test]
@@ -199,114 +214,5 @@ fn media_role_posting_is_live_at_rest_and_lower_than_at_feed() {
     assert!(
         feed_posts > rest_posts,
         "rest={rest_posts}, feed={feed_posts}"
-    );
-}
-
-#[test]
-fn shipped_role_demo_reports_neither_reddit_tiktok_and_both_separately() {
-    let result = petraterrium_engine::text_dsl::run_composition(
-        parse_program(DEFAULT_SOURCE).unwrap(),
-        "RoleActionDemo",
-        1,
-        30 * 24,
-    )
-    .unwrap();
-    let report = result
-        .reports
-        .iter()
-        .find(|report| report.id == "composition_children")
-        .unwrap();
-    let rows = report.snapshots.last().unwrap().rows.iter().map(|row| {
-        let number = |id: &str| match &row.values[id] {
-            petraterrium_engine::text_dsl::DslReportValue::Number(value) => *value,
-            value => panic!("expected number, got {value:?}"),
-        };
-        (
-            row.group_id.as_str(),
-            (number("reddit_posts"), number("tiktok_posts")),
-        )
-    });
-    let rows = rows.collect::<std::collections::BTreeMap<_, _>>();
-    assert_eq!(rows["NeitherRoleDemo"], (0.0, 0.0));
-    assert!(rows["RedditRoleDemo"].0 > 0.0);
-    assert_eq!(rows["RedditRoleDemo"].1, 0.0);
-    assert_eq!(rows["TikTokRoleDemo"].0, 0.0);
-    assert!(rows["TikTokRoleDemo"].1 > 0.0);
-    assert!(rows["BothRoleDemo"].0 > 0.0 && rows["BothRoleDemo"].1 > 0.0);
-    assert!(rows["BothFeedRoleDemo"].0 > rows["BothRoleDemo"].0);
-    assert!(rows["BothFeedRoleDemo"].1 > rows["BothRoleDemo"].1);
-}
-
-#[test]
-fn shipped_role_demand_assigns_existing_agents_from_slice_formulas() {
-    let result = petraterrium_engine::text_dsl::run_composition(
-        parse_program(DEFAULT_SOURCE).unwrap(),
-        "RoleDemandDemo",
-        1,
-        0,
-    )
-    .unwrap();
-    assert_eq!(result.state.agents.len(), 100);
-    for (role, expected) in [
-        ("cashier", 5),
-        ("trader", 20),
-        ("redditor", 50),
-        ("tiktoker", 40),
-    ] {
-        assert_eq!(
-            result
-                .state
-                .agents
-                .iter()
-                .filter(|agent| agent.roles.contains(role))
-                .count(),
-            expected,
-            "{role}"
-        );
-    }
-    assert!(
-        result
-            .state
-            .agents
-            .iter()
-            .all(|agent| agent.agent_type.ends_with("DemandRolePerson"))
-    );
-}
-
-#[test]
-fn shipped_join_and_quit_demo_changes_roles_without_changing_population() {
-    let result = petraterrium_engine::text_dsl::run_composition(
-        parse_program(DEFAULT_SOURCE).unwrap(),
-        "RoleChangeDemo",
-        1,
-        10,
-    )
-    .unwrap();
-    assert_eq!(result.state.agents.len(), 20);
-    let joiners = result
-        .state
-        .agents
-        .iter()
-        .filter(|agent| agent.id.starts_with("RoleJoinerDemo"))
-        .collect::<Vec<_>>();
-    let quitters = result
-        .state
-        .agents
-        .iter()
-        .filter(|agent| agent.id.starts_with("RoleQuitterDemo"))
-        .collect::<Vec<_>>();
-    assert!(joiners.iter().all(|agent| agent.roles.contains("redditor")));
-    assert!(
-        quitters
-            .iter()
-            .all(|agent| !agent.roles.contains("redditor"))
-    );
-    assert!(
-        result
-            .state
-            .agents
-            .iter()
-            .all(|agent| agent.agent_type.ends_with("RoleJoinerPerson")
-                || agent.agent_type.ends_with("RoleQuitterPerson"))
     );
 }

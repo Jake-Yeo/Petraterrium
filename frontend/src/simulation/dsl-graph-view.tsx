@@ -83,6 +83,10 @@ export interface GraphNode {
   expected_simulated?: number | null;
   actual_simulated?: number | null;
   represented_count?: number | null;
+  entity_count?: number | null;
+  entity_unit?: string | null;
+  role_targets: Record<string, number>;
+  agent_pool?: string | null;
   simulated_count?: number | null;
   line: number;
   cached: boolean;
@@ -149,6 +153,22 @@ interface GraphViewOptions {
   onViewCode: (line: number) => void;
 }
 
+interface PoolAgent {
+  id: string;
+  household_id: string;
+  agent_type: string;
+  roles: string[];
+  traits: Record<string, string | number | boolean>;
+  states: Record<string, string | number | boolean>;
+}
+
+interface PoolSummary {
+  total_represented_pool: number;
+  simulated_pool_sample: number;
+  weight_per_simulated_agent: number;
+  unassigned_required_roles: number;
+}
+
 interface GraphOccurrence {
   key: string;
   path: string;
@@ -158,6 +178,7 @@ interface GraphOccurrence {
   childCount: number;
   inheritedRoles: string[];
   allocation?: PopulationAllocation;
+  agentLeaves: string[];
 }
 
 interface DslNodeData extends Record<string, unknown> {
@@ -169,6 +190,7 @@ interface DslNodeData extends Record<string, unknown> {
   onSelect: (path: string) => void;
   onToggle: (path: string) => void;
   onRole: (role: string) => void;
+  assignedCount: number;
 }
 
 type DslFlowNode = Node<DslNodeData, 'dslNode'>;
@@ -220,7 +242,9 @@ const buildOccurrences = (
       visited: Set<string>,
     ): void => {
       const key = occurrenceId(inheritedSlice, path);
-      const childIds = children.get(node.id) ?? [];
+      const allChildIds = children.get(node.id) ?? [];
+      const childIds = allChildIds.filter((id) => nodes.get(id)?.node_kind !== 'agent');
+      const agentLeaves = allChildIds.filter((id) => nodes.get(id)?.node_kind === 'agent');
       result.push({
         key,
         path,
@@ -230,12 +254,13 @@ const buildOccurrences = (
         childCount: childIds.length,
         inheritedRoles,
         allocation: allocations.get(path),
+        agentLeaves,
       });
       if (!expandedPaths.has(key) || visited.has(node.id)) return;
       const nextVisited = new Set(visited).add(node.id);
       for (const childId of childIds) {
         const child = nodes.get(childId);
-        if (!child) continue;
+        if (!child || child.node_kind === 'agent') continue;
         if (child.node_kind === 'composition' && child.vertical_slice !== inheritedSlice) continue;
         const childRoles =
           node.node_kind === 'archetype'
@@ -314,17 +339,21 @@ const layoutFlow = (
   onSelect: (path: string) => void,
   onToggle: (path: string) => void,
   onRole: (role: string) => void,
+  poolAgents: PoolAgent[],
 ): { nodes: DslFlowNode[]; edges: Edge[]; laneWidth: number } => {
-  const laneWidth = 330;
-  const laneGap = 60;
+  const laneWidth = 360;
+  const laneGap = 72;
   const flowNodes: DslFlowNode[] = [];
   const flowEdges: Edge[] = [];
-  const slices = [...new Set(occurrences.map((item) => item.slice))];
+  const slices = ['Physical', 'Media', 'Conglomerate', 'Financial'].filter((slice) =>
+    occurrences.some((item) => item.slice === slice),
+  );
+  const selectedNodeId = occurrences.find((item) => item.path === selectedPath)?.node.id;
   for (const [sliceIndex, slice] of slices.entries()) {
     const values = occurrences.filter((item) => item.slice === slice);
     const layout = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
     layout.setGraph({ rankdir: 'TB', ranksep: 52, nodesep: 28, marginx: 12, marginy: 58 });
-    for (const value of values) layout.setNode(value.key, { width: 282, height: 270 });
+    for (const value of values) layout.setNode(value.key, { width: 306, height: 300 });
     for (const value of values) {
       if (value.parentKey && values.some((candidate) => candidate.key === value.parentKey)) {
         layout.setEdge(value.parentKey, value.key);
@@ -332,25 +361,34 @@ const layoutFlow = (
     }
     dagre.layout(layout);
     const offset = sliceIndex * (laneWidth + laneGap);
-    for (const occurrence of values) {
-      const point = layout.node(occurrence.key) as { x: number; y: number };
+    const ordered = [...values].sort((left, right) => {
+      const leftPoint = layout.node(left.key) as { x: number; y: number };
+      const rightPoint = layout.node(right.key) as { x: number; y: number };
+      return leftPoint.y - rightPoint.y || leftPoint.x - rightPoint.x;
+    });
+    for (const [order, occurrence] of ordered.entries()) {
       const highlighted = matches(occurrence, query, roleFilter);
       flowNodes.push({
         id: occurrence.key,
         type: 'dslNode',
-        position: { x: offset + point.x - 141, y: point.y - 135 },
+        position: { x: offset + (laneWidth - 306) / 2, y: 64 + order * 330 },
         draggable: false,
         selectable: true,
         zIndex: highlighted || occurrence.path === selectedPath ? 20 : 1,
         data: {
           occurrence,
           selected: occurrence.path === selectedPath,
-          highlighted: Boolean(query.trim() || roleFilter) && highlighted,
+          highlighted:
+            (Boolean(query.trim() || roleFilter) && highlighted) ||
+            (Boolean(selectedNodeId) && occurrence.node.id === selectedNodeId),
           dimmed: Boolean(query.trim() || roleFilter) && !highlighted,
           expanded: expandedPaths.has(occurrence.key),
           onSelect,
           onToggle,
           onRole,
+          assignedCount: poolAgents.filter((agent) =>
+            Object.keys(occurrence.node.role_targets).some((role) => agent.roles.includes(role)),
+          ).length,
         },
       });
       if (
@@ -367,39 +405,19 @@ const layoutFlow = (
       }
     }
   }
-  const firstOccurrence = new Map<string, GraphOccurrence>();
-  for (const occurrence of occurrences) {
-    if (!firstOccurrence.has(occurrence.node.id))
-      firstOccurrence.set(occurrence.node.id, occurrence);
-  }
-  for (const edge of graph.edges.filter((item) => item.kind === 'coupling')) {
-    const source = firstOccurrence.get(edge.from_id);
-    const target = firstOccurrence.get(edge.to_id);
-    if (!source || !target) continue;
-    flowEdges.push({
-      id: `coupling:${edge.id}`,
-      source: source.key,
-      target: target.key,
-      type: 'smoothstep',
-      animated: false,
-      className: 'coupling',
-      label: syncLabel(edge.sync_interval_days),
-      ariaLabel: `${edge.id}: ${edge.formula ?? ''}`,
-      style: { strokeDasharray: '7 5' },
-    });
-  }
+  void graph;
   return { nodes: flowNodes, edges: flowEdges, laneWidth };
 };
 
 const DslNodeCard = ({ data }: NodeProps<DslFlowNode>): ReactNode => {
   const { occurrence } = data;
   const node = occurrence.node;
-  const allocation = occurrence.allocation;
   return (
     <article
       className={`dsl-react-node nopan nowheel${data.selected ? ' selected' : ''}${data.highlighted ? ' highlighted' : ''}${data.dimmed ? ' dimmed' : ''}`}
       data-graph-node={node.id}
       data-graph-path={occurrence.path}
+      data-graph-slice={occurrence.slice}
       onClick={() => data.onSelect(occurrence.path)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') data.onSelect(occurrence.path);
@@ -420,16 +438,20 @@ const DslNodeCard = ({ data }: NodeProps<DslFlowNode>): ReactNode => {
       {node.inherits_from && <p>inherits {node.inherits_from}</p>}
       <dl>
         <div>
-          <dt>Distribution</dt>
-          <dd>{formatted(allocation?.probability ?? node.distribution_probability, 4)}</dd>
+          <dt>Role demand</dt>
+          <dd>
+            {formatted(Object.values(node.role_targets).reduce((sum, value) => sum + value, 0))}
+          </dd>
         </div>
         <div>
-          <dt>Sampled allocation</dt>
-          <dd>{formatted(allocation?.actual_simulated ?? node.actual_simulated)}</dd>
+          <dt>Assigned sample</dt>
+          <dd>{formatted(data.assignedCount)}</dd>
         </div>
         <div>
-          <dt>Represented</dt>
-          <dd>{formatted(allocation?.actual_represented ?? node.actual_represented)}</dd>
+          <dt>Entities</dt>
+          <dd>
+            {formatted(node.entity_count)} {node.entity_unit ?? ''}
+          </dd>
         </div>
       </dl>
       <p>
@@ -448,8 +470,11 @@ const DslNodeCard = ({ data }: NodeProps<DslFlowNode>): ReactNode => {
                 {role.id} ({role.actions.slice(0, 2).join(', ') || 'label'})
               </button>
             ))
-          : 'none'}
+          : 'no leader declared in DSL'}
       </p>
+      {occurrence.agentLeaves.length > 0 && (
+        <p>Pool agent type: {occurrence.agentLeaves.join(', ')}</p>
+      )}
       {node.roles_exposed.length === 0 && node.subtree_role_count > 0 && (
         <p>Subtree roles: {node.subtree_role_count}</p>
       )}
@@ -484,9 +509,17 @@ interface GraphComponentProps {
   graph?: ProgramGraph;
   cacheStatus: Map<string, string>;
   onViewCode: (line: number) => void;
+  poolAgents: PoolAgent[];
+  poolSummary?: PoolSummary;
 }
 
-const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps): ReactNode => {
+const GraphComponent = ({
+  graph,
+  cacheStatus,
+  onViewCode,
+  poolAgents,
+  poolSummary,
+}: GraphComponentProps): ReactNode => {
   const { fitView } = useReactFlow();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -494,6 +527,7 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
   const [sliceFilter, setSliceFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [auxiliaryExpanded, setAuxiliaryExpanded] = useState<Set<string>>(new Set());
+  const [poolOpen, setPoolOpen] = useState(false);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
 
   useEffect(() => {
@@ -557,9 +591,20 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
             setSelectedPath,
             onToggle,
             onRole,
+            poolAgents,
           )
         : { nodes: [], edges: [], laneWidth: 330 },
-    [graph, occurrences, selectedPath, searchQuery, roleFilter, expandedPaths, onToggle, onRole],
+    [
+      graph,
+      occurrences,
+      selectedPath,
+      searchQuery,
+      roleFilter,
+      expandedPaths,
+      onToggle,
+      onRole,
+      poolAgents,
+    ],
   );
 
   useEffect(() => {
@@ -586,9 +631,51 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
           .map((role) => `${candidate.id}: ${role.actions.join(', ') || 'no actions'}`),
       )
     : [];
+  const selectedRoles = node ? Object.keys(node.role_targets) : [];
+  const visiblePoolAgents = poolAgents
+    .filter(
+      (agent) =>
+        (!roleFilter || agent.roles.includes(roleFilter)) &&
+        (!selectedRoles.length || selectedRoles.some((role) => agent.roles.includes(role))),
+    )
+    .slice(0, 24);
+  const rootNode = graph.nodes.find((candidate) => candidate.id === graph.default_run_id);
 
   return (
     <div className="dsl-react-graph" data-rendered-nodes={flow.nodes.length}>
+      <section className="dsl-system-banner" aria-label="Petraterrium system root">
+        <strong>{rootNode?.id ?? 'Petraterrium'}</strong>
+        <span>One agent pool · four sectors · agent-mediated interactions</span>
+      </section>
+      <section className="dsl-pool-node" aria-label="Global agent pool">
+        <button type="button" onClick={() => setPoolOpen((open) => !open)}>
+          <strong>Pool</strong>
+          <span>
+            {formatted(poolSummary?.total_represented_pool ?? 6_999_999_999)} represented ·{' '}
+            {formatted(poolSummary?.simulated_pool_sample ?? 0)} sampled · weight{' '}
+            {formatted(poolSummary?.weight_per_simulated_agent ?? 0, 2)}
+          </span>
+          <small>
+            Required-role gaps {formatted(poolSummary?.unassigned_required_roles ?? 0)} · click to
+            inspect sampled people
+          </small>
+        </button>
+        {poolOpen && (
+          <div className="dsl-pool-agents">
+            {visiblePoolAgents.length ? (
+              visiblePoolAgents.map((agent) => (
+                <article key={agent.id}>
+                  <strong>{agent.id}</strong>
+                  <span>{agent.household_id}</span>
+                  <small>{agent.roles.join(' · ')}</small>
+                </article>
+              ))
+            ) : (
+              <p>Run the system to inspect sampled pool agents for this role filter.</p>
+            )}
+          </div>
+        )}
+      </section>
       <div className="dsl-graph-controls">
         <label>
           Search nodes, paths, or roles
@@ -659,14 +746,35 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
           <i className="solid" />
           Parent/child composition
         </span>
-        <span>
-          <i className="dashed" />
-          Coupling across slices
-        </span>
+        <span>Sector demand reads from the Pool</span>
         <span className="badge">CACHE</span>Cached aggregate available
         <span className="badge leader">1</span>Leader role
         <span className="badge mass">R</span>Mass role
       </div>
+      <details className="dsl-agent-interactions">
+        <summary>Agent interactions</summary>
+        <ul>
+          {[
+            ...new Map(
+              graph.nodes
+                .flatMap((candidate) => candidate.roles_exposed)
+                .flatMap((role) =>
+                  role.actions.map(
+                    (action) =>
+                      [
+                        `${role.id}:${action}`,
+                        `${role.id} → pool agent · ${action} · tick cadence`,
+                      ] as const,
+                  ),
+                ),
+            ).values(),
+          ]
+            .slice(0, 30)
+            .map((interaction) => (
+              <li key={interaction}>{interaction}</li>
+            ))}
+        </ul>
+      </details>
       <div className="dsl-graph-body">
         <div
           className="dsl-react-flow"
@@ -675,14 +783,16 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
           data-viewport-zoom={viewport.zoom}
         >
           <div className="dsl-react-lanes">
-            {[...visibleSlices].map((slice, index) => (
-              <div
-                key={slice}
-                style={{ left: index * (flow.laneWidth + 60), width: flow.laneWidth }}
-              >
-                <strong>{slice}</strong>
-              </div>
-            ))}
+            {['Physical', 'Media', 'Conglomerate', 'Financial']
+              .filter((slice) => visibleSlices.has(slice))
+              .map((slice, index) => (
+                <div
+                  key={slice}
+                  style={{ left: index * (flow.laneWidth + 72), width: flow.laneWidth }}
+                >
+                  <strong>{slice}</strong>
+                </div>
+              ))}
           </div>
           <ReactFlow
             nodes={flow.nodes}
@@ -880,6 +990,8 @@ const GraphComponent = ({ graph, cacheStatus, onViewCode }: GraphComponentProps)
 
 export class DslGraphView {
   private graph?: ProgramGraph;
+  private poolAgents: PoolAgent[] = [];
+  private poolSummary?: PoolSummary;
   private readonly root: Root;
   private readonly cacheStatus = new Map<string, string>();
 
@@ -905,6 +1017,12 @@ export class DslGraphView {
     if (!this.host.hidden) this.render();
   }
 
+  setPoolAgents(agents: PoolAgent[], summary: PoolSummary): void {
+    this.poolAgents = agents;
+    this.poolSummary = summary;
+    if (!this.host.hidden) this.render();
+  }
+
   render(): void {
     const started = performance.now();
     this.root.render(
@@ -913,6 +1031,8 @@ export class DslGraphView {
           graph={this.graph}
           cacheStatus={this.cacheStatus}
           onViewCode={this.options.onViewCode}
+          poolAgents={this.poolAgents}
+          poolSummary={this.poolSummary}
         />
       </ReactFlowProvider>,
     );

@@ -806,3 +806,63 @@
   `1.000393→1.000031`, and trader→market `0.01→0`. The nine 90-day channels fire once at the final
   partial interval: store→world `0.0221`, store→firms `22.1`, firm allocation→stores `1.09`, firm
   profits→market `100/60`, and market price/cap→firms `31.25/3,125` and `18.75/1,500`.
+
+## Single-pool architecture — 2026-10-28
+
+The starting `default.dsl` hash was verified as `9bf07c1ef28c2b0ec3bd6d01f449586294b1fee2269f11339a5845c5adec70d6`. The shipped program now has one run-time represented pool and one household-first simulated pool. Physical, Media, Conglomerate, and Financial are entity sectors that expose roles to that pool. The new DSL hash is `c40ef01144ca2aaf83ea87354fbe6e1471836533befdfc16c655b92a50f12220`.
+
+### Implemented
+
+- The run API accepts `total_represented_pool` and `detail`. Defaults are 6,999,999,999 and Medium. Low, Medium, and High request 97, 291, and 873 sampled pool agents. The total is never written into the DSL.
+- Household archetypes generate 97 sampled households and 291 people at Medium. Each person receives one household, one country/division/municipality/neighbourhood path, one life-stage role, derived head/spouse/parent roles, and zero or more sector overlays. There is exactly one head per household and zero unassigned required roles in the default golden.
+- Residence allocation uses the declared World weights. Seed 1 at the default total allocates Canada 1,458,308,336, USA 4,374,996,102, and Mexico 1,166,695,561, summing exactly to 6,999,999,999.
+- Leader roles are assigned from existing pool people. Conflict groups prevent one person holding two incompatible offices. The default run assigns 10 declared offices and creates no leader agents.
+- Role groups require an explicit otherwise role and reject explicit shares above one. Demand assignment evaluates eligibility, reports explicit-neither counts and shortfalls, and stratifies rare positive-demand roles into the sample without adding people.
+- Role decision branches merge onto `Person`. Media, customer/store, trader/market, migrant, owner, and leader actions share the same money, stress, traits, household, and residence state.
+- Agent actions now drive diplomacy, trade, migration, owner payouts, franchise/brand/conglomerate transfers, issuance, and borrowing. Default DSL compositions have no flow, coupling, or boundary blocks.
+- Migration updates the whole household's residence-role partition and household ID through generic `residence` and `household` DSL effects.
+- The primary UI contains Total represented pool, Days, Seed, and Run full system, in that order. Detail and debug controls are under collapsed Advanced. Sample budget and Planned draws are absent from the primary UI and results.
+- The TSX graph shows Petraterrium, a full-width Pool node, then fixed Physical, Media, Conglomerate, and Financial lanes. Each lane is ranked independently with Dagre. Agent definitions do not render as lane nodes. Pool inspection shows sampled people and their complete role sets; selecting role-demand nodes filters the pool.
+- The measured graph render is 103.5 ms, versus the 1,310.4 ms previous TSX result and 108.9 ms earlier baseline.
+
+### Default DSL cleanup inventory
+
+- Deleted from the shipped default: BothRoleDemo, NeitherRoleDemo, RedditRoleDemo, TikTokRoleDemo, BothFeedRoleDemo, RoleJoinerDemo, RoleQuitterDemo, DemandRoleCohort, RoleActionDemo, RoleDemandDemo, RoleChangeDemo, SecondaryBuyLab, SecondarySellLab, IssuanceLab, BorrowLab, InterestLab, RepayLab, TransactionStore, PhysicalTown, PhysicalRetail, CoupledTownMedia, CoupledPhysicalCorporate, CorporateFinancialSystem, and unattached Leadership compositions.
+- Deleted conflicting weighted population blocks: TownHouseholds, CanadaHouseholds, SevenBillionHouseholds, and DemoNeighbourhoods.
+- Deleted synthetic Alpha/Beta/One/Two store, brand, franchise, firm, stock, market, and sector instances. The shipped sector example uses Reddit and the Berkshire Hathaway listed-firm hinge with real financial hierarchy labels.
+- Merged User, RetailPerson, FinancialPerson, Citizen, RoleDemoPerson, and their role-combination descendants into Person state and role branches. Student, Worker, WorkingStudent, and Child remain Person subtypes used only for household generation.
+- Renamed Corporate to Conglomerate. CorporateForest and the Corporate slice are absent from the shipped DSL and graph.
+- Deleted the neighbourhood parser shim, neighbourhood protocol request fields, legacy neighbourhood population flag, legacy saved-run converter, and the obsolete `engine-rust/tests/neighbourhoods.rs` suite. Deleted the three default-role-showcase tests that depended on removed shipped fixtures; the generic role-union tests remain in `role_test.dsl`.
+
+### Old causal flow disposition
+
+- `world_to_media`, `media_outrage_to_world`, and `media_sentiment_to_world` were deleted. Media activity changes the same person's stress/outrage, which changes that person's other decisions.
+- `world_to_store_corporate` and `store_profit_to_world` were deleted. Customer, cashier, manager, and owner actions move agent and Store money and are aggregated afterwards.
+- `store_profit_to_firms` and `firm_allocation_to_stores` were deleted. Manager, franchise-manager, brand-manager, and CEO actions perform conserved transfers across Store, FranchiseOffice, BrandOffice, and ConglomerateOffice.
+- Alpha/Beta profit, price, market-cap, and trader-signal couplings were deleted with their synthetic entities. Berkshire trader and CEO actions now perform secondary trades, issuance, and borrowing; trader actions move price.
+
+### New goldens and timings
+
+All three 30-day runs use seed 1, Medium detail, 291 sampled people, 97 households, 10 leader assignments, and zero unassigned required roles.
+
+- 6,999,999,999 represented: 1.8899 s, weight 24,054,982.8144 per sampled person.
+- 8,000,000,000 represented: 1.8565 s, weight 27,491,408.9347 per sampled person. Country partition: 1,666,639,943 / 4,999,995,835 / 1,333,364,222.
+- 2,000,000,000 represented: 1.8653 s, weight 6,872,852.2337 per sampled person. Country partition: 416,653,306 / 1,249,997,917 / 333,348,777.
+
+Previous per-slice population, neighbourhood compatibility, Corporate, and aggregate-coupling goldens are deleted or changed because their architecture was removed. Generic parser, role-union, household, deterministic sampling, and Rust tick tests remain byte-deterministic for identical source, total, detail, and seed.
+
+### Verification
+
+- Focused Rust acceptance: 17 passed across pool/full-system, allocation, cleanup, and role-union suites.
+- Focused backend text-DSL API: 5 passed. Ruff and generated contract check pass.
+- Focused TSX browser acceptance: 3 passed in 9.1 s. Layout overlap, fixed lane order, search, path collapse, role filter, code navigation, run input, pool inspection, and save/reset paths pass.
+- Frontend production build, TypeScript, Prettier, Rust formatting, VS Code diagnostics, and `git diff --check` pass.
+- A repository-wide backend run was sampled once and interrupted after 24 passes in 134.90 s while an unrelated full simulation API test was still running, to avoid repeating the previously identified multi-minute whole-run test cost.
+
+### Implemented more narrowly
+
+- Rare role targets such as 8 million Reddit users or 2,000 traders are stratified to at least two eligible sampled boundary actors at Medium detail. The UI shows the represented demand and sampled assignment separately; this is not an unweighted random sample of rare overlays.
+- Relocated households receive deterministic `relocated_<country>` division, municipality, and neighbourhood partition roles. Selecting a researched destination hierarchy below country remains future data work.
+- Generic flow/coupling execution modules remain available to test-only DSL fixtures, but the shipped default rejects the old neighbourhood syntax and contains no causal flow/coupling blocks. Removing those generic modules entirely would also remove test-only composition experiments and was not required for the shipped run path.
+
+Nothing was committed or pushed.

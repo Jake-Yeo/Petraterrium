@@ -144,7 +144,7 @@ fn collect_leaves<'a>(
     let total = composition
         .entries
         .iter()
-        .map(|entry| entry.weight)
+        .map(|entry| entry.weight.unwrap_or(1.0))
         .sum::<f64>();
     if (total - 1.0).abs() > 0.001 {
         return Err(DslError::new(
@@ -160,7 +160,7 @@ fn collect_leaves<'a>(
         ));
     }
     for entry in &composition.entries {
-        let weight = parent_weight * entry.weight / total;
+        let weight = parent_weight * entry.weight.unwrap_or(1.0) / total;
         let mut child_path = path.to_vec();
         child_path.push(entry.child.clone());
         match compositions.get(entry.child.as_str()) {

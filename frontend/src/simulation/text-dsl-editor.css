@@ -776,6 +776,57 @@
   display: grid;
 }
 
+.dsl-system-banner,
+.dsl-pool-node {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.dsl-system-banner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.dsl-pool-node > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.dsl-pool-agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 12px;
+}
+
+.dsl-pool-agents article {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.dsl-agent-interactions {
+  margin: 10px 0;
+  max-height: 240px;
+  overflow: auto;
+}
+
 .dsl-auxiliary-groups {
   align-items: center;
   border-bottom: 1px solid var(--dsl-line);

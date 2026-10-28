@@ -39,6 +39,10 @@ pub struct GraphNode {
     pub expected_simulated: Option<f64>,
     pub actual_simulated: Option<u64>,
     pub represented_count: Option<u64>,
+    pub entity_count: Option<u64>,
+    pub entity_unit: Option<String>,
+    pub role_targets: BTreeMap<String, u64>,
+    pub agent_pool: Option<String>,
     pub simulated_count: Option<usize>,
     pub line: usize,
     pub cached: bool,
@@ -190,8 +194,16 @@ pub fn build_program_graph(program: &Program) -> DslResult<ProgramGraph> {
             population_paths.extend(build_population_plan(program, &composition.id, 1, None)?);
         }
     }
-    if let Some(id) = default_run_id.as_deref() {
-        population_paths.extend(build_population_plan(program, id, 1, None)?);
+    if let Some(id) = default_run_id.as_deref()
+        && let Some(pool_id) = program
+            .compositions
+            .iter()
+            .find(|composition| composition.id == id)
+            .and_then(|composition| composition.agent_pool.as_deref())
+    {
+        let mut graph_program = program.clone();
+        graph_program.represented_pool = Some(6_999_999_999);
+        population_paths.extend(build_population_plan(&graph_program, pool_id, 1, None)?);
     }
     apply_population_defaults(&population_paths, &mut nodes);
     Ok(ProgramGraph {
@@ -323,7 +335,9 @@ fn canonical_weights(
     for composition in &program.compositions {
         for entry in &composition.entries {
             if parents.get(&entry.child) == Some(&composition.id) {
-                weights.insert(entry.child.clone(), entry.weight);
+                if let Some(weight) = entry.weight {
+                    weights.insert(entry.child.clone(), weight);
+                }
             }
         }
     }
@@ -369,10 +383,13 @@ fn composition_node(
     Ok(GraphNode {
         id: composition.id.clone(),
         node_kind: "composition".to_owned(),
-        vertical_slice: composition
-            .slice
-            .clone()
-            .unwrap_or_else(|| "Labs".to_owned()),
+        vertical_slice: composition.slice.clone().unwrap_or_else(|| {
+            if composition.default_run {
+                composition.id.clone()
+            } else {
+                "Labs".to_owned()
+            }
+        }),
         level: composition.level.clone(),
         parent_id: parents.get(&composition.id).cloned(),
         parent_ids: all_parents
@@ -398,6 +415,10 @@ fn composition_node(
         represented_count: composition
             .represented_population
             .or(composition.authoritative_total),
+        entity_count: composition.entity_count,
+        entity_unit: composition.entity_unit.clone(),
+        role_targets: composition.role_targets.clone(),
+        agent_pool: composition.agent_pool.clone(),
         simulated_count: Some(composition_simulated_count(program, composition)),
         line: composition.line,
         cached: composition.cached.is_some(),
@@ -457,6 +478,10 @@ fn archetype_node(
         expected_simulated: None,
         actual_simulated: None,
         represented_count: None,
+        entity_count: None,
+        entity_unit: None,
+        role_targets: BTreeMap::new(),
+        agent_pool: None,
         simulated_count: Some(
             archetype.sample_households
                 * archetype
@@ -540,6 +565,10 @@ fn agent_node(
         expected_simulated: None,
         actual_simulated: None,
         represented_count: None,
+        entity_count: None,
+        entity_unit: None,
+        role_targets: BTreeMap::new(),
+        agent_pool: None,
         simulated_count: None,
         line: agent.line,
         cached: false,
@@ -697,7 +726,7 @@ fn graph_edges(program: &Program) -> Vec<GraphEdge> {
                 from_id: composition.id.clone(),
                 to_id: entry.child.clone(),
                 kind: "parent_child".to_owned(),
-                weight: Some(entry.weight),
+                weight: entry.weight,
                 sync_interval_days: None,
                 line: entry.line,
                 formula: None,
@@ -783,6 +812,10 @@ fn composition_roles(
         .map(|leader| (leader.role.clone(), leader.count))
         .collect::<BTreeMap<_, _>>();
     let mut role_ids = counts.keys().cloned().collect::<BTreeSet<_>>();
+    for (role, target) in &composition.role_targets {
+        role_ids.insert(role.clone());
+        counts.insert(role.clone(), (*target).try_into().unwrap_or(usize::MAX));
+    }
     for entry in &composition.entries {
         if let Some(archetype) = program
             .archetypes

@@ -3,6 +3,7 @@ use super::compositions::{CompositionBuild, ExecutedFlow};
 use super::expression::evaluate;
 use super::model::*;
 use super::population_distribution::sample_multinomial_counts;
+use super::runtime::apply_role_distributions;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -83,8 +84,10 @@ pub(super) fn build_composition_state(
         } else {
             derived_seed(seed, &leaf.namespace)
         };
+        let mut sampling_program = program.clone();
+        sampling_program.role_distributions.clear();
         let (prepared, mut state, _) =
-            build_archetype_state(program, &sampled_definition, leaf_seed)?;
+            build_archetype_state(&sampling_program, &sampled_definition, leaf_seed)?;
         let place_map = scoped_place_map(program, &leaf.scopes);
         namespace_program(&mut combined, &prepared, &leaf.namespace, &place_map);
         add_scoped_places(
@@ -121,6 +124,13 @@ pub(super) fn build_composition_state(
         relationships,
         time,
     };
+    assign_pool_structure_roles(program, &agent_paths, seed, &mut state)?;
+    let combined_agents = combined
+        .agents
+        .iter()
+        .map(|agent| (agent.id.as_str(), agent))
+        .collect::<BTreeMap<_, _>>();
+    apply_role_distributions(program, seed, &combined_agents, &mut state.agents)?;
     let mut nodes = Vec::new();
     collect_composition_nodes(composition, &compositions, &[], &mut nodes);
     apply_policies(program, &nodes, &mut combined, &mut state, &agent_paths)?;
@@ -140,6 +150,190 @@ pub(super) fn build_composition_state(
         agent_groups,
         flows,
     })
+}
+
+fn assign_pool_structure_roles(
+    program: &Program,
+    agent_paths: &BTreeMap<String, Vec<String>>,
+    seed: u64,
+    state: &mut DslRunState,
+) -> DslResult<()> {
+    let levels = program
+        .compositions
+        .iter()
+        .map(|composition| (composition.id.as_str(), composition.level.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    for agent in &mut state.agents {
+        agent.roles.insert("household_member".to_owned());
+        let age = agent.value("age").and_then(DslValue::as_f64).unwrap_or(0.0);
+        agent.roles.remove("life_child");
+        agent.roles.remove("life_student");
+        agent.roles.remove("life_worker");
+        let life_role = if age < 18.0 {
+            "life_child"
+        } else if age < 25.0 {
+            "life_student"
+        } else {
+            "life_worker"
+        };
+        agent.roles.insert(life_role.to_owned());
+        if let Some(path) = agent_paths.get(&agent.id) {
+            for id in path {
+                if let Some(level) = levels.get(id.as_str()) {
+                    agent.roles.insert(format!("resident_{level}_{id}"));
+                }
+            }
+        }
+    }
+    let mut households = BTreeMap::<String, Vec<usize>>::new();
+    for (index, agent) in state.agents.iter().enumerate() {
+        households
+            .entry(agent.household_id.clone())
+            .or_default()
+            .push(index);
+    }
+    for indices in households.values() {
+        let mut adults = indices
+            .iter()
+            .copied()
+            .filter(|index| {
+                state.agents[*index]
+                    .value("age")
+                    .and_then(DslValue::as_f64)
+                    .unwrap_or(0.0)
+                    >= 18.0
+            })
+            .collect::<Vec<_>>();
+        adults.sort_by(|left, right| {
+            let left_age = state.agents[*left]
+                .value("age")
+                .and_then(DslValue::as_f64)
+                .unwrap_or(0.0);
+            let right_age = state.agents[*right]
+                .value("age")
+                .and_then(DslValue::as_f64)
+                .unwrap_or(0.0);
+            right_age
+                .total_cmp(&left_age)
+                .then_with(|| state.agents[*left].id.cmp(&state.agents[*right].id))
+        });
+        if let Some(head) = adults.first() {
+            state.agents[*head].roles.insert("head".to_owned());
+        }
+        if adults.len() >= 2 {
+            let first = adults[0];
+            let second = adults[1];
+            state.agents[first].roles.insert("spouse".to_owned());
+            state.agents[second].roles.insert("spouse".to_owned());
+            state.relationships.push(DslRelationshipState {
+                kind: "spouse".to_owned(),
+                source_id: state.agents[first].id.clone(),
+                target_id: state.agents[second].id.clone(),
+                values: BTreeMap::new(),
+            });
+        }
+        let has_children = indices.iter().any(|index| {
+            state.agents[*index]
+                .value("age")
+                .and_then(DslValue::as_f64)
+                .unwrap_or(0.0)
+                < 18.0
+        });
+        if has_children {
+            for index in adults.iter().take(2) {
+                state.agents[*index].roles.insert("parent".to_owned());
+                match state.agents[*index]
+                    .value("sex")
+                    .and_then(DslValue::as_text)
+                {
+                    Some("male") => {
+                        state.agents[*index].roles.insert("father".to_owned());
+                    }
+                    Some("female") => {
+                        state.agents[*index].roles.insert("mother".to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    assign_pool_leaders(program, agent_paths, seed, state)
+}
+
+fn assign_pool_leaders(
+    program: &Program,
+    agent_paths: &BTreeMap<String, Vec<String>>,
+    seed: u64,
+    state: &mut DslRunState,
+) -> DslResult<()> {
+    let roles = program
+        .roles
+        .iter()
+        .map(|role| (role.id.as_str(), role))
+        .collect::<BTreeMap<_, _>>();
+    let mut occupied = BTreeMap::<String, BTreeSet<String>>::new();
+    for composition in &program.compositions {
+        for leader in &composition.leaders {
+            let Some(role) = roles.get(leader.role.as_str()) else {
+                continue;
+            };
+            let conflict = role
+                .conflict_group
+                .clone()
+                .unwrap_or_else(|| format!("leader_{}", role.id));
+            let mut candidates = state
+                .agents
+                .iter()
+                .enumerate()
+                .filter(|(_, agent)| {
+                    agent_paths
+                        .get(&agent.id)
+                        .is_some_and(|path| path.contains(&composition.id))
+                })
+                .map(|(index, _)| index)
+                .collect::<Vec<_>>();
+            if candidates.is_empty() {
+                candidates.extend(0..state.agents.len());
+            }
+            candidates.retain(|index| {
+                !occupied
+                    .get(&conflict)
+                    .is_some_and(|agents| agents.contains(&state.agents[*index].id))
+                    && role.eligibility.as_ref().is_none_or(|eligibility| {
+                        let values = state.agents[*index]
+                            .traits
+                            .iter()
+                            .chain(&state.agents[*index].states)
+                            .map(|(id, value)| (id.clone(), value.clone()))
+                            .collect::<BTreeMap<_, _>>();
+                        evaluate(eligibility, &values)
+                            .ok()
+                            .and_then(|value| value.as_bool())
+                            .unwrap_or(false)
+                    })
+            });
+            candidates.sort_by_key(|index| {
+                derived_seed(
+                    seed,
+                    &format!("leader:{}:{}", composition.id, state.agents[*index].id),
+                )
+            });
+            for index in candidates.into_iter().take(leader.count) {
+                state.agents[index].roles.insert(leader.role.clone());
+                occupied
+                    .entry(conflict.clone())
+                    .or_default()
+                    .insert(state.agents[index].id.clone());
+                state.relationships.push(DslRelationshipState {
+                    kind: "leader".to_owned(),
+                    source_id: state.agents[index].id.clone(),
+                    target_id: format!("{}:{}", composition.id, leader.role),
+                    values: BTreeMap::new(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn apply_policies(
@@ -276,10 +470,10 @@ fn flatten_composition(
     let total = composition
         .entries
         .iter()
-        .map(|entry| entry.weight)
+        .map(|entry| entry.weight.unwrap_or(1.0))
         .sum::<f64>();
     for entry in &composition.entries {
-        let weight = parent_weight * entry.weight / total;
+        let weight = parent_weight * entry.weight.unwrap_or(1.0) / total;
         let group = root_group.unwrap_or(&entry.child);
         if archetypes.contains_key(entry.child.as_str()) {
             let namespace = if path.is_empty() {
@@ -479,7 +673,8 @@ fn add_scoped_places(
     added: &mut BTreeSet<String>,
 ) {
     for place in &program.places {
-        if !scopes.iter().any(|(_, places)| places.contains(&place.id)) {
+        if place.scope != "program" && !scopes.iter().any(|(_, places)| places.contains(&place.id))
+        {
             continue;
         }
         let id = place_map[&place.id].clone();
@@ -559,6 +754,10 @@ fn namespace_program(
             decision.id = namespaced(namespace, &decision.id);
             for branch in &mut decision.branches {
                 branch.action = namespaced(namespace, &branch.action);
+                map_place_expression(&mut branch.probability, place_map);
+                if let Some(condition) = &mut branch.condition {
+                    map_place_expression(condition, place_map);
+                }
             }
             decision
         }));
@@ -570,6 +769,10 @@ fn namespace_program(
         if target_role_index.is_none() {
             target.roles.push(RoleDefinition {
                 id: source_role.id.clone(),
+                kind: source_role.kind.clone(),
+                conflict_group: source_role.conflict_group.clone(),
+                eligibility: source_role.eligibility.clone(),
+                derivation: source_role.derivation.clone(),
                 decisions: Vec::new(),
                 line: source_role.line,
             });
@@ -585,6 +788,10 @@ fn namespace_program(
                 decision.id = namespaced(namespace, &decision.id);
                 for branch in &mut decision.branches {
                     branch.action = namespaced(namespace, &branch.action);
+                    map_place_expression(&mut branch.probability, place_map);
+                    if let Some(condition) = &mut branch.condition {
+                        map_place_expression(condition, place_map);
+                    }
                 }
                 decision
             }));

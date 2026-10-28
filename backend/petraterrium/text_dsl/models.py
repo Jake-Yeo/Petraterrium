@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,8 +33,6 @@ class TextDslValidation(TextDslModel):
     aggregate_functions: tuple[dict[str, Any], ...] = ()
     compositions: tuple[dict[str, Any], ...] = ()
     composition_populations: tuple[str, ...] = ()
-    neighbourhoods: tuple[str, ...] = ()
-    neighbourhood_populations: tuple[str, ...] = ()
     diagnostics: tuple[TextDslDiagnostic, ...] = ()
     graph: dict[str, Any] | None = None
 
@@ -58,14 +56,13 @@ class SaveTextDslRequest(TextDslModel):
 class TextDslRunRequest(TextDslModel):
     seed: int = Field(default=1, ge=0)
     days: int = Field(default=30, ge=1, le=365)
-    sample_budget: int | None = Field(default=None, ge=1, le=10_000)
+    total_represented_pool: int = Field(default=6_999_999_999, ge=1)
+    detail: Literal["low", "medium", "high"] = "medium"
     role_parameters: dict[str, dict[str, float]] = Field(default_factory=dict)
     baseline_run_id: str | None = None
     population_id: str | None = None
     composition_id: str | None = None
     composition_population_id: str | None = None
-    neighbourhood_id: str | None = None
-    neighbourhood_population_id: str | None = None
 
 
 TextDslReportValue = float | str | dict[str, float]
@@ -114,7 +111,10 @@ class TextDslRunResult(TextDslModel):
     adult_population: int
     total_agents: int
     generated_children: int
-    sample_budget: int | None = None
+    total_represented_pool: int
+    detail: Literal["low", "medium", "high"]
+    pool_summary: dict[str, Any]
+    pool_agents: tuple[dict[str, Any], ...] = ()
     population_allocations: tuple[dict[str, Any], ...] = ()
     population_id: str | None = None
     results_title: str
@@ -133,7 +133,8 @@ class TextDslRunSummary(TextDslModel):
     days: int
     ticks: int
     total_agents: int
-    sample_budget: int | None = None
+    total_represented_pool: int
+    detail: Literal["low", "medium", "high"]
     population_id: str | None = None
     created_at: str
 

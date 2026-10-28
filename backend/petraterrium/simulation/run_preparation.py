@@ -96,14 +96,13 @@ class LazyRustCoreClient:
         *,
         seed: int,
         ticks: int,
-        sample_budget: int | None = None,
+        total_represented_pool: int | None = None,
+        detail: str | None = None,
         role_parameters: Mapping[str, Mapping[str, float]] | None = None,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
         composition_id: str | None = None,
         composition_population_id: str | None = None,
-        neighbourhood_id: str | None = None,
-        neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             if self._client is None:
@@ -113,14 +112,13 @@ class LazyRustCoreClient:
             source,
             seed=seed,
             ticks=ticks,
-            sample_budget=sample_budget,
+            total_represented_pool=total_represented_pool,
+            detail=detail,
             role_parameters=role_parameters,
             continuation=continuation,
             population_id=population_id,
             composition_id=composition_id,
             composition_population_id=composition_population_id,
-            neighbourhood_id=neighbourhood_id,
-            neighbourhood_population_id=neighbourhood_population_id,
         )
 
     def evaluate_text_dsl_aggregate(self, source: str, **request: Any) -> dict[str, Any]:

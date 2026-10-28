@@ -18,7 +18,6 @@ pub(super) fn decorate_composition_result(
     recorded_actions: &BTreeSet<String>,
     formula_inputs: &BTreeMap<String, f64>,
 ) -> DslResult<()> {
-    let legacy = composition.report_id == "neighbourhoods";
     if !flows.is_empty() {
         result.reports.push(flow_report(flows, ticks));
     }
@@ -40,16 +39,14 @@ pub(super) fn decorate_composition_result(
         flows,
         ticks,
     ));
-    if !legacy {
-        result.reports.push(child_composition_report(
-            composition,
-            result,
-            agent_groups,
-            action_aggregates,
-            ticks,
-            tick_hours,
-        )?);
-    }
+    result.reports.push(child_composition_report(
+        composition,
+        result,
+        agent_groups,
+        action_aggregates,
+        ticks,
+        tick_hours,
+    )?);
     if let Some(report) = allocation_report(program, composition, ticks)? {
         result.reports.push(report);
     }
@@ -58,11 +55,7 @@ pub(super) fn decorate_composition_result(
             .reports
             .push(composition_hierarchy_report(program, composition, ticks)?);
     }
-    result.results_subtitle = if legacy {
-        format!("{} neighbourhood aggregates", composition.id)
-    } else {
-        format!("{} {} aggregates", composition.id, composition.level)
-    };
+    result.results_subtitle = format!("{} {} aggregates", composition.id, composition.level);
     if !record_actions {
         result
             .actions
@@ -178,13 +171,9 @@ fn composition_report(
         }
     }
     DslReport {
-        id: composition.report_id.clone(),
-        title: composition.report_title.clone(),
-        group_by: if composition.report_id == "neighbourhoods" {
-            "neighbourhood".to_owned()
-        } else {
-            composition.level.clone()
-        },
+        id: "compositions".to_owned(),
+        title: "Compositions".to_owned(),
+        group_by: composition.level.clone(),
         display: "table".to_owned(),
         record: "final".to_owned(),
         columns,
@@ -510,21 +499,10 @@ fn cross_group_report(
                 }),
         );
     }
-    let legacy = composition.interaction_report_id == "cross_archetype_interactions";
     DslReport {
-        id: composition.interaction_report_id.clone(),
-        title: if legacy {
-            "Cross-archetype interactions"
-        } else {
-            "Cross-composition interactions"
-        }
-        .to_owned(),
-        group_by: if legacy {
-            "archetype_pair"
-        } else {
-            "composition_pair"
-        }
-        .to_owned(),
+        id: "cross_composition_interactions".to_owned(),
+        title: "Cross-composition interactions".to_owned(),
+        group_by: "composition_pair".to_owned(),
         display: "table".to_owned(),
         record: "final".to_owned(),
         columns: vec![

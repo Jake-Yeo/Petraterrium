@@ -184,6 +184,10 @@ pub struct ArchetypeDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RoleDefinition {
     pub id: String,
+    pub kind: String,
+    pub conflict_group: Option<String>,
+    pub eligibility: Option<Expr>,
+    pub derivation: Option<String>,
     pub decisions: Vec<DecisionDefinition>,
     pub line: usize,
 }
@@ -192,6 +196,10 @@ pub struct RoleDefinition {
 pub struct RoleDistributionDefinition {
     pub role: String,
     pub agent_type: String,
+    pub group: String,
+    pub kind: String,
+    pub otherwise: String,
+    pub overlap: bool,
     pub parameters: BTreeMap<String, f64>,
     pub share: Expr,
     pub condition: Expr,
@@ -223,7 +231,7 @@ pub struct CompositionAdjacency {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CompositionEntry {
     pub child: String,
-    pub weight: f64,
+    pub weight: Option<f64>,
     pub declared_count: Option<u64>,
     pub line: usize,
 }
@@ -304,6 +312,10 @@ pub struct CompositionDefinition {
     pub graph_group: Option<String>,
     pub default_run: bool,
     pub template: Option<String>,
+    pub agent_pool: Option<String>,
+    pub entity_count: Option<u64>,
+    pub entity_unit: Option<String>,
+    pub role_targets: BTreeMap<String, u64>,
     pub represented_population: Option<u64>,
     pub authoritative_total: Option<u64>,
     pub sample_budget: Option<u64>,
@@ -320,9 +332,6 @@ pub struct CompositionDefinition {
     pub leaders: Vec<CompositionLeaderDefinition>,
     pub cached: Option<CachedCompositionDefinition>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
-    pub report_id: String,
-    pub interaction_report_id: String,
-    pub report_title: String,
     pub line: usize,
 }
 
@@ -338,7 +347,6 @@ pub struct WeightedCompositionEntry {
 pub struct WeightedCompositionPopulation {
     pub id: String,
     pub entries: Vec<WeightedCompositionEntry>,
-    pub legacy_neighbourhood: bool,
     pub line: usize,
 }
 
@@ -571,6 +579,8 @@ pub struct Program {
     pub composition_archetypes: Vec<CompositionArchetypeDefinition>,
     pub compositions: Vec<CompositionDefinition>,
     pub composition_populations: Vec<WeightedCompositionPopulation>,
+    #[serde(default)]
+    pub represented_pool: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -752,7 +762,9 @@ pub struct TextDslProtocolRequest {
     pub seed: u64,
     pub ticks: u64,
     #[serde(default)]
-    pub sample_budget: Option<u64>,
+    pub total_represented_pool: Option<u64>,
+    #[serde(default)]
+    pub detail: Option<String>,
     #[serde(default)]
     pub role_parameters: BTreeMap<String, BTreeMap<String, f64>>,
     #[serde(default)]
@@ -763,10 +775,6 @@ pub struct TextDslProtocolRequest {
     pub composition_id: Option<String>,
     #[serde(default)]
     pub composition_population_id: Option<String>,
-    #[serde(default)]
-    pub neighbourhood_id: Option<String>,
-    #[serde(default)]
-    pub neighbourhood_population_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -26,8 +26,6 @@ interface DslValidation {
   aggregate_functions: AggregateFunctionDefinition[];
   compositions: Array<{ id: string; level: string; cached?: boolean }>;
   composition_populations: string[];
-  neighbourhoods: string[];
-  neighbourhood_populations: string[];
   diagnostics: DslDiagnostic[];
   graph?: ProgramGraph | null;
 }
@@ -100,11 +98,33 @@ interface DslRunResult {
   adult_population: number;
   total_agents: number;
   generated_children: number;
-  sample_budget?: number | null;
+  total_represented_pool: number;
+  detail: 'low' | 'medium' | 'high';
+  pool_summary: {
+    total_represented_pool: number;
+    simulated_pool_sample: number;
+    weight_per_simulated_agent: number;
+    unique_represented_agents: number;
+    simulated_households: number;
+    role_membership: Record<string, number>;
+    explicit_neither: Record<string, number>;
+    leader_assignments: Record<string, string>;
+    role_shortfalls: Record<string, number>;
+    unassigned_required_roles: number;
+  };
+  pool_agents: Array<{
+    id: string;
+    household_id: string;
+    agent_type: string;
+    roles: string[];
+    traits: Record<string, number | string | boolean>;
+    states: Record<string, number | string | boolean>;
+  }>;
   population_allocations: Array<{
     path: string;
     parent_path?: string | null;
     node_id: string;
+    node_kind: string;
     vertical_slice: string;
     probability: number;
     expected_represented: number;
@@ -235,7 +255,7 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run the default Town in one click, inspect the exact DSL as code, or explore its validated composition and coupling graph.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run one global agent pool across four sectors, inspect the exact DSL as code, or explore its validated entity and role graph.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-view-toggle" role="tablist" aria-label="DSL view">
@@ -248,13 +268,14 @@ export class TextDslEditor {
         <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
       </div>
       <section class="text-dsl-run-panel">
-        <header><div><span class="text-dsl-eyebrow">RUN FULL SYSTEM</span><h2>Petraterrium</h2><p>Physical, media, corporate, and financial slices run together under one run ID and exchange DSL-defined coupling values.</p></div></header>
+        <header><div><span class="text-dsl-eyebrow">RUN FULL SYSTEM</span><h2>Petraterrium</h2><p>One pool of people acts across Physical, Media, Conglomerate, and Financial sectors through overlapping roles.</p></div></header>
         <div class="text-dsl-full-summary" data-full-system-summary></div>
         <div class="text-dsl-run-controls">
-          <label>Days <span class="dsl-help" title="Days controls how long the simulation runs; the default is 30.">?</span><input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
-          <label>Sample budget <span class="dsl-help" title="Sample budget = how many agents to actually simulate, drawn from the population distribution. More samples means less sampling noise and a slower run; represented total does not change.">?</span><input type="number" min="1" max="10000" step="1" value="292" data-dsl-sample-budget></label>
-          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Seed <span class="dsl-help" title="Seed = the same number gives the same random results; change it to get a different run.">?</span><input type="number" min="0" step="1" value="1" data-dsl-seed></label><details class="text-dsl-debug-runs"><summary>Debug single-slice runs</summary><p>Debug only — single slice, NOT the full system, slices do NOT interact in this mode.</p><label>Debug target <span class="dsl-help" title="A debug target runs one population or composition in isolation.">?</span><select data-dsl-population aria-label="Debug target"><option value="">Full system</option></select></label><label>All debug runs<select data-dsl-all-runs aria-label="All debug runs"><option value="">Choose debug run</option></select></label></details></details>
+          <label>Total represented pool <input type="number" min="1" step="1" value="6999999999" data-dsl-total-pool></label>
+          <label>Days <input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
+          <label>Seed <input type="number" min="0" step="1" value="1" data-dsl-seed></label>
           <button type="button" class="button primary text-dsl-run-button" data-dsl-action="run">Run full system</button>
+          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Detail<select data-dsl-detail aria-label="Detail"><option value="low">Low · 97 requested</option><option value="medium" selected>Medium · 291 requested</option><option value="high">High · 873 requested</option></select></label><details class="text-dsl-debug-runs"><summary>Debug single-sector runs</summary><p>Debug only — the selected sector still uses the shared pool.</p><label>Debug target<select data-dsl-population aria-label="Debug target"><option value="">Full system</option></select></label><label>All debug runs<select data-dsl-all-runs aria-label="All debug runs"><option value="">Choose debug run</option></select></label></details></details>
         </div>
       </section>
       <details class="text-dsl-fast-forward" data-fast-forward>
@@ -494,10 +515,11 @@ export class TextDslEditor {
     if (!this.document || this.dirty || !this.document.validation.valid) return;
     const seed = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value);
     const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
-    const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
-    const sampleBudget = Number(
-      this.root.querySelector<HTMLInputElement>('[data-dsl-sample-budget]')!.value,
+    const totalRepresentedPool = Number(
+      this.root.querySelector<HTMLInputElement>('[data-dsl-total-pool]')!.value,
     );
+    const detail = this.root.querySelector<HTMLSelectElement>('[data-dsl-detail]')!.value;
+    const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
     const defaultRunId = this.document.validation.graph?.default_run_id ?? null;
     const programRun = populationId === 'program:Town';
     const compositionId = populationId.startsWith('composition:')
@@ -508,20 +530,8 @@ export class TextDslEditor {
     const compositionPopulationId = populationId.startsWith('composition_population:')
       ? populationId.slice('composition_population:'.length)
       : null;
-    const neighbourhoodId = populationId.startsWith('neighbourhood:')
-      ? populationId.slice('neighbourhood:'.length)
-      : null;
-    const neighbourhoodPopulationId = populationId.startsWith('neighbourhood_population:')
-      ? populationId.slice('neighbourhood_population:'.length)
-      : null;
     const weightedPopulationId =
-      compositionId ||
-      compositionPopulationId ||
-      neighbourhoodId ||
-      neighbourhoodPopulationId ||
-      programRun
-        ? null
-        : populationId || null;
+      compositionId || compositionPopulationId || programRun ? null : populationId || null;
     const selectionKey = programRun
       ? null
       : populationId || (defaultRunId ? `composition:${defaultRunId}` : null);
@@ -538,16 +548,16 @@ export class TextDslEditor {
         body: JSON.stringify({
           seed,
           days,
-          sample_budget: sampleBudget,
+          total_represented_pool: totalRepresentedPool,
+          detail,
           baseline_run_id: this.run?.population_id === selectionKey ? this.run.run_id : null,
           population_id: weightedPopulationId,
           composition_id: compositionId,
           composition_population_id: compositionPopulationId,
-          neighbourhood_id: neighbourhoodId,
-          neighbourhood_population_id: neighbourhoodPopulationId,
         }),
       });
       this.lastRunElapsedMs = performance.now() - started;
+      this.graphView.setPoolAgents(this.run.pool_agents, this.run.pool_summary);
       this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks for one full-system run.`;
       this.renderResults();
     } catch (error) {
@@ -663,15 +673,7 @@ export class TextDslEditor {
   private renderValidation(validation: DslValidation): void {
     this.graphView.setGraph(validation.valid ? validation.graph : null);
     this.outline.setGraph(validation.valid ? validation.graph : null);
-    this.renderPopulationOptions(
-      validation.weighted_populations ?? [],
-      validation.compositions ?? [],
-      validation.composition_populations ?? [],
-      validation.neighbourhoods ?? [],
-      validation.neighbourhood_populations ?? [],
-      validation.graph ?? undefined,
-      validation.adult_population ?? 0,
-    );
+    this.renderPopulationOptions(validation.compositions ?? [], validation.graph ?? undefined);
     this.renderFullSystemSummary(validation.graph ?? undefined);
     this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
@@ -700,23 +702,13 @@ export class TextDslEditor {
   }
 
   private renderPopulationOptions(
-    populations: string[],
     compositions: Array<{ id: string; level: string; cached?: boolean }>,
-    compositionPopulations: string[],
-    neighbourhoods: string[],
-    neighbourhoodPopulations: string[],
     graph: ProgramGraph | undefined,
-    adultPopulation: number,
   ): void {
     const select = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!;
     const allRuns = this.root.querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!;
     const selected = select.value;
-    const availableCompositions =
-      compositions.length > 0
-        ? compositions
-        : neighbourhoods.map((id) => ({ id, level: 'neighbourhood' }));
-    const availableCompositionPopulations =
-      compositionPopulations.length > 0 ? compositionPopulations : neighbourhoodPopulations;
+    const availableCompositions = compositions;
     const nodeById = new Map((graph?.nodes ?? []).map((node) => [node.id, node]));
     const compositionOption = (composition: {
       id: string;
@@ -735,23 +727,16 @@ export class TextDslEditor {
     select.replaceChildren(new Option('Full system', ''));
     allRuns.replaceChildren(new Option('Choose debug run', ''));
     const allOptions = [
-      new Option(
-        `Town — Physical only, ${adultPopulation.toLocaleString()} adults default sample budget`,
-        'program:Town',
-      ),
-      ...populations.map(
-        (population) => new Option(`Weighted population — ${population}`, population),
-      ),
       ...availableCompositions
-        .filter((composition) => composition.id !== graph?.default_run_id)
+        .filter((composition) => {
+          const node = nodeById.get(composition.id);
+          return (
+            composition.id !== graph?.default_run_id &&
+            node?.graph_group === 'main' &&
+            ['Physical', 'Media', 'Conglomerate', 'Financial'].includes(node.vertical_slice)
+          );
+        })
         .map(compositionOption),
-      ...availableCompositionPopulations.map(
-        (population) =>
-          new Option(
-            `Composition population — ${population}`,
-            `composition_population:${population}`,
-          ),
-      ),
     ];
     for (const option of allOptions) {
       allRuns.add(new Option(option.text, option.value));
@@ -762,49 +747,20 @@ export class TextDslEditor {
     this.selectedRunLabel = select.value
       ? (select.selectedOptions[0]?.text ?? 'Debug run')
       : 'Petraterrium full system';
-    const defaultRun = graph?.nodes.find((node) => node.id === graph.default_run_id);
-    if (defaultRun?.actual_simulated) {
-      this.root.querySelector<HTMLInputElement>('[data-dsl-sample-budget]')!.value = String(
-        defaultRun.actual_simulated,
-      );
-    }
   }
 
   private renderFullSystemSummary(graph: ProgramGraph | undefined): void {
     const host = this.root.querySelector<HTMLElement>('[data-full-system-summary]')!;
     const root = graph?.nodes.find((node) => node.id === graph.default_run_id);
     if (!graph || !root) {
-      host.innerHTML = '<p>Validate the DSL to load the full-system slice summary.</p>';
+      host.innerHTML = '<p>Validate the DSL to load the pool and sector summary.</p>';
       return;
     }
-    const children = graph.edges
+    const sectors = graph.edges
       .filter((edge) => edge.kind === 'parent_child' && edge.from_id === root.id)
       .map((edge) => graph.nodes.find((node) => node.id === edge.to_id))
       .filter((node): node is NonNullable<typeof node> => Boolean(node));
-    const allocations = new Map(
-      graph.population_paths
-        .filter((row) => row.parent_path === root.id)
-        .map((row) => [row.node_id, row]),
-    );
-    const slices = new Map<string, typeof children>();
-    for (const child of children) {
-      const values = slices.get(child.vertical_slice) ?? [];
-      values.push(child);
-      slices.set(child.vertical_slice, values);
-    }
-    host.innerHTML = `<div>${[...slices]
-      .map(
-        ([slice, nodes]) =>
-          `<article><strong>${escapeHtml(slice)}</strong><span>${nodes.map((node) => escapeHtml(node.id)).join(' + ')}</span><small>${nodes
-            .map((node) => {
-              const allocation = allocations.get(node.id);
-              return `${number(allocation?.probability ?? 0, 6)} distribution · ${number(allocation?.actual_simulated ?? node.actual_simulated ?? node.simulated_count ?? 0, 0)} planned draws · ${number(allocation?.actual_represented ?? node.actual_represented ?? node.represented_count ?? 0, 0)} represented · ${node.sync_interval_days ? (node.sync_interval_days === 1 ? 'daily sync' : `${node.sync_interval_days}-day sync`) : 'no aggregate sync'}`;
-            })
-            .join(' · ')}</small></article>`,
-      )
-      .join(
-        '',
-      )}</div><details><summary>Couplings · ${root.couplings.length}</summary><ul>${root.couplings.map((coupling) => `<li><strong>${escapeHtml(coupling.id)}</strong> · ${escapeHtml(coupling.source)} → ${escapeHtml(coupling.target)} · ${coupling.sync_interval_days === 1 ? 'daily' : `${coupling.sync_interval_days ?? 'immediate'}-day`} sync</li>`).join('')}</ul></details>`;
+    host.innerHTML = `<article class="text-dsl-pool-summary"><strong>Pool</strong><span>6,999,999,999 represented people · Medium detail · one shared money, stress, household, and residence state</span><small>${sectors.map((node) => escapeHtml(node.vertical_slice)).join(' · ')} use role assignments from this pool; overlay totals may exceed the pool.</small></article>`;
   }
 
   private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
@@ -874,46 +830,34 @@ export class TextDslEditor {
     const deltaByKey = new Map(
       this.run.comparison.map((row) => [`${row.report_id}:${row.group_id}`, row]),
     );
-    const defaultRunId = this.document?.validation.graph?.default_run_id;
-    const sliceRows = this.run.population_allocations.filter(
-      (row) => row.parent_path === defaultRunId,
+    const pool = this.run.pool_summary;
+    const roleRows = Object.entries(pool.role_membership)
+      .filter(([, count]) => count > 0)
+      .sort((left, right) => right[1] - left[1]);
+    const partitionRows = this.run.population_allocations.filter(
+      (row) => row.node_kind === 'composition' && row.path.split('>').length <= 3,
     );
-    const sliceSummary = sliceRows.length
-      ? `<section class="text-dsl-slice-results"><h3>Population slices</h3><div>${sliceRows
-          .map(
-            (row) =>
-              `<article><strong>${escapeHtml(row.vertical_slice)}</strong><span>${escapeHtml(row.node_id)}</span><dl><div><dt>Distribution</dt><dd>${number(row.probability, 6)}</dd></div><div><dt>Expected simulated</dt><dd>${number(row.expected_simulated, 2)}</dd></div><div><dt>Actual simulated</dt><dd>${number(row.actual_simulated, 0)}</dd></div><div><dt>Expected represented</dt><dd>${number(row.expected_represented, 2)}</dd></div><div><dt>Actual represented</dt><dd>${number(row.actual_represented, 0)}</dd></div></dl></article>`,
-          )
-          .join('')}</div></section>`
-      : '';
-    const rootCouplingIds = new Set(
-      this.document?.validation.graph?.nodes
-        .find((node) => node.id === defaultRunId)
-        ?.couplings.map((coupling) => coupling.id) ?? [],
-    );
-    const flowRows = this.run.reports
-      .find((report) => report.id === 'composition_flows')
-      ?.snapshots.at(-1)
-      ?.rows.filter((row) => rootCouplingIds.has(row.group_id));
-    const couplingRows = new Map<string, ReportRow[]>();
-    for (const row of flowRows ?? []) {
-      const values = couplingRows.get(row.group_id) ?? [];
-      values.push(row);
-      couplingRows.set(row.group_id, values);
-    }
-    const couplingSummary = flowRows?.length
-      ? `<section class="text-dsl-coupling-results"><h3>Coupling summary</h3><ul>${[...couplingRows]
-          .map(([id, rows]) => {
-            const first = rows[0];
-            const last = rows.at(-1)!;
-            return `<li><strong>${escapeHtml(id)}</strong> · fired ${rows.length} time${rows.length === 1 ? '' : 's'} · value ${this.value(first.values.rate, 'decimal')} → ${this.value(last.values.rate, 'decimal')} · ${this.value(last.values.agents, 'integer')} affected agents</li>`;
-          })
-          .join('')}</ul></section>`
-      : `<section class="text-dsl-coupling-results"><h3>Coupling summary</h3><p>No coupling fired. This run is incomplete as a full-system run.</p></section>`;
+    const poolSummary = `<section class="text-dsl-slice-results"><h3>One global pool</h3><div><article><strong>${number(pool.total_represented_pool, 0)} represented people</strong><span>${number(pool.simulated_pool_sample, 0)} sampled agents · ${number(pool.simulated_households, 0)} households</span><small>${number(pool.weight_per_simulated_agent, 2)} represented people per sampled agent · unique agents ${number(pool.unique_represented_agents, 0)}</small></article><article><strong>Required role coverage</strong><span>Unassigned required roles = ${number(pool.unassigned_required_roles, 0)}</span><small>Residence and household are exclusive; sector roles overlap.</small></article></div></section>`;
+    const partitionSummary = `<section class="text-dsl-result-table"><h3>Residence partition</h3><ul>${partitionRows.map((row) => `<li><strong>${escapeHtml(row.path)}</strong> · ${number(row.actual_represented, 0)} represented · ${number(row.actual_simulated, 0)} sampled</li>`).join('')}</ul></section>`;
+    const rolesSummary = `<section class="text-dsl-result-table"><h3>Sector role membership</h3><p>Overlay sums exceed the total because one person can hold roles in several sectors.</p><ul>${roleRows.map(([role, count]) => `<li><strong>${escapeHtml(role)}</strong> · ${number(count, 0)} sampled agents</li>`).join('')}</ul><h4>Explicit neither outcomes</h4><ul>${Object.entries(
+      pool.explicit_neither,
+    )
+      .map(([group, count]) => `<li>${escapeHtml(group)} · ${number(count, 0)}</li>`)
+      .join('')}</ul></section>`;
+    const leadersSummary = `<section class="text-dsl-result-table"><h3>Leader assignments</h3><ul>${Object.entries(
+      pool.leader_assignments,
+    )
+      .map(
+        ([office, agent]) =>
+          `<li><strong>${escapeHtml(office)}</strong> · ${escapeHtml(agent)}</li>`,
+      )
+      .join('')}</ul></section>`;
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>System: ${escapeHtml(this.selectedRunLabel)} · ${this.run.days} days · seed ${this.run.seed} · sample budget ${number(this.run.sample_budget ?? this.run.total_agents, 0)} · ${this.run.ticks.toLocaleString()} ticks <span class="dsl-help" title="Ticks are the engine's fixed simulation steps across the selected days.">?</span> · ${this.run.total_agents.toLocaleString()} agents actually ticked <span class="dsl-help" title="Simulated agents are computed directly; represented agents are the weighted population their samples stand for.">?</span> · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms · cache_hit=false</p><p>Deltas below compare this run to the previous run of the same system, if any.</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
-      ${sliceSummary}
-      ${couplingSummary}
+      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>Total pool ${number(this.run.total_represented_pool, 0)} · ${this.run.days} days · seed ${this.run.seed} · detail ${escapeHtml(this.run.detail)} · ${number(pool.simulated_pool_sample, 0)} sampled agents · weight ${number(pool.weight_per_simulated_agent, 2)} · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
+      ${poolSummary}
+      ${partitionSummary}
+      ${rolesSummary}
+      ${leadersSummary}
       ${this.run.reports.map((report) => this.report(report, deltaByKey)).join('')}`;
   }
 

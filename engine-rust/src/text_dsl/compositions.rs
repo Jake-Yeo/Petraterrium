@@ -60,6 +60,23 @@ fn execute_composition_definition(
     seed: u64,
     ticks: u64,
 ) -> DslResult<DslRunResult> {
+    if let Some(agent_pool) = &composition.agent_pool {
+        let pool = program
+            .compositions
+            .iter()
+            .find(|candidate| candidate.id == *agent_pool)
+            .cloned()
+            .ok_or_else(|| {
+                DslError::new(
+                    "UNKNOWN_AGENT_POOL",
+                    composition.line,
+                    format!("Unknown agent pool {agent_pool}"),
+                )
+            })?;
+        let mut result = execute_composition_definition(program, pool, seed, ticks)?;
+        result.results_subtitle = format!("{} single agent pool", composition.id);
+        return Ok(result);
+    }
     let record_actions = program.record_actions;
     let build = build_composition_state(&program, &composition, seed)?;
     let tick_hours = build.program.tick_hours;
@@ -658,11 +675,10 @@ fn aggregate_composition_population(
             )?,
         ));
     }
-    let first_definition = definitions[population.entries[0].composition.as_str()];
-    let report_id = &first_definition.report_id;
+    let report_id = "compositions";
     let first_report = runs
         .first()
-        .and_then(|(_, result)| result.reports.iter().find(|report| report.id == *report_id))
+        .and_then(|(_, result)| result.reports.iter().find(|report| report.id == report_id))
         .ok_or_else(|| {
             DslError::new(
                 "EMPTY_COMPOSITION_POPULATION",
@@ -752,14 +768,8 @@ fn aggregate_composition_population(
             );
         }
     }
-    let legacy = first_definition.report_id == "neighbourhoods";
     let summary = DslReport {
-        id: if legacy {
-            "neighbourhood_population_summary"
-        } else {
-            "composition_population_summary"
-        }
-        .to_owned(),
+        id: "composition_population_summary".to_owned(),
         title: population.id.clone(),
         group_by: "all".to_owned(),
         display: "cards".to_owned(),
@@ -800,11 +810,7 @@ fn aggregate_composition_population(
         },
         actions: Vec::new(),
         results_title: program.results_title,
-        results_subtitle: if legacy {
-            format!("{} weighted neighbourhood aggregates", population.id)
-        } else {
-            format!("{} weighted composition aggregates", population.id)
-        },
+        results_subtitle: format!("{} weighted composition aggregates", population.id),
         reports: vec![summary],
     })
 }

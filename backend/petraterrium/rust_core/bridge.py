@@ -174,14 +174,13 @@ class RustCoreClient:
         *,
         seed: int,
         ticks: int,
-        sample_budget: int | None = None,
+        total_represented_pool: int | None = None,
+        detail: str | None = None,
         role_parameters: Mapping[str, Mapping[str, float]] | None = None,
         continuation: Mapping[str, Any] | None = None,
         population_id: str | None = None,
         composition_id: str | None = None,
         composition_population_id: str | None = None,
-        neighbourhood_id: str | None = None,
-        neighbourhood_population_id: str | None = None,
     ) -> dict[str, Any]:
         request: dict[str, Any] = {
             "operation": "run_text_dsl",
@@ -189,8 +188,10 @@ class RustCoreClient:
             "seed": seed,
             "ticks": ticks,
         }
-        if sample_budget is not None:
-            request["sample_budget"] = sample_budget
+        if total_represented_pool is not None:
+            request["total_represented_pool"] = total_represented_pool
+        if detail is not None:
+            request["detail"] = detail
         if role_parameters is not None:
             request["role_parameters"] = {
                 role: dict(parameters) for role, parameters in role_parameters.items()
@@ -203,10 +204,6 @@ class RustCoreClient:
             request["composition_id"] = composition_id
         if composition_population_id is not None:
             request["composition_population_id"] = composition_population_id
-        if neighbourhood_id is not None:
-            request["neighbourhood_id"] = neighbourhood_id
-        if neighbourhood_population_id is not None:
-            request["neighbourhood_population_id"] = neighbourhood_population_id
         return self.call(request)
 
     def evaluate_text_dsl_aggregate(

@@ -1,3 +1,4 @@
+use super::expression::evaluate;
 use super::model::*;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -19,6 +20,197 @@ pub struct PopulationAllocation {
     pub expected_simulated: f64,
     pub actual_simulated: u64,
     pub seed: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PoolRunSummary {
+    pub total_represented_pool: u64,
+    pub simulated_pool_sample: u64,
+    pub weight_per_simulated_agent: f64,
+    pub unique_represented_agents: u64,
+    pub simulated_households: u64,
+    pub role_membership: BTreeMap<String, u64>,
+    pub explicit_neither: BTreeMap<String, u64>,
+    pub leader_assignments: BTreeMap<String, String>,
+    pub role_shortfalls: BTreeMap<String, u64>,
+    pub unassigned_required_roles: u64,
+}
+
+pub fn detail_sample_budget(detail: Option<&str>) -> DslResult<u64> {
+    match detail.unwrap_or("medium") {
+        "low" => Ok(97),
+        "medium" => Ok(291),
+        "high" => Ok(873),
+        value => Err(DslError::new(
+            "INVALID_DETAIL_LEVEL",
+            1,
+            format!("Unknown detail level {value}; expected low, medium, or high"),
+        )),
+    }
+}
+
+pub fn configure_pool_run(
+    program: &mut Program,
+    composition_id: &str,
+    total_represented_pool: u64,
+    detail: Option<&str>,
+) -> DslResult<String> {
+    if total_represented_pool == 0 {
+        return Err(DslError::new(
+            "INVALID_TOTAL_REPRESENTED_POOL",
+            1,
+            "Total represented pool must be a positive integer",
+        ));
+    }
+    let root = program
+        .compositions
+        .iter()
+        .find(|composition| composition.id == composition_id)
+        .ok_or_else(|| {
+            DslError::new(
+                "UNKNOWN_COMPOSITION",
+                1,
+                format!("Unknown composition {composition_id}"),
+            )
+        })?;
+    let pool_id = root.agent_pool.clone().ok_or_else(|| {
+        DslError::new(
+            "MISSING_AGENT_POOL",
+            root.line,
+            "Default run root needs agent_pool",
+        )
+    })?;
+    let budget = detail_sample_budget(detail)?;
+    let pool = program
+        .compositions
+        .iter_mut()
+        .find(|composition| composition.id == pool_id)
+        .ok_or_else(|| {
+            DslError::new(
+                "UNKNOWN_AGENT_POOL",
+                1,
+                format!("Unknown agent pool {pool_id}"),
+            )
+        })?;
+    pool.sample_budget = Some(budget);
+    program.represented_pool = Some(total_represented_pool);
+    Ok(pool_id)
+}
+
+pub fn pool_run_summary(program: &Program, state: &DslRunState) -> PoolRunSummary {
+    let total = program.represented_pool.unwrap_or(0);
+    let simulated = state.agents.len() as u64;
+    let role_membership = program
+        .roles
+        .iter()
+        .map(|role| {
+            (
+                role.id.clone(),
+                state
+                    .agents
+                    .iter()
+                    .filter(|agent| agent.roles.contains(&role.id))
+                    .count() as u64,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let explicit_neither = program
+        .role_distributions
+        .iter()
+        .filter(|distribution| !distribution.group.is_empty() && !distribution.otherwise.is_empty())
+        .map(|distribution| (distribution.group.clone(), distribution.otherwise.clone()))
+        .collect::<BTreeMap<_, _>>()
+        .into_iter()
+        .map(|(group, role)| {
+            let count = state
+                .agents
+                .iter()
+                .filter(|agent| agent.roles.contains(&role))
+                .count() as u64;
+            (group, count)
+        })
+        .collect();
+    let leader_assignments = state
+        .relationships
+        .iter()
+        .filter(|relationship| relationship.kind == "leader")
+        .map(|relationship| {
+            (
+                relationship.target_id.clone(),
+                relationship.source_id.clone(),
+            )
+        })
+        .collect();
+    let mut role_shortfalls = program
+        .compositions
+        .iter()
+        .flat_map(|composition| composition.role_targets.keys())
+        .map(|role| (role.clone(), 0))
+        .collect::<BTreeMap<_, _>>();
+    for distribution in &program.role_distributions {
+        let values = distribution
+            .parameters
+            .iter()
+            .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
+            .chain([(
+                "composition_population".to_owned(),
+                DslValue::Number(total as f64),
+            )])
+            .collect::<BTreeMap<_, _>>();
+        let share = evaluate(&distribution.share, &values)
+            .ok()
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
+        let represented_target = total as f64 * share;
+        let minimum = if represented_target > 1.0 { 2 } else { 1 };
+        let target = if represented_target > 0.0 && simulated > 0 {
+            ((simulated as f64 * share).round() as u64).max(minimum.min(simulated))
+        } else {
+            0
+        };
+        let assigned = role_membership
+            .get(&distribution.role)
+            .copied()
+            .unwrap_or(0);
+        role_shortfalls.insert(distribution.role.clone(), target.saturating_sub(assigned));
+    }
+    let required = [
+        "household_member",
+        "life_child",
+        "life_student",
+        "life_worker",
+    ];
+    let unassigned_required_roles = state
+        .agents
+        .iter()
+        .filter(|agent| {
+            !agent.roles.contains("household_member")
+                || !agent.roles.iter().any(|role| role.starts_with("resident_"))
+                || !required[1..].iter().any(|role| agent.roles.contains(*role))
+        })
+        .count() as u64;
+    PoolRunSummary {
+        total_represented_pool: total,
+        simulated_pool_sample: simulated,
+        weight_per_simulated_agent: if simulated == 0 {
+            0.0
+        } else {
+            total as f64 / simulated as f64
+        },
+        unique_represented_agents: total,
+        simulated_households: state
+            .agents
+            .iter()
+            .map(|agent| agent.household_id.as_str())
+            .collect::<BTreeSet<_>>()
+            .len() as u64,
+        role_membership,
+        explicit_neither,
+        leader_assignments,
+        role_shortfalls,
+        unassigned_required_roles,
+    }
 }
 
 pub fn sample_multinomial_counts(
@@ -92,7 +284,15 @@ pub fn build_population_plan(
     })?;
     let default_budget = default_sample_budget(root, &compositions, &archetypes);
     let simulated = sample_budget.unwrap_or(default_budget);
-    let represented = root.represented_population.unwrap_or(0);
+    let represented = if program
+        .compositions
+        .iter()
+        .any(|composition| composition.agent_pool.as_deref() == Some(root.id.as_str()))
+    {
+        program.represented_pool.unwrap_or(0)
+    } else {
+        root.represented_population.unwrap_or(0)
+    };
     let mut plan = Vec::new();
     allocate_composition(
         root,
@@ -168,7 +368,7 @@ fn allocate_composition(
     let probabilities = composition
         .entries
         .iter()
-        .map(|entry| entry.weight)
+        .map(|entry| entry.weight.unwrap_or(1.0))
         .collect::<Vec<_>>();
     let represented_counts = sample_multinomial_counts(
         actual_represented,
@@ -184,8 +384,9 @@ fn allocate_composition(
     )?;
     for (index, entry) in composition.entries.iter().enumerate() {
         let child_path = format!("{path}>{}", entry.child);
-        let child_expected_represented = expected_represented * entry.weight;
-        let child_expected_simulated = expected_simulated * entry.weight;
+        let weight = entry.weight.unwrap_or(1.0);
+        let child_expected_represented = expected_represented * weight;
+        let child_expected_simulated = expected_simulated * weight;
         if let Some(child) = compositions.get(entry.child.as_str()) {
             let represented = if actual_represented == 0 {
                 child.represented_population.unwrap_or(0)
@@ -198,7 +399,7 @@ fn allocate_composition(
                 archetypes,
                 child_path,
                 Some(path.clone()),
-                entry.weight,
+                weight,
                 if actual_represented == 0 {
                     represented as f64
                 } else {
@@ -216,7 +417,7 @@ fn allocate_composition(
                 child_path,
                 path.clone(),
                 composition,
-                entry.weight,
+                weight,
                 child_expected_represented,
                 represented_counts[index],
                 child_expected_simulated,

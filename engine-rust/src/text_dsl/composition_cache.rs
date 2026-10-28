@@ -1044,7 +1044,7 @@ fn ensure_node_state(context: &mut HierarchyContext<'_>, composition: &Compositi
             weights: composition
                 .entries
                 .iter()
-                .map(|entry| (entry.child.clone(), entry.weight))
+                .map(|entry| (entry.child.clone(), entry.weight.unwrap_or(1.0)))
                 .collect(),
             feedback_inputs: BTreeMap::new(),
             coupling_inputs: BTreeMap::new(),

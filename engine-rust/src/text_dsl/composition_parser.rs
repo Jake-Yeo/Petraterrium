@@ -3,20 +3,12 @@ use super::model::*;
 use super::parser::{Line, identifier, parse_archetype_output, require_indent};
 use std::collections::BTreeMap;
 
-pub(super) fn parse_neighbourhood(
-    lines: &[Line],
-    start: usize,
-    name: &str,
-) -> DslResult<(CompositionDefinition, usize)> {
-    parse_composition_body(lines, start, name, Some("neighbourhood"))
-}
-
 pub(super) fn parse_composition(
     lines: &[Line],
     start: usize,
     name: &str,
 ) -> DslResult<(CompositionDefinition, usize)> {
-    parse_composition_body(lines, start, name, None)
+    parse_composition_body(lines, start, name)
 }
 
 pub(super) fn parse_composition_archetype(
@@ -106,14 +98,17 @@ fn parse_composition_body(
     lines: &[Line],
     start: usize,
     name: &str,
-    compatibility_level: Option<&str>,
 ) -> DslResult<(CompositionDefinition, usize)> {
     identifier(name, lines[start].number)?;
-    let mut level = compatibility_level.map(str::to_owned);
+    let mut level = None;
     let mut slice = None;
     let mut graph_group = None;
     let mut default_run = false;
     let mut template = None;
+    let mut agent_pool = None;
+    let mut entity_count = None;
+    let mut entity_unit = None;
+    let mut role_targets = BTreeMap::new();
     let mut represented_population = None;
     let mut authoritative_total = None;
     let mut sample_budget = None;
@@ -136,13 +131,6 @@ fn parse_composition_body(
         require_indent(line, 2)?;
         if let Some(value) = line.text.strip_prefix("level = ") {
             identifier(value, line.number)?;
-            if compatibility_level.is_some() {
-                return Err(DslError::new(
-                    "INVALID_NEIGHBOURHOOD_LEVEL",
-                    line.number,
-                    "Legacy neighbourhood blocks already define their level",
-                ));
-            }
             level = Some(value.to_owned());
             index += 1;
         } else if let Some(value) = line.text.strip_prefix("slice = ") {
@@ -159,6 +147,47 @@ fn parse_composition_body(
             identifier(value, line.number)?;
             template = Some(value.to_owned());
             index += 1;
+        } else if let Some(value) = line.text.strip_prefix("agent_pool = ") {
+            identifier(value, line.number)?;
+            agent_pool = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("entity_count = ") {
+            entity_count = Some(value.parse::<u64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_ENTITY_COUNT",
+                    line.number,
+                    "Entity count must be a positive integer",
+                )
+            })?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("entity_unit = ") {
+            entity_unit = Some(parse_quoted(value, line.number)?);
+            index += 1;
+        } else if line.text == "role_targets:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let target = &lines[index];
+                require_indent(target, 4)?;
+                let (role, count) = target.text.split_once(" = ").ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_ROLE_TARGET",
+                        target.number,
+                        "Role targets use role = count",
+                    )
+                })?;
+                identifier(role, target.number)?;
+                role_targets.insert(
+                    role.to_owned(),
+                    count.parse::<u64>().map_err(|_| {
+                        DslError::new(
+                            "INVALID_ROLE_TARGET",
+                            target.number,
+                            "Role target must be a non-negative integer",
+                        )
+                    })?,
+                );
+                index += 1;
+            }
         } else if let Some(value) = line.text.strip_prefix("represented_population = ") {
             represented_population = Some(value.parse::<u64>().map_err(|_| {
                 DslError::new(
@@ -218,34 +247,33 @@ fn parse_composition_body(
             while index < lines.len() && lines[index].indent > 2 {
                 let entry = &lines[index];
                 require_indent(entry, 4)?;
-                let Some((child, weight)) = entry.text.split_once(": weight = ") else {
-                    return Err(DslError::new(
-                        compatibility_code(
-                            compatibility_level,
-                            "INVALID_NEIGHBOURHOOD_HOUSEHOLD",
-                            "INVALID_COMPOSITION_CHILD",
-                        ),
-                        entry.number,
-                        "Composition entries use Child: weight = count",
-                    ));
-                };
+                let (child, weight) = entry
+                    .text
+                    .split_once(": weight = ")
+                    .map_or((entry.text.as_str(), None), |(child, weight)| {
+                        (child, Some(weight))
+                    });
                 identifier(child, entry.number)?;
-                let (weight, declared_count) = weight
-                    .split_once(" count = ")
-                    .map_or((weight, None), |(weight, count)| (weight, Some(count)));
+                let (weight, declared_count) = weight.map_or((None, None), |weight| {
+                    weight
+                        .split_once(" count = ")
+                        .map_or((Some(weight), None), |(weight, count)| {
+                            (Some(weight), Some(count))
+                        })
+                });
                 entries.push(CompositionEntry {
                     child: child.to_owned(),
-                    weight: weight.parse::<f64>().map_err(|_| {
-                        DslError::new(
-                            compatibility_code(
-                                compatibility_level,
-                                "INVALID_NEIGHBOURHOOD_HOUSEHOLD",
-                                "INVALID_COMPOSITION_CHILD",
-                            ),
-                            entry.number,
-                            "Composition weight must be a positive number",
-                        )
-                    })?,
+                    weight: weight
+                        .map(|weight| {
+                            weight.parse::<f64>().map_err(|_| {
+                                DslError::new(
+                                    "INVALID_COMPOSITION_CHILD",
+                                    entry.number,
+                                    "Composition weight must be a positive number",
+                                )
+                            })
+                        })
+                        .transpose()?,
                     declared_count: declared_count
                         .map(|count| {
                             count.parse::<u64>().map_err(|_| {
@@ -366,17 +394,12 @@ fn parse_composition_body(
             index += 1;
         } else {
             return Err(DslError::new(
-                compatibility_code(
-                    compatibility_level,
-                    "UNKNOWN_NEIGHBOURHOOD_STATEMENT",
-                    "UNKNOWN_COMPOSITION_STATEMENT",
-                ),
+                "UNKNOWN_COMPOSITION_STATEMENT",
                 line.number,
                 format!("Unknown composition statement {}", line.text),
             ));
         }
     }
-    let compatibility = compatibility_level.is_some();
     Ok((
         CompositionDefinition {
             id: name.to_owned(),
@@ -391,6 +414,10 @@ fn parse_composition_body(
             graph_group,
             default_run,
             template,
+            agent_pool,
+            entity_count,
+            entity_unit,
+            role_targets,
             represented_population,
             authoritative_total,
             sample_budget,
@@ -407,24 +434,6 @@ fn parse_composition_body(
             leaders,
             cached,
             outputs,
-            report_id: if compatibility {
-                "neighbourhoods"
-            } else {
-                "compositions"
-            }
-            .to_owned(),
-            interaction_report_id: if compatibility {
-                "cross_archetype_interactions"
-            } else {
-                "cross_composition_interactions"
-            }
-            .to_owned(),
-            report_title: if compatibility {
-                "Neighbourhood archetypes"
-            } else {
-                "Compositions"
-            }
-            .to_owned(),
             line: lines[start].number,
         },
         index,
@@ -790,27 +799,18 @@ fn parse_days(value: &str, line: usize) -> DslResult<u32> {
         })
 }
 
-pub(super) fn parse_neighbourhood_population(
-    lines: &[Line],
-    start: usize,
-    name: &str,
-) -> DslResult<(WeightedCompositionPopulation, usize)> {
-    parse_composition_population_body(lines, start, name, true)
-}
-
 pub(super) fn parse_composition_population(
     lines: &[Line],
     start: usize,
     name: &str,
 ) -> DslResult<(WeightedCompositionPopulation, usize)> {
-    parse_composition_population_body(lines, start, name, false)
+    parse_composition_population_body(lines, start, name)
 }
 
 fn parse_composition_population_body(
     lines: &[Line],
     start: usize,
     name: &str,
-    compatibility: bool,
 ) -> DslResult<(WeightedCompositionPopulation, usize)> {
     identifier(name, lines[start].number)?;
     let mut entries = Vec::new();
@@ -825,11 +825,7 @@ fn parse_composition_population_body(
                 composition,
                 weight.parse::<u64>().map_err(|_| {
                     DslError::new(
-                        if compatibility {
-                            "INVALID_NEIGHBOURHOOD_WEIGHT"
-                        } else {
-                            "INVALID_COMPOSITION_WEIGHT"
-                        },
+                        "INVALID_COMPOSITION_WEIGHT",
                         line.number,
                         "Composition weight must be a positive integer",
                     )
@@ -850,11 +846,7 @@ fn parse_composition_population_body(
             )
         } else {
             return Err(DslError::new(
-                if compatibility {
-                    "INVALID_NEIGHBOURHOOD_WEIGHT"
-                } else {
-                    "INVALID_COMPOSITION_WEIGHT"
-                },
+                "INVALID_COMPOSITION_WEIGHT",
                 line.number,
                 "Composition population entries use Composition: weight = count or represented = count",
             ));
@@ -871,21 +863,8 @@ fn parse_composition_population_body(
         WeightedCompositionPopulation {
             id: name.to_owned(),
             entries,
-            legacy_neighbourhood: compatibility,
             line: lines[start].number,
         },
         index,
     ))
-}
-
-fn compatibility_code<'a>(
-    compatibility_level: Option<&str>,
-    compatibility: &'a str,
-    generic: &'a str,
-) -> &'a str {
-    if compatibility_level.is_some() {
-        compatibility
-    } else {
-        generic
-    }
 }

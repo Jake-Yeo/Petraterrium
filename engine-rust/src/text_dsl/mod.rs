@@ -33,7 +33,7 @@ pub use graph::{
 pub use model::*;
 pub use parser::parse_program;
 pub use population_distribution::{
-    PopulationAllocation, apply_actual_simulated_counts, build_population_plan,
-    sample_multinomial_counts,
+    PoolRunSummary, PopulationAllocation, apply_actual_simulated_counts, build_population_plan,
+    configure_pool_run, detail_sample_budget, pool_run_summary, sample_multinomial_counts,
 };
 pub use runtime::{run_program, sample_population};

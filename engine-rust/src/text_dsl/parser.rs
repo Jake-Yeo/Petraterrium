@@ -1,7 +1,6 @@
 use super::aggregate_parser::{parse_aggregate_function, validate_aggregate_functions};
 use super::composition_parser::{
     parse_composition, parse_composition_archetype, parse_composition_population,
-    parse_neighbourhood, parse_neighbourhood_population,
 };
 use super::composition_validation::{apply_composition_archetypes, validate_compositions};
 use super::expression::{evaluate, parse_expression, references};
@@ -140,14 +139,6 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
             let (value, next) = parse_aggregate_function(&lines, index, name)?;
             aggregate_functions.push(value);
             index = next;
-        } else if let Some(name) = block_name(&line.text, "neighbourhood") {
-            let (value, next) = parse_neighbourhood(&lines, index, name)?;
-            compositions.push(value);
-            index = next;
-        } else if let Some(name) = block_name(&line.text, "neighbourhood_population") {
-            let (value, next) = parse_neighbourhood_population(&lines, index, name)?;
-            composition_populations.push(value);
-            index = next;
         } else if let Some(name) = block_name(&line.text, "composition") {
             let (value, next) = parse_composition(&lines, index, name)?;
             compositions.push(value);
@@ -237,6 +228,7 @@ pub fn parse_program(source: &str) -> DslResult<Program> {
         composition_archetypes,
         compositions,
         composition_populations,
+        represented_pool: None,
     };
     apply_composition_archetypes(&mut program)?;
     validate_program(&program)?;
@@ -971,12 +963,39 @@ fn parse_weighted_population(
 
 fn parse_role(lines: &[Line], start: usize, name: &str) -> DslResult<(RoleDefinition, usize)> {
     identifier(name, lines[start].number)?;
+    let mut kind = "mass_overlay".to_owned();
+    let mut conflict_group = None;
+    let mut eligibility = None;
+    let mut derivation = None;
     let mut decisions = Vec::new();
     let mut decision_ids = BTreeSet::new();
     let mut index = start + 1;
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
+        if let Some(value) = line.text.strip_prefix("kind = ") {
+            identifier(value, line.number)?;
+            kind = value.to_owned();
+            index += 1;
+            continue;
+        }
+        if let Some(value) = line.text.strip_prefix("conflict_group = ") {
+            identifier(value, line.number)?;
+            conflict_group = Some(value.to_owned());
+            index += 1;
+            continue;
+        }
+        if let Some(value) = line.text.strip_prefix("eligibility = ") {
+            eligibility = Some(parse_expression(value, line.number)?);
+            index += 1;
+            continue;
+        }
+        if let Some(value) = line.text.strip_prefix("derive = ") {
+            identifier(value, line.number)?;
+            derivation = Some(value.to_owned());
+            index += 1;
+            continue;
+        }
         let decision_id = block_name(&line.text, "decision").ok_or_else(|| {
             DslError::new(
                 "UNKNOWN_ROLE_STATEMENT",
@@ -1009,6 +1028,10 @@ fn parse_role(lines: &[Line], start: usize, name: &str) -> DslResult<(RoleDefini
     Ok((
         RoleDefinition {
             id: name.to_owned(),
+            kind,
+            conflict_group,
+            eligibility,
+            derivation,
             decisions,
             line: lines[start].number,
         },
@@ -1023,6 +1046,10 @@ fn parse_role_distribution(
 ) -> DslResult<(RoleDistributionDefinition, usize)> {
     identifier(role, lines[start].number)?;
     let mut agent_type = None;
+    let mut group = String::new();
+    let mut kind = "mass_overlay".to_owned();
+    let mut otherwise = String::new();
+    let mut overlap = true;
     let mut parameters = BTreeMap::new();
     let mut share = None;
     let mut condition = Expr::Value(DslValue::Bool(true));
@@ -1033,6 +1060,31 @@ fn parse_role_distribution(
         if let Some(value) = line.text.strip_prefix("agent = ") {
             identifier(value, line.number)?;
             agent_type = Some(value.to_owned());
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("group = ") {
+            identifier(value, line.number)?;
+            group = value.to_owned();
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("kind = ") {
+            identifier(value, line.number)?;
+            kind = value.to_owned();
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("otherwise = ") {
+            identifier(value, line.number)?;
+            otherwise = value.to_owned();
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("overlap = ") {
+            overlap = match value {
+                "true" => true,
+                "false" => false,
+                _ => {
+                    return Err(DslError::new(
+                        "INVALID_ROLE_DISTRIBUTION_OVERLAP",
+                        line.number,
+                        "overlap must be true or false",
+                    ));
+                }
+            };
             index += 1;
         } else if line.text == "parameters:" {
             index += 1;
@@ -1087,6 +1139,10 @@ fn parse_role_distribution(
                     "Role distribution needs an agent type",
                 )
             })?,
+            group,
+            kind,
+            otherwise,
+            overlap,
             parameters,
             share: share.ok_or_else(|| {
                 DslError::new(
@@ -1699,7 +1755,7 @@ fn parse_effect(value: &str, line: usize) -> DslResult<EffectDefinition> {
             format!("Unknown effect scope {left}"),
         ));
     };
-    let value = if field == "roles" {
+    let value = if matches!(field.as_str(), "roles" | "household" | "residence") {
         if operation == "*=" {
             return Err(DslError::new(
                 "INVALID_ROLE_EFFECT",
@@ -1722,20 +1778,18 @@ fn parse_effect(value: &str, line: usize) -> DslResult<EffectDefinition> {
 }
 
 fn validate_program(program: &Program) -> DslResult<()> {
-    if program.placeholder_label
-        != "placeholder — agent knowledge, for demo only, to be replaced by research"
-    {
+    if program.placeholder_label != "estimated pending the research pipeline" {
         return Err(DslError::new(
             "INVALID_PLACEHOLDER_LABEL",
             1,
-            "Program must use the required placeholder label",
+            "Program must label estimated values as pending the research pipeline",
         ));
     }
     if program.uncertainty != "wide" {
         return Err(DslError::new(
             "INVALID_UNCERTAINTY",
             1,
-            "Demo placeholder uncertainty must be wide",
+            "Estimated-value uncertainty must be wide",
         ));
     }
     if program.tick_hours <= 0.0 || program.tick_hours > 24.0 {
@@ -1840,7 +1894,18 @@ fn validate_program(program: &Program) -> DslResult<()> {
         .map(|role| role.id.as_str())
         .collect::<BTreeSet<_>>();
     let mut role_distribution_keys = BTreeSet::new();
+    let mut role_group_shares = BTreeMap::<&str, (f64, usize)>::new();
     for distribution in &program.role_distributions {
+        if !distribution.group.is_empty() && distribution.otherwise.is_empty() {
+            return Err(DslError::new(
+                "MISSING_ROLE_GROUP_OTHERWISE",
+                distribution.line,
+                format!(
+                    "Role group {} needs an explicit otherwise outcome",
+                    distribution.group
+                ),
+            ));
+        }
         if !role_distribution_keys
             .insert((distribution.agent_type.as_str(), distribution.role.as_str()))
         {
@@ -1858,6 +1923,15 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 "UNKNOWN_ROLE_DISTRIBUTION_ROLE",
                 distribution.line,
                 format!("Unknown role {}", distribution.role),
+            ));
+        }
+        if !distribution.otherwise.is_empty()
+            && !known_roles.contains(distribution.otherwise.as_str())
+        {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_DISTRIBUTION_OTHERWISE",
+                distribution.line,
+                format!("Unknown otherwise role {}", distribution.otherwise),
             ));
         }
         let agent = agents
@@ -1886,7 +1960,7 @@ fn validate_program(program: &Program) -> DslResult<()> {
             .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
             .chain([(
                 "composition_population".to_owned(),
-                DslValue::Number(10_000.0),
+                DslValue::Number(6_999_999_999.0),
             )])
             .collect::<BTreeMap<_, _>>();
         let unknown_share = references(&distribution.share)
@@ -1910,6 +1984,12 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 "Role distribution share must resolve between zero and one",
             ));
         }
+        if !distribution.group.is_empty() {
+            let group = role_group_shares
+                .entry(distribution.group.as_str())
+                .or_insert((0.0, distribution.line));
+            group.0 += share;
+        }
         let fields = merged_fields(agent, &agents)?;
         let unknown_condition = references(&distribution.condition)
             .into_iter()
@@ -1922,6 +2002,18 @@ fn validate_program(program: &Program) -> DslResult<()> {
                 format!("Unknown condition values: {}", unknown_condition.join(", ")),
             ));
         }
+    }
+    if let Some((group, (sum, line))) = role_group_shares
+        .iter()
+        .find(|(_, (sum, _))| *sum > 1.0 + 1e-9)
+    {
+        return Err(DslError::new(
+            "ROLE_GROUP_PROBABILITIES_NOT_ONE",
+            *line,
+            format!(
+                "Role group {group} outcomes sum to {sum}; explicit otherwise cannot be negative"
+            ),
+        ));
     }
     for entity in &program.entities {
         if entity.fields.is_empty() {
@@ -2029,7 +2121,12 @@ fn validate_program(program: &Program) -> DslResult<()> {
         }
     }
     for role in &program.roles {
-        if role.decisions.is_empty() {
+        if role.decisions.is_empty()
+            && !matches!(
+                role.kind.as_str(),
+                "partition" | "derived" | "explicit_neither"
+            )
+        {
             return Err(DslError::new(
                 "EMPTY_ROLE",
                 role.line,
@@ -2141,7 +2238,10 @@ fn validate_program(program: &Program) -> DslResult<()> {
             for effect in &outcome.effects {
                 match &effect.scope {
                     EffectScope::SelfAgent | EffectScope::Target | EffectScope::AllAt { .. }
-                        if effect.field != "roles" && !all_agent_fields.contains(&effect.field) =>
+                        if !matches!(
+                            effect.field.as_str(),
+                            "roles" | "household" | "residence"
+                        ) && !all_agent_fields.contains(&effect.field) =>
                     {
                         return Err(DslError::new(
                             "UNKNOWN_STATE",

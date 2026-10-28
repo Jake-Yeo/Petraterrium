@@ -67,7 +67,7 @@ pub(super) fn static_formula_children(
                 let children = static_formula_children(program, child)?;
                 apply_formula_outputs(child, &BTreeMap::new(), &children, &mut outputs)?;
             }
-            Ok((entry.child.clone(), entry.weight, outputs))
+            Ok((entry.child.clone(), entry.weight.unwrap_or(1.0), outputs))
         })
         .collect()
 }

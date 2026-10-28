@@ -105,10 +105,6 @@ class TextDslService:
             composition_populations=tuple(
                 str(value) for value in result.get("composition_populations", [])
             ),
-            neighbourhoods=tuple(str(value) for value in result.get("neighbourhoods", [])),
-            neighbourhood_populations=tuple(
-                str(value) for value in result.get("neighbourhood_populations", [])
-            ),
             diagnostics=diagnostics,
             graph=(dict(result["graph"]) if result.get("graph") is not None else None),
         )
@@ -153,11 +149,11 @@ class TextDslService:
         population_id = getattr(request, "population_id", None)
         composition_id = getattr(request, "composition_id", None)
         composition_population_id = getattr(request, "composition_population_id", None)
-        neighbourhood_id = getattr(request, "neighbourhood_id", None)
-        neighbourhood_population_id = getattr(request, "neighbourhood_population_id", None)
         run_options: dict[str, Any] = {}
-        if getattr(request, "sample_budget", None) is not None:
-            run_options["sample_budget"] = request.sample_budget
+        total_represented_pool = getattr(request, "total_represented_pool", 6_999_999_999)
+        detail = getattr(request, "detail", "medium")
+        run_options["total_represented_pool"] = total_represented_pool
+        run_options["detail"] = detail
         if getattr(request, "role_parameters", None):
             run_options["role_parameters"] = request.role_parameters
         result = self.rust.run_text_dsl(
@@ -167,8 +163,6 @@ class TextDslService:
             population_id=population_id,
             composition_id=composition_id,
             composition_population_id=composition_population_id,
-            neighbourhood_id=neighbourhood_id,
-            neighbourhood_population_id=neighbourhood_population_id,
             **run_options,
         )
         run_id = uuid.uuid4().hex
@@ -188,8 +182,6 @@ class TextDslService:
             if population_id is not None
             or composition_id is not None
             or composition_population_id is not None
-            or neighbourhood_id is not None
-            or neighbourhood_population_id is not None
             else document.validation.adult_population or 0
         )
         response = TextDslRunResult(
@@ -201,7 +193,10 @@ class TextDslService:
             adult_population=adult_population,
             total_agents=len(agents),
             generated_children=max(0, len(agents) - adult_population),
-            sample_budget=getattr(request, "sample_budget", None),
+            total_represented_pool=total_represented_pool,
+            detail=detail,
+            pool_summary=dict(result.get("pool_summary") or {}),
+            pool_agents=tuple(dict(agent) for agent in agents),
             population_allocations=tuple(
                 dict(value) for value in result.get("population_allocations", [])
             ),
@@ -209,19 +204,13 @@ class TextDslService:
                 population_id
                 if composition_id is None
                 and composition_population_id is None
-                and neighbourhood_id is None
-                and neighbourhood_population_id is None
                 else (
                     f"composition:{composition_id}"
                     if composition_id is not None
                     else (
                         f"composition_population:{composition_population_id}"
                         if composition_population_id is not None
-                        else (
-                            f"neighbourhood:{neighbourhood_id}"
-                            if neighbourhood_id is not None
-                            else f"neighbourhood_population:{neighbourhood_population_id}"
-                        )
+                        else None
                     )
                 )
             ),
@@ -334,8 +323,6 @@ class TextDslService:
         if not path.exists():
             raise KeyError(run_id)
         view = self._read_run(path)["view"]
-        if "reports" not in view:
-            view = self._legacy_run_view(view)
         return TextDslRunResult.model_validate(view)
 
     def _persist(self, view: TextDslRunResult, raw: dict[str, Any]) -> None:
@@ -346,7 +333,8 @@ class TextDslService:
             days=view.days,
             ticks=view.ticks,
             total_agents=view.total_agents,
-            sample_budget=view.sample_budget,
+            total_represented_pool=view.total_represented_pool,
+            detail=view.detail,
             population_id=view.population_id,
             created_at=view.created_at,
         )
@@ -419,134 +407,6 @@ class TextDslService:
         if not safe or safe != function_id:
             raise ValueError("Invalid aggregate function ID")
         return self.aggregate_cache_path / safe
-
-    @staticmethod
-    def _legacy_run_view(view: dict[str, Any]) -> dict[str, Any]:
-        columns = (
-            ("population", "Population", "integer"),
-            ("mean_money", "Money", "number"),
-            ("mean_health", "Health", "decimal"),
-            ("mean_stress", "Stress", "decimal"),
-            ("fights_per_day", "Fights / day", "integer"),
-            ("average_family_size", "Family size", "decimal"),
-            ("average_kids_per_family", "Kids / family", "decimal"),
-            ("action_rates_per_1000", "Action rates / 1,000", "action_rates"),
-        )
-        rows = view.get("final_aggregates", [])
-        reports = []
-        report_ids = {"place": "places", "agent_type": "agent_types"}
-        report_titles = {"place": "Places", "agent_type": "Agent types"}
-        for group_kind, report_id in report_ids.items():
-            selected = [row for row in rows if row.get("group_kind") == group_kind]
-            if not selected:
-                continue
-            reports.append(
-                {
-                    "id": report_id,
-                    "title": report_titles[group_kind],
-                    "group_by": group_kind,
-                    "display": "table",
-                    "record": "final",
-                    "columns": [
-                        {
-                            "id": field,
-                            "label": label,
-                            "format": format_name,
-                            "metric": "Legacy",
-                            "line": 1,
-                        }
-                        for field, label, format_name in columns
-                    ],
-                    "snapshots": [
-                        {
-                            "tick": max(int(row.get("tick", 0)) for row in selected),
-                            "rows": [
-                                {
-                                    "group_id": str(row["group_id"]),
-                                    "values": {
-                                        field: row.get(field, 0)
-                                        for field, _, _ in columns
-                                    },
-                                }
-                                for row in selected
-                            ],
-                        }
-                    ],
-                }
-            )
-        event_values = {
-            "actions": {
-                str(key): float(value)
-                for key, value in view.get("action_counts", {}).items()
-            },
-            "outcomes": {
-                str(key): float(value)
-                for key, value in view.get("outcome_counts", {}).items()
-            },
-        }
-        if any(event_values.values()):
-            reports.append(
-                {
-                    "id": "event_totals",
-                    "title": "Action and outcome totals",
-                    "group_by": "all",
-                    "display": "cards",
-                    "record": "final",
-                    "columns": [
-                        {
-                            "id": field,
-                            "label": label,
-                            "format": "action_rates",
-                            "metric": "Legacy",
-                            "line": 1,
-                        }
-                        for field, label in (
-                            ("actions", "Actions"),
-                            ("outcomes", "Outcomes"),
-                        )
-                    ],
-                    "snapshots": [
-                        {
-                            "tick": int(view["ticks"]),
-                            "rows": [{"group_id": "All", "values": event_values}],
-                        }
-                    ],
-                }
-            )
-        comparison = []
-        for row in view.get("comparison", []):
-            report_id = report_ids.get(row.get("group_kind"))
-            if report_id is None:
-                continue
-            comparison.append(
-                {
-                    "report_id": report_id,
-                    "group_id": str(row["group_id"]),
-                    "values": {
-                        field: row.get(field, 0)
-                        for field, _, _ in columns
-                        if field != "average_family_size"
-                        and field != "average_kids_per_family"
-                    },
-                }
-            )
-        return {
-            "run_id": view["run_id"],
-            "source_hash": view["source_hash"],
-            "seed": view["seed"],
-            "days": view["days"],
-            "ticks": view["ticks"],
-            "adult_population": view["adult_population"],
-            "total_agents": view["total_agents"],
-            "generated_children": view["generated_children"],
-            "population_id": None,
-            "results_title": "Recorded Rust output",
-            "results_subtitle": "Legacy recorded statistics",
-            "reports": reports,
-            "comparison": comparison,
-            "engine_version": view["engine_version"],
-            "created_at": view["created_at"],
-        }
 
     @staticmethod
     def _comparison(

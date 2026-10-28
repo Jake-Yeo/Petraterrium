@@ -91,12 +91,26 @@ pub fn sample_population(program: &Program, seed: u64) -> DslResult<DslPopulatio
     })
 }
 
-fn apply_role_distributions(
+pub(super) fn apply_role_distributions(
     program: &Program,
     seed: u64,
     agents_by_id: &BTreeMap<&str, &AgentDefinition>,
     agents: &mut [DslAgentState],
 ) -> DslResult<()> {
+    let group_roles = program
+        .role_distributions
+        .iter()
+        .filter(|distribution| !distribution.group.is_empty())
+        .fold(
+            BTreeMap::<&str, BTreeSet<&str>>::new(),
+            |mut groups, distribution| {
+                groups
+                    .entry(distribution.group.as_str())
+                    .or_default()
+                    .insert(distribution.role.as_str());
+                groups
+            },
+        );
     for distribution in &program.role_distributions {
         let matching = agents
             .iter()
@@ -112,14 +126,22 @@ fn apply_role_distributions(
             .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
             .chain([(
                 "composition_population".to_owned(),
-                DslValue::Number(matching.len() as f64),
+                DslValue::Number(program.represented_pool.unwrap_or(matching.len() as u64) as f64),
             )])
             .collect::<BTreeMap<_, _>>();
         let share = evaluate(&distribution.share, &values)?
             .as_f64()
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
-        let target = (matching.len() as f64 * share).round() as usize;
+        let represented_target =
+            program.represented_pool.unwrap_or(matching.len() as u64) as f64 * share;
+        let target = if represented_target > 0.0 && !matching.is_empty() {
+            let minimum =
+                usize::from(represented_target <= 1.0) + usize::from(represented_target > 1.0) * 2;
+            ((matching.len() as f64 * share).round() as usize).max(minimum.min(matching.len()))
+        } else {
+            0
+        };
         let existing = matching
             .iter()
             .filter(|index| agents[**index].roles.contains(&distribution.role))
@@ -127,6 +149,17 @@ fn apply_role_distributions(
         let mut eligible = matching
             .into_iter()
             .filter(|index| !agents[*index].roles.contains(&distribution.role))
+            .filter(|index| {
+                distribution.overlap
+                    || distribution.group.is_empty()
+                    || group_roles
+                        .get(distribution.group.as_str())
+                        .is_none_or(|roles| {
+                            roles
+                                .iter()
+                                .all(|role| !agents[*index].roles.contains(*role))
+                        })
+            })
             .filter(|index| {
                 evaluate(
                     &distribution.condition,
@@ -147,11 +180,27 @@ fn apply_role_distributions(
             agents[index].roles.insert(distribution.role.clone());
         }
     }
+    for (group, roles) in &group_roles {
+        let otherwise = program
+            .role_distributions
+            .iter()
+            .find(|distribution| distribution.group == *group)
+            .map(|distribution| distribution.otherwise.as_str())
+            .unwrap_or("");
+        if otherwise.is_empty() {
+            continue;
+        }
+        for agent in agents.iter_mut() {
+            if roles.iter().all(|role| !agent.roles.contains(*role)) {
+                agent.roles.insert(otherwise.to_owned());
+            }
+        }
+    }
     Ok(())
 }
 
 fn agent_type_is(agents: &BTreeMap<&str, &AgentDefinition>, actual: &str, expected: &str) -> bool {
-    if actual == expected {
+    if actual == expected || actual.rsplit("__").next() == Some(expected) {
         return true;
     }
     agents
@@ -1009,6 +1058,66 @@ fn apply_effect(
 ) -> DslResult<()> {
     match effect.target {
         PendingTarget::Agent(index) => {
+            if effect.field == "household" {
+                if effect.operation != "=" {
+                    return Err(DslError::new(
+                        "INVALID_HOUSEHOLD_EFFECT",
+                        1,
+                        "Household effects use =",
+                    ));
+                }
+                let new_household = effect.value.as_text().ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_HOUSEHOLD_EFFECT",
+                        1,
+                        "Household effect needs an identifier",
+                    )
+                })?;
+                let old_household = state.agents[index].household_id.clone();
+                for member in state
+                    .agents
+                    .iter_mut()
+                    .filter(|agent| agent.household_id == old_household)
+                {
+                    member.household_id = format!("{new_household}-{}", index);
+                }
+                return Ok(());
+            }
+            if effect.field == "residence" {
+                if effect.operation != "=" {
+                    return Err(DslError::new(
+                        "INVALID_RESIDENCE_EFFECT",
+                        1,
+                        "Residence effects use =",
+                    ));
+                }
+                let country = effect.value.as_text().ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_RESIDENCE_EFFECT",
+                        1,
+                        "Residence effect needs a country identifier",
+                    )
+                })?;
+                let household = state.agents[index].household_id.clone();
+                for member in state
+                    .agents
+                    .iter_mut()
+                    .filter(|agent| agent.household_id == household)
+                {
+                    member.roles.retain(|role| !role.starts_with("resident_"));
+                    member.roles.insert(format!("resident_country_{country}"));
+                    member
+                        .roles
+                        .insert(format!("resident_division_relocated_{country}"));
+                    member
+                        .roles
+                        .insert(format!("resident_municipality_relocated_{country}"));
+                    member
+                        .roles
+                        .insert(format!("resident_neighbourhood_relocated_{country}"));
+                }
+                return Ok(());
+            }
             let agent = &mut state.agents[index];
             if effect.field == "roles" {
                 apply_role_effect(&mut agent.roles, &effect.operation, &effect.value)?;

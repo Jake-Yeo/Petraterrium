@@ -1,6 +1,6 @@
 program SyntheticRoles version "1.0":
   tick_hours = 1 placeholder
-  placeholder = "placeholder — agent knowledge, for demo only, to be replaced by research"
+  placeholder = "estimated pending the research pipeline"
   uncertainty = wide
   record_actions = true
   results_title = "Synthetic roles"
@@ -22,10 +22,14 @@ agent Person:
   state roles
   trait activity
   trait interest_match
+  state money range 0..100000 estimated
+  state stress range 0..1 estimated
   state location
   initial:
     activity ~ Uniform(min=0.5, max=0.5) placeholder
     interest_match ~ Uniform(min=0.5, max=0.5) placeholder
+    money ~ Uniform(min=100, max=100) placeholder
+    stress ~ Uniform(min=0.2, max=0.2) placeholder
     location ~ Categorical(Home: 1.0) placeholder
   routine = at_rest
 
@@ -125,12 +129,14 @@ action post_reddit:
   duration = Triangular(min=0.1, median=0.2, max=0.5) estimated
   outcome posted p = 1.0 estimated:
     effect current place activity += 1 estimated
+    effect self.money += 1 estimated
 
 action post_tiktok:
   aggregate = tiktok_posts
   duration = Triangular(min=0.1, median=0.2, max=0.5) estimated
   outcome posted p = 1.0 estimated:
     effect current place activity += 1 estimated
+    effect self.stress += 0.01 estimated
 
 action join_reddit:
   aggregate = role_changes

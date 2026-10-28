@@ -78,6 +78,11 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         .iter()
         .map(|policy| (policy.id.as_str(), policy))
         .collect::<BTreeMap<_, _>>();
+    let known_roles = program
+        .roles
+        .iter()
+        .map(|role| role.id.as_str())
+        .collect::<BTreeSet<_>>();
     let mut ids = BTreeSet::new();
     let mut archetype_ids = BTreeSet::new();
     for archetype in &program.composition_archetypes {
@@ -97,14 +102,9 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
     }
     for composition in &program.compositions {
-        let legacy = composition.report_id == "neighbourhoods";
         if !ids.insert(composition.id.as_str()) {
             return Err(DslError::new(
-                if legacy {
-                    "DUPLICATE_NEIGHBOURHOOD"
-                } else {
-                    "DUPLICATE_COMPOSITION"
-                },
+                "DUPLICATE_COMPOSITION",
                 composition.line,
                 format!("Duplicate composition {}", composition.id),
             ));
@@ -112,11 +112,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         validate_graph_metadata(composition)?;
         if composition.entries.is_empty() || composition.outputs.is_empty() {
             return Err(DslError::new(
-                if legacy {
-                    "EMPTY_NEIGHBOURHOOD"
-                } else {
-                    "EMPTY_COMPOSITION"
-                },
+                "EMPTY_COMPOSITION",
                 composition.line,
                 "Composition needs children and outputs",
             ));
@@ -131,6 +127,40 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 "INVALID_REPRESENTED_POPULATION",
                 composition.line,
                 "Represented population must be positive",
+            ));
+        }
+        if let Some(role) = composition
+            .role_targets
+            .keys()
+            .find(|role| !known_roles.contains(role.as_str()))
+        {
+            return Err(DslError::new(
+                "UNKNOWN_ROLE_TARGET",
+                composition.line,
+                format!("Unknown role target {role}"),
+            ));
+        }
+        let unweighted = composition
+            .entries
+            .iter()
+            .filter(|entry| entry.weight.is_none())
+            .count();
+        if unweighted > 0
+            && (unweighted != composition.entries.len() || composition.agent_pool.is_none())
+        {
+            return Err(DslError::new(
+                "INVALID_UNWEIGHTED_CHILDREN",
+                composition.line,
+                "Only an agent-pool root may omit every child weight",
+            ));
+        }
+        if let Some(pool) = &composition.agent_pool
+            && !composition.entries.iter().any(|entry| entry.child == *pool)
+        {
+            return Err(DslError::new(
+                "UNKNOWN_AGENT_POOL",
+                composition.line,
+                "agent_pool must name a direct child",
             ));
         }
         if let Some(template_id) = &composition.template {
@@ -162,11 +192,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
         if child_ids.len() != composition.entries.len() {
             return Err(DslError::new(
-                if legacy {
-                    "DUPLICATE_NEIGHBOURHOOD_HOUSEHOLD"
-                } else {
-                    "DUPLICATE_COMPOSITION_CHILD"
-                },
+                "DUPLICATE_COMPOSITION_CHILD",
                 composition.line,
                 "Composition children must be unique",
             ));
@@ -212,22 +238,17 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 && !compositions.contains_key(entry.child.as_str())
             {
                 return Err(DslError::new(
-                    if legacy {
-                        "UNKNOWN_NEIGHBOURHOOD_HOUSEHOLD"
-                    } else {
-                        "UNKNOWN_COMPOSITION_CHILD"
-                    },
+                    "UNKNOWN_COMPOSITION_CHILD",
                     entry.line,
                     format!("Unknown composition child {}", entry.child),
                 ));
             }
-            if !entry.weight.is_finite() || entry.weight <= 0.0 {
+            if entry
+                .weight
+                .is_some_and(|weight| !weight.is_finite() || weight <= 0.0)
+            {
                 return Err(DslError::new(
-                    if legacy {
-                        "INVALID_NEIGHBOURHOOD_HOUSEHOLD"
-                    } else {
-                        "INVALID_COMPOSITION_CHILD"
-                    },
+                    "INVALID_COMPOSITION_CHILD",
                     entry.line,
                     "Composition weight must be positive",
                 ));
@@ -236,11 +257,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         for place in &composition.places {
             if !places.contains(place.as_str()) {
                 return Err(DslError::new(
-                    if legacy {
-                        "UNKNOWN_NEIGHBOURHOOD_PLACE"
-                    } else {
-                        "UNKNOWN_COMPOSITION_PLACE"
-                    },
+                    "UNKNOWN_COMPOSITION_PLACE",
                     composition.line,
                     format!("Unknown composition place {place}"),
                 ));
@@ -280,11 +297,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                         || composition.couplings.iter().any(|item| item.id == *flow) => {}
                 _ => {
                     return Err(DslError::new(
-                        if legacy {
-                            "INVALID_NEIGHBOURHOOD_OUTPUT"
-                        } else {
-                            "INVALID_COMPOSITION_OUTPUT"
-                        },
+                        "INVALID_COMPOSITION_OUTPUT",
                         output.line,
                         format!("Invalid composition output {}", output.id),
                     ));
@@ -329,11 +342,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         for entry in &population.entries {
             if !compositions.contains_key(entry.composition.as_str()) {
                 return Err(DslError::new(
-                    if population.legacy_neighbourhood {
-                        "UNKNOWN_NEIGHBOURHOOD"
-                    } else {
-                        "UNKNOWN_COMPOSITION"
-                    },
+                    "UNKNOWN_COMPOSITION",
                     entry.line,
                     format!("Unknown composition {}", entry.composition),
                 ));
@@ -358,7 +367,10 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
 }
 
 fn validate_graph_metadata(composition: &CompositionDefinition) -> DslResult<()> {
-    if composition.graph_group.is_some() && composition.slice.is_none() {
+    if composition.graph_group.as_deref() != Some("root")
+        && composition.graph_group.is_some()
+        && composition.slice.is_none()
+    {
         return Err(DslError::new(
             "MISSING_COMPOSITION_SLICE",
             composition.line,
@@ -366,21 +378,25 @@ fn validate_graph_metadata(composition: &CompositionDefinition) -> DslResult<()>
         ));
     }
     if let Some(group) = &composition.graph_group
-        && !matches!(group.as_str(), "main" | "coupled" | "lab" | "allocation")
+        && !matches!(
+            group.as_str(),
+            "main" | "root" | "coupled" | "lab" | "allocation"
+        )
     {
         return Err(DslError::new(
             "INVALID_GRAPH_GROUP",
             composition.line,
-            "graph_group must be main, coupled, lab, or allocation",
+            "graph_group must be main, root, coupled, lab, or allocation",
         ));
     }
     if composition.slice.is_some() && !composition.entries.is_empty() {
-        let sum = composition
+        let weights = composition
             .entries
             .iter()
-            .map(|entry| entry.weight)
-            .sum::<f64>();
-        if (sum - 1.0).abs() > 1e-9 {
+            .filter_map(|entry| entry.weight)
+            .collect::<Vec<_>>();
+        let sum = weights.iter().sum::<f64>();
+        if !weights.is_empty() && (sum - 1.0).abs() > 1e-9 {
             return Err(DslError::new(
                 "INVALID_DISTRIBUTION_SUM",
                 composition.entries[0].line,
@@ -426,6 +442,14 @@ fn validate_composition_leaders(
                 leader.line,
                 format!("Unknown leader role {}", leader.role),
             ));
+        }
+        if program
+            .roles
+            .iter()
+            .find(|role| role.id == leader.role)
+            .is_some_and(|role| role.kind == "leader")
+        {
+            continue;
         }
         let actual = if let Some(archetype_id) = &leader.archetype {
             let archetype = program
