@@ -7,7 +7,7 @@ Nothing was committed or pushed.
 ## Source identity
 
 - The requested starting `engine-rust/dsl/default.dsl` SHA-256 was verified against `HEAD`: `c40ef01144ca2aaf83ea87354fbe6e1471836533befdfc16c655b92a50f12220`.
-- The implemented DSL SHA-256 is `7450be5d0198688eb1f8860c7c02309a9616a31bf17ebddf0af5dd50d61ac7e0`.
+- The implemented DSL SHA-256 is `20821ac82a6462324a53df40c52db3914414411c9d5c7e2c7d8940d06d785db2`.
 - Rust engine version is `0.13.0`. Exemplar caches also carry this engine version and cache schema version.
 
 ## Implemented
@@ -26,7 +26,8 @@ Nothing was committed or pushed.
 - All four sectors remain overlays on the same people: Physical, Media, Conglomerate, and Financial. Leaders are selected from eligible logical agents with unique assignments. The default full run assigns 521 spotlight offices, including 500 store managers, and reports zero unassigned required roles.
 - `record_actions` remains false by default. The composed result records action statistics while omitting raw action receipts unless the DSL explicitly requests them.
 - The run panel contains Total represented pool, Days, Seed, and Run full system in that order. Advanced contains city debug selection only. Detail, Sample budget, Planned draws, and the hidden legacy fast-forward controls are removed.
-- The React Flow view renders the physical hierarchy and path-specific exemplar nodes. Sector roles are badges. City detail displays recorded mixture metrics and exemplar weights; exemplar detail displays cache version, all 75 households, up to 100 visible agents at once, full role sets, residence paths, and household links.
+- The DSL validator requires every `graph_group = main` slice to form one connected level chain. Disconnected roots, forks, merges, repeated levels, level cycles, and composition links outside the slice are rejected with `INVALID_VERTICAL_SLICE` and a source line. `IndependentBusinesses` is restored as its own main vertical slice and is a direct child of the executable `Petraterrium` root.
+- React Flow renders each validated slice as one vertical level line without manufacturing a slice-root card. Tab labels derive from the same root-level label as the first card, producing World, Platforms, Conglomerates, Independent businesses, and Economies. World is exactly World → Countries → Divisions → Cities → Neighbourhoods; Conglomerates is Conglomerates → Brands → Franchises → Stores. Named declarations such as Canada, USA, and Toronto appear in the selected level's detail pane. Renaming a root level or adding a valid main slice changes its tab and line without a frontend edit. Mouse-wheel input over the graph pane and cards is contained as graph zoom, while the DSL toolbar stays sticky and the editor gutter stays synchronized.
 
 ## DSL fields
 
@@ -51,7 +52,9 @@ Removed from the executable population path:
 
 The existing `population.size` remains only as a generic agent/archetype primitive. It is not a world-sample control.
 
-## Default 30-day golden
+## Previous default 30-day golden
+
+This record predates the vertical-slice validation change and the restoration of Independent Businesses to the executable root. The DSL source hash and default program changed, so the 30-day golden was not claimed again without rerunning the expensive gate.
 
 - Total represented pool: `6,999,999,999`; seed: `1`; days: `30`; total exemplars: `92`.
 - Cold learning: `228.747s`; `44,712,000` mass agent-ticks; `92` learned exemplars.
@@ -171,16 +174,16 @@ Finance `flows` that remain elsewhere in the repository are per-agent cash-flow 
 
 ## Verification
 
-- Focused Rust acceptance: 16 tests passed across exemplar, hierarchy graph, cleanup, no-flow, and seeded multinomial suites; protocol default-root regression also passed.
+- Focused Rust vertical-slice graph acceptance: 5 passed, including disconnected-root and branching-level rejection with DSL source lines.
 - Focused backend text-DSL API: 4 passed.
-- Rendered DSL acceptance: 3 passed; measured graph render 90.6 ms, versus the stated 1,310.4 ms regression and 108.9 ms earlier baseline.
+- Rendered DSL acceptance: 6 passed, including exact level lines and matching root/tab labels for every slice, validation rejection for disconnected main-slice levels, a custom additional slice, executable Independent Businesses participation, wheel zoom while hovering a graph card with unchanged page scroll, sticky editor controls, and synchronized gutter scrolling; measured graph render 30.1 ms, versus the stated 1,310.4 ms regression and 108.9 ms earlier baseline.
 - Frontend TypeScript and production build passed.
 - Ruff passed for changed backend modules.
 - Full Rust suite: 140 passed.
 - Backend Ruff and generated-contract checks passed.
 - Rust formatting, frontend Prettier, frontend production build, VS Code diagnostics, and `git diff --check` passed.
 - The broad backend suite was stopped after roughly four minutes in `tests/test_api.py`; no failure had been emitted, but the serial real-simulation API cases were still running. The focused changed backend suite passed 4 tests.
-- The broad frontend E2E gate encountered two pre-existing `atlas.spec.ts` timeouts because the rendered app had no Data tab, then was stopped; 69 unrelated tests did not run. The focused changed DSL workflow passed all 3 browser tests.
+- The broad frontend E2E gate encountered two pre-existing `atlas.spec.ts` timeouts because the rendered app had no Data tab, then was stopped; 69 unrelated tests did not run. The focused changed DSL workflow passed all 5 browser tests.
 
 ## Implemented more narrowly
 
@@ -192,6 +195,6 @@ Finance `flows` that remain elsewhere in the repository are per-agent cash-flow 
 ## Legacy-term search disposition
 
 - `sample_budget`, `detail =`, and old demo identifiers remain only as string literals in negative cleanup tests that assert they are absent from the shipped DSL.
-- `lab` remains a generic graph-group value for optional test or auxiliary compositions. The main graph loads only Physical and keeps auxiliary groups collapsed and lazy.
+- `lab` remains a generic graph-group value for optional test or auxiliary compositions. The rendered tab set comes from every DSL slice whose graph group is `main`; auxiliary groups remain outside that tab set.
 - Frontend uses `detail` only for HTTP error payloads and the node-inspection pane. There is no run Detail input or API field.
 - No pre-rename sector term remains in the shipped DSL, Rust text-DSL engine, frontend implementation, tests, or this report.

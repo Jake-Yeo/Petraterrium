@@ -71,9 +71,6 @@ export function shell(): string {
         </div>
       </header>
       <div class="simulation-workspace" id="simulation-view">
-        <nav class="simulation-sections" role="tablist" aria-label="Simulation sections">
-          <button role="tab" aria-selected="true" aria-controls="simulation-graph-view" data-simulation-section="graph">DSL Code</button>
-        </nav>
         <section id="simulation-graph-view" class="simulation-section"></section>
         <section id="simulation-agents-view" class="simulation-section" hidden></section>
         <section id="simulation-trees-view" class="simulation-section" hidden></section>

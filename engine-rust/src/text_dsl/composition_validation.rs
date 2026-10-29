@@ -346,6 +346,7 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
         }
     }
     validate_composition_cycles(&compositions)?;
+    validate_vertical_slices(program, &compositions)?;
     for composition in &program.compositions {
         validate_composition_leaders(program, composition, &compositions)?;
     }
@@ -401,6 +402,157 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 ));
             }
         }
+    }
+    Ok(())
+}
+
+fn validate_vertical_slices(
+    program: &Program,
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> DslResult<()> {
+    let mut slices = BTreeMap::<&str, Vec<&CompositionDefinition>>::new();
+    for composition in &program.compositions {
+        if composition.graph_group.as_deref() == Some("main") {
+            slices
+                .entry(composition.slice.as_deref().unwrap_or_default())
+                .or_default()
+                .push(composition);
+        }
+    }
+    for (slice, members) in slices {
+        validate_vertical_slice(slice, &members, compositions)?;
+    }
+    Ok(())
+}
+
+fn validate_vertical_slice(
+    slice: &str,
+    members: &[&CompositionDefinition],
+    compositions: &BTreeMap<&str, &CompositionDefinition>,
+) -> DslResult<()> {
+    let mut levels = BTreeMap::<&str, Vec<&CompositionDefinition>>::new();
+    let mut outgoing = BTreeMap::<&str, BTreeSet<&str>>::new();
+    let mut incoming = BTreeMap::<&str, BTreeSet<&str>>::new();
+    for composition in members {
+        levels
+            .entry(composition.level.as_str())
+            .or_default()
+            .push(composition);
+        for entry in &composition.entries {
+            let Some(child) = compositions.get(entry.child.as_str()) else {
+                continue;
+            };
+            if child.graph_group.as_deref() != Some("main") || child.slice.as_deref() != Some(slice)
+            {
+                return Err(DslError::new(
+                    "INVALID_VERTICAL_SLICE",
+                    entry.line,
+                    format!(
+                        "Main vertical slice {slice} links to composition {} outside its level chain",
+                        child.id
+                    ),
+                ));
+            }
+            if child.level == composition.level {
+                return Err(DslError::new(
+                    "INVALID_VERTICAL_SLICE",
+                    entry.line,
+                    format!(
+                        "Main vertical slice {slice} repeats level {}; a vertical slice must form one connected level chain",
+                        child.level
+                    ),
+                ));
+            }
+            outgoing
+                .entry(composition.level.as_str())
+                .or_default()
+                .insert(child.level.as_str());
+            incoming
+                .entry(child.level.as_str())
+                .or_default()
+                .insert(composition.level.as_str());
+        }
+    }
+    for (level, children) in &outgoing {
+        if children.len() > 1 {
+            return Err(DslError::new(
+                "INVALID_VERTICAL_SLICE",
+                levels[level][0].line,
+                format!(
+                    "Main vertical slice {slice} branches from level {level} to {}; a vertical slice must form one connected level chain",
+                    children.iter().copied().collect::<Vec<_>>().join(", ")
+                ),
+            ));
+        }
+    }
+    for (level, parents) in &incoming {
+        if parents.len() > 1 {
+            return Err(DslError::new(
+                "INVALID_VERTICAL_SLICE",
+                levels[level][0].line,
+                format!(
+                    "Main vertical slice {slice} merges levels {} into {level}; a vertical slice must form one connected level chain",
+                    parents.iter().copied().collect::<Vec<_>>().join(", ")
+                ),
+            ));
+        }
+    }
+    let roots = levels
+        .keys()
+        .copied()
+        .filter(|level| !incoming.contains_key(level))
+        .collect::<Vec<_>>();
+    if roots.len() != 1 {
+        let line = roots
+            .get(1)
+            .or_else(|| roots.first())
+            .and_then(|level| levels.get(level))
+            .and_then(|values| values.first())
+            .map_or(members[0].line, |composition| composition.line);
+        return Err(DslError::new(
+            "INVALID_VERTICAL_SLICE",
+            line,
+            format!(
+                "Main vertical slice {slice} must form one connected level chain; found root levels {}",
+                roots.join(", ")
+            ),
+        ));
+    }
+    let mut visited = BTreeSet::new();
+    let mut current = roots[0];
+    loop {
+        if !visited.insert(current) {
+            return Err(DslError::new(
+                "INVALID_VERTICAL_SLICE",
+                levels[current][0].line,
+                format!(
+                    "Main vertical slice {slice} contains a level cycle at {current}; a vertical slice must form one connected level chain"
+                ),
+            ));
+        }
+        let Some(next) = outgoing
+            .get(current)
+            .and_then(|children| children.iter().next())
+            .copied()
+        else {
+            break;
+        };
+        current = next;
+    }
+    if visited.len() != levels.len() {
+        let missing = levels
+            .keys()
+            .copied()
+            .filter(|level| !visited.contains(level))
+            .collect::<Vec<_>>();
+        return Err(DslError::new(
+            "INVALID_VERTICAL_SLICE",
+            levels[missing[0]][0].line,
+            format!(
+                "Main vertical slice {slice} must form one connected level chain; disconnected levels: {}",
+                missing.join(", ")
+            ),
+        ));
     }
     Ok(())
 }

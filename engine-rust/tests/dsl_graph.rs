@@ -2,9 +2,27 @@ use petraterrium_engine::text_dsl::{build_program_graph, parse_program};
 use std::collections::BTreeSet;
 
 const SOURCE: &str = include_str!("../dsl/default.dsl");
+const COOPERATIVE_BUSINESS: &str = r#"composition CooperativeBusinesses:
+  slice = "Conglomerate"
+  graph_group = main
+  level = independent_businesses
+  clock = 7 days
+  sync_up = 28 days
+  children:
+    HouseholdRuralMixed: weight = 1.0
+  output population = count()
+"#;
+
+fn with_cooperative_business(source: &str) -> String {
+    source.replacen(
+        "entity BerkshireHathawayListing:",
+        &format!("{COOPERATIVE_BUSINESS}\nentity BerkshireHathawayListing:"),
+        1,
+    )
+}
 
 #[test]
-fn graph_contains_current_physical_hierarchy_and_four_sector_metadata() {
+fn graph_contains_current_vertical_slices() {
     let program = parse_program(SOURCE).unwrap();
     let graph = build_program_graph(&program).unwrap();
     let ids = graph
@@ -26,6 +44,7 @@ fn graph_contains_current_physical_hierarchy_and_four_sector_metadata() {
         "Monterrey",
         "Reddit",
         "BerkshireHathaway",
+        "IndependentBusinesses",
         "FinancialEconomy",
     ] {
         assert!(ids.contains(id), "{id}");
@@ -38,9 +57,20 @@ fn graph_contains_current_physical_hierarchy_and_four_sector_metadata() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         slices,
-        BTreeSet::from(["Conglomerate", "Financial", "Media", "Physical"])
+        BTreeSet::from([
+            "Conglomerate",
+            "Financial",
+            "Independent Businesses",
+            "Media",
+            "Physical",
+        ])
     );
     assert!(graph.edges.iter().all(|edge| edge.kind != "coupling"));
+    assert!(
+        graph.edges.iter().any(|edge| {
+            edge.from_id == "Petraterrium" && edge.to_id == "IndependentBusinesses"
+        })
+    );
 }
 
 #[test]
@@ -97,4 +127,30 @@ fn graph_metadata_errors_keep_source_lines() {
     let error = parse_program(&bad_probability).unwrap_err();
     assert_eq!(error.code, "INVALID_DISTRIBUTION_SUM");
     assert!(error.line > 0);
+}
+
+#[test]
+fn main_vertical_slice_rejects_a_disconnected_level() {
+    let disconnected = with_cooperative_business(SOURCE);
+    assert_ne!(disconnected, SOURCE);
+    let error = parse_program(&disconnected).unwrap_err();
+    assert_eq!(error.code, "INVALID_VERTICAL_SLICE");
+    assert!(error.line > 0);
+    assert!(error.message.contains("Conglomerate"));
+    assert!(error.message.contains("one connected level chain"));
+}
+
+#[test]
+fn main_vertical_slice_rejects_a_branching_level() {
+    let branched = with_cooperative_business(SOURCE).replacen(
+        "    BerkshireRetailBrand: weight = 1.0",
+        "    BerkshireRetailBrand: weight = 0.5\n    CooperativeBusinesses: weight = 0.5",
+        1,
+    );
+    assert_ne!(branched, SOURCE);
+    let error = parse_program(&branched).unwrap_err();
+    assert_eq!(error.code, "INVALID_VERTICAL_SLICE");
+    assert!(error.line > 0);
+    assert!(error.message.contains("Conglomerate"));
+    assert!(error.message.contains("branches"));
 }

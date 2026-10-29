@@ -224,20 +224,22 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run weighted neighbourhood exemplars across four sector overlays, inspect the exact DSL as code, or explore its validated hierarchy and roles.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run weighted neighbourhood exemplars across four sector overlays, inspect the exact DSL as code, or explore its validated vertical slices and roles.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
-      <div class="text-dsl-view-toggle" role="tablist" aria-label="DSL view">
-        <button type="button" role="tab" aria-selected="true" data-dsl-view="code">Code</button>
-        <button type="button" role="tab" aria-selected="false" data-dsl-view="graph">Graph</button>
-      </div>
-      <div class="text-dsl-source-actions">
-        <button type="button" class="button secondary" data-dsl-action="validate">Validate code</button>
-        <button type="button" class="button primary" data-dsl-action="save">Save DSL</button>
-        <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
+      <div class="text-dsl-editor-toolbar">
+        <div class="text-dsl-view-toggle" role="tablist" aria-label="DSL view">
+          <button type="button" role="tab" aria-selected="true" data-dsl-view="code">Code</button>
+          <button type="button" role="tab" aria-selected="false" data-dsl-view="graph">Graph</button>
+        </div>
+        <div class="text-dsl-source-actions">
+          <button type="button" class="button secondary" data-dsl-action="validate">Validate code</button>
+          <button type="button" class="button primary" data-dsl-action="save">Save DSL</button>
+          <button type="button" class="button secondary" data-dsl-action="reset">Reset shipped DSL</button>
+        </div>
       </div>
       <section class="text-dsl-run-panel">
-        <header><div><span class="text-dsl-eyebrow">RUN FULL SYSTEM</span><h2>Petraterrium</h2><p>One pool of people acts across Physical, Media, Conglomerate, and Financial sectors through overlapping roles.</p></div></header>
+        <header><div><span class="text-dsl-eyebrow">RUN FULL SYSTEM</span><h2>Petraterrium</h2><p>One pool of people acts across every validated vertical slice through overlapping roles.</p></div></header>
         <div class="text-dsl-full-summary" data-full-system-summary></div>
         <div class="text-dsl-run-controls">
           <label>Total represented pool <input type="number" min="1" step="1" value="6999999999" data-dsl-total-pool></label>
@@ -594,7 +596,7 @@ export class TextDslEditor {
     const host = this.root.querySelector<HTMLElement>('[data-full-system-summary]')!;
     const root = graph?.nodes.find((node) => node.id === graph.default_run_id);
     if (!graph || !root) {
-      host.innerHTML = '<p>Validate the DSL to load the exemplar hierarchy.</p>';
+      host.innerHTML = '<p>Validate the DSL to load the vertical slices.</p>';
       return;
     }
     const cities = graph.nodes.filter((node) => ['municipality', 'city'].includes(node.level));
@@ -616,7 +618,7 @@ export class TextDslEditor {
   private updateButtons(validation = this.document?.validation): void {
     const save = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="save"]')!;
     const run = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
-    save.disabled = !this.dirty;
+    save.disabled = !this.dirty || !validation?.valid;
     run.disabled = this.dirty || !validation?.valid;
   }
 

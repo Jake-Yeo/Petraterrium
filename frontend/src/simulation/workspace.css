@@ -2,43 +2,8 @@
   min-width: 0;
 }
 
-.simulation-sections {
-  position: sticky;
-  z-index: 12;
-  top: 56px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-height: 54px;
-  padding: 8px clamp(18px, 4vw, 54px);
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, #0b1119 94%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-.simulation-sections > button {
-  border: 1px solid transparent;
-  border-radius: 5px;
-  padding: 9px 13px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.simulation-sections > button[aria-selected='true'] {
-  border-color: #ffffff17;
-  background: #ffffff0a;
-  color: #e5e9eb;
-}
-
-.simulation-sections .simulation-settings-button {
-  margin-left: auto;
-  color: var(--green);
-}
-
 .simulation-section:not(.lab) {
-  min-height: calc(100vh - 110px);
+  min-height: calc(100vh - 67px);
   padding: 30px clamp(18px, 4vw, 54px) 70px;
 }
 
@@ -334,15 +299,6 @@
 }
 
 @media (max-width: 780px) {
-  .simulation-sections {
-    top: 50px;
-    overflow-x: auto;
-  }
-
-  .simulation-sections > button {
-    flex: 0 0 auto;
-  }
-
   .simulation-graph-header {
     align-items: flex-start;
     flex-direction: column;

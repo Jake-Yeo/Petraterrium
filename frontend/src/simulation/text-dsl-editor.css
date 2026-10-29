@@ -88,6 +88,21 @@
   text-transform: uppercase;
 }
 
+.text-dsl-editor-toolbar {
+  align-items: center;
+  background: color-mix(in srgb, var(--dsl-panel) 94%, var(--dsl-bg));
+  border: 1px solid var(--dsl-line);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
 .text-dsl-view-toggle {
   align-items: center;
   display: flex;
@@ -369,7 +384,9 @@
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
   height: min(64vh, 760px);
+  min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .text-dsl-gutter,
@@ -378,7 +395,10 @@
     13px/1.55 'SFMono-Regular',
     Consolas,
     monospace;
+  box-sizing: border-box;
+  height: 100%;
   margin: 0;
+  min-height: 0;
   tab-size: 2;
 }
 
@@ -400,7 +420,9 @@
   overflow: auto;
   padding: 14px 18px;
   resize: none;
+  min-width: 0;
   white-space: pre;
+  width: 100%;
 }
 
 .text-dsl-code:focus {
@@ -821,6 +843,46 @@
   border-radius: 8px;
 }
 
+.dsl-slice-tabs {
+  background: color-mix(in srgb, var(--dsl-panel) 84%, var(--dsl-bg));
+  border-bottom: 1px solid var(--dsl-line);
+  border-top: 1px solid var(--dsl-line);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  padding: 10px 12px;
+}
+
+.dsl-slice-tabs button {
+  background: var(--dsl-bg);
+  border: 1px solid var(--dsl-line);
+  border-radius: 8px;
+  color: var(--dsl-muted);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.dsl-slice-tabs button:hover,
+.dsl-slice-tabs button:focus-visible {
+  border-color: color-mix(in srgb, var(--dsl-accent) 65%, var(--dsl-line));
+}
+
+.dsl-slice-tabs button[aria-selected='true'] {
+  background: color-mix(in srgb, var(--dsl-accent) 14%, var(--dsl-bg));
+  border-color: var(--dsl-accent);
+  color: var(--dsl-text);
+  box-shadow: inset 0 -3px 0 var(--dsl-accent);
+}
+
+.dsl-slice-tabs small {
+  color: var(--dsl-muted);
+  font-size: 9px;
+}
+
 .dsl-agent-interactions {
   margin: 10px 0;
   max-height: 240px;
@@ -856,7 +918,9 @@
 .dsl-react-flow {
   background: var(--dsl-bg);
   min-height: min(72vh, 840px);
+  overscroll-behavior: contain;
   position: relative;
+  touch-action: none;
 }
 
 .dsl-react-flow .react-flow {
@@ -878,21 +942,6 @@
 
 .dsl-react-flow .react-flow__pane {
   z-index: 0;
-}
-
-.dsl-react-lanes {
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 3;
-}
-
-.dsl-react-lanes > div {
-  border-bottom: 2px solid var(--dsl-accent);
-  color: var(--dsl-text);
-  padding: 12px;
-  position: absolute;
-  text-align: center;
 }
 
 .dsl-react-node {

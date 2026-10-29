@@ -1505,7 +1505,7 @@ composition BerkshireHathaway:
   output owner_payouts = action_count(owner_payouts, window=run)
 
 composition IndependentBusinesses:
-  slice = "Conglomerate"
+  slice = "Independent Businesses"
   graph_group = main
   level = independent_businesses
   clock = 7 days
@@ -1597,5 +1597,6 @@ composition Petraterrium:
     World
     Reddit
     BerkshireHathaway
+    IndependentBusinesses
     FinancialEconomy
   output population = count()
