@@ -16,6 +16,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import { createRoot, type Root } from 'react-dom/client';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  buildNestedVerticalGraph,
+  buildVerticalLevelGraph,
+  sliceRoots,
+  sliceTabLabel,
+  type VerticalNavigationFrame,
+} from './dsl-vertical-graph';
 
 export interface GraphRoleSource {
   kind: string;
@@ -62,6 +69,7 @@ export interface GraphNode {
   id: string;
   display_name?: string | null;
   members?: Array<{ id: string; line: number }>;
+  scope_city_ids?: string[];
   node_kind: string;
   vertical_slice: string;
   graph_group: string;
@@ -211,13 +219,18 @@ interface GraphOccurrence {
   agentLeaves: string[];
 }
 
+interface VerticalNavigationHistory {
+  frame?: VerticalNavigationFrame;
+  viewport: Viewport;
+}
+
 interface DslNodeData extends Record<string, unknown> {
   occurrence: GraphOccurrence;
   selected: boolean;
   highlighted: boolean;
   dimmed: boolean;
   expanded: boolean;
-  onSelect: (path: string) => void;
+  onSelect: (occurrence: GraphOccurrence) => void;
   onToggle: (path: string) => void;
   onRole: (role: string) => void;
   assignedCount: number;
@@ -227,186 +240,6 @@ type DslFlowNode = Node<DslNodeData, 'dslNode'>;
 
 const label = (value: string): string =>
   value.replaceAll('_', ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-
-const sliceRoots = (graph: ProgramGraph, sliceId: string): GraphNode[] => {
-  const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
-  return graph.nodes
-    .filter(
-      (node) =>
-        node.node_kind === 'composition' &&
-        node.graph_group === 'main' &&
-        node.vertical_slice === sliceId &&
-        node.parent_ids.every((parentId) => nodes.get(parentId)?.vertical_slice !== sliceId),
-    )
-    .sort((left, right) => left.line - right.line || left.id.localeCompare(right.id));
-};
-
-const sliceTabLabel = (graph: ProgramGraph, sliceId: string): string => {
-  const root = sliceRoots(graph, sliceId)[0];
-  return root ? verticalLevelLabel(root.level) : sliceId;
-};
-
-const titleCase = (value: string): string =>
-  value.length ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
-
-const verticalLevelLabel = (level: string): string => {
-  const normalized = label(level);
-  if (level === 'world') return titleCase(normalized);
-  if (level === 'municipality') return 'Cities';
-  if (normalized.endsWith('y')) return `${titleCase(normalized.slice(0, -1))}ies`;
-  if (normalized.endsWith('s')) return titleCase(normalized);
-  return `${titleCase(normalized)}s`;
-};
-
-const uniqueBy = <Value,>(values: Value[], key: (value: Value) => string): Value[] => [
-  ...new Map(values.map((value) => [key(value), value])).values(),
-];
-
-const aggregateLevelNode = (slice: GraphSlice, level: string, members: GraphNode[]): GraphNode => {
-  const first = members[0];
-  const syncUpMinutes = members
-    .map((member) => member.sync_up_minutes)
-    .filter((value): value is number => value !== null && value !== undefined);
-  const roleTargets = members.reduce<Record<string, number>>((result, member) => {
-    for (const [role, count] of Object.entries(member.role_targets)) {
-      result[role] = (result[role] ?? 0) + count;
-    }
-    return result;
-  }, {});
-  return {
-    ...first,
-    id: `__level__${slice.id}__${level}`,
-    display_name: verticalLevelLabel(level),
-    members: members
-      .map((member) => ({ id: member.id, line: member.line }))
-      .sort((left, right) => left.line - right.line || left.id.localeCompare(right.id)),
-    node_kind: 'vertical_level',
-    parent_id: null,
-    parent_ids: [],
-    also_used_in: [],
-    inherits_from: null,
-    weight: null,
-    distribution_probability: null,
-    expected_represented: null,
-    actual_represented: null,
-    expected_simulated: null,
-    actual_simulated: null,
-    represented_count: members.reduce((sum, member) => sum + (member.represented_count ?? 0), 0),
-    entity_count: members.reduce((sum, member) => sum + (member.entity_count ?? 0), 0),
-    role_targets: roleTargets,
-    agent_pool: null,
-    exemplar_households: null,
-    stratum: null,
-    heterogeneity: Math.max(...members.map((member) => member.heterogeneity)),
-    distribution_status: uniqueBy(
-      members.map((member) => member.distribution_status),
-      (status) => status,
-    ).join(', '),
-    provenance: null,
-    clock_minutes: Math.min(...members.map((member) => member.clock_minutes)),
-    sync_up_minutes: syncUpMinutes.length ? Math.min(...syncUpMinutes) : null,
-    simulated_count: members.reduce((sum, member) => sum + (member.simulated_count ?? 0), 0),
-    line: Math.min(...members.map((member) => member.line)),
-    cached: members.some((member) => member.cached),
-    sync_interval_days: null,
-    places: uniqueBy(
-      members.flatMap((member) => member.places),
-      (place) => place,
-    ),
-    roles_exposed: uniqueBy(
-      members.flatMap((member) => member.roles_exposed),
-      (role) => role.id,
-    ),
-    subtree_role_count: new Set(members.flatMap((member) => member.subtree_roles)).size,
-    subtree_roles: [...new Set(members.flatMap((member) => member.subtree_roles))],
-    roles_used: [...new Set(members.flatMap((member) => member.roles_used))],
-    parameters: {},
-    states: [...new Set(members.flatMap((member) => member.states))],
-    traits: [...new Set(members.flatMap((member) => member.traits))],
-    initial: [...new Set(members.flatMap((member) => member.initial))],
-    decisions: uniqueBy(
-      members.flatMap((member) => member.decisions),
-      (decision) => decision.id,
-    ),
-    actions: uniqueBy(
-      members.flatMap((member) => member.actions),
-      (action) => action.id,
-    ),
-    outputs: [...new Set(members.flatMap((member) => member.outputs))],
-    aggregate: null,
-  };
-};
-
-const buildVerticalLevelGraph = (graph: ProgramGraph): ProgramGraph => {
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-  const originalNodes = new Map(graph.nodes.map((node) => [node.id, node]));
-  for (const slice of graph.slices.filter((candidate) => candidate.group === 'main')) {
-    const compositions = graph.nodes.filter(
-      (node) =>
-        node.node_kind === 'composition' &&
-        node.graph_group === 'main' &&
-        node.vertical_slice === slice.id,
-    );
-    if (!compositions.length) continue;
-    const byLevel = new Map<string, GraphNode[]>();
-    for (const composition of compositions) {
-      const members = byLevel.get(composition.level) ?? [];
-      members.push(composition);
-      byLevel.set(composition.level, members);
-    }
-    const levelNodes = new Map<string, GraphNode>();
-    for (const [level, members] of byLevel) {
-      const node = aggregateLevelNode(slice, level, members);
-      levelNodes.set(level, node);
-      nodes.push(node);
-    }
-    const levelEdges = new Map<string, GraphEdge>();
-    for (const edge of graph.edges.filter((candidate) => candidate.kind === 'parent_child')) {
-      const parent = originalNodes.get(edge.from_id);
-      const child = originalNodes.get(edge.to_id);
-      if (
-        !parent ||
-        !child ||
-        parent.node_kind !== 'composition' ||
-        child.node_kind !== 'composition' ||
-        parent.vertical_slice !== slice.id ||
-        child.vertical_slice !== slice.id ||
-        parent.level === child.level
-      ) {
-        continue;
-      }
-      const id = `${parent.level}->${child.level}`;
-      if (!levelEdges.has(id)) {
-        levelEdges.set(id, {
-          id: `${slice.id}:${id}`,
-          from_id: levelNodes.get(parent.level)!.id,
-          to_id: levelNodes.get(child.level)!.id,
-          kind: 'parent_child',
-          line: edge.line,
-        });
-      }
-    }
-    edges.push(...levelEdges.values());
-  }
-  const parents = new Map<string, string[]>();
-  for (const edge of edges) {
-    const values = parents.get(edge.to_id) ?? [];
-    values.push(edge.from_id);
-    parents.set(edge.to_id, values);
-  }
-  for (const node of nodes) {
-    node.parent_ids = parents.get(node.id) ?? [];
-    node.parent_id = node.parent_ids[0] ?? null;
-  }
-  return {
-    nodes,
-    edges,
-    slices: graph.slices.filter((slice) => slice.group === 'main'),
-    orphan_agents: [],
-    default_run_id: null,
-  };
-};
 
 const formatted = (value?: number | null, digits = 0): string =>
   value === undefined || value === null
@@ -546,7 +379,7 @@ const layoutFlow = (
   query: string,
   roleFilter: string,
   expandedPaths: Set<string>,
-  onSelect: (path: string) => void,
+  onSelect: (occurrence: GraphOccurrence) => void,
   onToggle: (path: string) => void,
   onRole: (role: string) => void,
 ): FlowLayout => {
@@ -625,9 +458,12 @@ const DslNodeCard = ({ data }: NodeProps<DslFlowNode>): ReactNode => {
       data-graph-node={nodeName}
       data-graph-path={occurrence.path}
       data-graph-slice={occurrence.slice}
-      onClick={() => data.onSelect(occurrence.path)}
+      onClick={() => data.onSelect(occurrence)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') data.onSelect(occurrence.path);
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          data.onSelect(occurrence);
+        }
       }}
       role="button"
       tabIndex={0}
@@ -778,7 +614,7 @@ const GraphComponent = ({
   exemplarPlan,
   exemplarCache,
 }: GraphComponentProps): ReactNode => {
-  const { fitView } = useReactFlow();
+  const { fitView, setViewport: applyViewport } = useReactFlow();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [selectedPath, setSelectedPath] = useState<string>();
@@ -786,6 +622,9 @@ const GraphComponent = ({
   const [roleFilter, setRoleFilter] = useState('');
   const [poolOpen, setPoolOpen] = useState(false);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const [navigationFrame, setNavigationFrame] = useState<VerticalNavigationFrame>();
+  const [navigationHistory, setNavigationHistory] = useState<VerticalNavigationHistory[]>([]);
+  const [restoreViewport, setRestoreViewport] = useState<Viewport>();
   const verticalGraph = useMemo(
     () => (graph ? buildVerticalLevelGraph(graph) : undefined),
     [graph],
@@ -806,15 +645,28 @@ const GraphComponent = ({
   }, [graph]);
   useEffect(() => {
     if (!verticalGraph) return;
-    setExpandedPaths(allExpandablePaths(verticalGraph));
     setSelectedPath(undefined);
+    setNavigationFrame(undefined);
+    setNavigationHistory([]);
+    setRestoreViewport(undefined);
     const available = sliceTabs.map((slice) => slice.id);
     setActiveSlice((current) => (available.includes(current) ? current : (available[0] ?? '')));
   }, [verticalGraph, sliceTabs]);
+  const activeTabLabel = sliceTabs.find((slice) => slice.id === activeSlice)?.label ?? activeSlice;
+  const presentationGraph = useMemo(() => {
+    if (!graph || !verticalGraph || !navigationFrame) return verticalGraph;
+    return buildNestedVerticalGraph(graph, verticalGraph, activeSlice, navigationFrame);
+  }, [activeSlice, graph, navigationFrame, verticalGraph]);
+  useEffect(() => {
+    if (!presentationGraph) return;
+    setExpandedPaths(allExpandablePaths(presentationGraph));
+    setSelectedPath(undefined);
+  }, [presentationGraph]);
   const visibleSlices = useMemo(() => new Set([activeSlice]), [activeSlice]);
   const baseOccurrences = useMemo(
-    () => (verticalGraph ? buildOccurrences(verticalGraph, visibleSlices, expandedPaths) : []),
-    [verticalGraph, visibleSlices, expandedPaths],
+    () =>
+      presentationGraph ? buildOccurrences(presentationGraph, visibleSlices, expandedPaths) : [],
+    [presentationGraph, visibleSlices, expandedPaths],
   );
   const occurrences = baseOccurrences;
   const matching = useMemo(
@@ -836,32 +688,94 @@ const GraphComponent = ({
   const onRole = useCallback((role: string) => {
     setRoleFilter((current) => (current === role ? '' : role));
   }, []);
+  const onSelectNode = useCallback(
+    (occurrence: GraphOccurrence) => {
+      const node = occurrence.node;
+      if (node.node_kind !== 'vertical_level' || !node.members?.length) {
+        setSelectedPath(occurrence.path);
+        return;
+      }
+      const targetLabel = node.display_name ?? node.id;
+      const laneRoot = occurrence.path.split('>')[0];
+      const breadcrumb = [...(navigationFrame?.breadcrumb ?? [activeTabLabel])];
+      const additions = navigationFrame ? [laneRoot, targetLabel] : [targetLabel];
+      for (const value of additions) {
+        if (value && breadcrumb.at(-1) !== value) breadcrumb.push(value);
+      }
+      setNavigationHistory((current) => [...current, { frame: navigationFrame, viewport }]);
+      const memberIds = node.members.map((member) => member.id);
+      const graphNodes = new Map(
+        (graph?.nodes ?? []).map((candidate) => [candidate.id, candidate]),
+      );
+      const memberCityIds = memberIds.filter((id) => {
+        const level = graphNodes.get(id)?.level;
+        return level === 'municipality' || level === 'city';
+      });
+      setNavigationFrame({
+        level: node.level,
+        memberIds,
+        scopeCityIds: [...new Set([...(node.scope_city_ids ?? []), ...memberCityIds])],
+        breadcrumb,
+      });
+      setSelectedPath(undefined);
+      setSearchQuery('');
+      setRoleFilter('');
+      setRestoreViewport(undefined);
+    },
+    [activeTabLabel, graph, navigationFrame, viewport],
+  );
+  const goBack = useCallback(() => {
+    const previous = navigationHistory.at(-1);
+    if (!previous) return;
+    setNavigationHistory((current) => current.slice(0, -1));
+    setNavigationFrame(previous.frame);
+    setRestoreViewport(previous.viewport);
+    setSelectedPath(undefined);
+    setSearchQuery('');
+    setRoleFilter('');
+  }, [navigationHistory]);
   const flow = useMemo(
     () =>
-      verticalGraph
+      presentationGraph
         ? layoutFlow(
             occurrences,
             selectedPath,
             searchQuery,
             roleFilter,
             expandedPaths,
-            setSelectedPath,
+            onSelectNode,
             onToggle,
             onRole,
           )
         : { nodes: [], edges: [] },
     [
-      verticalGraph,
+      presentationGraph,
       occurrences,
       activeSlice,
       selectedPath,
       searchQuery,
       roleFilter,
       expandedPaths,
+      onSelectNode,
       onToggle,
       onRole,
     ],
   );
+
+  useEffect(() => {
+    if (!restoreViewport) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        void applyViewport(restoreViewport, { duration: 0 });
+        setRestoreViewport(undefined);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      if (second) cancelAnimationFrame(second);
+    };
+  }, [applyViewport, presentationGraph, restoreViewport]);
 
   useEffect(() => {
     if ((!searchQuery && !roleFilter) || matching.length === 0 || matching.length > 20) return;
@@ -900,13 +814,18 @@ const GraphComponent = ({
     .slice(0, 50);
   const rootNode = graph.nodes.find((candidate) => candidate.id === graph.default_run_id);
   const selectedMemberIds = new Set((node?.members ?? []).map((member) => member.id));
-  const selectedCities = (exemplarPlan?.cities ?? []).filter((city) =>
-    selectedMemberIds.has(city.city_id),
+  const selectedScopeCityIds = new Set(node?.scope_city_ids ?? []);
+  const selectedCities = (exemplarPlan?.cities ?? []).filter(
+    (city) => selectedMemberIds.has(city.city_id) || selectedScopeCityIds.has(city.city_id),
   );
   const selectedExemplars =
     node?.level === 'neighbourhood'
-      ? (exemplarPlan?.cities ?? []).flatMap((city) => city.exemplars)
+      ? (selectedCities.length ? selectedCities : (exemplarPlan?.cities ?? [])).flatMap(
+          (city) => city.exemplars,
+        )
       : selectedCities.flatMap((city) => city.exemplars);
+  const breadcrumbs = navigationFrame?.breadcrumb ?? [activeTabLabel];
+  const graphViewKey = `${activeSlice}:${navigationFrame?.level ?? 'root'}:${navigationFrame?.memberIds.join(',') ?? ''}`;
 
   return (
     <div className="dsl-react-graph" data-rendered-nodes={flow.nodes.length}>
@@ -958,6 +877,9 @@ const GraphComponent = ({
             onClick={() => {
               setActiveSlice(slice.id);
               setSelectedPath(undefined);
+              setNavigationFrame(undefined);
+              setNavigationHistory([]);
+              setRestoreViewport(undefined);
               setSearchQuery('');
               setRoleFilter('');
             }}
@@ -966,6 +888,21 @@ const GraphComponent = ({
             <small>{slice.node_count} nodes</small>
           </button>
         ))}
+      </nav>
+      <nav className="dsl-nested-navigation" aria-label="Nested graph navigation">
+        <button type="button" disabled={!navigationHistory.length} onClick={goBack}>
+          Back to previous graph
+        </button>
+        <ol>
+          {breadcrumbs.filter(Boolean).map((value, index) => (
+            <li
+              key={`${value}:${index}`}
+              aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}
+            >
+              {value}
+            </li>
+          ))}
+        </ol>
       </nav>
       <div className="dsl-graph-controls">
         <label>
@@ -1046,7 +983,7 @@ const GraphComponent = ({
           onWheelCapture={(event) => event.preventDefault()}
         >
           <ReactFlow
-            key={activeSlice}
+            key={graphViewKey}
             nodes={flow.nodes}
             edges={flow.edges}
             nodeTypes={{ dslNode: DslNodeCard }}

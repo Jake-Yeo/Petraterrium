@@ -1,6 +1,6 @@
 # Weighted neighbourhood exemplar status
 
-Date: 2026-10-28
+Date: 2026-10-29
 
 Nothing was committed or pushed.
 
@@ -28,6 +28,7 @@ Nothing was committed or pushed.
 - The run panel contains Total represented pool, Days, Seed, and Run full system in that order. Advanced contains city debug selection only. Detail, Sample budget, Planned draws, and the hidden legacy fast-forward controls are removed.
 - The DSL validator requires every `graph_group = main` slice to form one connected level chain. Disconnected roots, forks, merges, repeated levels, level cycles, and composition links outside the slice are rejected with `INVALID_VERTICAL_SLICE` and a source line. `IndependentBusinesses` is restored as its own main vertical slice and is a direct child of the executable `Petraterrium` root.
 - React Flow renders each validated slice as one vertical level line without manufacturing a slice-root card. Tab labels derive from the same root-level label as the first card, producing World, Platforms, Conglomerates, Independent businesses, and Economies. World is exactly World → Countries → Divisions → Cities → Neighbourhoods; Conglomerates is Conglomerates → Brands → Franchises → Stores. Named declarations such as Canada, USA, and Toronto appear in the selected level's detail pane. Renaming a root level or adding a valid main slice changes its tab and line without a frontend edit. Mouse-wheel input over the graph pane and cards is contained as graph zoom, while the DSL toolbar stays sticky and the editor gutter stays synchronized.
+- Every generic level card opens a nested graph scoped to the lane where it was clicked. Countries opens one straight lane per country; USA → Divisions opens only USA divisions; USA → Cities skips the division display and opens every USA city; a city's Neighbourhoods card reveals only its declared neighbourhoods. The same projection handles platforms, conglomerates, independent businesses, and economies. Back restores the previous graph and its viewport, while breadcrumbs show the current scope. Entity names and remaining generic levels are derived from validated DSL edges in `frontend/src/simulation/dsl-vertical-graph.ts`.
 
 ## DSL fields
 
@@ -176,7 +177,7 @@ Finance `flows` that remain elsewhere in the repository are per-agent cash-flow 
 
 - Focused Rust vertical-slice graph acceptance: 5 passed, including disconnected-root and branching-level rejection with DSL source lines.
 - Focused backend text-DSL API: 4 passed.
-- Rendered DSL acceptance: 6 passed, including exact level lines and matching root/tab labels for every slice, validation rejection for disconnected main-slice levels, a custom additional slice, executable Independent Businesses participation, wheel zoom while hovering a graph card with unchanged page scroll, sticky editor controls, and synchronized gutter scrolling; measured graph render 30.1 ms, versus the stated 1,310.4 ms regression and 108.9 ms earlier baseline.
+- Rendered DSL acceptance: 8 passed in 19.4 seconds, including nested geographic and non-geographic drilldown, direct level skipping, scoped results, Back content and viewport restoration, exact level lines and matching root/tab labels, validation rejection for disconnected main-slice levels, executable Independent Businesses participation, wheel containment, sticky editor controls, and synchronized gutter scrolling; measured graph render 28.7 ms, versus the stated 1,310.4 ms regression and 108.9 ms earlier baseline.
 - Frontend TypeScript and production build passed.
 - Ruff passed for changed backend modules.
 - Full Rust suite: 140 passed.

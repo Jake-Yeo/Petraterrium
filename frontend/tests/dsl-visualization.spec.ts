@@ -81,14 +81,6 @@ test('renders each main vertical slice as one root-to-leaf level line', async ({
   await page.getByLabel('Search nodes or roles').fill('Toronto');
   const cities = page.locator('[data-graph-node="Cities"]');
   await expect(cities).toHaveClass(/highlighted/);
-  await cities
-    .getByRole('button', { name: 'Hide lower levels' })
-    .evaluate((element: HTMLButtonElement) => element.click());
-  await expect(page.locator('[data-graph-node="Neighbourhoods"]')).toHaveCount(0);
-  await cities
-    .getByRole('button', { name: 'Show next level' })
-    .evaluate((element: HTMLButtonElement) => element.click());
-  await expect(page.locator('[data-graph-node="Neighbourhoods"]')).toBeVisible();
 
   await page.getByLabel('Search nodes or roles').fill('xyz-no-match');
   await expect(page.getByText("No nodes match 'xyz-no-match'")).toBeVisible();
@@ -96,10 +88,12 @@ test('renders each main vertical slice as one root-to-leaf level line', async ({
   await page
     .locator('[data-graph-node="Countries"]')
     .evaluate((element: HTMLElement) => element.click());
+  await expect(
+    page.locator('[data-graph-path="USA>Divisions>Cities>Neighbourhoods"]'),
+  ).toBeVisible();
+  await page.locator('[data-graph-node="USA"]').evaluate((element: HTMLElement) => element.click());
   const detail = page.locator('[data-graph-detail]');
-  await expect(detail).toContainText('Canada');
   await expect(detail).toContainText('USA');
-  await expect(detail).toContainText('Mexico');
   await detail.getByRole('button', { name: 'View in code' }).click();
   const editor = page.getByLabel('Simulation DSL code');
   const selectedLine = await editor.evaluate((element: HTMLTextAreaElement) => {
@@ -107,7 +101,88 @@ test('renders each main vertical slice as one root-to-leaf level line', async ({
     const end = element.value.indexOf('\n', element.selectionStart);
     return element.value.slice(start, end < 0 ? undefined : end);
   });
-  expect(selectedLine).toBe('composition Canada:');
+  expect(selectedLine).toBe('composition USA:');
+});
+
+test('drills through scoped vertical lanes and returns to each previous graph', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.getByRole('tab', { name: 'Graph' }).click();
+  await page
+    .locator('[data-graph-node="Countries"]')
+    .evaluate((element: HTMLElement) => element.click());
+
+  const navigation = page.getByRole('navigation', { name: 'Nested graph navigation' });
+  await expect(navigation).toContainText('World');
+  await expect(navigation).toContainText('Countries');
+  for (const path of [
+    'Canada>Divisions>Cities>Neighbourhoods',
+    'USA>Divisions>Cities>Neighbourhoods',
+    'Mexico>Divisions>Cities>Neighbourhoods',
+  ]) {
+    await expect(page.locator(`[data-graph-path="${path}"]`)).toBeVisible();
+  }
+  const graph = page.locator('.dsl-react-flow');
+  const fittedZoom = Number(await graph.getAttribute('data-viewport-zoom'));
+  await page.locator('[data-graph-node="USA"]').hover();
+  await page.mouse.wheel(0, -250);
+  await expect
+    .poll(async () => Number(await graph.getAttribute('data-viewport-zoom')))
+    .toBeGreaterThan(fittedZoom);
+  const countryZoom = Number(await graph.getAttribute('data-viewport-zoom'));
+
+  await page
+    .locator('[data-graph-path="USA>Divisions"]')
+    .evaluate((element: HTMLElement) => element.click());
+  for (const path of ['California>Cities>Neighbourhoods', 'Texas>Cities>Neighbourhoods']) {
+    await expect(page.locator(`[data-graph-path="${path}"]`)).toBeVisible();
+  }
+  await expect(page.locator('[data-graph-node="Ontario"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Back to previous graph' }).click();
+  await expect(
+    page.locator('[data-graph-path="USA>Divisions>Cities>Neighbourhoods"]'),
+  ).toBeVisible();
+  await expect
+    .poll(async () => Number(await graph.getAttribute('data-viewport-zoom')))
+    .toBeCloseTo(countryZoom, 3);
+
+  await page
+    .locator('[data-graph-path="USA>Divisions>Cities"]')
+    .evaluate((element: HTMLElement) => element.click());
+  for (const path of ['LosAngeles>Neighbourhoods', 'Houston>Neighbourhoods']) {
+    await expect(page.locator(`[data-graph-path="${path}"]`)).toBeVisible();
+  }
+  await expect(page.locator('[data-graph-node="Toronto"]')).toHaveCount(0);
+
+  await page
+    .locator('[data-graph-path="LosAngeles>Neighbourhoods"]')
+    .evaluate((element: HTMLElement) => element.click());
+  for (const neighbourhood of ['UrbanLiberal', 'SuburbanMixed', 'RuralMixed']) {
+    await expect(page.locator(`[data-graph-node="${neighbourhood}"]`)).toBeVisible();
+  }
+  await expect(page.locator('[data-graph-node="HomogeneousRural"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Back to previous graph' }).click();
+  await expect(page.locator('[data-graph-path="LosAngeles>Neighbourhoods"]')).toBeVisible();
+});
+
+test('uses the same nested graph behavior for non-geographic slices', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Graph' }).click();
+  const slices = page.getByRole('tablist', { name: 'Vertical slices' });
+
+  await slices.getByRole('tab', { name: 'Platforms' }).click();
+  await page
+    .locator('[data-graph-node="Platforms"]')
+    .evaluate((element: HTMLElement) => element.click());
+  await expect(page.locator('[data-graph-path="Reddit>Communities"]')).toBeVisible();
+
+  await slices.getByRole('tab', { name: 'Independent businesses' }).click();
+  await page
+    .locator('[data-graph-node="Independent businesses"]')
+    .evaluate((element: HTMLElement) => element.click());
+  await expect(page.locator('[data-graph-node="IndependentBusinesses"]')).toBeVisible();
 });
 
 test('derives slice tabs and vertical level lines from edited DSL metadata', async ({ page }) => {
@@ -298,15 +373,20 @@ test('learns weighted exemplars then composes from cache with zero mass ticks', 
 
   const cities = page.locator('[data-graph-node="Cities"]');
   await cities.evaluate((element: HTMLElement) => element.click());
+  await page
+    .locator('[data-graph-node="Toronto"]')
+    .evaluate((element: HTMLElement) => element.click());
   await expect(page.locator('[data-graph-detail]')).toContainText('City mixture distributions');
   await expect(page.locator('[data-graph-detail]')).toContainText('Toronto');
 
-  const neighbourhoods = page.locator('[data-graph-node="Neighbourhoods"]');
+  const neighbourhoods = page.locator('[data-graph-path="Toronto>Neighbourhoods"]');
   await neighbourhoods.evaluate((element: HTMLElement) => element.click());
+  const urban = page.locator('[data-graph-node="UrbanLiberal"]');
+  await urban.evaluate((element: HTMLElement) => element.click());
   await expect(page.locator('[data-graph-detail]')).toContainText('Detailed exemplar households');
   await expect(page.locator('[data-graph-detail]')).toContainText('75 households');
   await page.getByLabel('Exposes role').selectOption('trader');
-  await expect(neighbourhoods).toHaveClass(/highlighted/);
+  await expect(urban).toHaveClass(/highlighted/);
 
   const overlaps = await page.locator('[data-graph-slice]').evaluateAll((elements) => {
     const boxes = elements.map((element) => element.getBoundingClientRect());
