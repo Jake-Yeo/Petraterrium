@@ -1,8 +1,7 @@
 use super::archetypes::{build_archetype_state, ensure_action_metric_report};
-use super::compositions::{CompositionBuild, ExecutedFlow};
+use super::compositions::CompositionBuild;
 use super::expression::evaluate;
 use super::model::*;
-use super::population_distribution::sample_multinomial_counts;
 use super::runtime::apply_role_distributions;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -51,7 +50,7 @@ pub(super) fn build_composition_state(
     let allocations = leaf_allocations(
         &leaves,
         &archetypes,
-        composition.sample_budget,
+        composition.exemplar_households,
         seed,
         &composition.id,
     )?;
@@ -134,21 +133,10 @@ pub(super) fn build_composition_state(
     let mut nodes = Vec::new();
     collect_composition_nodes(composition, &compositions, &[], &mut nodes);
     apply_policies(program, &nodes, &mut combined, &mut state, &agent_paths)?;
-    let flows = apply_flows(
-        program,
-        composition,
-        &compositions,
-        &nodes,
-        seed,
-        &mut state,
-        &mut agent_groups,
-        &mut agent_paths,
-    )?;
     Ok(CompositionBuild {
         program: combined,
         state,
         agent_groups,
-        flows,
     })
 }
 
@@ -531,11 +519,11 @@ fn collect_composition_nodes<'a>(
 fn leaf_allocations(
     leaves: &[CompositionLeaf],
     archetypes: &BTreeMap<&str, &ArchetypeDefinition>,
-    sample_budget: Option<u64>,
+    exemplar_households: Option<u32>,
     seed: u64,
     key: &str,
 ) -> DslResult<BTreeMap<String, usize>> {
-    let Some(total_samples) = sample_budget else {
+    let Some(total_households) = exemplar_households else {
         let total_households = leaves
             .iter()
             .map(|leaf| leaf.archetype.as_str())
@@ -548,30 +536,52 @@ fn leaf_allocations(
             total_households,
         ));
     };
-    let household_weights = leaves
+    let _ = (archetypes, seed, key);
+    Ok(largest_remainder_households(
+        leaves,
+        total_households as usize,
+    ))
+}
+
+fn largest_remainder_households(
+    leaves: &[CompositionLeaf],
+    total: usize,
+) -> BTreeMap<String, usize> {
+    let weight_sum = leaves.iter().map(|leaf| leaf.weight).sum::<f64>();
+    let mut allocations = leaves
         .iter()
         .map(|leaf| {
-            let per_household = archetypes[leaf.archetype.as_str()]
-                .composition
-                .iter()
-                .map(|group| group.count)
-                .sum::<usize>()
-                .max(1);
-            leaf.weight / per_household as f64
+            let exact = total as f64 * leaf.weight / weight_sum;
+            (
+                leaf.namespace.clone(),
+                exact.floor() as usize,
+                exact.fract(),
+            )
         })
         .collect::<Vec<_>>();
-    let household_weight_sum = household_weights.iter().sum::<f64>();
-    let probabilities = household_weights
-        .iter()
-        .map(|weight| weight / household_weight_sum)
-        .collect::<Vec<_>>();
-    let household_total = (total_samples as f64 * household_weight_sum).round() as u64;
-    let sampled = sample_multinomial_counts(household_total, &probabilities, seed, key)?;
-    Ok(leaves
-        .iter()
-        .zip(sampled)
-        .map(|(leaf, households)| (leaf.namespace.clone(), households as usize))
-        .collect())
+    let mut remaining = total.saturating_sub(
+        allocations
+            .iter()
+            .map(|(_, count, _)| *count)
+            .sum::<usize>(),
+    );
+    allocations.sort_by(|left, right| {
+        right
+            .2
+            .total_cmp(&left.2)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    for (_, count, _) in &mut allocations {
+        if remaining == 0 {
+            break;
+        }
+        *count += 1;
+        remaining -= 1;
+    }
+    allocations
+        .into_iter()
+        .map(|(id, count, _)| (id, count))
+        .collect()
 }
 
 fn deterministic_household_allocations(
@@ -869,193 +879,6 @@ fn map_place_expression(expression: &mut Expr, place_map: &BTreeMap<String, Stri
         }
         _ => {}
     }
-}
-
-fn apply_flows(
-    program: &Program,
-    root: &CompositionDefinition,
-    compositions: &BTreeMap<&str, &CompositionDefinition>,
-    nodes: &[CompositionNode<'_>],
-    seed: u64,
-    state: &mut DslRunState,
-    agent_groups: &mut BTreeMap<String, String>,
-    agent_paths: &mut BTreeMap<String, Vec<String>>,
-) -> DslResult<Vec<ExecutedFlow>> {
-    let mut executed = Vec::new();
-    for node in nodes {
-        let mut node_values = composition_values(program, node.definition);
-        for flow in &node.definition.flows {
-            let distance = adjacency_distance(node.definition, flow).max(1.0);
-            node_values.insert(
-                format!("distance_{}_{}", flow.source, flow.target),
-                DslValue::Number(distance),
-            );
-            let rate = evaluate(&flow.rate, &node_values)?
-                .as_f64()
-                .ok_or_else(|| {
-                    DslError::new(
-                        "INVALID_COMPOSITION_FLOW_RATE",
-                        flow.line,
-                        "Flow rate must resolve to a number",
-                    )
-                })?
-                .clamp(0.0, 1.0);
-            let membership_index = node.path.len();
-            let source_agents = state
-                .agents
-                .iter()
-                .filter(|agent| {
-                    agent_paths
-                        .get(&agent.id)
-                        .and_then(|path| path.get(membership_index))
-                        == Some(&flow.source)
-                })
-                .map(|agent| agent.id.clone())
-                .collect::<BTreeSet<_>>();
-            let mut households = state
-                .agents
-                .iter()
-                .filter(|agent| source_agents.contains(&agent.id))
-                .map(|agent| agent.household_id.clone())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>();
-            households
-                .sort_by_key(|household| derived_seed(seed, &format!("{}:{household}", flow.id)));
-            let effective_rate = rate / distance;
-            let selected_count =
-                ((households.len() as f64 * effective_rate).round() as usize).min(households.len());
-            let selected = households
-                .into_iter()
-                .take(selected_count)
-                .collect::<BTreeSet<_>>();
-            let mut affected_agents = 0;
-            for agent in state
-                .agents
-                .iter_mut()
-                .filter(|agent| selected.contains(&agent.household_id))
-            {
-                affected_agents += 1;
-                if flow.effect == "visit" {
-                    if let Some(via) = &flow.via {
-                        let place = scoped_flow_place(root, compositions, &node.path, via);
-                        agent
-                            .states
-                            .insert("location".to_owned(), DslValue::Text(place));
-                    }
-                } else if flow.effect == "transfer" {
-                    if let Some(path) = agent_paths.get_mut(&agent.id)
-                        && let Some(group) = path.get_mut(membership_index)
-                    {
-                        *group = flow.target.clone();
-                    }
-                    if node.path.is_empty() {
-                        agent_groups.insert(agent.id.clone(), flow.target.clone());
-                    }
-                }
-            }
-            let source_count = source_agents.len().max(1);
-            executed.push(ExecutedFlow {
-                id: if node.path.is_empty() {
-                    flow.id.clone()
-                } else {
-                    namespaced(&node.path.join("__"), &flow.id)
-                },
-                source: flow.source.clone(),
-                target: flow.target.clone(),
-                effect: flow.effect.clone(),
-                via: flow.via.clone(),
-                households: selected_count,
-                agents: affected_agents,
-                rate: affected_agents as f64 / source_count as f64,
-            });
-            node_values.insert(flow.id.clone(), DslValue::Number(rate));
-        }
-    }
-    Ok(executed)
-}
-
-fn composition_values(
-    program: &Program,
-    composition: &CompositionDefinition,
-) -> BTreeMap<String, DslValue> {
-    let mut values = composition
-        .parameters
-        .iter()
-        .map(|(id, value)| (id.clone(), DslValue::Number(*value)))
-        .collect::<BTreeMap<_, _>>();
-    if let Some(function) = program
-        .aggregate_functions
-        .iter()
-        .find(|function| function.id == composition.id)
-    {
-        for input in &function.inputs {
-            values
-                .entry(input.id.clone())
-                .or_insert(DslValue::Number(input.default));
-        }
-    }
-    for entry in &composition.entries {
-        if let Some(child) = program
-            .compositions
-            .iter()
-            .find(|child| child.id == entry.child)
-        {
-            for (parameter, value) in &child.parameters {
-                values
-                    .entry(format!("{}_{}", child.id, parameter))
-                    .or_insert(DslValue::Number(*value));
-                values
-                    .entry(format!("{}.{}", child.id, parameter))
-                    .or_insert(DslValue::Number(*value));
-            }
-            for output in &child.outputs {
-                values
-                    .entry(format!("{}_{}", child.id, output.id))
-                    .or_insert(DslValue::Number(0.0));
-                values
-                    .entry(format!("{}.{}", child.id, output.id))
-                    .or_insert(DslValue::Number(0.0));
-            }
-        }
-    }
-    values
-}
-
-fn scoped_flow_place(
-    root: &CompositionDefinition,
-    compositions: &BTreeMap<&str, &CompositionDefinition>,
-    node_path: &[String],
-    place: &str,
-) -> String {
-    if root.places.iter().any(|item| item == place) {
-        return place.to_owned();
-    }
-    let mut path = Vec::new();
-    for child_id in node_path {
-        path.push(child_id.clone());
-        let Some(child) = compositions.get(child_id.as_str()) else {
-            break;
-        };
-        if child.places.iter().any(|item| item == place) {
-            return namespaced(&path.join("__"), place);
-        }
-    }
-    place.to_owned()
-}
-
-fn adjacency_distance(
-    composition: &CompositionDefinition,
-    flow: &CompositionFlowDefinition,
-) -> f64 {
-    composition
-        .adjacency
-        .iter()
-        .find(|edge| {
-            edge.source == flow.source && edge.target == flow.target
-                || edge.source == flow.target && edge.target == flow.source
-        })
-        .map_or(1.0, |edge| edge.distance)
 }
 
 fn namespaced(namespace: &str, id: &str) -> String {

@@ -237,60 +237,11 @@ pub struct CompositionEntry {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CompositionFlowDefinition {
-    pub id: String,
-    pub source: String,
-    pub target: String,
-    pub rate: Expr,
-    pub effect: String,
-    pub via: Option<String>,
-    pub line: usize,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CompositionCouplingDefinition {
-    pub id: String,
-    pub source: String,
-    pub target: String,
-    pub target_input: String,
-    pub value: Expr,
-    pub cadence: String,
-    pub cadence_days: Option<u32>,
-    pub line: usize,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CompositionBoundaryDefinition {
-    pub id: String,
-    pub source: String,
-    pub target: String,
-    pub fields: Vec<String>,
-    pub line: usize,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CompositionFeedbackDefinition {
-    pub output: String,
-    pub input: String,
-    pub scale: f64,
-    pub line: usize,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CompositionLeaderDefinition {
     pub role: String,
     pub count: usize,
     pub archetype: Option<String>,
     pub source_composition: Option<String>,
-    pub line: usize,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CachedCompositionDefinition {
-    pub sync_days: u32,
-    pub max_iterations: u32,
-    pub tolerance: f64,
-    pub feedback: Vec<CompositionFeedbackDefinition>,
     pub line: usize,
 }
 
@@ -316,9 +267,16 @@ pub struct CompositionDefinition {
     pub entity_count: Option<u64>,
     pub entity_unit: Option<String>,
     pub role_targets: BTreeMap<String, u64>,
+    pub exemplar_households: Option<u32>,
+    pub stratum: Option<String>,
+    pub stratifiers: BTreeMap<String, f64>,
+    pub heterogeneity: f64,
+    pub distribution_status: String,
+    pub provenance: Option<String>,
+    pub clock_minutes: u64,
+    pub sync_up_minutes: Option<u64>,
     pub represented_population: Option<u64>,
     pub authoritative_total: Option<u64>,
-    pub sample_budget: Option<u64>,
     pub allocation_leaf: bool,
     pub report_descendants: bool,
     pub entries: Vec<CompositionEntry>,
@@ -326,11 +284,7 @@ pub struct CompositionDefinition {
     pub parameters: BTreeMap<String, f64>,
     pub policies: Vec<String>,
     pub adjacency: Vec<CompositionAdjacency>,
-    pub flows: Vec<CompositionFlowDefinition>,
-    pub couplings: Vec<CompositionCouplingDefinition>,
-    pub boundaries: Vec<CompositionBoundaryDefinition>,
     pub leaders: Vec<CompositionLeaderDefinition>,
-    pub cached: Option<CachedCompositionDefinition>,
     pub outputs: Vec<ArchetypeOutputDefinition>,
     pub line: usize,
 }
@@ -524,12 +478,6 @@ pub enum ReportMetric {
     PlaceState {
         place: String,
         field: String,
-    },
-    FlowCount {
-        flow: String,
-    },
-    FlowRate {
-        flow: String,
     },
 }
 
@@ -764,17 +712,87 @@ pub struct TextDslProtocolRequest {
     #[serde(default)]
     pub total_represented_pool: Option<u64>,
     #[serde(default)]
-    pub detail: Option<String>,
-    #[serde(default)]
     pub role_parameters: BTreeMap<String, BTreeMap<String, f64>>,
+    #[serde(default)]
+    pub dsl_source_hash: Option<String>,
+    #[serde(default)]
+    pub exemplar_cache: BTreeMap<String, ExemplarCacheEntry>,
+    #[serde(default)]
+    pub exemplar_inputs: BTreeMap<String, BTreeMap<String, f64>>,
+    #[serde(default)]
+    pub events: Vec<String>,
     #[serde(default)]
     pub continuation: Option<DslRunState>,
     #[serde(default)]
-    pub population_id: Option<String>,
-    #[serde(default)]
     pub composition_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExemplarMetricDistribution {
+    pub mean: f64,
+    pub standard_deviation: f64,
+    pub p10: f64,
+    pub p50: f64,
+    pub p90: f64,
+    pub tail_rate: f64,
     #[serde(default)]
-    pub composition_population_id: Option<String>,
+    pub quantile_points: Vec<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExemplarAgentSummary {
+    pub id: String,
+    pub agent_type: String,
+    pub household_id: String,
+    pub roles: Vec<String>,
+    pub residence_path: Vec<String>,
+    pub age: f64,
+    pub money: f64,
+    pub stress: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExemplarRelationshipSummary {
+    pub kind: String,
+    pub source_id: String,
+    pub target_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExemplarGridPoint {
+    pub inputs: BTreeMap<String, f64>,
+    pub metrics: BTreeMap<String, ExemplarMetricDistribution>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ExemplarCacheEntry {
+    #[serde(default)]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub engine_version: String,
+    pub exemplar_id: String,
+    pub city_id: String,
+    pub stratum: String,
+    pub dsl_source_hash: String,
+    pub seed: u64,
+    pub version: u64,
+    pub learning_ticks: u64,
+    #[serde(default)]
+    pub time_window_ticks: u64,
+    #[serde(default)]
+    pub learning_seconds: f64,
+    pub valid_for_days: u32,
+    pub input_grid: BTreeMap<String, (f64, f64)>,
+    pub inputs: BTreeMap<String, f64>,
+    pub metrics: BTreeMap<String, ExemplarMetricDistribution>,
+    #[serde(default)]
+    pub grid_points: Vec<ExemplarGridPoint>,
+    pub agents: Vec<ExemplarAgentSummary>,
+    #[serde(default)]
+    pub relationships: Vec<ExemplarRelationshipSummary>,
+    #[serde(default)]
+    pub dependencies: Vec<String>,
+    pub dependency_versions: BTreeMap<String, u64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -811,75 +829,6 @@ pub struct LearnedAggregateArtifact {
     #[serde(default)]
     pub dependencies: BTreeMap<String, u32>,
     pub points: Vec<LearnedAggregatePoint>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CachedCompositionProtocolRequest {
-    pub source: String,
-    pub dsl_source_hash: String,
-    pub function_id: String,
-    pub seed: u64,
-    pub days: u32,
-    pub evaluated_at_day: u32,
-    #[serde(default)]
-    pub inputs: BTreeMap<String, f64>,
-    #[serde(default)]
-    pub branch_inputs: BTreeMap<String, BTreeMap<String, f64>>,
-    #[serde(default)]
-    pub input_schedule: Vec<ScheduledAggregateInputs>,
-    #[serde(default)]
-    pub events: BTreeSet<String>,
-    #[serde(default)]
-    pub artifacts: BTreeMap<String, LearnedAggregateArtifact>,
-    #[serde(default)]
-    pub force_relearn: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ScheduledAggregateInputs {
-    pub day: u32,
-    pub values: BTreeMap<String, f64>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CompositionCacheMetadata {
-    pub function_id: String,
-    pub version: u32,
-    pub dsl_source_hash: String,
-    pub inputs_hash: String,
-    pub valid_from: u32,
-    pub valid_until: u32,
-    pub seed: u64,
-    pub original_learning_ticks: u64,
-    pub evaluation_agent_ticks: u64,
-    pub cached: bool,
-    pub detailed: bool,
-    pub invalidation_reason: Option<String>,
-    #[serde(default)]
-    pub feedback_iterations: u32,
-    #[serde(default)]
-    pub feedback_change_percent: f64,
-    pub children: Vec<CompositionCacheMetadata>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CachedCompositionEvaluationResult {
-    pub function_id: String,
-    pub cache_hit: bool,
-    pub invalidation_reason: Option<String>,
-    pub agent_ticks: u64,
-    pub inputs_hash: String,
-    pub valid_from: u32,
-    pub valid_until: u32,
-    pub dsl_source_hash: String,
-    pub artifact: LearnedAggregateArtifact,
-    pub artifacts: BTreeMap<String, LearnedAggregateArtifact>,
-    pub time_series: Vec<AggregateTimePoint>,
-    pub reports: Vec<DslReport>,
-    pub cache_tree: CompositionCacheMetadata,
-    pub feedback_iterations: u32,
-    pub feedback_change_percent: f64,
 }
 
 #[derive(Clone, Debug, Deserialize)]

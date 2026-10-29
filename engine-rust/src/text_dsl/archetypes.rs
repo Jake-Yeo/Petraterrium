@@ -416,17 +416,12 @@ pub(super) fn calculate_output_definitions(
                     .and_then(DslValue::as_f64)
                     .into_iter()
                     .collect(),
-                ReportMetric::FlowCount { flow } => composition_flow_values(result, flow, "count"),
-                ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
                 _ => Vec::new(),
             };
             if values.is_empty()
                 && matches!(
                     output.metric,
-                    ReportMetric::ActionCount { .. }
-                        | ReportMetric::ActionRate { .. }
-                        | ReportMetric::FlowCount { .. }
-                        | ReportMetric::FlowRate { .. }
+                    ReportMetric::ActionCount { .. } | ReportMetric::ActionRate { .. }
                 )
             {
                 values.push(0.0);
@@ -477,22 +472,6 @@ fn report_metric_values(result: &DslRunResult, metric: &ReportMetric) -> Vec<f64
         .collect()
 }
 
-fn composition_flow_values(result: &DslRunResult, flow: &str, value: &str) -> Vec<f64> {
-    result
-        .reports
-        .iter()
-        .find(|report| report.id == "composition_flows")
-        .and_then(|report| report.snapshots.last())
-        .and_then(|snapshot| snapshot.rows.iter().find(|row| row.group_id == flow))
-        .and_then(|row| row.values.get(value))
-        .and_then(|value| match value {
-            DslReportValue::Number(value) => Some(*value),
-            _ => None,
-        })
-        .into_iter()
-        .collect()
-}
-
 pub(super) fn calculate_aggregate_metric(
     result: &DslRunResult,
     metric: &ReportMetric,
@@ -536,17 +515,12 @@ pub(super) fn calculate_aggregate_metric(
             .and_then(DslValue::as_f64)
             .into_iter()
             .collect(),
-        ReportMetric::FlowCount { flow } => composition_flow_values(result, flow, "count"),
-        ReportMetric::FlowRate { flow } => composition_flow_values(result, flow, "rate"),
         _ => Vec::new(),
     };
     if values.is_empty()
         && matches!(
             metric,
-            ReportMetric::ActionCount { .. }
-                | ReportMetric::ActionRate { .. }
-                | ReportMetric::FlowCount { .. }
-                | ReportMetric::FlowRate { .. }
+            ReportMetric::ActionCount { .. } | ReportMetric::ActionRate { .. }
         )
     {
         values.push(0.0);

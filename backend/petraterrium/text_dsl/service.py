@@ -53,10 +53,12 @@ class TextDslService:
         self.metadata_path = self.root / "active.json"
         self.runs_path = self.root / "runs"
         self.aggregate_cache_path = self.root / "aggregate_cache"
+        self.exemplar_cache_path = self.root / "exemplar_cache"
         self._validation_cache: dict[str, TextDslValidation] = {}
         self.root.mkdir(parents=True, exist_ok=True)
         self.runs_path.mkdir(parents=True, exist_ok=True)
         self.aggregate_cache_path.mkdir(parents=True, exist_ok=True)
+        self.exemplar_cache_path.mkdir(parents=True, exist_ok=True)
 
     def current(self) -> TextDslDocument:
         code = self._code()
@@ -83,7 +85,6 @@ class TextDslService:
             program_id=result.get("program_id"),
             version=result.get("version"),
             tick_hours=result.get("tick_hours"),
-            adult_population=result.get("adult_population"),
             entities=tuple(str(value) for value in result.get("entities", [])),
             policies=tuple(str(value) for value in result.get("policies", [])),
             roles=tuple(str(value) for value in result.get("roles", [])),
@@ -146,25 +147,34 @@ class TextDslService:
             raise ValueError("DSL has validation errors")
         tick_hours = document.validation.tick_hours or 1
         ticks = round(request.days * 24 / tick_hours)
-        population_id = getattr(request, "population_id", None)
         composition_id = getattr(request, "composition_id", None)
-        composition_population_id = getattr(request, "composition_population_id", None)
         run_options: dict[str, Any] = {}
         total_represented_pool = getattr(request, "total_represented_pool", 6_999_999_999)
-        detail = getattr(request, "detail", "medium")
         run_options["total_represented_pool"] = total_represented_pool
-        run_options["detail"] = detail
+        run_options["dsl_source_hash"] = document.source_hash
+        loaded_exemplar_cache = self._load_exemplar_cache(
+            document.source_hash, request.seed
+        )
+        run_options["exemplar_cache"] = loaded_exemplar_cache
+        run_options["exemplar_inputs"] = getattr(request, "exemplar_inputs", {})
+        run_options["events"] = list(getattr(request, "events", ()))
         if getattr(request, "role_parameters", None):
             run_options["role_parameters"] = request.role_parameters
         result = self.rust.run_text_dsl(
             document.code,
             seed=request.seed,
             ticks=ticks,
-            population_id=population_id,
             composition_id=composition_id,
-            composition_population_id=composition_population_id,
             **run_options,
         )
+        learned_exemplar_cache = dict(result.get("exemplar_cache") or {})
+        effective_exemplar_cache = learned_exemplar_cache or loaded_exemplar_cache
+        if learned_exemplar_cache:
+            self._save_exemplar_cache(
+                document.source_hash,
+                request.seed,
+                learned_exemplar_cache,
+            )
         run_id = uuid.uuid4().hex
         created_at = datetime.now(UTC).isoformat()
         reports = tuple(
@@ -176,44 +186,21 @@ class TextDslService:
             if request.baseline_run_id is not None
             else None
         )
-        agents = result.get("state", {}).get("agents", [])
-        adult_population = (
-            sum(agent.get("parent_id") is None for agent in agents)
-            if population_id is not None
-            or composition_id is not None
-            or composition_population_id is not None
-            else document.validation.adult_population or 0
-        )
         response = TextDslRunResult(
             run_id=run_id,
             source_hash=document.source_hash,
             seed=request.seed,
             days=request.days,
             ticks=ticks,
-            adult_population=adult_population,
-            total_agents=len(agents),
-            generated_children=max(0, len(agents) - adult_population),
             total_represented_pool=total_represented_pool,
-            detail=detail,
-            pool_summary=dict(result.get("pool_summary") or {}),
-            pool_agents=tuple(dict(agent) for agent in agents),
-            population_allocations=tuple(
-                dict(value) for value in result.get("population_allocations", [])
-            ),
-            population_id=(
-                population_id
-                if composition_id is None
-                and composition_population_id is None
-                else (
-                    f"composition:{composition_id}"
-                    if composition_id is not None
-                    else (
-                        f"composition_population:{composition_population_id}"
-                        if composition_population_id is not None
-                        else None
-                    )
-                )
-            ),
+            exemplar_plan=dict(result.get("exemplar_plan") or {}),
+            cache_stats=dict(result.get("cache_stats") or {}),
+            leader_assignments={
+                str(key): str(value)
+                for key, value in dict(result.get("leader_assignments") or {}).items()
+            },
+            unassigned_required_roles=int(result.get("unassigned_required_roles", 0)),
+            exemplar_cache=self._exemplar_cache_view(effective_exemplar_cache),
             results_title=str(result.get("results_title", "Results")),
             results_subtitle=str(result.get("results_subtitle", "")),
             reports=reports,
@@ -222,7 +209,7 @@ class TextDslService:
             created_at=created_at,
             raw_result=result,
         )
-        self._persist(response, result)
+        self._persist(response, {**result, "exemplar_cache": {}})
         return response
 
     def evaluate_aggregate(
@@ -233,39 +220,19 @@ class TextDslService:
         if not document.validation.valid:
             raise ValueError("DSL has validation errors")
         started = time.perf_counter()
-        cached_composition = any(
-            value.get("id") == request.function_id and bool(value.get("cached"))
-            for value in document.validation.compositions
+        artifact = self._latest_aggregate_artifact(request.function_id)
+        result = self.rust.evaluate_text_dsl_aggregate(
+            document.code,
+            dsl_source_hash=document.source_hash,
+            function_id=request.function_id,
+            seed=request.seed,
+            days=request.days,
+            evaluated_at_day=request.evaluated_at_day,
+            inputs=request.inputs,
+            events=list(request.events),
+            artifact=artifact,
+            force_relearn=request.force_relearn,
         )
-        if cached_composition:
-            result = self.rust.evaluate_cached_composition(
-                document.code,
-                dsl_source_hash=document.source_hash,
-                function_id=request.function_id,
-                seed=request.seed,
-                days=request.days,
-                evaluated_at_day=request.evaluated_at_day,
-                inputs=request.inputs,
-                branch_inputs=request.branch_inputs,
-                input_schedule=list(request.input_schedule),
-                events=list(request.events),
-                artifacts=self._hierarchy_artifact_catalog(request.function_id),
-                force_relearn=request.force_relearn,
-            )
-        else:
-            artifact = self._latest_aggregate_artifact(request.function_id)
-            result = self.rust.evaluate_text_dsl_aggregate(
-                document.code,
-                dsl_source_hash=document.source_hash,
-                function_id=request.function_id,
-                seed=request.seed,
-                days=request.days,
-                evaluated_at_day=request.evaluated_at_day,
-                inputs=request.inputs,
-                events=list(request.events),
-                artifact=artifact,
-                force_relearn=request.force_relearn,
-            )
         elapsed_seconds = time.perf_counter() - started
         learned = dict(result["artifact"])
         returned_artifacts = result.get("artifacts", {request.function_id: learned})
@@ -323,6 +290,26 @@ class TextDslService:
         if not path.exists():
             raise KeyError(run_id)
         view = self._read_run(path)["view"]
+        required_versions = {
+            str(child): int(version)
+            for children in dict(
+                view.get("cache_stats", {}).get("parent_cache_versions", {})
+            ).values()
+            for child, version in dict(children).items()
+            if "__" in str(child)
+        }
+        current_cache = self._load_exemplar_cache(
+            str(view["source_hash"]), int(view["seed"])
+        )
+        view["exemplar_cache"] = self._exemplar_cache_view(
+            {
+                exemplar_id: entry
+                for exemplar_id, entry in current_cache.items()
+                if not required_versions
+                or int(entry.get("version", 0))
+                == required_versions.get(exemplar_id, -1)
+            }
+        )
         return TextDslRunResult.model_validate(view)
 
     def _persist(self, view: TextDslRunResult, raw: dict[str, Any]) -> None:
@@ -332,20 +319,65 @@ class TextDslService:
             seed=view.seed,
             days=view.days,
             ticks=view.ticks,
-            total_agents=view.total_agents,
             total_represented_pool=view.total_represented_pool,
-            detail=view.detail,
-            population_id=view.population_id,
+            total_exemplars=int(view.exemplar_plan.get("total_exemplars", 0)),
+            cache_hit=bool(view.cache_stats.get("cache_hit", False)),
             created_at=view.created_at,
         )
         payload = {
             "summary": summary.model_dump(mode="json"),
-            "view": view.model_dump(mode="json"),
+            "view": {**view.model_dump(mode="json"), "exemplar_cache": {}},
             "raw": raw,
         }
         path = self.runs_path / f"{view.run_id}.json.gz"
         with gzip.open(path, "wt", encoding="utf-8") as handle:
             json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+
+    def _exemplar_cache_file(self, source_hash: str, seed: int) -> Path:
+        safe_hash = source_hash.replace(":", "-")
+        return self.exemplar_cache_path / f"{safe_hash}-{seed}.json.gz"
+
+    def _load_exemplar_cache(
+        self, source_hash: str, seed: int
+    ) -> dict[str, dict[str, Any]]:
+        path = self._exemplar_cache_file(source_hash, seed)
+        if not path.exists():
+            return {}
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            value = json.load(handle)
+        return {str(key): dict(entry) for key, entry in dict(value).items()}
+
+    def _save_exemplar_cache(
+        self,
+        source_hash: str,
+        seed: int,
+        cache: dict[str, dict[str, Any]],
+    ) -> None:
+        path = self._exemplar_cache_file(source_hash, seed)
+        with gzip.open(path, "wt", encoding="utf-8") as handle:
+            json.dump(cache, handle, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _exemplar_cache_view(
+        cache: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        fields = {
+            "version",
+            "learning_ticks",
+            "learning_seconds",
+            "agents",
+            "relationships",
+            "metrics",
+            "inputs",
+        }
+        return {
+            exemplar_id: {
+                field: value
+                for field, value in entry.items()
+                if field in fields
+            }
+            for exemplar_id, entry in cache.items()
+        }
 
     def _read_run(self, path: Path) -> dict[str, Any]:
         with gzip.open(path, "rt", encoding="utf-8") as handle:
@@ -354,38 +386,6 @@ class TextDslService:
     def _latest_aggregate_artifact(self, function_id: str) -> dict[str, Any] | None:
         paths = sorted(self._aggregate_function_path(function_id).glob("v*.json.gz"))
         return self._read_run(paths[-1]) if paths else None
-
-    def _aggregate_artifact_catalog(self) -> dict[str, dict[str, Any]]:
-        result = {}
-        for path in self.aggregate_cache_path.iterdir():
-            if not path.is_dir():
-                continue
-            artifact = self._latest_aggregate_artifact(path.name)
-            if artifact is not None:
-                result[path.name] = artifact
-        return result
-
-    def _hierarchy_artifact_catalog(
-        self,
-        function_id: str | None = None,
-    ) -> dict[str, dict[str, Any]]:
-        result = self._aggregate_artifact_catalog()
-        if function_id is not None and function_id in result:
-            selected: dict[str, dict[str, Any]] = {}
-            pending = [function_id]
-            while pending:
-                current = pending.pop()
-                if current in selected or current not in result:
-                    continue
-                artifact = result[current]
-                selected[current] = artifact
-                pending.extend(str(value) for value in artifact.get("dependencies", {}))
-            result = selected
-        for artifact in result.values():
-            artifact["points"] = [
-                {**point, "reports": []} for point in artifact.get("points", [])
-            ]
-        return result
 
     def _persist_aggregate_artifact(
         self,

@@ -3,9 +3,7 @@ const SOURCE: &str = include_str!("../dsl/default.dsl");
 #[test]
 fn shipped_dsl_contains_only_pool_and_current_sector_architecture() {
     for forbidden in [
-        "slice = \"Corporate\"",
         "slice = \"Full system\"",
-        "CorporateForest",
         "agent User:",
         "agent RetailPerson:",
         "agent FinancialPerson:",
@@ -34,6 +32,9 @@ fn shipped_dsl_contains_only_pool_and_current_sector_architecture() {
         "for demo only",
         "  flows:",
         "  couplings:",
+        "sample_budget",
+        "planned_draws",
+        "detail =",
     ] {
         assert!(!SOURCE.contains(forbidden), "found {forbidden}");
     }

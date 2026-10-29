@@ -14,7 +14,6 @@ interface DslValidation {
   program_id?: string | null;
   version?: string | null;
   tick_hours?: number | null;
-  adult_population?: number | null;
   entities: string[];
   policies: string[];
   roles: string[];
@@ -23,27 +22,10 @@ interface DslValidation {
   archetypes: string[];
   composition_archetypes: Array<{ id: string; level: string; child_level: string }>;
   weighted_populations: string[];
-  aggregate_functions: AggregateFunctionDefinition[];
   compositions: Array<{ id: string; level: string; cached?: boolean }>;
   composition_populations: string[];
   diagnostics: DslDiagnostic[];
   graph?: ProgramGraph | null;
-}
-
-interface AggregateInputDefinition {
-  id: string;
-  default: number;
-  minimum: number;
-  maximum: number;
-  invalidate_threshold: number;
-}
-
-interface AggregateFunctionDefinition {
-  id: string;
-  inputs: AggregateInputDefinition[];
-  time_days: number;
-  time_points: number[];
-  cache: { valid_for_days: number };
 }
 
 interface DslDocument {
@@ -95,45 +77,12 @@ interface DslRunResult {
   seed: number;
   days: number;
   ticks: number;
-  adult_population: number;
-  total_agents: number;
-  generated_children: number;
   total_represented_pool: number;
-  detail: 'low' | 'medium' | 'high';
-  pool_summary: {
-    total_represented_pool: number;
-    simulated_pool_sample: number;
-    weight_per_simulated_agent: number;
-    unique_represented_agents: number;
-    simulated_households: number;
-    role_membership: Record<string, number>;
-    explicit_neither: Record<string, number>;
-    leader_assignments: Record<string, string>;
-    role_shortfalls: Record<string, number>;
-    unassigned_required_roles: number;
-  };
-  pool_agents: Array<{
-    id: string;
-    household_id: string;
-    agent_type: string;
-    roles: string[];
-    traits: Record<string, number | string | boolean>;
-    states: Record<string, number | string | boolean>;
-  }>;
-  population_allocations: Array<{
-    path: string;
-    parent_path?: string | null;
-    node_id: string;
-    node_kind: string;
-    vertical_slice: string;
-    probability: number;
-    expected_represented: number;
-    actual_represented: number;
-    expected_simulated: number;
-    actual_simulated: number;
-    seed: number;
-  }>;
-  population_id?: string | null;
+  exemplar_plan: ExemplarSystemPlan;
+  cache_stats: ExemplarCacheStats;
+  exemplar_cache: Record<string, ExemplarCacheEntry>;
+  leader_assignments: Record<string, string>;
+  unassigned_required_roles: number;
   results_title: string;
   results_subtitle: string;
   reports: Report[];
@@ -142,24 +91,80 @@ interface DslRunResult {
   created_at: string;
 }
 
-interface AggregateEvaluationResult {
-  function_id: string;
+interface ExemplarPlan {
+  id: string;
+  city_id: string;
+  stratum: string;
+  households: number;
+  people: number;
+  represented_people: number;
+  instances_represented: number;
+  city_population_share: number;
+  distribution_status: string;
+  provenance: string;
+}
+
+interface CityExemplarPlan {
+  city_id: string;
+  represented_people: number;
+  represented_households: number;
+  distribution_status: string;
+  provenance: string;
+  strata: string[];
+  exemplars: ExemplarPlan[];
+  convergence: {
+    mean_change: number;
+    distribution_distance: number;
+    tail_rate_change_points: number;
+    converged: boolean;
+    cap_hit: boolean;
+  };
+  mixture_metrics: Record<
+    string,
+    {
+      mean: number;
+      standard_deviation: number;
+      p10: number;
+      p50: number;
+      p90: number;
+      tail_rate: number;
+    }
+  >;
+}
+
+interface ExemplarSystemPlan {
+  total_represented_pool: number;
+  total_represented_households: number;
+  total_real_neighbourhood_instances: number;
+  total_exemplars: number;
+  cities: CityExemplarPlan[];
+}
+
+interface ExemplarCacheStats {
   cache_hit: boolean;
-  invalidation_reason?: string | null;
-  agent_ticks: number;
-  inputs_hash: string;
-  valid_from: number;
-  valid_until: number;
-  dsl_source_hash: string;
-  cache_version: number;
-  time_series: Array<{
-    day: number;
-    outputs: Record<string, { mean: number; standard_deviation: number }>;
+  mass_agent_ticks: number;
+  relearned_exemplars: string[];
+  reused_exemplars: string[];
+  invalidations: Record<string, string>;
+  feedback_iterations: number;
+  feedback_final_change: number;
+  feedback_inputs: Record<string, Record<string, number>>;
+}
+
+interface ExemplarCacheEntry {
+  version: number;
+  learning_ticks: number;
+  learning_seconds: number;
+  agents: Array<{
+    id: string;
+    household_id: string;
+    roles: string[];
+    residence_path: string[];
+    age: number;
+    money: number;
+    stress: number;
   }>;
-  reports: Report[];
-  elapsed_seconds: number;
-  feedback_iterations?: number;
-  feedback_change_percent?: number;
+  relationships: Array<{ kind: string; source_id: string; target_id: string }>;
 }
 
 export interface TextDslEditorOptions {
@@ -194,42 +199,6 @@ const signed = (value: number): string => `${value >= 0 ? '+' : ''}${number(valu
 const isRates = (value: ReportValue): value is Record<string, number> =>
   typeof value === 'object' && value !== null;
 
-const assignments = (source: string): Array<[string, string, number]> =>
-  source
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => {
-      const [path, encoded] = value.split('=');
-      const separator = path.lastIndexOf('.');
-      if (separator <= 0 || encoded === undefined || !Number.isFinite(Number(encoded))) {
-        throw new Error(`Invalid assignment ${value}`);
-      }
-      return [path.slice(0, separator), path.slice(separator + 1), Number(encoded)];
-    });
-
-const branchInputs = (source: string): Record<string, Record<string, number>> =>
-  assignments(source).reduce<Record<string, Record<string, number>>>(
-    (result, [branch, input, value]) => {
-      (result[branch] ??= {})[input] = value;
-      return result;
-    },
-    {},
-  );
-
-const inputSchedule = (source: string): Array<{ day: number; values: Record<string, number> }> => {
-  const grouped = assignments(source).reduce<Map<number, Record<string, number>>>(
-    (result, [encodedDay, input, value]) => {
-      const day = Number(encodedDay);
-      if (!Number.isInteger(day) || day < 1) throw new Error(`Invalid schedule day ${encodedDay}`);
-      (result.get(day) ?? (result.set(day, {}), result.get(day)!))[input] = value;
-      return result;
-    },
-    new Map(),
-  );
-  return [...grouped].map(([day, values]) => ({ day, values }));
-};
-
 export class TextDslEditor {
   private document?: DslDocument;
   private run?: DslRunResult;
@@ -255,7 +224,7 @@ export class TextDslEditor {
     this.root.className = 'text-dsl-workspace';
     this.root.innerHTML = `
       <header class="text-dsl-heading">
-        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run one global agent pool across four sectors, inspect the exact DSL as code, or explore its validated entity and role graph.</p></div>
+        <div><span class="text-dsl-eyebrow">RUST DSL · SOURCE OF TRUTH</span><h1>Population simulation program</h1><p>Run weighted neighbourhood exemplars across four sector overlays, inspect the exact DSL as code, or explore its validated hierarchy and roles.</p></div>
         <div class="text-dsl-hash" data-dsl-hash>Loading…</div>
       </header>
       <div class="text-dsl-view-toggle" role="tablist" aria-label="DSL view">
@@ -275,23 +244,9 @@ export class TextDslEditor {
           <label>Days <input type="number" min="1" max="365" step="1" value="30" data-dsl-days></label>
           <label>Seed <input type="number" min="0" step="1" value="1" data-dsl-seed></label>
           <button type="button" class="button primary text-dsl-run-button" data-dsl-action="run">Run full system</button>
-          <details class="text-dsl-advanced"><summary>Advanced</summary><label>Detail<select data-dsl-detail aria-label="Detail"><option value="low">Low · 97 requested</option><option value="medium" selected>Medium · 291 requested</option><option value="high">High · 873 requested</option></select></label><details class="text-dsl-debug-runs"><summary>Debug single-sector runs</summary><p>Debug only — the selected sector still uses the shared pool.</p><label>Debug target<select data-dsl-population aria-label="Debug target"><option value="">Full system</option></select></label><label>All debug runs<select data-dsl-all-runs aria-label="All debug runs"><option value="">Choose debug run</option></select></label></details></details>
+          <details class="text-dsl-advanced"><summary>Advanced</summary><details class="text-dsl-debug-runs"><summary>Debug city</summary><p>Debug city runs still use weighted neighbourhood exemplars.</p><label>Debug target<select data-dsl-population aria-label="Debug target"><option value="">Full system</option></select></label><label>All debug runs<select data-dsl-all-runs aria-label="All debug runs"><option value="">Choose debug run</option></select></label></details></details>
         </div>
       </section>
-      <details class="text-dsl-fast-forward" data-fast-forward>
-        <summary><div><span class="text-dsl-eyebrow">FAST-FORWARD · CACHED · ADVANCED</span><strong>You do not need this to run a simulation.</strong><p>Fast-forward uses a learned aggregate function to estimate a cohort instantly, with 0 agent ticks, instead of simulating agents again. Example: change unemployment and see mean income in 30 days.</p></div></summary>
-        <div class="text-dsl-aggregate-toolbar">
-          <label>Learned aggregate function <span class="dsl-help" title="A learned aggregate function estimates cohort outputs without rerunning individual agents.">?</span><select data-aggregate-function><option value="">Select aggregate</option></select></label>
-          <div class="text-dsl-aggregate-inputs" data-aggregate-inputs></div>
-          <label>Evaluation day <span class="dsl-help" title="Evaluation day = which day to evaluate to.">?</span><input type="number" min="0" step="1" value="0" data-aggregate-day></label>
-          <label>Events <span class="dsl-help" title="Events = e.g. disaster, pandemic, comma-separated.">?</span><input type="text" placeholder="disaster, pandemic" data-aggregate-events></label>
-          <label>Branch inputs <span class="dsl-help" title="Branch inputs = e.g. NorthOne.unemployment=0.8, changing one branch only.">?</span><input type="text" placeholder="NorthOne.unemployment=0.8" data-aggregate-branch-inputs></label>
-          <label>Input schedule <span class="dsl-help" title="Input schedule = e.g. 30.unemployment=0.8, changing an input from day 30.">?</span><input type="text" placeholder="30.unemployment=0.8" data-aggregate-input-schedule></label>
-          <button type="button" class="button secondary" data-dsl-action="aggregate-cached">Evaluate cached</button>
-          <button type="button" class="button secondary" data-dsl-action="aggregate-relearn">Relearn detailed</button>
-          <p class="text-dsl-fast-reason" data-fast-forward-reason></p>
-        </div>
-      </details>
       <div class="text-dsl-status" role="status" data-dsl-status>Loading Rust DSL…</div>
       <div class="text-dsl-code-view" data-dsl-code-view>
         <aside data-dsl-outline></aside>
@@ -321,9 +276,6 @@ export class TextDslEditor {
     this.host.replaceChildren(this.root);
     this.root.addEventListener('click', this.onClick);
     this.root
-      .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
-      .addEventListener('change', this.onAggregateFunctionChange);
-    this.root
       .querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!
       .addEventListener('change', this.onAllRunsChange);
     this.root
@@ -343,9 +295,6 @@ export class TextDslEditor {
     this.root.removeEventListener('click', this.onClick);
     this.textarea.removeEventListener('input', this.onInput);
     this.textarea.removeEventListener('scroll', this.onScroll);
-    this.root
-      .querySelector<HTMLSelectElement>('[data-aggregate-function]')!
-      .removeEventListener('change', this.onAggregateFunctionChange);
     this.root
       .querySelector<HTMLSelectElement>('[data-dsl-all-runs]')!
       .removeEventListener('change', this.onAllRunsChange);
@@ -384,13 +333,6 @@ export class TextDslEditor {
     if (action === 'save') void this.save();
     if (action === 'run') void this.runDsl();
     if (action === 'reset') void this.reset(button);
-    if (action === 'aggregate-cached') void this.evaluateAggregate(false);
-    if (action === 'aggregate-relearn') void this.evaluateAggregate(true);
-  };
-
-  private readonly onAggregateFunctionChange = (): void => {
-    this.renderAggregateInputs();
-    this.updateButtons();
   };
 
   private readonly onAllRunsChange = (event: Event): void => {
@@ -428,7 +370,7 @@ export class TextDslEditor {
 
   private showCode(line: number): void {
     this.setView('code');
-    requestAnimationFrame(() => this.focusLine(line));
+    this.focusLine(line);
   }
 
   private async load(): Promise<void> {
@@ -518,23 +460,13 @@ export class TextDslEditor {
     const totalRepresentedPool = Number(
       this.root.querySelector<HTMLInputElement>('[data-dsl-total-pool]')!.value,
     );
-    const detail = this.root.querySelector<HTMLSelectElement>('[data-dsl-detail]')!.value;
     const populationId = this.root.querySelector<HTMLSelectElement>('[data-dsl-population]')!.value;
     const defaultRunId = this.document.validation.graph?.default_run_id ?? null;
-    const programRun = populationId === 'program:Town';
     const compositionId = populationId.startsWith('composition:')
       ? populationId.slice('composition:'.length)
       : populationId
         ? null
         : defaultRunId;
-    const compositionPopulationId = populationId.startsWith('composition_population:')
-      ? populationId.slice('composition_population:'.length)
-      : null;
-    const weightedPopulationId =
-      compositionId || compositionPopulationId || programRun ? null : populationId || null;
-    const selectionKey = programRun
-      ? null
-      : populationId || (defaultRunId ? `composition:${defaultRunId}` : null);
     const ticks = Math.round((days * 24) / (this.document.validation.tick_hours || 1));
     const runButton = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
     runButton.disabled = true;
@@ -549,16 +481,15 @@ export class TextDslEditor {
           seed,
           days,
           total_represented_pool: totalRepresentedPool,
-          detail,
-          baseline_run_id: this.run?.population_id === selectionKey ? this.run.run_id : null,
-          population_id: weightedPopulationId,
+          baseline_run_id: this.run?.run_id ?? null,
           composition_id: compositionId,
-          composition_population_id: compositionPopulationId,
         }),
       });
       this.lastRunElapsedMs = performance.now() - started;
-      this.graphView.setPoolAgents(this.run.pool_agents, this.run.pool_summary);
-      this.status.textContent = `Completed ${this.run.ticks.toLocaleString()} Rust ticks for one full-system run.`;
+      this.graphView.setExemplarPlan(this.run.exemplar_plan, this.run.exemplar_cache);
+      this.status.textContent = this.run.cache_stats.cache_hit
+        ? 'Completed cached composed run with 0 mass agent ticks.'
+        : `Learned ${this.run.cache_stats.relearned_exemplars.length.toLocaleString()} neighbourhood exemplars.`;
       this.renderResults();
     } catch (error) {
       this.options.onError(error);
@@ -567,92 +498,6 @@ export class TextDslEditor {
       runButton.textContent = 'Run full system';
       this.updateButtons();
     }
-  }
-
-  private async evaluateAggregate(forceRelearn: boolean): Promise<void> {
-    if (!this.document || this.dirty || !this.document.validation.valid) return;
-    const functionId = this.root.querySelector<HTMLSelectElement>(
-      '[data-aggregate-function]',
-    )!.value;
-    if (!functionId) return;
-    const inputs = Object.fromEntries(
-      [...this.root.querySelectorAll<HTMLInputElement>('[data-aggregate-input]')].map((input) => [
-        input.dataset.aggregateInput!,
-        Number(input.value),
-      ]),
-    );
-    const events = this.root
-      .querySelector<HTMLInputElement>('[data-aggregate-events]')!
-      .value.split(',')
-      .map((event) => event.trim())
-      .filter(Boolean);
-    const days = Number(this.root.querySelector<HTMLInputElement>('[data-dsl-days]')!.value);
-    const evaluatedAtDay = Number(
-      this.root.querySelector<HTMLInputElement>('[data-aggregate-day]')!.value,
-    );
-    this.status.textContent = forceRelearn
-      ? `Relearning ${functionId} from detailed cohorts…`
-      : `Evaluating cached ${functionId}…`;
-    const buttons = this.root.querySelectorAll<HTMLButtonElement>(
-      '[data-dsl-action^="aggregate-"]',
-    );
-    buttons.forEach((button) => {
-      button.disabled = true;
-    });
-    try {
-      const result = await requestJson<AggregateEvaluationResult>(
-        '/simulation/text-dsl/aggregate/evaluate',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            function_id: functionId,
-            seed: Number(this.root.querySelector<HTMLInputElement>('[data-dsl-seed]')!.value),
-            days,
-            evaluated_at_day: evaluatedAtDay,
-            inputs,
-            branch_inputs: branchInputs(
-              this.root.querySelector<HTMLInputElement>('[data-aggregate-branch-inputs]')!.value,
-            ),
-            input_schedule: inputSchedule(
-              this.root.querySelector<HTMLInputElement>('[data-aggregate-input-schedule]')!.value,
-            ),
-            events,
-            force_relearn: forceRelearn,
-          }),
-        },
-      );
-      const evaluation = result.cache_hit
-        ? 'Cache hit'
-        : result.agent_ticks > 0
-          ? 'Branch relearn'
-          : 'Hierarchy updated';
-      this.status.textContent = `${evaluation} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.feedback_iterations ?? 0} feedback iterations.`;
-      this.graphView.setCacheStatus(
-        functionId,
-        `${evaluation.toLowerCase()} · ${result.agent_ticks.toLocaleString()} agent ticks · ${number(result.elapsed_seconds * 1000, 1)} ms`,
-      );
-      this.renderAggregateResults(result, days);
-    } catch (error) {
-      this.options.onError(error);
-      this.status.textContent = this.plainError(error, 'Fast-forward could not finish');
-    } finally {
-      this.updateButtons();
-    }
-  }
-
-  private renderAggregateResults(result: AggregateEvaluationResult, days: number): void {
-    const deltas = new Map<string, ReportDelta>();
-    const outputIds = Object.keys(result.time_series.at(-1)?.outputs ?? {});
-    this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">${result.cache_hit ? 'CACHED FAST-FORWARD' : result.agent_ticks > 0 ? 'BRANCH RELEARN' : 'HIERARCHY UPDATED'}</span><h2>${escapeHtml(result.function_id)}</h2><p>${days} days · cache_hit=${result.cache_hit} · cache v${result.cache_version} · ${number(result.elapsed_seconds * 1000, 1)} ms · ${result.agent_ticks.toLocaleString()} agent ticks · ${result.feedback_iterations ?? 0} feedback iterations · ${number(result.feedback_change_percent ?? 0, 3)}% final change</p></div></header>
-      <section class="text-dsl-result-table" data-report-id="aggregate_time_series"><h3>Fast-forward time series</h3><div class="table-scroll"><table><thead><tr><th>Day</th>${outputIds.map((id) => `<th>${escapeHtml(id.replaceAll('_', ' '))}</th><th>${escapeHtml(id.replaceAll('_', ' '))} sd</th>`).join('')}</tr></thead><tbody>${result.time_series
-        .map(
-          (point) =>
-            `<tr><th>${point.day}</th>${outputIds.map((id) => `<td>${number(point.outputs[id]?.mean ?? 0)}</td><td>${number(point.outputs[id]?.standard_deviation ?? 0)}</td>`).join('')}</tr>`,
-        )
-        .join('')}</tbody></table></div></section>
-      ${result.reports.map((report) => this.report(report, deltas)).join('')}`;
   }
 
   private renderDocument(): void {
@@ -675,10 +520,9 @@ export class TextDslEditor {
     this.outline.setGraph(validation.valid ? validation.graph : null);
     this.renderPopulationOptions(validation.compositions ?? [], validation.graph ?? undefined);
     this.renderFullSystemSummary(validation.graph ?? undefined);
-    this.renderAggregateOptions(validation.aggregate_functions ?? []);
     this.diagnostics.replaceChildren();
     if (validation.valid) {
-      this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · Town default sample budget ${number(validation.adult_population ?? 0, 0)} before generated children</span></div>`;
+      this.diagnostics.innerHTML = `<div class="text-dsl-valid"><strong>Valid Rust DSL</strong><span>${escapeHtml(validation.program_id ?? '')} · tick ${number(validation.tick_hours ?? 0)}h · weighted neighbourhood exemplar architecture</span></div>`;
       this.status.textContent = this.dirty
         ? 'Code is valid. Save it to make it the executable source.'
         : 'Saved DSL is valid and ready to run.';
@@ -715,12 +559,8 @@ export class TextDslEditor {
       level: string;
       cached?: boolean;
     }): HTMLOptionElement => {
-      const node = nodeById.get(composition.id);
-      const counts = node
-        ? `${node.simulated_count?.toLocaleString() ?? '—'} simulated${node.represented_count ? ` representing ${node.represented_count.toLocaleString()}` : ''}`
-        : composition.level.replaceAll('_', ' ');
       return new Option(
-        `${composition.id} — ${counts}${composition.cached ? ', detailed + cached' : ', detailed'}`,
+        `${composition.id} — city exemplar debug${composition.cached ? ', cached' : ''}`,
         `composition:${composition.id}`,
       );
     };
@@ -733,7 +573,8 @@ export class TextDslEditor {
           return (
             composition.id !== graph?.default_run_id &&
             node?.graph_group === 'main' &&
-            ['Physical', 'Media', 'Conglomerate', 'Financial'].includes(node.vertical_slice)
+            node.vertical_slice === 'Physical' &&
+            ['municipality', 'city'].includes(node.level)
           );
         })
         .map(compositionOption),
@@ -753,42 +594,12 @@ export class TextDslEditor {
     const host = this.root.querySelector<HTMLElement>('[data-full-system-summary]')!;
     const root = graph?.nodes.find((node) => node.id === graph.default_run_id);
     if (!graph || !root) {
-      host.innerHTML = '<p>Validate the DSL to load the pool and sector summary.</p>';
+      host.innerHTML = '<p>Validate the DSL to load the exemplar hierarchy.</p>';
       return;
     }
-    const sectors = graph.edges
-      .filter((edge) => edge.kind === 'parent_child' && edge.from_id === root.id)
-      .map((edge) => graph.nodes.find((node) => node.id === edge.to_id))
-      .filter((node): node is NonNullable<typeof node> => Boolean(node));
-    host.innerHTML = `<article class="text-dsl-pool-summary"><strong>Pool</strong><span>6,999,999,999 represented people · Medium detail · one shared money, stress, household, and residence state</span><small>${sectors.map((node) => escapeHtml(node.vertical_slice)).join(' · ')} use role assignments from this pool; overlay totals may exceed the pool.</small></article>`;
-  }
-
-  private renderAggregateOptions(functions: AggregateFunctionDefinition[]): void {
-    const select = this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!;
-    const selected = select.value;
-    select.replaceChildren(new Option('Select aggregate', ''));
-    for (const definition of functions) {
-      const option = new Option(definition.id, definition.id);
-      option.dataset.definition = JSON.stringify(definition);
-      select.add(option);
-    }
-    select.value = functions.some((definition) => definition.id === selected) ? selected : '';
-    this.renderAggregateInputs();
-  }
-
-  private renderAggregateInputs(): void {
-    const select = this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!;
-    const option = select.selectedOptions[0];
-    const definition = option?.dataset.definition
-      ? (JSON.parse(option.dataset.definition) as AggregateFunctionDefinition)
-      : undefined;
-    const host = this.root.querySelector<HTMLElement>('[data-aggregate-inputs]')!;
-    host.innerHTML = (definition?.inputs ?? [])
-      .map(
-        (input) =>
-          `<label>${escapeHtml(input.id.replaceAll('_', ' '))} <span class="dsl-help" title="Allowed range ${number(input.minimum)} to ${number(input.maximum)}; changing by ±${number(input.invalidate_threshold)} invalidates the learned branch.">?</span><input type="number" min="${input.minimum}" max="${input.maximum}" step="any" value="${input.default}" data-aggregate-input="${escapeHtml(input.id)}"><small>range ${number(input.minimum)}–${number(input.maximum)} · invalidate ±${number(input.invalidate_threshold)}</small></label>`,
-      )
-      .join('');
+    const cities = graph.nodes.filter((node) => ['municipality', 'city'].includes(node.level));
+    const strata = graph.nodes.filter((node) => node.level === 'neighbourhood');
+    host.innerHTML = `<article class="text-dsl-pool-summary"><strong>Logical population</strong><span>6,999,999,999 represented people · ${cities.length.toLocaleString()} cities · adaptive exemplar count</span><small>${strata.length.toLocaleString()} declared strata · each detailed exemplar contains 50–100 households · sector roles overlay the same people</small></article>`;
   }
 
   private focusLine(line: number): void {
@@ -805,24 +616,8 @@ export class TextDslEditor {
   private updateButtons(validation = this.document?.validation): void {
     const save = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="save"]')!;
     const run = this.root.querySelector<HTMLButtonElement>('[data-dsl-action="run"]')!;
-    const aggregateButtons = this.root.querySelectorAll<HTMLButtonElement>(
-      '[data-dsl-action^="aggregate-"]',
-    );
     save.disabled = !this.dirty;
     run.disabled = this.dirty || !validation?.valid;
-    const aggregateSelected = Boolean(
-      this.root.querySelector<HTMLSelectElement>('[data-aggregate-function]')!.value,
-    );
-    aggregateButtons.forEach((button) => {
-      button.disabled = this.dirty || !validation?.valid || !aggregateSelected;
-    });
-    const reason = this.root.querySelector<HTMLElement>('[data-fast-forward-reason]')!;
-    reason.textContent =
-      this.dirty || !validation?.valid
-        ? 'Save valid DSL before fast-forwarding.'
-        : aggregateSelected
-          ? 'Ready to evaluate the selected learned aggregate.'
-          : 'Choose a learned aggregate function to enable fast-forward.';
   }
 
   private renderResults(): void {
@@ -830,22 +625,23 @@ export class TextDslEditor {
     const deltaByKey = new Map(
       this.run.comparison.map((row) => [`${row.report_id}:${row.group_id}`, row]),
     );
-    const pool = this.run.pool_summary;
-    const roleRows = Object.entries(pool.role_membership)
-      .filter(([, count]) => count > 0)
-      .sort((left, right) => right[1] - left[1]);
-    const partitionRows = this.run.population_allocations.filter(
-      (row) => row.node_kind === 'composition' && row.path.split('>').length <= 3,
-    );
-    const poolSummary = `<section class="text-dsl-slice-results"><h3>One global pool</h3><div><article><strong>${number(pool.total_represented_pool, 0)} represented people</strong><span>${number(pool.simulated_pool_sample, 0)} sampled agents · ${number(pool.simulated_households, 0)} households</span><small>${number(pool.weight_per_simulated_agent, 2)} represented people per sampled agent · unique agents ${number(pool.unique_represented_agents, 0)}</small></article><article><strong>Required role coverage</strong><span>Unassigned required roles = ${number(pool.unassigned_required_roles, 0)}</span><small>Residence and household are exclusive; sector roles overlap.</small></article></div></section>`;
-    const partitionSummary = `<section class="text-dsl-result-table"><h3>Residence partition</h3><ul>${partitionRows.map((row) => `<li><strong>${escapeHtml(row.path)}</strong> · ${number(row.actual_represented, 0)} represented · ${number(row.actual_simulated, 0)} sampled</li>`).join('')}</ul></section>`;
-    const rolesSummary = `<section class="text-dsl-result-table"><h3>Sector role membership</h3><p>Overlay sums exceed the total because one person can hold roles in several sectors.</p><ul>${roleRows.map(([role, count]) => `<li><strong>${escapeHtml(role)}</strong> · ${number(count, 0)} sampled agents</li>`).join('')}</ul><h4>Explicit neither outcomes</h4><ul>${Object.entries(
-      pool.explicit_neither,
+    const plan = this.run.exemplar_plan;
+    const poolSummary = `<section class="text-dsl-slice-results"><h3>Weighted neighbourhood exemplars</h3><div><article><strong>${number(plan.total_represented_pool, 0)} represented people</strong><span>${number(plan.total_exemplars, 0)} detailed exemplars · ${number(plan.cities.length, 0)} cities</span><small>${number(plan.total_real_neighbourhood_instances, 0)} real neighbourhood instances · ${number(plan.total_represented_households, 0)} represented households</small></article><article><strong>${this.run.cache_stats.cache_hit ? 'Cache hit' : 'Learning completed'}</strong><span>${number(this.run.cache_stats.mass_agent_ticks, 0)} mass agent ticks</span><small>Unassigned required roles = ${number(this.run.unassigned_required_roles, 0)}</small></article></div></section>`;
+    const citySummary = `<section class="text-dsl-result-table"><h3>City convergence</h3><ul>${plan.cities.map((city) => `<li><strong>${escapeHtml(city.city_id)}</strong> · ${number(city.exemplars.length, 0)} exemplars · ${number(city.represented_people, 0)} people · mean Δ ${number(city.convergence.mean_change * 100, 2)}% · distribution ${number(city.convergence.distribution_distance * 100, 2)}% · tail Δ ${number(city.convergence.tail_rate_change_points, 3)}pp · ${city.convergence.converged ? 'converged' : city.convergence.cap_hit ? 'cap hit' : 'not converged'} · ${escapeHtml(city.distribution_status)}</li>`).join('')}</ul></section>`;
+    const cacheSummary = `<section class="text-dsl-result-table"><h3>Exemplar cache</h3><p>Relearned ${number(this.run.cache_stats.relearned_exemplars.length, 0)} · reused ${number(this.run.cache_stats.reused_exemplars.length, 0)} · feedback ${number(this.run.cache_stats.feedback_iterations, 0)} iteration(s), final change ${number(this.run.cache_stats.feedback_final_change * 100, 2)}%</p><ul>${Object.entries(
+      this.run.cache_stats.invalidations,
     )
-      .map(([group, count]) => `<li>${escapeHtml(group)} · ${number(count, 0)}</li>`)
+      .map(([id, reason]) => `<li>${escapeHtml(id)} · ${escapeHtml(reason)}</li>`)
+      .join('')}${Object.entries(this.run.cache_stats.feedback_inputs)
+      .map(
+        ([city, inputs]) =>
+          `<li>${escapeHtml(city)} feedback · ${Object.entries(inputs)
+            .map(([input, value]) => `${escapeHtml(input)}=${number(value, 4)}`)
+            .join(' · ')}</li>`,
+      )
       .join('')}</ul></section>`;
     const leadersSummary = `<section class="text-dsl-result-table"><h3>Leader assignments</h3><ul>${Object.entries(
-      pool.leader_assignments,
+      this.run.leader_assignments,
     )
       .map(
         ([office, agent]) =>
@@ -853,10 +649,10 @@ export class TextDslEditor {
       )
       .join('')}</ul></section>`;
     this.results.innerHTML = `
-      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>Total pool ${number(this.run.total_represented_pool, 0)} · ${this.run.days} days · seed ${this.run.seed} · detail ${escapeHtml(this.run.detail)} · ${number(pool.simulated_pool_sample, 0)} sampled agents · weight ${number(pool.weight_per_simulated_agent, 2)} · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
+      <header><div><span class="text-dsl-eyebrow">RUN COMPLETE · ${escapeHtml(this.run.results_title)}</span><h2>${escapeHtml(this.run.results_subtitle)}</h2><p>Total pool ${number(this.run.total_represented_pool, 0)} · ${this.run.days} days · seed ${this.run.seed} · ${number(plan.total_exemplars, 0)} exemplars · ${number(plan.total_real_neighbourhood_instances, 0)} real neighbourhoods represented · engine ${escapeHtml(this.run.engine_version)} · ${number(this.lastRunElapsedMs, 1)} ms</p></div><div><span>Run</span><strong>${escapeHtml(this.run.run_id.slice(0, 8))}</strong></div></header>
       ${poolSummary}
-      ${partitionSummary}
-      ${rolesSummary}
+      ${citySummary}
+      ${cacheSummary}
       ${leadersSummary}
       ${this.run.reports.map((report) => this.report(report, deltaByKey)).join('')}`;
   }

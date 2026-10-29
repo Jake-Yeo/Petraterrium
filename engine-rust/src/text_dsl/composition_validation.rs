@@ -1,5 +1,5 @@
 use super::composition_allocations::validate_authoritative_allocations;
-use super::expression::{evaluate, references};
+use super::expression::references;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -129,6 +129,40 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                 "Represented population must be positive",
             ));
         }
+        if composition.level == "neighbourhood"
+            && !composition
+                .exemplar_households
+                .is_some_and(|households| (50..=100).contains(&households))
+        {
+            return Err(DslError::new(
+                "INVALID_EXEMPLAR_HOUSEHOLDS",
+                composition.line,
+                "Neighbourhood compositions need 50 to 100 households_per_exemplar",
+            ));
+        }
+        if !composition.heterogeneity.is_finite()
+            || !(0.0..=1.0).contains(&composition.heterogeneity)
+            || composition
+                .stratifiers
+                .values()
+                .any(|value| !value.is_finite())
+        {
+            return Err(DslError::new(
+                "INVALID_STRATIFICATION",
+                composition.line,
+                "Heterogeneity must be 0..1 and stratifiers must be finite",
+            ));
+        }
+        if !matches!(
+            composition.distribution_status.as_str(),
+            "measured" | "inherited" | "fallback" | "estimated"
+        ) {
+            return Err(DslError::new(
+                "INVALID_DISTRIBUTION_STATUS",
+                composition.line,
+                "distribution_status must be measured, inherited, estimated, or fallback",
+            ));
+        }
         if let Some(role) = composition
             .role_targets
             .keys()
@@ -253,6 +287,19 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                     "Composition weight must be positive",
                 ));
             }
+            if let Some(child) = compositions.get(entry.child.as_str())
+                && let Some(sync_up) = composition.sync_up_minutes
+                && sync_up % child.clock_minutes != 0
+            {
+                return Err(DslError::new(
+                    "CLOCK_SYNC_MISMATCH",
+                    entry.line,
+                    format!(
+                        "Child clock {} minutes does not divide parent sync {} minutes",
+                        child.clock_minutes, sync_up
+                    ),
+                ));
+            }
         }
         for place in &composition.places {
             if !places.contains(place.as_str()) {
@@ -264,10 +311,6 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
             }
         }
         validate_adjacency(composition, &child_ids)?;
-        validate_flows(program, composition, &child_ids)?;
-        validate_couplings(program, composition, &child_ids)?;
-        validate_boundaries(composition, &child_ids, &base_fields)?;
-        validate_cached_composition(program, composition)?;
         for output in &composition.outputs {
             match &output.metric {
                 ReportMetric::Count => {}
@@ -292,9 +335,6 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
                         .places
                         .iter()
                         .any(|item| item.id == *place && item.states.contains_key(field)) => {}
-                ReportMetric::FlowCount { flow } | ReportMetric::FlowRate { flow }
-                    if composition.flows.iter().any(|item| item.id == *flow)
-                        || composition.couplings.iter().any(|item| item.id == *flow) => {}
                 _ => {
                     return Err(DslError::new(
                         "INVALID_COMPOSITION_OUTPUT",
@@ -321,7 +361,6 @@ pub(super) fn validate_compositions(program: &Program) -> DslResult<()> {
             "Only one composition may declare default_run = true",
         ));
     }
-    validate_syncs(program, &compositions)?;
     validate_authoritative_allocations(program)?;
     let mut population_ids = BTreeSet::new();
     for population in &program.composition_populations {
@@ -616,169 +655,6 @@ fn valid_formula_references(
         .all(|reference| allowed.contains(&reference))
 }
 
-fn validate_boundaries(
-    composition: &CompositionDefinition,
-    child_ids: &BTreeSet<&str>,
-    fields: &BTreeSet<String>,
-) -> DslResult<()> {
-    let mut ids = BTreeSet::new();
-    for boundary in &composition.boundaries {
-        if !ids.insert(boundary.id.as_str()) {
-            return Err(DslError::new(
-                "DUPLICATE_COMPOSITION_BOUNDARY",
-                boundary.line,
-                format!("Duplicate composition boundary {}", boundary.id),
-            ));
-        }
-        if boundary.source == boundary.target
-            || !child_ids.contains(boundary.source.as_str())
-            || !child_ids.contains(boundary.target.as_str())
-        {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_BOUNDARY_CHILD",
-                boundary.line,
-                "Boundary endpoints must be different direct composition children",
-            ));
-        }
-        let mut boundary_fields = BTreeSet::new();
-        for field in &boundary.fields {
-            if !boundary_fields.insert(field.as_str()) || !fields.contains(field) {
-                return Err(DslError::new(
-                    "UNKNOWN_COMPOSITION_BOUNDARY_FIELD",
-                    boundary.line,
-                    format!("Boundary references unknown or duplicate field {field}"),
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn validate_couplings(
-    program: &Program,
-    composition: &CompositionDefinition,
-    child_ids: &BTreeSet<&str>,
-) -> DslResult<()> {
-    let function = program
-        .aggregate_functions
-        .iter()
-        .find(|item| item.id == composition.id);
-    let mut allowed = composition
-        .parameters
-        .keys()
-        .cloned()
-        .chain(
-            function
-                .into_iter()
-                .flat_map(|item| item.inputs.iter().map(|input| input.id.clone())),
-        )
-        .chain(composition.outputs.iter().map(|output| output.id.clone()))
-        .collect::<BTreeSet<_>>();
-    for entry in &composition.entries {
-        if let Some(child) = program
-            .compositions
-            .iter()
-            .find(|item| item.id == entry.child)
-        {
-            for parameter in child.parameters.keys() {
-                allowed.insert(format!("{}_{}", entry.child, parameter));
-                allowed.insert(format!("{}.{}", entry.child, parameter));
-            }
-            for output in &child.outputs {
-                allowed.insert(format!("{}_{}", entry.child, output.id));
-                allowed.insert(format!("{}.{}", entry.child, output.id));
-            }
-        }
-    }
-    allowed.extend(composition.flows.iter().map(|flow| flow.id.clone()));
-    let mut ids = BTreeSet::new();
-    for coupling in &composition.couplings {
-        if !ids.insert(coupling.id.as_str()) {
-            return Err(DslError::new(
-                "DUPLICATE_COMPOSITION_COUPLING",
-                coupling.line,
-                format!("Duplicate composition coupling {}", coupling.id),
-            ));
-        }
-        if !child_ids.contains(coupling.source.as_str())
-            || !child_ids.contains(coupling.target.as_str())
-        {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_COUPLING_CHILD",
-                coupling.line,
-                "Coupling endpoints must be direct composition children",
-            ));
-        }
-        let target_function = program
-            .aggregate_functions
-            .iter()
-            .find(|function| function.id == coupling.target)
-            .ok_or_else(|| {
-                DslError::new(
-                    "UNKNOWN_COMPOSITION_COUPLING_TARGET",
-                    coupling.line,
-                    format!(
-                        "Coupling target {} has no aggregate function",
-                        coupling.target
-                    ),
-                )
-            })?;
-        if !target_function
-            .inputs
-            .iter()
-            .any(|input| input.id == coupling.target_input)
-        {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_COUPLING_INPUT",
-                coupling.line,
-                format!(
-                    "Coupling target {} has no input {}",
-                    coupling.target, coupling.target_input
-                ),
-            ));
-        }
-        let coupling_references = references(&coupling.value);
-        let unknown = coupling_references
-            .iter()
-            .filter(|reference| !allowed.contains(*reference))
-            .cloned()
-            .collect::<Vec<_>>();
-        if !unknown.is_empty() {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_COUPLING_VALUE",
-                coupling.line,
-                format!("Coupling references unknown values: {}", unknown.join(", ")),
-            ));
-        }
-        let source = program
-            .compositions
-            .iter()
-            .find(|child| child.id == coupling.source)
-            .unwrap();
-        let reads_source_output = source.outputs.iter().any(|output| {
-            coupling_references.contains(&format!("{}_{}", source.id, output.id))
-                || coupling_references.contains(&format!("{}.{}", source.id, output.id))
-        });
-        if !reads_source_output {
-            return Err(DslError::new(
-                "MISSING_COMPOSITION_COUPLING_SOURCE_OUTPUT",
-                coupling.line,
-                format!(
-                    "Coupling {} must read a declared source output; references: {}",
-                    coupling.id,
-                    coupling_references
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            ));
-        }
-        allowed.insert(coupling.id.clone());
-    }
-    Ok(())
-}
-
 fn validate_adjacency(
     composition: &CompositionDefinition,
     child_ids: &BTreeSet<&str>,
@@ -809,215 +685,6 @@ fn validate_adjacency(
                 "DUPLICATE_COMPOSITION_ADJACENCY",
                 edge.line,
                 "Composition adjacency pairs must be unique",
-            ));
-        }
-    }
-    Ok(())
-}
-
-fn validate_flows(
-    program: &Program,
-    composition: &CompositionDefinition,
-    child_ids: &BTreeSet<&str>,
-) -> DslResult<()> {
-    let function = program
-        .aggregate_functions
-        .iter()
-        .find(|item| item.id == composition.id);
-    let mut allowed = composition
-        .parameters
-        .keys()
-        .cloned()
-        .chain(
-            function
-                .into_iter()
-                .flat_map(|item| item.inputs.iter().map(|input| input.id.clone())),
-        )
-        .chain(composition.outputs.iter().map(|output| output.id.clone()))
-        .collect::<BTreeSet<_>>();
-    for entry in &composition.entries {
-        if let Some(child) = program
-            .compositions
-            .iter()
-            .find(|item| item.id == entry.child)
-        {
-            for parameter in child.parameters.keys() {
-                allowed.insert(format!("{}_{}", entry.child, parameter));
-                allowed.insert(format!("{}.{}", entry.child, parameter));
-            }
-            for output in &child.outputs {
-                allowed.insert(format!("{}_{}", entry.child, output.id));
-                allowed.insert(format!("{}.{}", entry.child, output.id));
-            }
-        }
-    }
-    for edge in &composition.adjacency {
-        allowed.insert(format!("distance_{}_{}", edge.source, edge.target));
-        allowed.insert(format!("distance_{}_{}", edge.target, edge.source));
-    }
-    let mut ids = BTreeSet::new();
-    for flow in &composition.flows {
-        if !ids.insert(flow.id.as_str()) {
-            return Err(DslError::new(
-                "DUPLICATE_COMPOSITION_FLOW",
-                flow.line,
-                format!("Duplicate composition flow {}", flow.id),
-            ));
-        }
-        if !child_ids.contains(flow.source.as_str()) || !child_ids.contains(flow.target.as_str()) {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_FLOW_CHILD",
-                flow.line,
-                "Flow endpoints must be direct composition children",
-            ));
-        }
-        let unknown = references(&flow.rate)
-            .into_iter()
-            .filter(|reference| !allowed.contains(reference))
-            .collect::<Vec<_>>();
-        if !unknown.is_empty() {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_FLOW_VALUE",
-                flow.line,
-                format!(
-                    "Flow rate references unknown values: {}",
-                    unknown.join(", ")
-                ),
-            ));
-        }
-        if references(&flow.rate).is_empty() {
-            let rate = evaluate(&flow.rate, &BTreeMap::new())?
-                .as_f64()
-                .unwrap_or(f64::NAN);
-            if !rate.is_finite() || !(0.0..=1.0).contains(&rate) {
-                return Err(DslError::new(
-                    "INVALID_COMPOSITION_FLOW_RATE",
-                    flow.line,
-                    "Constant flow rate must be between zero and one",
-                ));
-            }
-        }
-        if flow.effect == "visit" && flow.via.is_none() {
-            return Err(DslError::new(
-                "MISSING_COMPOSITION_FLOW_PLACE",
-                flow.line,
-                "Visit flow needs a shared place",
-            ));
-        }
-        if flow
-            .via
-            .as_ref()
-            .is_some_and(|place| !composition.places.contains(place))
-        {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_FLOW_PLACE",
-                flow.line,
-                "Flow place must be shared by the composition",
-            ));
-        }
-        let adjacent = composition.adjacency.is_empty()
-            || composition.adjacency.iter().any(|edge| {
-                edge.source == flow.source && edge.target == flow.target
-                    || edge.source == flow.target && edge.target == flow.source
-            });
-        if !adjacent && flow.via.is_none() {
-            return Err(DslError::new(
-                "NON_ADJACENT_COMPOSITION_FLOW",
-                flow.line,
-                "Non-adjacent children require a shared flow place",
-            ));
-        }
-        allowed.insert(flow.id.clone());
-    }
-    Ok(())
-}
-
-fn validate_syncs(
-    program: &Program,
-    compositions: &BTreeMap<&str, &CompositionDefinition>,
-) -> DslResult<()> {
-    for parent in &program.compositions {
-        let Some(parent_cache) = &parent.cached else {
-            continue;
-        };
-        for entry in &parent.entries {
-            let Some(child) = compositions.get(entry.child.as_str()) else {
-                continue;
-            };
-            let Some(child_cache) = &child.cached else {
-                continue;
-            };
-            if parent_cache.sync_days % child_cache.sync_days != 0
-                && child_cache.sync_days % parent_cache.sync_days != 0
-            {
-                return Err(DslError::new(
-                    "INCOMPATIBLE_COMPOSITION_SYNC",
-                    parent_cache.line,
-                    format!(
-                        "Composition {} sync {} and child {} sync {} must divide cleanly",
-                        parent.id, parent_cache.sync_days, child.id, child_cache.sync_days
-                    ),
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-fn validate_cached_composition(
-    program: &Program,
-    composition: &CompositionDefinition,
-) -> DslResult<()> {
-    let Some(cached) = &composition.cached else {
-        return Ok(());
-    };
-    if cached.sync_days == 0
-        || !(1..=5).contains(&cached.max_iterations)
-        || !cached.tolerance.is_finite()
-        || !(0.0..1.0).contains(&cached.tolerance)
-    {
-        return Err(DslError::new(
-            "INVALID_CACHED_COMPOSITION",
-            cached.line,
-            "Cached sync must be positive, iterations 1..5, and tolerance between zero and one",
-        ));
-    }
-    let output_ids = composition
-        .outputs
-        .iter()
-        .map(|output| output.id.as_str())
-        .collect::<BTreeSet<_>>();
-    let child_inputs = composition
-        .entries
-        .iter()
-        .filter_map(|entry| {
-            program
-                .aggregate_functions
-                .iter()
-                .find(|function| function.id == entry.child)
-        })
-        .flat_map(|function| function.inputs.iter().map(|input| input.id.as_str()))
-        .collect::<BTreeSet<_>>();
-    for feedback in &cached.feedback {
-        if !output_ids.contains(feedback.output.as_str()) {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_FEEDBACK_OUTPUT",
-                feedback.line,
-                format!("Unknown feedback output {}", feedback.output),
-            ));
-        }
-        if !child_inputs.contains(feedback.input.as_str()) {
-            return Err(DslError::new(
-                "UNKNOWN_COMPOSITION_FEEDBACK_INPUT",
-                feedback.line,
-                format!("Unknown child feedback input {}", feedback.input),
-            ));
-        }
-        if !feedback.scale.is_finite() {
-            return Err(DslError::new(
-                "INVALID_COMPOSITION_FEEDBACK",
-                feedback.line,
-                "Feedback scale must be finite",
             ));
         }
     }

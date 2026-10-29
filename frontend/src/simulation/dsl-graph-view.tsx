@@ -42,16 +42,8 @@ export interface GraphAction {
   id: string;
   aggregate: string;
   duration: string;
+  target?: string | null;
   effects: string[];
-}
-
-export interface GraphCoupling {
-  id: string;
-  source: string;
-  target: string;
-  formula: string;
-  sync_interval_days?: number | null;
-  line: number;
 }
 
 export interface GraphAggregate {
@@ -87,6 +79,20 @@ export interface GraphNode {
   entity_unit?: string | null;
   role_targets: Record<string, number>;
   agent_pool?: string | null;
+  exemplar_households?: number | null;
+  stratum?: string | null;
+  heterogeneity: number;
+  distribution_status: string;
+  provenance?: string | null;
+  clock_minutes: number;
+  sync_up_minutes?: number | null;
+  exemplar_people?: number | null;
+  instances_represented?: number | null;
+  city_population_share?: number | null;
+  city_exemplar_count?: number | null;
+  represented_households?: number | null;
+  convergence_status?: string | null;
+  cache_version?: number | null;
   simulated_count?: number | null;
   line: number;
   cached: boolean;
@@ -103,7 +109,6 @@ export interface GraphNode {
   decisions: GraphDecision[];
   actions: GraphAction[];
   outputs: string[];
-  couplings: GraphCoupling[];
   aggregate?: GraphAggregate | null;
 }
 
@@ -111,7 +116,7 @@ export interface GraphEdge {
   id: string;
   from_id: string;
   to_id: string;
-  kind: 'parent_child' | 'coupling';
+  kind: 'parent_child';
   weight?: number | null;
   sync_interval_days?: number | null;
   line: number;
@@ -125,27 +130,11 @@ export interface GraphSlice {
   node_count: number;
 }
 
-export interface PopulationAllocation {
-  path: string;
-  parent_path?: string | null;
-  node_id: string;
-  node_kind: string;
-  vertical_slice: string;
-  graph_group: string;
-  probability: number;
-  expected_represented: number;
-  actual_represented: number;
-  expected_simulated: number;
-  actual_simulated: number;
-  seed: number;
-}
-
 export interface ProgramGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   slices: GraphSlice[];
   orphan_agents: string[];
-  population_paths: PopulationAllocation[];
   default_run_id?: string | null;
 }
 
@@ -153,20 +142,60 @@ interface GraphViewOptions {
   onViewCode: (line: number) => void;
 }
 
-interface PoolAgent {
+interface ExemplarPlan {
   id: string;
-  household_id: string;
-  agent_type: string;
-  roles: string[];
-  traits: Record<string, string | number | boolean>;
-  states: Record<string, string | number | boolean>;
+  city_id: string;
+  stratum: string;
+  households: number;
+  people: number;
+  represented_people: number;
+  instances_represented: number;
+  city_population_share: number;
+  distribution_status: string;
+  provenance: string;
 }
 
-interface PoolSummary {
+interface CityPlan {
+  city_id: string;
+  represented_people: number;
+  represented_households: number;
+  exemplars: ExemplarPlan[];
+  convergence: { converged: boolean; cap_hit: boolean };
+  mixture_metrics: Record<
+    string,
+    {
+      mean: number;
+      standard_deviation: number;
+      p10: number;
+      p50: number;
+      p90: number;
+      tail_rate: number;
+    }
+  >;
+}
+
+interface ExemplarSystemPlan {
   total_represented_pool: number;
-  simulated_pool_sample: number;
-  weight_per_simulated_agent: number;
-  unassigned_required_roles: number;
+  total_represented_households: number;
+  total_real_neighbourhood_instances: number;
+  total_exemplars: number;
+  cities: CityPlan[];
+}
+
+interface ExemplarCacheEntry {
+  version: number;
+  learning_ticks: number;
+  learning_seconds: number;
+  agents: Array<{
+    id: string;
+    household_id: string;
+    roles: string[];
+    residence_path: string[];
+    age: number;
+    money: number;
+    stress: number;
+  }>;
+  relationships: Array<{ kind: string; source_id: string; target_id: string }>;
 }
 
 interface GraphOccurrence {
@@ -177,7 +206,6 @@ interface GraphOccurrence {
   parentKey?: string;
   childCount: number;
   inheritedRoles: string[];
-  allocation?: PopulationAllocation;
   agentLeaves: string[];
 }
 
@@ -203,13 +231,6 @@ const formatted = (value?: number | null, digits = 0): string =>
     ? '—'
     : new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(value);
 
-const syncLabel = (days?: number | null): string => {
-  if (!days) return 'immediate';
-  if (days === 1) return 'daily sync';
-  if (days === 7) return 'weekly sync';
-  return `${days}-day sync`;
-};
-
 const occurrenceId = (slice: string, path: string): string => `${slice}::${path}`;
 
 const buildOccurrences = (
@@ -224,7 +245,6 @@ const buildOccurrences = (
     values.push(edge.to_id);
     children.set(edge.from_id, values);
   }
-  const allocations = new Map(graph.population_paths.map((row) => [row.path, row]));
   const result: GraphOccurrence[] = [];
   for (const slice of graph.slices.filter((item) => visibleSlices.has(item.id))) {
     const sliceCompositions = graph.nodes.filter(
@@ -253,7 +273,6 @@ const buildOccurrences = (
         parentKey,
         childCount: childIds.length,
         inheritedRoles,
-        allocation: allocations.get(path),
         agentLeaves,
       });
       if (!expandedPaths.has(key) || visited.has(node.id)) return;
@@ -280,6 +299,86 @@ const buildOccurrences = (
     }
   }
   return result;
+};
+
+const withExemplarOccurrences = (
+  occurrences: GraphOccurrence[],
+  plan: ExemplarSystemPlan | undefined,
+  graph: ProgramGraph,
+  expandedPaths: Set<string>,
+  exemplarCache: Record<string, ExemplarCacheEntry>,
+): GraphOccurrence[] => {
+  if (!plan) return occurrences;
+  const cityById = new Map(plan.cities.map((city) => [city.city_id, city]));
+  const cityPaths = occurrences.filter((occurrence) => cityById.has(occurrence.node.id));
+  const hiddenPrefixes = cityPaths.map((occurrence) => `${occurrence.path}>`);
+  const visible = occurrences.filter(
+    (occurrence) => !hiddenPrefixes.some((prefix) => occurrence.path.startsWith(prefix)),
+  );
+  const overlayRoles = [
+    ...new Map(
+      graph.nodes
+        .flatMap((node) => node.roles_exposed)
+        .filter((role) => !role.leader)
+        .map((role) => [role.id, role] as const),
+    ).values(),
+  ];
+  for (const cityOccurrence of cityPaths) {
+    const city = cityById.get(cityOccurrence.node.id)!;
+    cityOccurrence.childCount = city.exemplars.length;
+    cityOccurrence.node = {
+      ...cityOccurrence.node,
+      represented_count: city.represented_people,
+      represented_households: city.represented_households,
+      city_exemplar_count: city.exemplars.length,
+      instances_represented: city.exemplars.reduce(
+        (sum, exemplar) => sum + exemplar.instances_represented,
+        0,
+      ),
+      convergence_status: city.convergence.converged
+        ? 'converged'
+        : city.convergence.cap_hit
+          ? 'cap hit'
+          : 'not converged',
+    };
+    if (!expandedPaths.has(cityOccurrence.key)) continue;
+    for (const exemplar of city.exemplars) {
+      const cache = exemplarCache[exemplar.id];
+      const path = `${cityOccurrence.path}>${exemplar.id}`;
+      visible.push({
+        key: occurrenceId('Physical', path),
+        path,
+        slice: 'Physical',
+        parentKey: cityOccurrence.key,
+        childCount: 0,
+        inheritedRoles: [],
+        agentLeaves: [],
+        node: {
+          ...cityOccurrence.node,
+          id: exemplar.id,
+          node_kind: 'exemplar',
+          level: 'neighbourhood_exemplar',
+          parent_id: city.city_id,
+          parent_ids: [city.city_id],
+          also_used_in: [],
+          represented_count: exemplar.represented_people,
+          exemplar_households: exemplar.households,
+          stratum: exemplar.stratum,
+          distribution_status: exemplar.distribution_status,
+          provenance: exemplar.provenance,
+          exemplar_people: exemplar.people,
+          instances_represented: exemplar.instances_represented,
+          city_population_share: exemplar.city_population_share,
+          cache_version: cache?.version ?? null,
+          roles_exposed: overlayRoles,
+          subtree_roles: overlayRoles.map((role) => role.id),
+          subtree_role_count: overlayRoles.length,
+          line: cityOccurrence.node.line,
+        },
+      });
+    }
+  }
+  return visible;
 };
 
 const allExpandablePaths = (graph: ProgramGraph): Set<string> => {
@@ -319,6 +418,8 @@ const matches = (occurrence: GraphOccurrence, query: string, roleFilter: string)
   return [
     occurrence.node.id,
     occurrence.node.level,
+    occurrence.node.stratum ?? '',
+    occurrence.node.provenance ?? '',
     occurrence.slice,
     occurrence.path,
     ...occurrenceRoleNames(occurrence),
@@ -339,15 +440,12 @@ const layoutFlow = (
   onSelect: (path: string) => void,
   onToggle: (path: string) => void,
   onRole: (role: string) => void,
-  poolAgents: PoolAgent[],
 ): { nodes: DslFlowNode[]; edges: Edge[]; laneWidth: number } => {
-  const laneWidth = 360;
+  const laneWidth = 1500;
   const laneGap = 72;
   const flowNodes: DslFlowNode[] = [];
   const flowEdges: Edge[] = [];
-  const slices = ['Physical', 'Media', 'Conglomerate', 'Financial'].filter((slice) =>
-    occurrences.some((item) => item.slice === slice),
-  );
+  const slices = ['Physical'].filter((slice) => occurrences.some((item) => item.slice === slice));
   const selectedNodeId = occurrences.find((item) => item.path === selectedPath)?.node.id;
   for (const [sliceIndex, slice] of slices.entries()) {
     const values = occurrences.filter((item) => item.slice === slice);
@@ -361,17 +459,41 @@ const layoutFlow = (
     }
     dagre.layout(layout);
     const offset = sliceIndex * (laneWidth + laneGap);
-    const ordered = [...values].sort((left, right) => {
-      const leftPoint = layout.node(left.key) as { x: number; y: number };
-      const rightPoint = layout.node(right.key) as { x: number; y: number };
-      return leftPoint.y - rightPoint.y || leftPoint.x - rightPoint.x;
-    });
-    for (const [order, occurrence] of ordered.entries()) {
+    const ranks = new Map<number, GraphOccurrence[]>();
+    for (const occurrence of values) {
+      const depth = occurrence.path.split('>').length - 1;
+      const rank = ranks.get(depth) ?? [];
+      rank.push(occurrence);
+      ranks.set(depth, rank);
+    }
+    const positions = new Map<string, { x: number; y: number }>();
+    let rankTop = 64;
+    for (const [, rank] of [...ranks].sort(([left], [right]) => left - right)) {
+      rank.sort((left, right) => {
+        const leftPoint = layout.node(left.key) as { x: number };
+        const rightPoint = layout.node(right.key) as { x: number };
+        return leftPoint.x - rightPoint.x;
+      });
+      const columns = Math.min(4, rank.length);
+      const rows = Math.ceil(rank.length / columns);
+      for (const [index, occurrence] of rank.entries()) {
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        const rowCount = Math.min(columns, rank.length - row * columns);
+        const rowWidth = rowCount * 330;
+        positions.set(occurrence.key, {
+          x: offset + (laneWidth - rowWidth) / 2 + column * 330,
+          y: rankTop + row * 330,
+        });
+      }
+      rankTop += rows * 330 + 70;
+    }
+    for (const occurrence of values) {
       const highlighted = matches(occurrence, query, roleFilter);
       flowNodes.push({
         id: occurrence.key,
         type: 'dslNode',
-        position: { x: offset + (laneWidth - 306) / 2, y: 64 + order * 330 },
+        position: positions.get(occurrence.key)!,
         draggable: false,
         selectable: true,
         zIndex: highlighted || occurrence.path === selectedPath ? 20 : 1,
@@ -386,9 +508,7 @@ const layoutFlow = (
           onSelect,
           onToggle,
           onRole,
-          assignedCount: poolAgents.filter((agent) =>
-            Object.keys(occurrence.node.role_targets).some((role) => agent.roles.includes(role)),
-          ).length,
+          assignedCount: 0,
         },
       });
       if (
@@ -436,24 +556,74 @@ const DslNodeCard = ({ data }: NodeProps<DslFlowNode>): ReactNode => {
         <p className="dsl-shared">also used in: {node.also_used_in.join(', ')}</p>
       )}
       {node.inherits_from && <p>inherits {node.inherits_from}</p>}
-      <dl>
-        <div>
-          <dt>Role demand</dt>
-          <dd>
-            {formatted(Object.values(node.role_targets).reduce((sum, value) => sum + value, 0))}
-          </dd>
-        </div>
-        <div>
-          <dt>Assigned sample</dt>
-          <dd>{formatted(data.assignedCount)}</dd>
-        </div>
-        <div>
-          <dt>Entities</dt>
-          <dd>
-            {formatted(node.entity_count)} {node.entity_unit ?? ''}
-          </dd>
-        </div>
-      </dl>
+      {node.node_kind === 'exemplar' ? (
+        <dl>
+          <div>
+            <dt>Households</dt>
+            <dd>{formatted(node.exemplar_households)}</dd>
+          </div>
+          <div>
+            <dt>People</dt>
+            <dd>{formatted(node.exemplar_people)}</dd>
+          </div>
+          <div>
+            <dt>Instances</dt>
+            <dd>{formatted(node.instances_represented, 2)}</dd>
+          </div>
+          <div>
+            <dt>City weight</dt>
+            <dd>{formatted((node.city_population_share ?? 0) * 100, 3)}%</dd>
+          </div>
+          <div>
+            <dt>Cache</dt>
+            <dd>{node.cache_version ? `v${node.cache_version}` : 'not learned'}</dd>
+          </div>
+        </dl>
+      ) : node.city_exemplar_count ? (
+        <dl>
+          <div>
+            <dt>Represented</dt>
+            <dd>{formatted(node.represented_count)}</dd>
+          </div>
+          <div>
+            <dt>Households</dt>
+            <dd>{formatted(node.represented_households)}</dd>
+          </div>
+          <div>
+            <dt>Exemplars</dt>
+            <dd>{formatted(node.city_exemplar_count)}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{node.convergence_status}</dd>
+          </div>
+          <div>
+            <dt>Instances</dt>
+            <dd>{formatted(node.instances_represented, 2)}</dd>
+          </div>
+        </dl>
+      ) : (
+        <dl>
+          <div>
+            <dt>Role demand</dt>
+            <dd>
+              {formatted(Object.values(node.role_targets).reduce((sum, value) => sum + value, 0))}
+            </dd>
+          </div>
+          <div>
+            <dt>Entities</dt>
+            <dd>
+              {formatted(node.entity_count)} {node.entity_unit ?? ''}
+            </dd>
+          </div>
+        </dl>
+      )}
+      {node.stratum && <p>Stratum: {node.stratum}</p>}
+      {node.provenance && (
+        <p>
+          {node.distribution_status} · {node.provenance}
+        </p>
+      )}
       <p>
         <span>Roles exposed:</span>{' '}
         {node.roles_exposed.length
@@ -509,16 +679,16 @@ interface GraphComponentProps {
   graph?: ProgramGraph;
   cacheStatus: Map<string, string>;
   onViewCode: (line: number) => void;
-  poolAgents: PoolAgent[];
-  poolSummary?: PoolSummary;
+  exemplarPlan?: ExemplarSystemPlan;
+  exemplarCache: Record<string, ExemplarCacheEntry>;
 }
 
 const GraphComponent = ({
   graph,
   cacheStatus,
   onViewCode,
-  poolAgents,
-  poolSummary,
+  exemplarPlan,
+  exemplarCache,
 }: GraphComponentProps): ReactNode => {
   const { fitView } = useReactFlow();
   const [searchQuery, setSearchQuery] = useState('');
@@ -537,8 +707,7 @@ const GraphComponent = ({
   }, [graph]);
 
   const primarySlices = useMemo(
-    () =>
-      graph?.slices.filter((slice) => slice.group === 'main' || slice.group === 'coupled') ?? [],
+    () => graph?.slices.filter((slice) => slice.id === 'Physical') ?? [],
     [graph],
   );
   const auxiliarySlices = useMemo(
@@ -555,9 +724,22 @@ const GraphComponent = ({
     if (sliceFilter) return new Set(ids.has(sliceFilter) ? [sliceFilter] : []);
     return ids;
   }, [primarySlices, auxiliaryExpanded, sliceFilter]);
-  const occurrences = useMemo(
+  const baseOccurrences = useMemo(
     () => (graph ? buildOccurrences(graph, visibleSlices, expandedPaths) : []),
     [graph, visibleSlices, expandedPaths],
+  );
+  const occurrences = useMemo(
+    () =>
+      graph
+        ? withExemplarOccurrences(
+            baseOccurrences,
+            exemplarPlan,
+            graph,
+            expandedPaths,
+            exemplarCache,
+          )
+        : [],
+    [baseOccurrences, exemplarPlan, graph, expandedPaths, exemplarCache],
   );
   const matching = useMemo(
     () => occurrences.filter((item) => matches(item, searchQuery, roleFilter)),
@@ -591,7 +773,6 @@ const GraphComponent = ({
             setSelectedPath,
             onToggle,
             onRole,
-            poolAgents,
           )
         : { nodes: [], edges: [], laneWidth: 330 },
     [
@@ -603,7 +784,7 @@ const GraphComponent = ({
       expandedPaths,
       onToggle,
       onRole,
-      poolAgents,
+      exemplarPlan,
     ],
   );
 
@@ -623,7 +804,6 @@ const GraphComponent = ({
   }
 
   const node = selected?.node;
-  const allocation = selected?.allocation;
   const filteredRoleRows = roleFilter
     ? graph.nodes.flatMap((candidate) =>
         candidate.roles_exposed
@@ -631,47 +811,59 @@ const GraphComponent = ({
           .map((role) => `${candidate.id}: ${role.actions.join(', ') || 'no actions'}`),
       )
     : [];
-  const selectedRoles = node ? Object.keys(node.role_targets) : [];
-  const visiblePoolAgents = poolAgents
+  const visibleExemplars = (exemplarPlan?.cities ?? [])
+    .flatMap((city) => city.exemplars)
     .filter(
-      (agent) =>
-        (!roleFilter || agent.roles.includes(roleFilter)) &&
-        (!selectedRoles.length || selectedRoles.some((role) => agent.roles.includes(role))),
+      (exemplar) =>
+        !searchQuery ||
+        `${exemplar.id} ${exemplar.city_id} ${exemplar.stratum}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()),
     )
-    .slice(0, 24);
+    .slice(0, 50);
   const rootNode = graph.nodes.find((candidate) => candidate.id === graph.default_run_id);
+  const selectedExemplar = node?.node_kind === 'exemplar' ? exemplarCache[node.id] : undefined;
+  const selectedCity = (exemplarPlan?.cities ?? []).find((city) => city.city_id === node?.id);
+  const exemplarAgents = (selectedExemplar?.agents ?? [])
+    .filter((agent) => !roleFilter || agent.roles.includes(roleFilter))
+    .slice(0, 100);
 
   return (
     <div className="dsl-react-graph" data-rendered-nodes={flow.nodes.length}>
       <section className="dsl-system-banner" aria-label="Petraterrium system root">
         <strong>{rootNode?.id ?? 'Petraterrium'}</strong>
-        <span>One agent pool · four sectors · agent-mediated interactions</span>
+        <span>Weighted neighbourhood exemplars · cached hierarchical composition</span>
       </section>
-      <section className="dsl-pool-node" aria-label="Global agent pool">
+      <section className="dsl-pool-node" aria-label="Logical population summary">
         <button type="button" onClick={() => setPoolOpen((open) => !open)}>
-          <strong>Pool</strong>
+          <strong>Logical population</strong>
           <span>
-            {formatted(poolSummary?.total_represented_pool ?? 6_999_999_999)} represented ·{' '}
-            {formatted(poolSummary?.simulated_pool_sample ?? 0)} sampled · weight{' '}
-            {formatted(poolSummary?.weight_per_simulated_agent ?? 0, 2)}
+            {formatted(exemplarPlan?.total_represented_pool ?? 6_999_999_999)} represented ·{' '}
+            {formatted(exemplarPlan?.cities.length ?? 0)} cities ·{' '}
+            {formatted(exemplarPlan?.total_exemplars ?? 0)} exemplars
           </span>
           <small>
-            Required-role gaps {formatted(poolSummary?.unassigned_required_roles ?? 0)} · click to
-            inspect sampled people
+            {formatted(exemplarPlan?.total_real_neighbourhood_instances ?? 0)} real neighbourhoods ·{' '}
+            click to inspect exemplar weights
           </small>
         </button>
         {poolOpen && (
           <div className="dsl-pool-agents">
-            {visiblePoolAgents.length ? (
-              visiblePoolAgents.map((agent) => (
-                <article key={agent.id}>
-                  <strong>{agent.id}</strong>
-                  <span>{agent.household_id}</span>
-                  <small>{agent.roles.join(' · ')}</small>
+            {visibleExemplars.length ? (
+              visibleExemplars.map((exemplar) => (
+                <article key={exemplar.id}>
+                  <strong>{exemplar.id}</strong>
+                  <span>
+                    {exemplar.households} households · {exemplar.people} people
+                  </span>
+                  <small>
+                    {exemplar.stratum} · {formatted(exemplar.instances_represented, 2)} instances ·{' '}
+                    {formatted(exemplar.city_population_share * 100, 3)}%
+                  </small>
                 </article>
               ))
             ) : (
-              <p>Run the system to inspect sampled pool agents for this role filter.</p>
+              <p>Run the system to inspect weighted neighbourhood exemplars.</p>
             )}
           </div>
         )}
@@ -756,17 +948,18 @@ const GraphComponent = ({
         <ul>
           {[
             ...new Map(
-              graph.nodes
-                .flatMap((candidate) => candidate.roles_exposed)
-                .flatMap((role) =>
-                  role.actions.map(
-                    (action) =>
-                      [
-                        `${role.id}:${action}`,
-                        `${role.id} → pool agent · ${action} · tick cadence`,
-                      ] as const,
-                  ),
+              graph.nodes.flatMap((candidate) =>
+                candidate.roles_exposed.flatMap((role) =>
+                  role.actions.map((actionId) => {
+                    const action = candidate.actions.find((value) => value.id === actionId);
+                    const cadence = candidate.sync_up_minutes ?? candidate.clock_minutes;
+                    return [
+                      `${role.id}:${actionId}`,
+                      `${role.id} → ${action?.target ?? 'self'} · ${actionId} · every ${cadence} minutes`,
+                    ] as const;
+                  }),
                 ),
+              ),
             ).values(),
           ]
             .slice(0, 30)
@@ -783,14 +976,14 @@ const GraphComponent = ({
           data-viewport-zoom={viewport.zoom}
         >
           <div className="dsl-react-lanes">
-            {['Physical', 'Media', 'Conglomerate', 'Financial']
+            {['Physical']
               .filter((slice) => visibleSlices.has(slice))
               .map((slice, index) => (
                 <div
                   key={slice}
                   style={{ left: index * (flow.laneWidth + 72), width: flow.laneWidth }}
                 >
-                  <strong>{slice}</strong>
+                  <strong>{slice} hierarchy · sector roles are exemplar badges</strong>
                 </div>
               ))}
           </div>
@@ -822,7 +1015,7 @@ const GraphComponent = ({
           {!node ? (
             <div className="dsl-graph-detail-empty">
               <strong>Select a node</strong>
-              <p>Open its DSL declarations, roles, outputs, and couplings here.</p>
+              <p>Open its DSL declarations, roles, outputs, and cache state here.</p>
             </div>
           ) : (
             <>
@@ -836,6 +1029,63 @@ const GraphComponent = ({
                   View in code
                 </button>
               </header>
+              {selectedExemplar && (
+                <DetailSection title="Detailed exemplar households">
+                  <p>
+                    Cache v{selectedExemplar.version} ·{' '}
+                    {selectedExemplar.learning_ticks.toLocaleString()} learning ticks ·{' '}
+                    {formatted(selectedExemplar.learning_seconds, 4)} seconds ·{' '}
+                    {new Set(selectedExemplar.agents.map((agent) => agent.household_id)).size}{' '}
+                    households · {selectedExemplar.agents.length} people
+                  </p>
+                  <ul>
+                    {exemplarAgents.map((agent) => (
+                      <li key={agent.id}>
+                        <strong>{agent.id}</strong> · {agent.household_id} · age{' '}
+                        {formatted(agent.age, 1)} · money {formatted(agent.money, 2)} · stress{' '}
+                        {formatted(agent.stress, 3)}
+                        <br />
+                        {agent.roles.join(' · ')}
+                        <br />
+                        {agent.residence_path.join(' → ')}
+                      </li>
+                    ))}
+                  </ul>
+                  <h5>Household links</h5>
+                  <ul>
+                    {selectedExemplar.relationships.slice(0, 100).map((relationship, index) => (
+                      <li
+                        key={`${relationship.kind}:${relationship.source_id}:${relationship.target_id}:${index}`}
+                      >
+                        {relationship.source_id} → {relationship.target_id} · {relationship.kind}
+                      </li>
+                    ))}
+                  </ul>
+                </DetailSection>
+              )}
+              {selectedCity && (
+                <DetailSection title="City mixture distribution">
+                  <ul>
+                    {Object.entries(selectedCity.mixture_metrics).map(([metric, values]) => (
+                      <li key={metric}>
+                        <strong>{label(metric)}</strong> · mean {formatted(values.mean, 3)} · sd{' '}
+                        {formatted(values.standard_deviation, 3)} · p10 {formatted(values.p10, 3)} ·
+                        p50 {formatted(values.p50, 3)} · p90 {formatted(values.p90, 3)} · tail{' '}
+                        {formatted(values.tail_rate * 100, 3)}%
+                      </li>
+                    ))}
+                  </ul>
+                  <h5>Exemplar weights</h5>
+                  <ul>
+                    {selectedCity.exemplars.map((exemplar) => (
+                      <li key={exemplar.id}>
+                        {exemplar.id} · {formatted(exemplar.city_population_share * 100, 3)}% ·{' '}
+                        {formatted(exemplar.instances_represented, 2)} instances
+                      </li>
+                    ))}
+                  </ul>
+                </DetailSection>
+              )}
               {roleFilter && (
                 <DetailSection title={`${roleFilter} across program`}>
                   <ul>
@@ -845,19 +1095,6 @@ const GraphComponent = ({
                   </ul>
                 </DetailSection>
               )}
-              <DetailSection title="Population distribution">
-                {allocation ? (
-                  <ul>
-                    <li>Probability {formatted(allocation.probability, 6)}</li>
-                    <li>Expected simulated {formatted(allocation.expected_simulated, 2)}</li>
-                    <li>Actual sampled allocation {formatted(allocation.actual_simulated)}</li>
-                    <li>Expected represented {formatted(allocation.expected_represented, 2)}</li>
-                    <li>Actual represented {formatted(allocation.actual_represented)}</li>
-                    <li>Seed {allocation.seed}</li>
-                    <li>Path {allocation.path}</li>
-                  </ul>
-                ) : undefined}
-              </DetailSection>
               <DetailSection title="State / Parameters">
                 {Object.keys(node.parameters).length ||
                 node.states.length ||
@@ -950,20 +1187,6 @@ const GraphComponent = ({
                   </ul>
                 ) : undefined}
               </DetailSection>
-              <DetailSection title="Couplings">
-                {node.couplings.length ? (
-                  <ul>
-                    {node.couplings.map((coupling) => (
-                      <li key={coupling.id}>
-                        <strong>{coupling.id}</strong> · {coupling.source} → {coupling.target} ·{' '}
-                        {syncLabel(coupling.sync_interval_days)}
-                        <br />
-                        {coupling.formula}
-                      </li>
-                    ))}
-                  </ul>
-                ) : undefined}
-              </DetailSection>
               <DetailSection title="Aggregate / Cache">
                 {node.aggregate ? (
                   <ul>
@@ -990,8 +1213,8 @@ const GraphComponent = ({
 
 export class DslGraphView {
   private graph?: ProgramGraph;
-  private poolAgents: PoolAgent[] = [];
-  private poolSummary?: PoolSummary;
+  private exemplarPlan?: ExemplarSystemPlan;
+  private exemplarCache: Record<string, ExemplarCacheEntry> = {};
   private readonly root: Root;
   private readonly cacheStatus = new Map<string, string>();
 
@@ -1017,9 +1240,9 @@ export class DslGraphView {
     if (!this.host.hidden) this.render();
   }
 
-  setPoolAgents(agents: PoolAgent[], summary: PoolSummary): void {
-    this.poolAgents = agents;
-    this.poolSummary = summary;
+  setExemplarPlan(plan: ExemplarSystemPlan, cache: Record<string, ExemplarCacheEntry>): void {
+    this.exemplarPlan = plan;
+    this.exemplarCache = cache;
     if (!this.host.hidden) this.render();
   }
 
@@ -1031,8 +1254,8 @@ export class DslGraphView {
           graph={this.graph}
           cacheStatus={this.cacheStatus}
           onViewCode={this.options.onViewCode}
-          poolAgents={this.poolAgents}
-          poolSummary={this.poolSummary}
+          exemplarPlan={this.exemplarPlan}
+          exemplarCache={this.exemplarCache}
         />
       </ReactFlowProvider>,
     );

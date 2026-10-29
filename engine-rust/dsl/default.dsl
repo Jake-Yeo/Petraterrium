@@ -4,7 +4,7 @@ program PetraterriumTown version "1.0":
   uncertainty = wide
   record_actions = false
   results_title = "Recorded Rust output"
-  results_subtitle = "Single-pool global statistics"
+  results_subtitle = "Weighted neighbourhood exemplar statistics"
 
 output overview:
   title = "Pool overview"
@@ -38,6 +38,11 @@ output agent_types:
   column health = mean(health) label "Health" format decimal
   column stress = mean(stress) label "Stress" format decimal
   column actions = action_rates(per=1000, window=day) label "Action rates / 1,000" format action_rates
+
+policy ExemplarInputs:
+  effect field money *= 1 - tax * 0.15 - (price - 1) * 0.05
+  effect field stress += unemployment * 0.20 + media_trend * 0.05 + policy * 0.03
+  effect decision go_work *= 1 - unemployment
 
 place Home:
   state comfort = 0.8 range 0..1 estimated
@@ -98,6 +103,9 @@ place Exchange:
 place DiplomaticForum:
   state trust = 0.5 range 0..1 estimated
 
+place TransitHub:
+  state visits = 0 range 0..100000 estimated
+
 agent Person:
   state roles
   trait age
@@ -127,6 +135,11 @@ agent Person:
   state employed
   state shares range 0..100000 estimated
   state residence_change range 0..1 estimated
+  state tax range 0.10..0.40 estimated
+  state unemployment range 0.02..0.15 estimated
+  state media_trend range -1..1 estimated
+  state price range 0.5..2 estimated
+  state policy range -1..1 estimated
   state location
   initial:
     age ~ Normal(mean=38, sd=14, min=18, max=80) estimated
@@ -156,6 +169,11 @@ agent Person:
     employed ~ Bernoulli(p=0) estimated
     shares ~ Uniform(min=0, max=10) estimated
     residence_change ~ Uniform(min=0, max=0) estimated
+    tax ~ Uniform(min=0.25, max=0.25) estimated
+    unemployment ~ Uniform(min=0.06, max=0.06) estimated
+    media_trend ~ Uniform(min=0, max=0) estimated
+    price ~ Uniform(min=1, max=1) estimated
+    policy ~ Uniform(min=0, max=0) estimated
     location ~ Categorical(Home: 1.0) estimated
   routine = where_to_go
 
@@ -176,7 +194,7 @@ agent Child inherits Person:
     age ~ Uniform(min=0, max=17) estimated
 
 population:
-  sample_budget = 100 placeholder
+  size = 1 placeholder
   mix:
     Student = 0.4 estimated
     Worker = 0.6 estimated
@@ -575,7 +593,7 @@ role cashier:
     branch enter_store p = 0.15 if location != Store estimated
     branch work_cashier p = 0.60 if location == Store estimated
 
-role manager:
+role store_manager:
   kind = leader
   conflict_group = business_office
   eligibility = age >= 21
@@ -605,6 +623,12 @@ role migrant:
   decision where_to_go:
     branch migrate_household p = 5 estimated
 
+role commuter:
+  kind = mass_overlay
+  eligibility = age >= 16
+  decision where_to_go:
+    branch commute_boundary p = 1000 estimated
+
 role president:
   kind = leader
   conflict_group = national_office
@@ -614,10 +638,26 @@ role president:
     branch diplomatic_summit p = 1000 if location == DiplomaticForum estimated
     branch enact_policy p = 0.5 if hour == 0 estimated
 
+role prime_minister:
+  kind = leader
+  conflict_group = national_office
+  eligibility = age >= 30
+  decision where_to_go:
+    branch enter_diplomatic_forum p = 1000 if location != DiplomaticForum estimated
+    branch diplomatic_summit p = 1000 if location == DiplomaticForum estimated
+    branch enact_policy p = 0.5 if hour == 0 estimated
+
 role governor:
   kind = leader
   conflict_group = regional_office
   eligibility = age >= 30
+  decision where_to_go:
+    branch enact_state_policy p = 1.0 if hour == 0 and day == 0 estimated
+
+role mayor:
+  kind = leader
+  conflict_group = municipal_office
+  eligibility = age >= 25
   decision where_to_go:
     branch enact_state_policy p = 1.0 if hour == 0 and day == 0 estimated
 
@@ -740,6 +780,7 @@ action media_post:
   outcome posted p = 0.90 estimated:
     effect self.outrage += 0.001 estimated
     effect self.stress += 0.002 estimated
+    effect self.media_trend += 0.02 estimated
     effect place Feed engagement += 1 estimated
     effect self.location = Home estimated
     next = where_to_go
@@ -870,6 +911,7 @@ action secondary_buy:
     effect target.money += 30 estimated
     effect self.shares += 1 estimated
     effect target.shares -= 1 estimated
+    effect self.price += 0.01 estimated
     effect place Exchange price *= 1.01 estimated
     effect self.location = Home estimated
     next = where_to_go
@@ -883,6 +925,7 @@ action secondary_sell:
     effect target.money -= 30 estimated
     effect self.shares -= 1 estimated
     effect target.shares += 1 estimated
+    effect self.price -= 0.01 estimated
     effect place Exchange price *= 0.99 estimated
     effect self.location = Home estimated
     next = where_to_go
@@ -935,12 +978,23 @@ action enter_diplomatic_forum:
     effect self.location = DiplomaticForum estimated
     next = where_to_go
 
+action commute_boundary:
+  aggregate = commuting
+  target = random at TransitHub where target.role.commuter and agent != self
+  duration = Triangular(min=0.10, median=0.30, max=0.80) estimated
+  outcome met p = 1.0 estimated:
+    effect self.stress -= 0.01 estimated
+    effect target.stress -= 0.01 estimated
+    effect place TransitHub visits += 1 estimated
+    next = where_to_go
+
 action diplomatic_summit:
   aggregate = diplomacy
   target = random at DiplomaticForum where target.role.president and agent != self
   duration = Triangular(min=0.10, median=0.30, max=0.80) estimated
   outcome agreed p = 0.6 estimated:
     effect relationship with target trust += 0.1 estimated
+    effect self.policy += 0.02 estimated
     next = where_to_go
   outcome disagreed p = 0.4 estimated:
     effect relationship with target trust -= 0.05 estimated
@@ -951,6 +1005,7 @@ action enact_policy:
   duration = Triangular(min=0.10, median=0.20, max=0.50) estimated
   outcome enacted p = 1.0 estimated:
     effect self.stress += 0.001 estimated
+    effect self.policy += 0.02 estimated
     next = where_to_go
 
 action enact_state_policy:
@@ -958,6 +1013,7 @@ action enact_state_policy:
   duration = Triangular(min=0.10, median=0.20, max=0.50) estimated
   outcome enacted p = 1.0 estimated:
     effect self.stress += 0.001 estimated
+    effect self.policy += 0.02 estimated
     next = where_to_go
 
 action set_brand_policy:
@@ -979,6 +1035,27 @@ composition UrbanLiberal:
   slice = "Physical"
   graph_group = main
   level = neighbourhood
+  parameters:
+    tax = 0.25
+    unemployment = 0.06
+    media_trend = 0
+    price = 1
+    policy = 0
+  policies = ExemplarInputs
+  households_per_exemplar = 75
+  stratum = "dense_urban_high_education"
+  stratifiers:
+    density = 0.90
+    income = 0.70
+    household_structure = 0.60
+    age = 0.60
+    education = 0.80
+    household_size = 2.40
+  heterogeneity = 0.85
+  distribution_status = measured
+  provenance = "City and inherited census distributions"
+  clock = 1 hours
+  sync_up = 1 days
   children:
     HouseholdLiberalUrban: weight = 0.6
     HouseholdConservativeSuburban: weight = 0.2
@@ -991,6 +1068,27 @@ composition SuburbanMixed:
   slice = "Physical"
   graph_group = main
   level = neighbourhood
+  parameters:
+    tax = 0.25
+    unemployment = 0.06
+    media_trend = 0
+    price = 1
+    policy = 0
+  policies = ExemplarInputs
+  households_per_exemplar = 75
+  stratum = "suburban_mixed_households"
+  stratifiers:
+    density = 0.55
+    income = 0.65
+    household_structure = 0.80
+    age = 0.65
+    education = 0.65
+    household_size = 2.80
+  heterogeneity = 0.55
+  distribution_status = inherited
+  provenance = "Country distribution inherited by city"
+  clock = 1 hours
+  sync_up = 1 days
   children:
     HouseholdLiberalUrban: weight = 0.3
     HouseholdConservativeSuburban: weight = 0.5
@@ -1003,6 +1101,27 @@ composition RuralMixed:
   slice = "Physical"
   graph_group = main
   level = neighbourhood
+  parameters:
+    tax = 0.25
+    unemployment = 0.06
+    media_trend = 0
+    price = 1
+    policy = 0
+  policies = ExemplarInputs
+  households_per_exemplar = 75
+  stratum = "rural_mixed_households"
+  stratifiers:
+    density = 0.15
+    income = 0.45
+    household_structure = 0.75
+    age = 0.70
+    education = 0.45
+    household_size = 3.00
+  heterogeneity = 0.25
+  distribution_status = inherited
+  provenance = "Regional distribution inherited by city"
+  clock = 1 hours
+  sync_up = 1 days
   children:
     HouseholdLiberalUrban: weight = 0.1
     HouseholdConservativeSuburban: weight = 0.3
@@ -1011,50 +1130,182 @@ composition RuralMixed:
   output population = count()
   output mean_income = mean(money) where age >= 18 with sd
 
+composition HomogeneousRural:
+  slice = "Physical"
+  graph_group = main
+  level = neighbourhood
+  parameters:
+    tax = 0.25
+    unemployment = 0.06
+    media_trend = 0
+    price = 1
+    policy = 0
+  policies = ExemplarInputs
+  households_per_exemplar = 75
+  stratum = "homogeneous_rural_households"
+  stratifiers:
+    density = 0.08
+    income = 0.40
+    household_structure = 0.80
+    age = 0.72
+    education = 0.40
+    household_size = 2.90
+  heterogeneity = 0.0
+  distribution_status = fallback
+  provenance = "Country response fallback; no direct or inherited city distribution"
+  clock = 1 hours
+  sync_up = 1 days
+  children:
+    HouseholdLiberalUrban: weight = 0.10
+    HouseholdConservativeSuburban: weight = 0.30
+    HouseholdRuralMixed: weight = 0.60
+  places = Home, Work, School, Bar, Cinema
+  output population = count()
+  output mean_income = mean(money) where age >= 18 with sd
+
 composition Toronto:
   slice = "Physical"
   graph_group = main
   level = municipality
+  distribution_status = measured
+  provenance = "Toronto census-derived distribution"
+  clock = 1 days
+  sync_up = 7 days
   children:
     UrbanLiberal: weight = 0.5
     SuburbanMixed: weight = 0.3333333333333333
     RuralMixed: weight = 0.1666666666666667
+  leaders:
+    mayor: count = 1
   output population = count()
 
 composition Vancouver:
   slice = "Physical"
   graph_group = main
   level = municipality
+  distribution_status = measured
+  provenance = "Vancouver census-derived distribution"
+  clock = 1 days
+  sync_up = 7 days
   children:
     UrbanLiberal: weight = 0.45
     SuburbanMixed: weight = 0.35
     RuralMixed: weight = 0.2
+  leaders:
+    mayor: count = 1
+  output population = count()
+
+composition Lytton:
+  slice = "Physical"
+  graph_group = main
+  level = municipality
+  distribution_status = fallback
+  provenance = "No city distribution; Canada response fallback"
+  clock = 1 days
+  sync_up = 7 days
+  children:
+    HomogeneousRural: weight = 1.0
+  leaders:
+    mayor: count = 1
+  output population = count()
+
+composition LosAngeles:
+  slice = "Physical"
+  graph_group = main
+  level = municipality
+  distribution_status = inherited
+  provenance = "USA distribution inherited by Los Angeles"
+  clock = 1 days
+  sync_up = 7 days
+  children:
+    UrbanLiberal: weight = 0.60
+    SuburbanMixed: weight = 0.30
+    RuralMixed: weight = 0.10
+  leaders:
+    mayor: count = 1
+  output population = count()
+
+composition Houston:
+  slice = "Physical"
+  graph_group = main
+  level = municipality
+  distribution_status = inherited
+  provenance = "USA distribution inherited by Houston"
+  clock = 1 days
+  sync_up = 7 days
+  children:
+    UrbanLiberal: weight = 0.35
+    SuburbanMixed: weight = 0.50
+    RuralMixed: weight = 0.15
+  leaders:
+    mayor: count = 1
+  output population = count()
+
+composition MexicoCity:
+  slice = "Physical"
+  graph_group = main
+  level = municipality
+  distribution_status = measured
+  provenance = "Mexico City census-derived distribution"
+  clock = 1 days
+  sync_up = 7 days
+  children:
+    UrbanLiberal: weight = 0.65
+    SuburbanMixed: weight = 0.30
+    RuralMixed: weight = 0.05
+  leaders:
+    mayor: count = 1
+  output population = count()
+
+composition Monterrey:
+  slice = "Physical"
+  graph_group = main
+  level = municipality
+  distribution_status = inherited
+  provenance = "Mexico distribution inherited by Monterrey"
+  clock = 1 days
+  sync_up = 7 days
+  children:
+    UrbanLiberal: weight = 0.45
+    SuburbanMixed: weight = 0.45
+    RuralMixed: weight = 0.10
+  leaders:
+    mayor: count = 1
   output population = count()
 
 composition Ontario:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
     Toronto: weight = 1.0
+  leaders:
+    governor: count = 1
   output population = count()
 
 composition BritishColumbia:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
-    Vancouver: weight = 1.0
+    Vancouver: weight = 0.99
+    Lytton: weight = 0.01
+  leaders:
+    governor: count = 1
   output population = count()
 
 composition California:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
-    UrbanLiberal: weight = 0.5
-    SuburbanMixed: weight = 0.35
-    RuralMixed: weight = 0.15
+    LosAngeles: weight = 1.0
   leaders:
     governor: count = 1
   output population = count()
@@ -1063,10 +1314,10 @@ composition Texas:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
-    UrbanLiberal: weight = 0.25
-    SuburbanMixed: weight = 0.45
-    RuralMixed: weight = 0.3
+    Houston: weight = 1.0
   leaders:
     governor: count = 1
   output population = count()
@@ -1075,37 +1326,45 @@ composition CentralMexico:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
-    UrbanLiberal: weight = 0.4
-    SuburbanMixed: weight = 0.4
-    RuralMixed: weight = 0.2
+    MexicoCity: weight = 1.0
+  leaders:
+    governor: count = 1
   output population = count()
 
 composition NorthernMexico:
   slice = "Physical"
   graph_group = main
   level = division
+  clock = 7 days
+  sync_up = 28 days
   children:
-    UrbanLiberal: weight = 0.25
-    SuburbanMixed: weight = 0.35
-    RuralMixed: weight = 0.4
+    Monterrey: weight = 1.0
+  leaders:
+    governor: count = 1
   output population = count()
 
 composition Canada:
   slice = "Physical"
   graph_group = main
   level = country
+  clock = 28 days
+  sync_up = 84 days
   children:
     Ontario: weight = 0.6666666666666666
     BritishColumbia: weight = 0.3333333333333334
   leaders:
-    president: count = 1
+    prime_minister: count = 1
   output population = count()
 
 composition USA:
   slice = "Physical"
   graph_group = main
   level = country
+  clock = 28 days
+  sync_up = 84 days
   children:
     California: weight = 0.5555555555555556
     Texas: weight = 0.4444444444444444
@@ -1117,16 +1376,21 @@ composition Mexico:
   slice = "Physical"
   graph_group = main
   level = country
+  clock = 28 days
+  sync_up = 84 days
   children:
     CentralMexico: weight = 0.5882352941176471
     NorthernMexico: weight = 0.4117647058823529
+  leaders:
+    president: count = 1
   output population = count()
 
 composition World:
   slice = "Physical"
   graph_group = main
   level = world
-  sample_budget = 291
+  clock = 84 days
+  sync_up = 84 days
   children:
     Canada: weight = 0.20833333333333334
     USA: weight = 0.625
@@ -1140,6 +1404,8 @@ composition PersonalFinance:
   slice = "Media"
   graph_group = main
   level = community
+  clock = 1 minutes
+  sync_up = 1 days
   entity_count = 1
   entity_unit = "community"
   role_targets:
@@ -1155,6 +1421,8 @@ composition Reddit:
   slice = "Media"
   graph_group = main
   level = platform
+  clock = 1 days
+  sync_up = 7 days
   entity_count = 1
   entity_unit = "platform"
   role_targets:
@@ -1169,18 +1437,20 @@ composition BerkshireRetailStore:
   slice = "Conglomerate"
   graph_group = main
   level = store
+  clock = 1 days
+  sync_up = 7 days
   entity_count = 500
   entity_unit = "stores"
   role_targets:
     cashier = 500
     customer = 700000000
-    manager = 500
+    store_manager = 500
     owner = 500
   children:
     HouseholdConservativeSuburban: weight = 1.0
   places = Store
   leaders:
-    manager: count = 1
+    store_manager: count = 1
   output population = count()
   output trade_volume = action_count(trade_volume, window=run)
   output owner_payouts = action_count(owner_payouts, window=run)
@@ -1189,6 +1459,8 @@ composition BerkshireRetailFranchise:
   slice = "Conglomerate"
   graph_group = main
   level = franchise
+  clock = 7 days
+  sync_up = 28 days
   entity_count = 1
   entity_unit = "franchise"
   role_targets:
@@ -1203,6 +1475,8 @@ composition BerkshireRetailBrand:
   slice = "Conglomerate"
   graph_group = main
   level = brand
+  clock = 28 days
+  sync_up = 84 days
   entity_count = 1
   entity_unit = "brand"
   role_targets:
@@ -1217,6 +1491,8 @@ composition BerkshireHathaway:
   slice = "Conglomerate"
   graph_group = main
   level = conglomerate
+  clock = 84 days
+  sync_up = 84 days
   entity_count = 1
   entity_unit = "conglomerate"
   role_targets:
@@ -1232,26 +1508,30 @@ composition IndependentBusinesses:
   slice = "Conglomerate"
   graph_group = main
   level = independent_businesses
+  clock = 7 days
+  sync_up = 28 days
   entity_count = 100
   entity_unit = "firms"
   role_targets:
     owner = 100
-    manager = 100
+    store_manager = 100
   children:
     HouseholdRuralMixed: weight = 1.0
   output population = count()
 
 entity BerkshireHathawayListing:
-  field corporate_path
+  field conglomerate_path
   field stock_path
   field legal_identity
-  link corporate = BerkshireHathaway
+  link conglomerate = BerkshireHathaway
   link stock = BerkshireHathawayStock
 
 composition BerkshireHathawayStock:
   slice = "Financial"
   graph_group = main
   level = stock
+  clock = 1 days
+  sync_up = 7 days
   entity_count = 1
   entity_unit = "stock"
   role_targets:
@@ -1270,6 +1550,8 @@ composition NewYorkStockExchange:
   slice = "Financial"
   graph_group = main
   level = market
+  clock = 7 days
+  sync_up = 28 days
   entity_count = 1
   entity_unit = "market"
   children:
@@ -1281,6 +1563,8 @@ composition ConsumerDiscretionary:
   slice = "Financial"
   graph_group = main
   level = sector
+  clock = 28 days
+  sync_up = 84 days
   entity_count = 1
   entity_unit = "sector"
   children:
@@ -1291,6 +1575,8 @@ composition FinancialEconomy:
   slice = "Financial"
   graph_group = main
   level = economy
+  clock = 84 days
+  sync_up = 84 days
   entity_count = 1
   entity_unit = "economy"
   role_targets:
@@ -1304,6 +1590,8 @@ composition Petraterrium:
   graph_group = root
   default_run = true
   level = system
+  clock = 84 days
+  sync_up = 84 days
   agent_pool = World
   children:
     World

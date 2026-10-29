@@ -5,11 +5,9 @@ use crate::error::{CoreError, CoreResult};
 use crate::interaction_trees::{InteractionTreeError, InteractionTreeRequest};
 use crate::locations::{LocationError, LocationTickRequest};
 use crate::text_dsl::{
-    AggregateEvaluationProtocolRequest, CachedCompositionProtocolRequest, DslRunRequest,
-    TextDslProtocolRequest, TextDslValidateRequest, apply_actual_simulated_counts,
-    build_population_plan, build_program_graph, configure_pool_run, evaluate_aggregate_function,
-    evaluate_cached_composition, parse_program, pool_run_summary, run_composition, run_program,
-    run_weighted_population,
+    AggregateEvaluationProtocolRequest, DslRunRequest, TextDslProtocolRequest,
+    TextDslValidateRequest, build_program_graph, evaluate_aggregate_function, parse_program,
+    restrict_program_to_city, run_composition, run_exemplar_system, run_program,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -29,7 +27,6 @@ pub enum Request {
     ValidateTextDsl(TextDslValidateRequest),
     RunTextDsl(TextDslProtocolRequest),
     EvaluateAggregate(AggregateEvaluationProtocolRequest),
-    EvaluateCachedComposition(CachedCompositionProtocolRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -90,7 +87,6 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "program_id": program.id,
                 "version": program.version,
                 "tick_hours": program.tick_hours,
-                "adult_population": program.population.size,
                 "entities": program.entities.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "policies": program.policies.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "roles": program.roles.iter().map(|item| &item.id).collect::<Vec<_>>(),
@@ -100,7 +96,7 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 "composition_archetypes": program.composition_archetypes.iter().map(|item| json!({"id": item.id, "level": item.level, "child_level": item.child_level})).collect::<Vec<_>>(),
                 "weighted_populations": program.weighted_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "aggregate_functions": program.aggregate_functions,
-                "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level, "cached": item.cached.is_some()})).collect::<Vec<_>>(),
+                "compositions": program.compositions.iter().map(|item| json!({"id": item.id, "level": item.level, "cached": false})).collect::<Vec<_>>(),
                 "composition_populations": program.composition_populations.iter().map(|item| &item.id).collect::<Vec<_>>(),
                 "graph": graph,
                 "diagnostics": [],
@@ -123,82 +119,75 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 }
             }
             let requested_composition = request.composition_id.clone();
-            let requested_composition_population = request.composition_population_id.clone();
-            let composition_count = usize::from(request.population_id.is_some())
-                + usize::from(requested_composition.is_some())
-                + usize::from(requested_composition_population.is_some());
-            let mut pool_id = None;
-            let pool_root = requested_composition.as_deref().and_then(|composition_id| {
-                program
-                    .compositions
-                    .iter()
-                    .find(|composition| composition.id == composition_id)
-                    .filter(|composition| composition.agent_pool.is_some())
-                    .map(|composition| composition.id.clone())
-                    .or_else(|| {
-                        program
-                            .compositions
-                            .iter()
-                            .find(|composition| composition.default_run)
-                            .map(|composition| composition.id.clone())
-                    })
-            });
-            if let Some(composition_id) = pool_root.as_deref() {
-                pool_id = Some(
-                    configure_pool_run(
-                        &mut program,
-                        composition_id,
-                        request.total_represented_pool.unwrap_or(6_999_999_999),
-                        request.detail.as_deref(),
-                    )
-                    .map_err(text_dsl_error)?,
-                );
-            }
-            let mut population_allocations = pool_id
-                .as_deref()
-                .map(|id| build_population_plan(&program, id, request.seed, None))
-                .transpose()
-                .map_err(text_dsl_error)?
-                .unwrap_or_default();
-            let summary_program = program.clone();
-            let result = if composition_count > 1 {
-                return Err(CoreError::new(
-                    "MULTIPLE_COMPOSITIONS",
-                    "Choose one weighted population, composition, or composition population",
-                ));
-            } else if let Some(population_id) = request.population_id {
+            let exemplar_root = is_exemplar_request(&program, requested_composition.as_deref());
+            if exemplar_root {
                 if request.continuation.is_some() {
                     return Err(CoreError::new(
-                        "WEIGHTED_CONTINUATION_UNSUPPORTED",
-                        "Weighted archetype runs do not accept a continuation checkpoint",
+                        "EXEMPLAR_CONTINUATION_UNSUPPORTED",
+                        "Exemplar composition runs do not accept a continuation checkpoint",
                     ));
                 }
-                run_weighted_population(program, &population_id, request.seed, request.ticks)
-                    .map_err(text_dsl_error)?
-            } else if requested_composition.is_some() {
+                let total = request.total_represented_pool.unwrap_or(6_999_999_999);
+                if let Some(composition_id) = requested_composition.as_deref()
+                    && program
+                        .compositions
+                        .iter()
+                        .find(|composition| composition.id == composition_id)
+                        .is_some_and(|composition| {
+                            matches!(composition.level.as_str(), "municipality" | "city")
+                        })
+                {
+                    restrict_program_to_city(&mut program, composition_id)
+                        .map_err(text_dsl_error)?;
+                }
+                let source_hash = request
+                    .dsl_source_hash
+                    .clone()
+                    .unwrap_or_else(|| "unversioned".to_owned());
+                let system = run_exemplar_system(
+                    program,
+                    total,
+                    request.seed,
+                    request.ticks,
+                    &source_hash,
+                    request.exemplar_cache.clone(),
+                    &request.exemplar_inputs,
+                    &request.events,
+                )
+                .map_err(text_dsl_error)?;
+                let mut value = serde_json::to_value(system.result)
+                    .map_err(|error| CoreError::new("SERIALIZATION_FAILED", error.to_string()))?;
+                if let Some(object) = value.as_object_mut() {
+                    object.insert("exemplar_plan".to_owned(), json!(system.plan));
+                    object.insert(
+                        "exemplar_cache".to_owned(),
+                        if system.cache_stats.relearned_exemplars.is_empty() {
+                            json!({})
+                        } else {
+                            json!(system.cache)
+                        },
+                    );
+                    object.insert("cache_stats".to_owned(), json!(system.cache_stats));
+                    object.insert(
+                        "leader_assignments".to_owned(),
+                        json!(system.leader_assignments),
+                    );
+                    object.insert(
+                        "unassigned_required_roles".to_owned(),
+                        json!(system.unassigned_required_roles),
+                    );
+                    object.insert("total_represented_pool".to_owned(), json!(total));
+                }
+                return Ok(value);
+            }
+            let result = if let Some(composition_id) = requested_composition.as_deref() {
                 if request.continuation.is_some() {
                     return Err(CoreError::new(
                         "COMPOSITION_CONTINUATION_UNSUPPORTED",
                         "Composition runs do not accept a continuation checkpoint",
                     ));
                 }
-                run_composition(
-                    program,
-                    pool_root
-                        .as_deref()
-                        .unwrap_or(requested_composition.as_deref().unwrap()),
-                    request.seed,
-                    request.ticks,
-                )
-                .map_err(text_dsl_error)?
-            } else if let Some(population_id) = requested_composition_population.as_deref() {
-                if request.continuation.is_some() {
-                    return Err(CoreError::new(
-                        "COMPOSITION_POPULATION_CONTINUATION_UNSUPPORTED",
-                        "Weighted composition runs do not accept a continuation checkpoint",
-                    ));
-                }
-                run_composition(program, population_id, request.seed, request.ticks)
+                run_composition(program, composition_id, request.seed, request.ticks)
                     .map_err(text_dsl_error)?
             } else {
                 run_program(DslRunRequest {
@@ -209,40 +198,38 @@ pub fn execute(request: Request) -> CoreResult<Value> {
                 })
                 .map_err(text_dsl_error)?
             };
-            apply_actual_simulated_counts(&mut population_allocations, &result.state);
-            let pool_summary = pool_id
-                .as_ref()
-                .map(|_| pool_run_summary(&summary_program, &result.state));
-            let mut value = serde_json::to_value(result)
-                .map_err(|error| CoreError::new("SERIALIZATION_FAILED", error.to_string()))?;
-            if let Some(object) = value.as_object_mut() {
-                object.insert(
-                    "population_allocations".to_owned(),
-                    serde_json::to_value(population_allocations).map_err(|error| {
-                        CoreError::new("SERIALIZATION_FAILED", error.to_string())
-                    })?,
-                );
-                object.insert("pool_summary".to_owned(), json!(pool_summary));
-                object.insert(
-                    "total_represented_pool".to_owned(),
-                    json!(request.total_represented_pool.unwrap_or(6_999_999_999)),
-                );
-                object.insert(
-                    "detail".to_owned(),
-                    json!(request.detail.unwrap_or_else(|| "medium".to_owned())),
-                );
-            }
-            Ok(value)
+            serialize(result)
         }
         Request::EvaluateAggregate(request) => {
             let program = parse_program(&request.source).map_err(text_dsl_error)?;
             serialize(evaluate_aggregate_function(program, request).map_err(text_dsl_error)?)
         }
-        Request::EvaluateCachedComposition(request) => {
-            let program = parse_program(&request.source).map_err(text_dsl_error)?;
-            serialize(evaluate_cached_composition(program, request).map_err(text_dsl_error)?)
-        }
     }
+}
+
+fn is_exemplar_request(
+    program: &crate::text_dsl::Program,
+    requested_composition: Option<&str>,
+) -> bool {
+    requested_composition.map_or_else(
+        || {
+            program
+                .compositions
+                .iter()
+                .find(|composition| composition.default_run)
+                .is_some_and(|composition| composition.agent_pool.is_some())
+        },
+        |composition_id| {
+            program
+                .compositions
+                .iter()
+                .find(|composition| composition.id == composition_id)
+                .is_some_and(|composition| {
+                    composition.agent_pool.is_some()
+                        || matches!(composition.level.as_str(), "municipality" | "city")
+                })
+        },
+    )
 }
 
 fn text_dsl_error(error: crate::text_dsl::DslError) -> CoreError {
@@ -279,5 +266,19 @@ pub fn execute_json(line: &str) -> Response {
     match execute(request) {
         Ok(result) => Response::success(result),
         Err(error) => Response::failure(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn omitted_composition_uses_declared_exemplar_default() {
+        let source = include_str!("../dsl/default.dsl");
+        let program = parse_program(source).unwrap();
+        assert!(is_exemplar_request(&program, None));
+        assert!(is_exemplar_request(&program, Some("Toronto")));
+        assert!(!is_exemplar_request(&program, Some("UrbanLiberal")));
     }
 }

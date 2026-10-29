@@ -1643,9 +1643,6 @@ fn report_value(
                 .and_then(DslValue::as_f64)
                 .unwrap_or(0.0),
         ),
-        ReportMetric::FlowCount { .. } | ReportMetric::FlowRate { .. } => {
-            DslReportValue::Number(0.0)
-        }
     }
 }
 

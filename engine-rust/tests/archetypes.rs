@@ -4,7 +4,7 @@ use petraterrium_engine::text_dsl::{
 
 const SYNTHETIC: &str = r#"program SyntheticArchetypes version "1.0":
   tick_hours = 1 placeholder
-  placeholder = "placeholder — agent knowledge, for demo only, to be replaced by research"
+  placeholder = "estimated pending the research pipeline"
   uncertainty = wide
   record_actions = false
   results_title = "Synthetic"

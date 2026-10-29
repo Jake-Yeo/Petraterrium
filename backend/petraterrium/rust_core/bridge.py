@@ -175,12 +175,13 @@ class RustCoreClient:
         seed: int,
         ticks: int,
         total_represented_pool: int | None = None,
-        detail: str | None = None,
         role_parameters: Mapping[str, Mapping[str, float]] | None = None,
+        dsl_source_hash: str | None = None,
+        exemplar_cache: Mapping[str, Mapping[str, Any]] | None = None,
+        exemplar_inputs: Mapping[str, Mapping[str, float]] | None = None,
+        events: list[str] | None = None,
         continuation: Mapping[str, Any] | None = None,
-        population_id: str | None = None,
         composition_id: str | None = None,
-        composition_population_id: str | None = None,
     ) -> dict[str, Any]:
         request: dict[str, Any] = {
             "operation": "run_text_dsl",
@@ -190,20 +191,26 @@ class RustCoreClient:
         }
         if total_represented_pool is not None:
             request["total_represented_pool"] = total_represented_pool
-        if detail is not None:
-            request["detail"] = detail
+        if dsl_source_hash is not None:
+            request["dsl_source_hash"] = dsl_source_hash
+        if exemplar_cache is not None:
+            request["exemplar_cache"] = {
+                exemplar_id: dict(entry) for exemplar_id, entry in exemplar_cache.items()
+            }
+        if exemplar_inputs is not None:
+            request["exemplar_inputs"] = {
+                exemplar_id: dict(inputs) for exemplar_id, inputs in exemplar_inputs.items()
+            }
+        if events is not None:
+            request["events"] = list(events)
         if role_parameters is not None:
             request["role_parameters"] = {
                 role: dict(parameters) for role, parameters in role_parameters.items()
             }
         if continuation is not None:
             request["continuation"] = dict(continuation)
-        if population_id is not None:
-            request["population_id"] = population_id
         if composition_id is not None:
             request["composition_id"] = composition_id
-        if composition_population_id is not None:
-            request["composition_population_id"] = composition_population_id
         return self.call(request)
 
     def evaluate_text_dsl_aggregate(
@@ -232,42 +239,6 @@ class RustCoreClient:
                 "inputs": dict(inputs),
                 "events": events,
                 "artifact": dict(artifact) if artifact is not None else None,
-                "force_relearn": force_relearn,
-            }
-        )
-
-    def evaluate_cached_composition(
-        self,
-        source: str,
-        *,
-        dsl_source_hash: str,
-        function_id: str,
-        seed: int,
-        days: int,
-        evaluated_at_day: int,
-        inputs: Mapping[str, float],
-        branch_inputs: Mapping[str, Mapping[str, float]],
-        input_schedule: list[Mapping[str, Any]],
-        events: list[str],
-        artifacts: Mapping[str, Mapping[str, Any]],
-        force_relearn: bool = False,
-    ) -> dict[str, Any]:
-        return self.call(
-            {
-                "operation": "evaluate_cached_composition",
-                "source": source,
-                "dsl_source_hash": dsl_source_hash,
-                "function_id": function_id,
-                "seed": seed,
-                "days": days,
-                "evaluated_at_day": evaluated_at_day,
-                "inputs": dict(inputs),
-                "branch_inputs": {
-                    branch: dict(values) for branch, values in branch_inputs.items()
-                },
-                "input_schedule": [dict(value) for value in input_schedule],
-                "events": events,
-                "artifacts": {key: dict(value) for key, value in artifacts.items()},
                 "force_relearn": force_relearn,
             }
         )

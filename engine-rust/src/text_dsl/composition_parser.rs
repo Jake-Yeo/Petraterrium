@@ -1,4 +1,3 @@
-use super::expression::parse_expression;
 use super::model::*;
 use super::parser::{Line, identifier, parse_archetype_output, require_indent};
 use std::collections::BTreeMap;
@@ -109,9 +108,16 @@ fn parse_composition_body(
     let mut entity_count = None;
     let mut entity_unit = None;
     let mut role_targets = BTreeMap::new();
+    let mut exemplar_households = None;
+    let mut stratum = None;
+    let mut stratifiers = BTreeMap::new();
+    let mut heterogeneity = 0.0;
+    let mut distribution_status = "estimated".to_owned();
+    let mut provenance = None;
+    let mut clock_minutes = 1_440;
+    let mut sync_up_minutes = None;
     let mut represented_population = None;
     let mut authoritative_total = None;
-    let mut sample_budget = None;
     let mut allocation_leaf = false;
     let mut report_descendants = false;
     let mut entries = Vec::new();
@@ -119,11 +125,7 @@ fn parse_composition_body(
     let mut parameters = BTreeMap::new();
     let mut policies = Vec::new();
     let mut adjacency = Vec::new();
-    let mut flows = Vec::new();
-    let mut couplings = Vec::new();
-    let mut boundaries = Vec::new();
     let mut leaders = Vec::new();
-    let mut cached = None;
     let mut outputs = Vec::new();
     let mut index = start + 1;
     while index < lines.len() && lines[index].indent > 0 {
@@ -188,6 +190,65 @@ fn parse_composition_body(
                 );
                 index += 1;
             }
+        } else if let Some(value) = line.text.strip_prefix("households_per_exemplar = ") {
+            exemplar_households = Some(value.parse::<u32>().map_err(|_| {
+                DslError::new(
+                    "INVALID_EXEMPLAR_HOUSEHOLDS",
+                    line.number,
+                    "households_per_exemplar must be an integer",
+                )
+            })?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("stratum = ") {
+            stratum = Some(parse_quoted(value, line.number)?);
+            index += 1;
+        } else if line.text == "stratifiers:" {
+            index += 1;
+            while index < lines.len() && lines[index].indent > 2 {
+                let value = &lines[index];
+                require_indent(value, 4)?;
+                let (id, number) = value.text.split_once(" = ").ok_or_else(|| {
+                    DslError::new(
+                        "INVALID_STRATIFIER",
+                        value.number,
+                        "Stratifiers use name = number",
+                    )
+                })?;
+                identifier(id, value.number)?;
+                stratifiers.insert(
+                    id.to_owned(),
+                    number.parse::<f64>().map_err(|_| {
+                        DslError::new(
+                            "INVALID_STRATIFIER",
+                            value.number,
+                            "Stratifier value must be numeric",
+                        )
+                    })?,
+                );
+                index += 1;
+            }
+        } else if let Some(value) = line.text.strip_prefix("heterogeneity = ") {
+            heterogeneity = value.parse::<f64>().map_err(|_| {
+                DslError::new(
+                    "INVALID_HETEROGENEITY",
+                    line.number,
+                    "Heterogeneity must be numeric",
+                )
+            })?;
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("distribution_status = ") {
+            identifier(value, line.number)?;
+            distribution_status = value.to_owned();
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("provenance = ") {
+            provenance = Some(parse_quoted(value, line.number)?);
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("clock = ") {
+            clock_minutes = parse_duration_minutes(value, line.number)?;
+            index += 1;
+        } else if let Some(value) = line.text.strip_prefix("sync_up = ") {
+            sync_up_minutes = Some(parse_duration_minutes(value, line.number)?);
+            index += 1;
         } else if let Some(value) = line.text.strip_prefix("represented_population = ") {
             represented_population = Some(value.parse::<u64>().map_err(|_| {
                 DslError::new(
@@ -203,15 +264,6 @@ fn parse_composition_body(
                     "INVALID_AUTHORITATIVE_TOTAL",
                     line.number,
                     "Authoritative total must be a positive integer",
-                )
-            })?);
-            index += 1;
-        } else if let Some(value) = line.text.strip_prefix("sample_budget = ") {
-            sample_budget = Some(value.parse::<u64>().map_err(|_| {
-                DslError::new(
-                    "INVALID_SAMPLE_BUDGET",
-                    line.number,
-                    "Sample budget must be a positive integer",
                 )
             })?);
             index += 1;
@@ -337,30 +389,6 @@ fn parse_composition_body(
                 adjacency.push(parse_adjacency(entry)?);
                 index += 1;
             }
-        } else if line.text == "flows:" {
-            index += 1;
-            while index < lines.len() && lines[index].indent > 2 {
-                let entry = &lines[index];
-                require_indent(entry, 4)?;
-                flows.push(parse_flow(entry)?);
-                index += 1;
-            }
-        } else if line.text == "couplings:" {
-            index += 1;
-            while index < lines.len() && lines[index].indent > 2 {
-                let entry = &lines[index];
-                require_indent(entry, 4)?;
-                couplings.push(parse_coupling(entry)?);
-                index += 1;
-            }
-        } else if line.text == "boundaries:" {
-            index += 1;
-            while index < lines.len() && lines[index].indent > 2 {
-                let entry = &lines[index];
-                require_indent(entry, 4)?;
-                boundaries.push(parse_boundary(entry)?);
-                index += 1;
-            }
         } else if line.text == "leaders:" {
             index += 1;
             while index < lines.len() && lines[index].indent > 2 {
@@ -385,10 +413,6 @@ fn parse_composition_body(
                 });
                 index += 1;
             }
-        } else if line.text == "cached:" {
-            let (definition, next) = parse_cached_composition(lines, index)?;
-            cached = Some(definition);
-            index = next;
         } else if let Some(value) = line.text.strip_prefix("output ") {
             outputs.push(parse_archetype_output(value, line.number)?);
             index += 1;
@@ -418,9 +442,16 @@ fn parse_composition_body(
             entity_count,
             entity_unit,
             role_targets,
+            exemplar_households,
+            stratum,
+            stratifiers,
+            heterogeneity,
+            distribution_status,
+            provenance,
+            clock_minutes,
+            sync_up_minutes,
             represented_population,
             authoritative_total,
-            sample_budget,
             allocation_leaf,
             report_descendants,
             entries,
@@ -428,11 +459,7 @@ fn parse_composition_body(
             parameters,
             policies,
             adjacency,
-            flows,
-            couplings,
-            boundaries,
             leaders,
-            cached,
             outputs,
             line: lines[start].number,
         },
@@ -447,6 +474,44 @@ fn parse_quoted(value: &str, line: usize) -> DslResult<String> {
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
         .ok_or_else(|| DslError::new("INVALID_SLICE", line, "Slice must be a quoted string"))
+}
+
+fn parse_duration_minutes(value: &str, line: usize) -> DslResult<u64> {
+    let (number, unit) = value.split_once(' ').ok_or_else(|| {
+        DslError::new(
+            "INVALID_COMPOSITION_CLOCK",
+            line,
+            "Clock values use number minutes, hours, or days",
+        )
+    })?;
+    let number = number.parse::<u64>().map_err(|_| {
+        DslError::new(
+            "INVALID_COMPOSITION_CLOCK",
+            line,
+            "Clock value must be a positive integer",
+        )
+    })?;
+    let multiplier = match unit {
+        "minute" | "minutes" => 1,
+        "hour" | "hours" => 60,
+        "day" | "days" => 1_440,
+        _ => {
+            return Err(DslError::new(
+                "INVALID_COMPOSITION_CLOCK",
+                line,
+                "Clock unit must be minutes, hours, or days",
+            ));
+        }
+    };
+    let minutes = number.saturating_mul(multiplier);
+    if minutes == 0 {
+        return Err(DslError::new(
+            "INVALID_COMPOSITION_CLOCK",
+            line,
+            "Clock value must be positive",
+        ));
+    }
+    Ok(minutes)
 }
 
 fn parse_boolean(value: &str, line: usize, code: &str) -> DslResult<bool> {
@@ -501,112 +566,6 @@ fn parse_leader_detail(
     Ok((count, archetype, source_composition))
 }
 
-fn parse_boundary(line: &Line) -> DslResult<CompositionBoundaryDefinition> {
-    let Some((id, value)) = line.text.split_once(' ') else {
-        return Err(invalid_boundary(line.number));
-    };
-    identifier(id, line.number)?;
-    let Some((source, value)) = value.split_once(" -> ") else {
-        return Err(invalid_boundary(line.number));
-    };
-    let Some((target, fields)) = value.split_once(" fields = ") else {
-        return Err(invalid_boundary(line.number));
-    };
-    identifier(source, line.number)?;
-    identifier(target, line.number)?;
-    let fields = fields
-        .split(',')
-        .map(|field| {
-            let field = field.trim();
-            identifier(field, line.number)?;
-            Ok(field.to_owned())
-        })
-        .collect::<DslResult<Vec<_>>>()?;
-    if fields.is_empty() {
-        return Err(invalid_boundary(line.number));
-    }
-    Ok(CompositionBoundaryDefinition {
-        id: id.to_owned(),
-        source: source.to_owned(),
-        target: target.to_owned(),
-        fields,
-        line: line.number,
-    })
-}
-
-fn invalid_boundary(line: usize) -> DslError {
-    DslError::new(
-        "INVALID_COMPOSITION_BOUNDARY",
-        line,
-        "Boundary uses id Source -> Target fields = field, field",
-    )
-}
-
-fn parse_coupling(line: &Line) -> DslResult<CompositionCouplingDefinition> {
-    let Some((id, value)) = line.text.split_once(' ') else {
-        return Err(invalid_coupling(line.number));
-    };
-    identifier(id, line.number)?;
-    let Some((source, value)) = value.split_once(" -> ") else {
-        return Err(invalid_coupling(line.number));
-    };
-    let Some((target, value)) = value.split_once(" input = ") else {
-        return Err(invalid_coupling(line.number));
-    };
-    let Some((target_input, value)) = value.split_once(" value = ") else {
-        return Err(invalid_coupling(line.number));
-    };
-    let Some((expression, cadence)) = value.split_once(" cadence = ") else {
-        return Err(invalid_coupling(line.number));
-    };
-    identifier(source, line.number)?;
-    identifier(target, line.number)?;
-    identifier(target_input, line.number)?;
-    let cadence_days = if cadence == "sync" {
-        None
-    } else if cadence == "immediate" {
-        Some(0)
-    } else if let Some(value) = cadence.strip_suffix(" days") {
-        Some(value.parse::<u32>().map_err(|_| {
-            DslError::new(
-                "INVALID_COMPOSITION_COUPLING_CADENCE",
-                line.number,
-                "Coupling cadence days must be an integer",
-            )
-        })?)
-    } else {
-        return Err(DslError::new(
-            "INVALID_COMPOSITION_COUPLING_CADENCE",
-            line.number,
-            "Coupling cadence must be sync, immediate, or number days",
-        ));
-    };
-    Ok(CompositionCouplingDefinition {
-        id: id.to_owned(),
-        source: source.to_owned(),
-        target: target.to_owned(),
-        target_input: target_input.to_owned(),
-        value: parse_expression(
-            expression
-                .strip_prefix("formula(")
-                .and_then(|value| value.strip_suffix(')'))
-                .unwrap_or(expression),
-            line.number,
-        )?,
-        cadence: cadence.to_owned(),
-        cadence_days,
-        line: line.number,
-    })
-}
-
-fn invalid_coupling(line: usize) -> DslError {
-    DslError::new(
-        "INVALID_COMPOSITION_COUPLING",
-        line,
-        "Coupling uses id Source -> Target input = name value = formula(expression) cadence = sync|immediate",
-    )
-}
-
 fn parse_adjacency(line: &Line) -> DslResult<CompositionAdjacency> {
     let Some((pair, distance)) = line.text.split_once(" distance = ") else {
         return Err(DslError::new(
@@ -636,167 +595,6 @@ fn parse_adjacency(line: &Line) -> DslResult<CompositionAdjacency> {
         })?,
         line: line.number,
     })
-}
-
-fn parse_flow(line: &Line) -> DslResult<CompositionFlowDefinition> {
-    let Some((id, rest)) = line.text.split_once(' ') else {
-        return Err(invalid_flow(line.number));
-    };
-    identifier(id, line.number)?;
-    let Some((source, rest)) = rest.split_once(" -> ") else {
-        return Err(invalid_flow(line.number));
-    };
-    let Some((target, rest)) = rest.split_once(" rate = ") else {
-        return Err(invalid_flow(line.number));
-    };
-    let Some((rate, rest)) = rest.split_once(" effect = ") else {
-        return Err(invalid_flow(line.number));
-    };
-    let (effect, via) = rest
-        .split_once(" via ")
-        .map_or((rest, None), |(effect, via)| (effect, Some(via.to_owned())));
-    identifier(source, line.number)?;
-    identifier(target, line.number)?;
-    identifier(effect, line.number)?;
-    if let Some(via) = &via {
-        identifier(via, line.number)?;
-    }
-    Ok(CompositionFlowDefinition {
-        id: id.to_owned(),
-        source: source.to_owned(),
-        target: target.to_owned(),
-        rate: parse_expression(
-            rate.strip_prefix("formula(")
-                .and_then(|value| value.strip_suffix(')'))
-                .unwrap_or(rate),
-            line.number,
-        )?,
-        effect: effect.to_owned(),
-        via,
-        line: line.number,
-    })
-}
-
-fn invalid_flow(line: usize) -> DslError {
-    DslError::new(
-        "INVALID_COMPOSITION_FLOW",
-        line,
-        "Flow uses id Source -> Target rate = number|formula(expression) effect = visit|transfer [via Place]",
-    )
-}
-
-fn parse_cached_composition(
-    lines: &[Line],
-    start: usize,
-) -> DslResult<(CachedCompositionDefinition, usize)> {
-    let mut sync_days = None;
-    let mut max_iterations = 5;
-    let mut tolerance = 0.01;
-    let mut feedback = Vec::new();
-    let mut index = start + 1;
-    while index < lines.len() && lines[index].indent > 2 {
-        let line = &lines[index];
-        require_indent(line, 4)?;
-        if let Some(value) = line.text.strip_prefix("sync = ") {
-            sync_days = Some(parse_days(value, line.number)?);
-            index += 1;
-        } else if let Some(value) = line.text.strip_prefix("max_iterations = ") {
-            max_iterations = value.parse::<u32>().map_err(|_| {
-                DslError::new(
-                    "INVALID_CACHED_COMPOSITION",
-                    line.number,
-                    "max_iterations must be an integer",
-                )
-            })?;
-            index += 1;
-        } else if let Some(value) = line.text.strip_prefix("tolerance = ") {
-            tolerance = value.parse::<f64>().map_err(|_| {
-                DslError::new(
-                    "INVALID_CACHED_COMPOSITION",
-                    line.number,
-                    "tolerance must be numeric",
-                )
-            })?;
-            index += 1;
-        } else if line.text == "feedback:" {
-            index += 1;
-            while index < lines.len() && lines[index].indent > 4 {
-                let entry = &lines[index];
-                require_indent(entry, 6)?;
-                let Some((mapping, scale)) = entry.text.split_once(" scale = ") else {
-                    return Err(DslError::new(
-                        "INVALID_COMPOSITION_FEEDBACK",
-                        entry.number,
-                        "Feedback uses output -> input scale = number",
-                    ));
-                };
-                let Some((output, input)) = mapping.split_once(" -> ") else {
-                    return Err(DslError::new(
-                        "INVALID_COMPOSITION_FEEDBACK",
-                        entry.number,
-                        "Feedback uses output -> input scale = number",
-                    ));
-                };
-                identifier(output, entry.number)?;
-                identifier(input, entry.number)?;
-                feedback.push(CompositionFeedbackDefinition {
-                    output: output.to_owned(),
-                    input: input.to_owned(),
-                    scale: scale.parse::<f64>().map_err(|_| {
-                        DslError::new(
-                            "INVALID_COMPOSITION_FEEDBACK",
-                            entry.number,
-                            "Feedback scale must be numeric",
-                        )
-                    })?,
-                    line: entry.number,
-                });
-                index += 1;
-            }
-        } else {
-            return Err(DslError::new(
-                "UNKNOWN_CACHED_COMPOSITION_STATEMENT",
-                line.number,
-                format!("Unknown cached composition statement {}", line.text),
-            ));
-        }
-    }
-    Ok((
-        CachedCompositionDefinition {
-            sync_days: sync_days.ok_or_else(|| {
-                DslError::new(
-                    "MISSING_CACHED_COMPOSITION_SYNC",
-                    lines[start].number,
-                    "Cached composition needs sync = number days",
-                )
-            })?,
-            max_iterations,
-            tolerance,
-            feedback,
-            line: lines[start].number,
-        },
-        index,
-    ))
-}
-
-fn parse_days(value: &str, line: usize) -> DslResult<u32> {
-    value
-        .strip_suffix(" days")
-        .ok_or_else(|| {
-            DslError::new(
-                "INVALID_CACHED_COMPOSITION_SYNC",
-                line,
-                "Sync uses number days",
-            )
-        })?
-        .parse::<u32>()
-        .map_err(|_| {
-            DslError::new(
-                "INVALID_CACHED_COMPOSITION_SYNC",
-                line,
-                "Sync days must be an integer",
-            )
-        })
 }
 
 pub(super) fn parse_composition_population(

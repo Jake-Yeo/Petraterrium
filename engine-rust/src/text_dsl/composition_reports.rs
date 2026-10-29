@@ -1,7 +1,6 @@
 use super::archetypes::{MetricSummary, calculate_output_definitions};
 use super::composition_allocations::allocation_report;
 use super::composition_formulas::{apply_formula_outputs, static_formula_children};
-use super::compositions::ExecutedFlow;
 use super::model::*;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -11,16 +10,12 @@ pub(super) fn decorate_composition_result(
     result: &mut DslRunResult,
     agent_groups: &BTreeMap<String, String>,
     action_aggregates: &BTreeMap<String, String>,
-    flows: &[ExecutedFlow],
     ticks: u64,
     tick_hours: f64,
     record_actions: bool,
     recorded_actions: &BTreeSet<String>,
     formula_inputs: &BTreeMap<String, f64>,
 ) -> DslResult<()> {
-    if !flows.is_empty() {
-        result.reports.push(flow_report(flows, ticks));
-    }
     let outputs = calculate_composition_outputs(
         program,
         composition,
@@ -32,11 +27,9 @@ pub(super) fn decorate_composition_result(
         .reports
         .insert(0, composition_report(composition, &outputs, result, ticks));
     result.reports.push(cross_group_report(
-        composition,
         result,
         agent_groups,
         action_aggregates,
-        flows,
         ticks,
     ));
     result.reports.push(child_composition_report(
@@ -409,11 +402,9 @@ fn filtered_result(result: &DslRunResult, ids: &BTreeSet<&str>) -> DslRunResult 
 }
 
 fn cross_group_report(
-    composition: &CompositionDefinition,
     result: &DslRunResult,
     agent_groups: &BTreeMap<String, String>,
     action_aggregates: &BTreeMap<String, String>,
-    flows: &[ExecutedFlow],
     ticks: u64,
 ) -> DslReport {
     let mut counts = BTreeMap::<(String, String), BTreeMap<String, u64>>::new();
@@ -441,7 +432,7 @@ fn cross_group_report(
             .or_default() += 1;
     }
     let population = result.state.agents.len().max(1) as f64;
-    let mut rows = counts
+    let rows = counts
         .into_iter()
         .map(|((source, target), counts)| {
             let total = counts.values().sum::<u64>();
@@ -466,39 +457,6 @@ fn cross_group_report(
             }
         })
         .collect::<Vec<_>>();
-    if rows.is_empty() {
-        rows.extend(
-            flows
-                .iter()
-                .filter(|flow| {
-                    flow.effect == "visit"
-                        && composition
-                            .flows
-                            .iter()
-                            .any(|definition| definition.id == flow.id)
-                })
-                .map(|flow| DslReportRow {
-                    group_id: format!("{} → {}", flow.source, flow.target),
-                    values: BTreeMap::from([
-                        (
-                            "count".to_owned(),
-                            DslReportValue::Number(flow.agents as f64),
-                        ),
-                        (
-                            "rates_per_1000".to_owned(),
-                            DslReportValue::Rates(BTreeMap::from([(
-                                flow.id.clone(),
-                                flow.agents as f64 / population * 1000.0,
-                            )])),
-                        ),
-                        (
-                            "selection_index".to_owned(),
-                            DslReportValue::Text("boundary_flow".to_owned()),
-                        ),
-                    ]),
-                }),
-        );
-    }
     DslReport {
         id: "cross_composition_interactions".to_owned(),
         title: "Cross-composition interactions".to_owned(),
@@ -531,69 +489,6 @@ fn cross_group_report(
                 line: 1,
             },
         ],
-        snapshots: vec![DslReportSnapshot { tick: ticks, rows }],
-    }
-}
-
-fn flow_report(flows: &[ExecutedFlow], ticks: u64) -> DslReport {
-    let rows = flows
-        .iter()
-        .map(|flow| DslReportRow {
-            group_id: flow.id.clone(),
-            values: BTreeMap::from([
-                (
-                    "source".to_owned(),
-                    DslReportValue::Text(flow.source.clone()),
-                ),
-                (
-                    "target".to_owned(),
-                    DslReportValue::Text(flow.target.clone()),
-                ),
-                (
-                    "effect".to_owned(),
-                    DslReportValue::Text(flow.effect.clone()),
-                ),
-                (
-                    "via".to_owned(),
-                    DslReportValue::Text(flow.via.clone().unwrap_or_default()),
-                ),
-                (
-                    "households".to_owned(),
-                    DslReportValue::Number(flow.households as f64),
-                ),
-                (
-                    "count".to_owned(),
-                    DslReportValue::Number(flow.agents as f64),
-                ),
-                ("rate".to_owned(), DslReportValue::Number(flow.rate)),
-            ]),
-        })
-        .collect();
-    let columns = [
-        ("source", "Origin", "number"),
-        ("target", "Destination", "number"),
-        ("effect", "Effect", "number"),
-        ("via", "Shared place", "number"),
-        ("households", "Households", "integer"),
-        ("count", "Agents", "integer"),
-        ("rate", "Rate", "percent"),
-    ]
-    .into_iter()
-    .map(|(id, label, format)| ReportColumnDefinition {
-        id: id.to_owned(),
-        label: label.to_owned(),
-        format: format.to_owned(),
-        metric: ReportMetric::Count,
-        line: 1,
-    })
-    .collect();
-    DslReport {
-        id: "composition_flows".to_owned(),
-        title: "Composition boundary flows".to_owned(),
-        group_by: "flow".to_owned(),
-        display: "table".to_owned(),
-        record: "final".to_owned(),
-        columns,
         snapshots: vec![DslReportSnapshot { tick: ticks, rows }],
     }
 }

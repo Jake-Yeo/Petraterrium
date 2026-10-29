@@ -1,5 +1,4 @@
 use super::model::*;
-use super::population_distribution::{PopulationAllocation, build_population_plan};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -9,7 +8,6 @@ pub struct ProgramGraph {
     pub edges: Vec<GraphEdge>,
     pub slices: Vec<GraphSlice>,
     pub orphan_agents: Vec<String>,
-    pub population_paths: Vec<PopulationAllocation>,
     pub default_run_id: Option<String>,
 }
 
@@ -43,6 +41,13 @@ pub struct GraphNode {
     pub entity_unit: Option<String>,
     pub role_targets: BTreeMap<String, u64>,
     pub agent_pool: Option<String>,
+    pub exemplar_households: Option<u32>,
+    pub stratum: Option<String>,
+    pub heterogeneity: f64,
+    pub distribution_status: String,
+    pub provenance: Option<String>,
+    pub clock_minutes: u64,
+    pub sync_up_minutes: Option<u64>,
     pub simulated_count: Option<usize>,
     pub line: usize,
     pub cached: bool,
@@ -59,7 +64,6 @@ pub struct GraphNode {
     pub decisions: Vec<GraphDecision>,
     pub actions: Vec<GraphAction>,
     pub outputs: Vec<String>,
-    pub couplings: Vec<GraphCoupling>,
     pub aggregate: Option<GraphAggregate>,
 }
 
@@ -99,17 +103,8 @@ pub struct GraphAction {
     pub id: String,
     pub aggregate: String,
     pub duration: String,
+    pub target: Option<String>,
     pub effects: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct GraphCoupling {
-    pub id: String,
-    pub source: String,
-    pub target: String,
-    pub formula: String,
-    pub sync_interval_days: Option<u32>,
-    pub line: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -177,41 +172,11 @@ pub fn build_program_graph(program: &Program) -> DslResult<ProgramGraph> {
         .iter()
         .find(|composition| composition.default_run)
         .map(|composition| composition.id.clone());
-    let mut population_paths = Vec::new();
-    for composition in &program.compositions {
-        let same_slice_parent = all_parents
-            .get(&composition.id)
-            .into_iter()
-            .flatten()
-            .filter_map(|parent| {
-                program
-                    .compositions
-                    .iter()
-                    .find(|candidate| candidate.id == *parent)
-            })
-            .any(|parent| parent.slice == composition.slice);
-        if composition.graph_group.as_deref() == Some("main") && !same_slice_parent {
-            population_paths.extend(build_population_plan(program, &composition.id, 1, None)?);
-        }
-    }
-    if let Some(id) = default_run_id.as_deref()
-        && let Some(pool_id) = program
-            .compositions
-            .iter()
-            .find(|composition| composition.id == id)
-            .and_then(|composition| composition.agent_pool.as_deref())
-    {
-        let mut graph_program = program.clone();
-        graph_program.represented_pool = Some(6_999_999_999);
-        population_paths.extend(build_population_plan(&graph_program, pool_id, 1, None)?);
-    }
-    apply_population_defaults(&population_paths, &mut nodes);
     Ok(ProgramGraph {
         nodes,
         edges,
         slices,
         orphan_agents,
-        population_paths,
         default_run_id,
     })
 }
@@ -306,9 +271,6 @@ fn graph_group_priority(group: &str) -> usize {
 fn canonical_parents(program: &Program) -> BTreeMap<String, String> {
     let mut parents = BTreeMap::new();
     for composition in &program.compositions {
-        if !composition.couplings.is_empty() || !composition.boundaries.is_empty() {
-            continue;
-        }
         for entry in &composition.entries {
             parents
                 .entry(entry.child.clone())
@@ -358,28 +320,6 @@ fn composition_node(
         .collect::<BTreeSet<_>>();
     let decisions = role_decisions(program, &role_ids);
     let actions = role_actions(program, &role_ids);
-    let couplings = composition
-        .couplings
-        .iter()
-        .map(|coupling| GraphCoupling {
-            id: coupling.id.clone(),
-            source: coupling.source.clone(),
-            target: coupling.target.clone(),
-            formula: expression_text(&coupling.value),
-            sync_interval_days: coupling
-                .cadence_days
-                .or_else(|| composition.cached.as_ref().map(|cached| cached.sync_days)),
-            line: coupling.line,
-        })
-        .chain(composition.boundaries.iter().map(|boundary| GraphCoupling {
-            id: boundary.id.clone(),
-            source: boundary.source.clone(),
-            target: boundary.target.clone(),
-            formula: format!("identity({})", boundary.fields.join(", ")),
-            sync_interval_days: composition.cached.as_ref().map(|cached| cached.sync_days),
-            line: boundary.line,
-        }))
-        .collect();
     Ok(GraphNode {
         id: composition.id.clone(),
         node_kind: "composition".to_owned(),
@@ -419,10 +359,20 @@ fn composition_node(
         entity_unit: composition.entity_unit.clone(),
         role_targets: composition.role_targets.clone(),
         agent_pool: composition.agent_pool.clone(),
+        exemplar_households: composition.exemplar_households,
+        stratum: composition.stratum.clone(),
+        heterogeneity: composition.heterogeneity,
+        distribution_status: composition.distribution_status.clone(),
+        provenance: composition.provenance.clone(),
+        clock_minutes: composition.clock_minutes,
+        sync_up_minutes: composition.sync_up_minutes,
         simulated_count: Some(composition_simulated_count(program, composition)),
         line: composition.line,
-        cached: composition.cached.is_some(),
-        sync_interval_days: composition.cached.as_ref().map(|cached| cached.sync_days),
+        cached: program
+            .aggregate_functions
+            .iter()
+            .any(|function| function.id == composition.id),
+        sync_interval_days: None,
         places: composition.places.clone(),
         roles_exposed: roles,
         subtree_role_count: 0,
@@ -439,7 +389,6 @@ fn composition_node(
             .iter()
             .map(|output| output.id.clone())
             .collect(),
-        couplings,
         aggregate: graph_aggregate(program, &composition.id),
     })
 }
@@ -482,6 +431,13 @@ fn archetype_node(
         entity_unit: None,
         role_targets: BTreeMap::new(),
         agent_pool: None,
+        exemplar_households: None,
+        stratum: None,
+        heterogeneity: 0.0,
+        distribution_status: "estimated".to_owned(),
+        provenance: None,
+        clock_minutes: 0,
+        sync_up_minutes: None,
         simulated_count: Some(
             archetype.sample_households
                 * archetype
@@ -523,7 +479,6 @@ fn archetype_node(
             .iter()
             .map(|output| output.id.clone())
             .collect(),
-        couplings: Vec::new(),
         aggregate: graph_aggregate(program, &archetype.id),
     }
 }
@@ -569,6 +524,13 @@ fn agent_node(
         entity_unit: None,
         role_targets: BTreeMap::new(),
         agent_pool: None,
+        exemplar_households: None,
+        stratum: None,
+        heterogeneity: 0.0,
+        distribution_status: "estimated".to_owned(),
+        provenance: None,
+        clock_minutes: 0,
+        sync_up_minutes: None,
         simulated_count: None,
         line: agent.line,
         cached: false,
@@ -600,7 +562,6 @@ fn agent_node(
         decisions,
         actions: role_actions(program, &role_ids),
         outputs: Vec::new(),
-        couplings: Vec::new(),
         aggregate: None,
     }
 }
@@ -698,25 +659,6 @@ fn orphan_agents(program: &Program) -> Vec<String> {
         .collect()
 }
 
-fn apply_population_defaults(paths: &[PopulationAllocation], nodes: &mut [GraphNode]) {
-    for node in nodes {
-        let matches = paths
-            .iter()
-            .filter(|allocation| allocation.node_id == node.id)
-            .collect::<Vec<_>>();
-        let Some(first) = matches.first() else {
-            continue;
-        };
-        node.distribution_probability = Some(first.probability);
-        node.expected_represented = Some(first.expected_represented);
-        node.actual_represented = Some(first.actual_represented);
-        node.expected_simulated = Some(first.expected_simulated);
-        node.actual_simulated = Some(first.actual_simulated);
-        node.represented_count = Some(first.actual_represented);
-        node.simulated_count = Some(first.actual_simulated as usize);
-    }
-}
-
 fn graph_edges(program: &Program) -> Vec<GraphEdge> {
     let mut edges = Vec::new();
     for composition in &program.compositions {
@@ -730,32 +672,6 @@ fn graph_edges(program: &Program) -> Vec<GraphEdge> {
                 sync_interval_days: None,
                 line: entry.line,
                 formula: None,
-            });
-        }
-        for coupling in &composition.couplings {
-            edges.push(GraphEdge {
-                id: coupling.id.clone(),
-                from_id: coupling.source.clone(),
-                to_id: coupling.target.clone(),
-                kind: "coupling".to_owned(),
-                weight: None,
-                sync_interval_days: coupling
-                    .cadence_days
-                    .or_else(|| composition.cached.as_ref().map(|cached| cached.sync_days)),
-                line: coupling.line,
-                formula: Some(expression_text(&coupling.value)),
-            });
-        }
-        for boundary in &composition.boundaries {
-            edges.push(GraphEdge {
-                id: boundary.id.clone(),
-                from_id: boundary.source.clone(),
-                to_id: boundary.target.clone(),
-                kind: "coupling".to_owned(),
-                weight: None,
-                sync_interval_days: composition.cached.as_ref().map(|cached| cached.sync_days),
-                line: boundary.line,
-                formula: Some(format!("identity({})", boundary.fields.join(", "))),
             });
         }
     }
@@ -809,7 +725,14 @@ fn composition_roles(
     let mut counts = composition
         .leaders
         .iter()
-        .map(|leader| (leader.role.clone(), leader.count))
+        .map(|leader| {
+            (
+                leader.role.clone(),
+                leader
+                    .count
+                    .saturating_mul(composition.entity_count.unwrap_or(1) as usize),
+            )
+        })
         .collect::<BTreeMap<_, _>>();
     let mut role_ids = counts.keys().cloned().collect::<BTreeSet<_>>();
     for (role, target) in &composition.role_targets {
@@ -979,6 +902,7 @@ fn graph_action(action: &ActionDefinition) -> GraphAction {
             action.duration.median,
             action.duration.maximum
         ),
+        target: action.target.as_ref().map(target_text),
         effects: action
             .outcomes
             .iter()
@@ -992,6 +916,22 @@ fn graph_action(action: &ActionDefinition) -> GraphAction {
                 )
             })
             .collect(),
+    }
+}
+
+fn target_text(target: &TargetSelector) -> String {
+    match target {
+        TargetSelector::Random { place, filter } => filter.as_ref().map_or_else(
+            || format!("random agent at {place}"),
+            |filter| format!("random agent at {place} where {}", expression_text(filter)),
+        ),
+        TargetSelector::CurrentRandom { filter } => filter.as_ref().map_or_else(
+            || "random co-located agent".to_owned(),
+            |filter| format!("random co-located agent where {}", expression_text(filter)),
+        ),
+        TargetSelector::Friend { place } => format!("friend at {place}"),
+        TargetSelector::Enemy { place } => format!("enemy at {place}"),
+        TargetSelector::Strongest { place, field } => format!("strongest {field} at {place}"),
     }
 }
 

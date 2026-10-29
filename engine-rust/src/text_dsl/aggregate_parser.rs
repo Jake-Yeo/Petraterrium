@@ -475,10 +475,6 @@ pub(super) fn validate_aggregate_functions(program: &Program) -> DslResult<()> {
                             .places
                             .iter()
                             .any(|item| item.id == *place && item.states.contains_key(field)) => {}
-                    ReportMetric::FlowCount { flow } | ReportMetric::FlowRate { flow }
-                        if composition.is_some_and(|item| {
-                            item.flows.iter().any(|entry| entry.id == *flow)
-                        }) => {}
                     _ => {
                         return Err(DslError::new(
                             "INVALID_AGGREGATE_OUTPUT_SOURCE",

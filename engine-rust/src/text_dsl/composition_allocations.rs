@@ -28,11 +28,11 @@ pub(super) fn validate_authoritative_allocations(program: &Program) -> DslResult
         .filter(|composition| composition.authoritative_total.is_some())
     {
         let total = root.authoritative_total.unwrap();
-        let sample_budget = root.sample_budget.ok_or_else(|| {
+        let household_count = root.exemplar_households.map(u64::from).ok_or_else(|| {
             DslError::new(
-                "MISSING_SAMPLE_BUDGET",
+                "MISSING_EXEMPLAR_HOUSEHOLDS",
                 root.line,
-                "Authoritative allocation needs a sample budget",
+                "Authoritative allocation needs households_per_exemplar",
             )
         })?;
         if total == 0 {
@@ -42,11 +42,11 @@ pub(super) fn validate_authoritative_allocations(program: &Program) -> DslResult
                 "Authoritative total must be positive",
             ));
         }
-        if sample_budget == 0 || sample_budget > total {
+        if household_count == 0 || household_count > total {
             return Err(DslError::new(
-                "INVALID_SAMPLE_BUDGET",
+                "INVALID_EXEMPLAR_HOUSEHOLDS",
                 root.line,
-                "Sample budget must be positive and no larger than the authoritative total",
+                "Exemplar households must be positive and no larger than the authoritative total",
             ));
         }
         let leaves = allocation_leaves(root, &compositions)?;
@@ -106,7 +106,10 @@ pub(super) fn composition_allocations(
         .map(|leaf| (leaf.path.clone(), leaf.weight))
         .collect::<Vec<_>>();
     let represented = largest_remainders(total, &weights);
-    let simulated = largest_remainders(root.sample_budget.unwrap_or(0), &weights);
+    let simulated = largest_remainders(
+        root.exemplar_households.map(u64::from).unwrap_or(0),
+        &weights,
+    );
     Ok(leaves
         .into_iter()
         .map(|leaf| CompositionAllocation {

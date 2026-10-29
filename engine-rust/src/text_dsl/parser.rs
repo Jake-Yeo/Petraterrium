@@ -591,11 +591,7 @@ fn parse_population(lines: &[Line], start: usize) -> DslResult<(PopulationDefini
     while index < lines.len() && lines[index].indent > 0 {
         let line = &lines[index];
         require_indent(line, 2)?;
-        if let Some(value) = line
-            .text
-            .strip_prefix("sample_budget = ")
-            .or_else(|| line.text.strip_prefix("size = "))
-        {
+        if let Some(value) = line.text.strip_prefix("size = ") {
             size = Some(number_with_placeholder(value, line.number)? as usize);
             index += 1;
         } else if line.text == "mix:" {
@@ -711,9 +707,9 @@ fn parse_population(lines: &[Line], start: usize) -> DslResult<(PopulationDefini
         PopulationDefinition {
             size: size.ok_or_else(|| {
                 DslError::new(
-                    "MISSING_POPULATION_BUDGET",
+                    "MISSING_POPULATION_SIZE",
                     lines[start].number,
-                    "Population needs sample_budget",
+                    "Population needs size",
                 )
             })?,
             mix,
@@ -1449,12 +1445,6 @@ pub(super) fn parse_report_metric(value: &str, line: usize) -> DslResult<ReportM
                 field: positional[1].to_owned(),
             })
         }
-        "flow_count" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::FlowCount {
-            flow: positional[0].to_owned(),
-        }),
-        "flow_rate" if positional.len() == 1 && named.is_empty() => Ok(ReportMetric::FlowRate {
-            flow: positional[0].to_owned(),
-        }),
         "action_count" if positional.len() == 1 && named.keys().all(|key| *key == "window") => {
             Ok(ReportMetric::ActionCount {
                 aggregate: positional[0].to_owned(),
@@ -2397,13 +2387,6 @@ fn validate_program(program: &Program) -> DslResult<()> {
                             format!("Output column references unknown place state {place}.{field}"),
                         ));
                     }
-                }
-                ReportMetric::FlowCount { .. } | ReportMetric::FlowRate { .. } => {
-                    return Err(DslError::new(
-                        "INVALID_OUTPUT_FLOW",
-                        column.line,
-                        "Flow metrics belong to composition outputs",
-                    ));
                 }
                 _ => {}
             }

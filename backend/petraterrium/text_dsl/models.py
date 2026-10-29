@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,7 +21,6 @@ class TextDslValidation(TextDslModel):
     program_id: str | None = None
     version: str | None = None
     tick_hours: float | None = None
-    adult_population: int | None = None
     entities: tuple[str, ...] = ()
     policies: tuple[str, ...] = ()
     roles: tuple[str, ...] = ()
@@ -57,12 +56,11 @@ class TextDslRunRequest(TextDslModel):
     seed: int = Field(default=1, ge=0)
     days: int = Field(default=30, ge=1, le=365)
     total_represented_pool: int = Field(default=6_999_999_999, ge=1)
-    detail: Literal["low", "medium", "high"] = "medium"
     role_parameters: dict[str, dict[str, float]] = Field(default_factory=dict)
+    exemplar_inputs: dict[str, dict[str, float]] = Field(default_factory=dict)
+    events: tuple[str, ...] = ()
     baseline_run_id: str | None = None
-    population_id: str | None = None
     composition_id: str | None = None
-    composition_population_id: str | None = None
 
 
 TextDslReportValue = float | str | dict[str, float]
@@ -108,15 +106,12 @@ class TextDslRunResult(TextDslModel):
     seed: int
     days: int
     ticks: int
-    adult_population: int
-    total_agents: int
-    generated_children: int
     total_represented_pool: int
-    detail: Literal["low", "medium", "high"]
-    pool_summary: dict[str, Any]
-    pool_agents: tuple[dict[str, Any], ...] = ()
-    population_allocations: tuple[dict[str, Any], ...] = ()
-    population_id: str | None = None
+    exemplar_plan: dict[str, Any]
+    cache_stats: dict[str, Any]
+    leader_assignments: dict[str, str]
+    unassigned_required_roles: int
+    exemplar_cache: dict[str, Any] = Field(default_factory=dict)
     results_title: str
     results_subtitle: str
     reports: tuple[TextDslReport, ...]
@@ -132,10 +127,9 @@ class TextDslRunSummary(TextDslModel):
     seed: int
     days: int
     ticks: int
-    total_agents: int
     total_represented_pool: int
-    detail: Literal["low", "medium", "high"]
-    population_id: str | None = None
+    total_exemplars: int
+    cache_hit: bool
     created_at: str
 
 

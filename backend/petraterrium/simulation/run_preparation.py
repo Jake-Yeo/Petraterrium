@@ -97,12 +97,13 @@ class LazyRustCoreClient:
         seed: int,
         ticks: int,
         total_represented_pool: int | None = None,
-        detail: str | None = None,
         role_parameters: Mapping[str, Mapping[str, float]] | None = None,
+        dsl_source_hash: str | None = None,
+        exemplar_cache: Mapping[str, Mapping[str, Any]] | None = None,
+        exemplar_inputs: Mapping[str, Mapping[str, float]] | None = None,
+        events: list[str] | None = None,
         continuation: Mapping[str, Any] | None = None,
-        population_id: str | None = None,
         composition_id: str | None = None,
-        composition_population_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             if self._client is None:
@@ -113,12 +114,13 @@ class LazyRustCoreClient:
             seed=seed,
             ticks=ticks,
             total_represented_pool=total_represented_pool,
-            detail=detail,
             role_parameters=role_parameters,
+            dsl_source_hash=dsl_source_hash,
+            exemplar_cache=exemplar_cache,
+            exemplar_inputs=exemplar_inputs,
+            events=events,
             continuation=continuation,
-            population_id=population_id,
             composition_id=composition_id,
-            composition_population_id=composition_population_id,
         )
 
     def evaluate_text_dsl_aggregate(self, source: str, **request: Any) -> dict[str, Any]:
@@ -127,13 +129,6 @@ class LazyRustCoreClient:
                 self._client = RustCoreClient()
             client = self._client
         return client.evaluate_text_dsl_aggregate(source, **request)
-
-    def evaluate_cached_composition(self, source: str, **request: Any) -> dict[str, Any]:
-        with self._lock:
-            if self._client is None:
-                self._client = RustCoreClient()
-            client = self._client
-        return client.evaluate_cached_composition(source, **request)
 
 
 def _text_trait(agent: AgentRecord, name: str) -> str:

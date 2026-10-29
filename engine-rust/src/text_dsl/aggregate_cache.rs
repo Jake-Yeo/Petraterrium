@@ -119,7 +119,7 @@ fn learn_aggregate_function(
                     build.program,
                     build.state,
                     composition.outputs.clone(),
-                    Some((build.agent_groups, build.flows)),
+                    Some(build.agent_groups),
                 )
             } else if program_branch {
                 let initial = run_program(DslRunRequest::new(program.clone(), seed, 0))?;
@@ -151,7 +151,7 @@ fn learn_aggregate_function(
                 delta_ticks,
                 state,
             ))?;
-            if let (Some(composition), Some((agent_groups, flows))) =
+            if let (Some(composition), Some(agent_groups)) =
                 (composition, composition_context.as_ref())
             {
                 decorate_composition_result(
@@ -160,7 +160,6 @@ fn learn_aggregate_function(
                     &mut result,
                     agent_groups,
                     &action_aggregates,
-                    flows,
                     target_ticks,
                     prepared.tick_hours,
                     true,
